@@ -20,6 +20,6 @@
 package cfg
 
 type ExplorerConfig struct {
-	KaiMainNet string
-	KaiTestNet string
+	KaiMainnet string
+	KaiTestnet string
 }

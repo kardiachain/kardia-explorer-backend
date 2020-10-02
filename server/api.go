@@ -22,6 +22,8 @@ import (
 	"context"
 	"time"
 
+	"github.com/kardiachain/go-kardiamain/lib/common"
+
 	"github.com/kardiachain/explorer-backend/kardia"
 )
 
@@ -34,9 +36,13 @@ type apiServer struct {
 	kaiClient kardia.Client
 }
 
-func (s *apiServer) latestBlockNumber(ctx context.Context) (uint64, error) {
+func (s *apiServer) LatestBlockNumber(ctx context.Context) (uint64, error) {
 	ctx, cancel := context.WithTimeout(ctx, DefaultTimeout)
 	defer cancel()
 
 	return s.kaiClient.LatestBlockNumber(ctx)
+}
+
+func (s *apiServer) BlockByHash(ctx context.Context, hash common.Hash) {
+
 }

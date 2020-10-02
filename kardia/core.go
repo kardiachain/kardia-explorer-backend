@@ -24,6 +24,18 @@ import (
 	"go.uber.org/zap"
 )
 
+type KaiProtocol string
+
+const (
+	RPCProtocol  KaiProtocol = "rpc"
+	HTTPProtocol KaiProtocol = "http"
+)
+
 type client struct {
-	lgr *zap.Logger
+	logger *zap.Logger
+}
+
+// NewKaiClient return a kai client with suitable protocol
+func NewKaiClient(logger *zap.Logger, protocol KaiProtocol) (Client, error) {
+	return nil, nil
 }
