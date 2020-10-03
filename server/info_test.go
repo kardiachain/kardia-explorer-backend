@@ -15,3 +15,11 @@ func TestDB_InsertWithMassRecord(t *testing.T) {
 func generateRecordSet(size uint) {
 
 }
+
+func TestDB_UsingPG(t *testing.T) {
+
+}
+
+func TestDB_UsingMgo(t *testing.T) {
+
+}

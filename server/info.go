@@ -6,7 +6,6 @@ import (
 	"time"
 
 	"github.com/go-redis/redis"
-	"go.mongodb.org/mongo-driver/mongo"
 	"go.uber.org/zap"
 
 	"github.com/kardiachain/explorer-backend/metrics"
@@ -17,12 +16,32 @@ const (
 	poolLimit int = 128
 )
 
+// DB define list API used by infoServer
+type DB interface {
+	ping() error
+	importBlock(ctx context.Context, block *types.Block) error
+	updateActiveAddress() error
+}
+
+type InfoServer interface {
+	BlockByNumber(ctx context.Context, blockNumber uint64) (*types.Block, error)
+	ImportBlock(ctx context.Context, block *types.Block) (*types.Block, error)
+}
+
 // infoServer handle how data was retrieved, stored without interact with other network excluded db
 type infoServer struct {
-	mgo     *mongo.Database
+	db      DB
 	metrics *metrics.Provider
 	logger  *zap.Logger
 	cache   *redis.Client
+}
+
+func (s *infoServer) BlockByNumber(ctx context.Context, blockNumber uint64) (*types.Block, error) {
+	panic("implement me")
+}
+
+func (s *infoServer) ImportBlock(ctx context.Context, block *types.Block) error {
+	return s.db.importBlock(ctx, block)
 }
 
 func (s *infoServer) createMongoClient() {
