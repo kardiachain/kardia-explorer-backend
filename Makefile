@@ -1,9 +1,9 @@
 .EXPORT_ALL_VARIABLES:
 
-COMPOSE_PROJECT_NAME=kardia-kaistarter
+COMPOSE_PROJECT_NAME=kardia-explorer
 DOCKER_FILE=./deployments/godev.Dockerfile
 
-all: build-docker-compose run-db
+all: build-docker-compose
 build-docker-compose:
 	docker-compose --file ./deployments/docker-compose.yml build
 run-db:
@@ -15,8 +15,6 @@ run-app:
 	docker-compose --file ./deployments/docker-compose.yml up app
 run-app-test:
 	docker-compose --file ./deployments/docker-compose.yml up app_test
-run-app-bg:
-	docker-compose --file ./deployments/docker-compose.yml up -d app
 utest:
 	go test ./internal/... -cover -covermode=count -coverprofile=cover.out -coverpkg=./internal/...
 	go tool cover -func=cover.out
