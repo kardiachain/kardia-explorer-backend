@@ -1,0 +1,47 @@
+run:
+  skip-dirs:
+    - client
+    - mock
+    - protobuf
+    - tools
+
+linters:
+  disable-all: true
+  enable:
+    - bodyclose
+    - deadcode
+    - depguard
+    - errcheck
+    - goconst
+    - gocritic
+    - gocyclo
+    - gofmt
+    - goimports
+    - golint
+    - gosec
+    - gosimple
+    - govet
+    - ineffassign
+    - interfacer
+    - misspell
+    - prealloc
+    - rowserrcheck
+    - scopelint
+    - staticcheck
+    - structcheck
+    - stylecheck
+    - typecheck
+    - unconvert
+    - unparam
+    - unused
+    - varcheck
+    - whitespace
+
+issues:
+  exclude-rules:
+    # disable unused linter for packages in features directory,
+    # because those are invoked by godog, that makes the
+    # unused linter reports false positive resp.
+    - path: features
+      linters:
+        - unused

@@ -4,9 +4,6 @@ services:
   mongodb:
     image: mongo
     container_name: "mongodb"
-    #environment:
-    #  - MONGO_DATA_DIR=/data/db
-    #  - MONGO_LOG_DIR=/dev/null
     volumes:
       - ../mongo/data/db:/data/db
   db:
@@ -15,7 +12,7 @@ services:
     ports:
       - 5434:5432
     environment:
-      POSTGRES_DB: kaistarter
+      POSTGRES_DB: explorer
       POSTGRES_PASSWORD: example
     volumes:
       - ../postgres/data/:/var/lib/postgresql/data
