@@ -1,6 +1,14 @@
 version: '3.4'
 
 services:
+  mongodb:
+    image: mongo
+    container_name: "mongodb"
+    #environment:
+    #  - MONGO_DATA_DIR=/data/db
+    #  - MONGO_LOG_DIR=/dev/null
+    volumes:
+      - ../mongo/data/db:/data/db
   db:
     image: postgres:11.3-alpine
     restart: always
@@ -14,8 +22,6 @@ services:
   app:
     ulimits:
       memlock: -1
-    depends_on:
-      - db
     build:
       context: ../
       dockerfile: ${DOCKER_FILE}
@@ -24,8 +30,8 @@ services:
         github_token: ${GITHUB_TOKEN}
     image: dev_image
     volumes:
-      - "../:/kaistarter/"
-    working_dir: /kaistarter
+      - "../:/explorer/"
+    working_dir: /explorer
     entrypoint: ./scripts/start_dev.sh
     ports:
       - 8081:3000
