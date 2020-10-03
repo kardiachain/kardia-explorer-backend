@@ -20,8 +20,6 @@ package api
 
 import (
 	"github.com/labstack/echo"
-
-	"github.com/kardiachain/explorer-backend/server"
 )
 
 // EchoServer define all API expose
@@ -36,6 +34,7 @@ type EchoServer interface {
 
 	// Chart
 	TPS(c echo.Context) error
+	BlockTime(c echo.Context) error
 
 	// Validators
 	ValidatorStats(c echo.Context) error
@@ -65,8 +64,6 @@ type EchoServer interface {
 	Contracts(c echo.Context) error
 }
 
-var echoSrv EchoServer
-
 type restDefinition struct {
 	method      string
 	path        string
@@ -74,153 +71,172 @@ type restDefinition struct {
 	middlewares []echo.MiddlewareFunc
 }
 
-var apis = []restDefinition{
-	{
-		method:      echo.GET,
-		path:        "/ping",
-		fn:          echoSrv.Ping,
-		middlewares: nil,
-	},
-	{
-		method:      echo.GET,
-		path:        "/info",
-		fn:          echoSrv.Ping,
-		middlewares: nil,
-	},
-	{
-		method:      echo.GET,
-		path:        "/stats",
-		fn:          echoSrv.Ping,
-		middlewares: nil,
-	},
-	{
-		method:      echo.GET,
-		path:        "/tokens/info",
-		fn:          echoSrv.Ping,
-		middlewares: nil,
-	},
-	{
-		method:      echo.GET,
-		path:        "/tokens/info",
-		fn:          echoSrv.Ping,
-		middlewares: nil,
-	},
-	{
-		method:      echo.GET,
-		path:        "/tokens/info",
-		fn:          echoSrv.Ping,
-		middlewares: nil,
-	},
-	{
-		method:      echo.GET,
-		path:        "/tokens/info",
-		fn:          echoSrv.Ping,
-		middlewares: nil,
-	},
-	{
-		method:      echo.GET,
-		path:        "/tokens/info",
-		fn:          echoSrv.Ping,
-		middlewares: nil,
-	},
-	{
-		method:      echo.GET,
-		path:        "/tokens/info",
-		fn:          echoSrv.Ping,
-		middlewares: nil,
-	},
-	{
-		method:      echo.GET,
-		path:        "/tokens/info",
-		fn:          echoSrv.Ping,
-		middlewares: nil,
-	},
-	{
-		method:      echo.GET,
-		path:        "/tokens/info",
-		fn:          echoSrv.Ping,
-		middlewares: nil,
-	},
-	{
-		method:      echo.GET,
-		path:        "/tokens/info",
-		fn:          echoSrv.Ping,
-		middlewares: nil,
-	},
-	{
-		method:      echo.GET,
-		path:        "/tokens/info",
-		fn:          echoSrv.Ping,
-		middlewares: nil,
-	},
-	{
-		method:      echo.GET,
-		path:        "/tokens/info",
-		fn:          echoSrv.Ping,
-		middlewares: nil,
-	},
-	{
-		method:      echo.GET,
-		path:        "/tokens/info",
-		fn:          echoSrv.Ping,
-		middlewares: nil,
-	},
-	{
-		method:      echo.GET,
-		path:        "/tokens/info",
-		fn:          echoSrv.Ping,
-		middlewares: nil,
-	},
-	{
-		method:      echo.GET,
-		path:        "/tokens/info",
-		fn:          echoSrv.Ping,
-		middlewares: nil,
-	},
-	{
-		method:      echo.GET,
-		path:        "/tokens/info",
-		fn:          echoSrv.Ping,
-		middlewares: nil,
-	},
-	{
-		method:      echo.GET,
-		path:        "/tokens/info",
-		fn:          echoSrv.Ping,
-		middlewares: nil,
-	},
-	{
-		method:      echo.GET,
-		path:        "/tokens/info",
-		fn:          echoSrv.Ping,
-		middlewares: nil,
-	}, {
-		method:      echo.GET,
-		path:        "/tokens/info",
-		fn:          echoSrv.Ping,
-		middlewares: nil,
-	},
-	{
-		method:      echo.GET,
-		path:        "/ping",
-		fn:          echoSrv.Ping,
-		middlewares: nil,
-	},
-}
-
-func Start(srv *server.Server) {
-	e := echo.New()
-	v1Gr := e.Group("api/1")
-
-	echoSrv = srv
-	for _, api := range apis {
-		v1Gr.Add(api.method, api.path, api.fn, api.middlewares...)
+func bind(gr *echo.Group, srv EchoServer) {
+	apis := []restDefinition{
+		{
+			method:      echo.GET,
+			path:        "/ping",
+			fn:          srv.Ping,
+			middlewares: nil,
+		},
+		{
+			method:      echo.GET,
+			path:        "/info",
+			fn:          srv.Info,
+			middlewares: nil,
+		},
+		// Dashboarad
+		{
+			method: echo.GET,
+			path:   "/dashboard/tps",
+			fn:     srv.TPS,
+		},
+		{
+			method: echo.GET,
+			path:   "/dashboard/time",
+			fn:     srv.BlockTime,
+		},
+		// Blocks
+		{
+			method: echo.GET,
+			// Query params: ?page=1&limit=10
+			path: "/blocks/",
+			fn:   srv.Blocks,
+		},
+		{
+			method: echo.GET,
+			// Params: block's hash
+			// Query params: ?page=1&limit=10
+			path: "/block/:blockHash/txs",
+			fn:   srv.BlockTxs,
+		},
+		{
+			method: echo.GET,
+			path:   "/txs/:txHash",
+			fn:     srv.TxByHash,
+		},
+		// Address
+		{
+			method: echo.GET,
+			path:   "/addresses",
+			fn:     srv.Addresses,
+		},
+		// Tokens
+		{
+			method:      echo.GET,
+			path:        "/tokens/:address/txs",
+			fn:          srv.AddressTxs,
+			middlewares: nil,
+		},
+		//{
+		//	method:      echo.GET,
+		//	path:        "/tokens/info",
+		//	fn:          srv.Ping,
+		//	middlewares: nil,
+		//},
+		//{
+		//	method:      echo.GET,
+		//	path:        "/tokens/info",
+		//	fn:          srv.Ping,
+		//	middlewares: nil,
+		//},
+		//{
+		//	method:      echo.GET,
+		//	path:        "/tokens/info",
+		//	fn:          srv.Ping,
+		//	middlewares: nil,
+		//},
+		//{
+		//	method:      echo.GET,
+		//	path:        "/tokens/info",
+		//	fn:          srv.Ping,
+		//	middlewares: nil,
+		//},
+		//{
+		//	method:      echo.GET,
+		//	path:        "/tokens/info",
+		//	fn:          srv.Ping,
+		//	middlewares: nil,
+		//},
+		//{
+		//	method:      echo.GET,
+		//	path:        "/tokens/info",
+		//	fn:          srv.Ping,
+		//	middlewares: nil,
+		//},
+		//{
+		//	method:      echo.GET,
+		//	path:        "/tokens/info",
+		//	fn:          srv.Ping,
+		//	middlewares: nil,
+		//},
+		//{
+		//	method:      echo.GET,
+		//	path:        "/tokens/info",
+		//	fn:          srv.Ping,
+		//	middlewares: nil,
+		//},
+		//{
+		//	method:      echo.GET,
+		//	path:        "/tokens/info",
+		//	fn:          srv.Ping,
+		//	middlewares: nil,
+		//},
+		//{
+		//	method:      echo.GET,
+		//	path:        "/tokens/info",
+		//	fn:          srv.Ping,
+		//	middlewares: nil,
+		//},
+		//{
+		//	method:      echo.GET,
+		//	path:        "/tokens/info",
+		//	fn:          srv.Ping,
+		//	middlewares: nil,
+		//},
+		//{
+		//	method:      echo.GET,
+		//	path:        "/tokens/info",
+		//	fn:          srv.Ping,
+		//	middlewares: nil,
+		//},
+		//{
+		//	method:      echo.GET,
+		//	path:        "/tokens/info",
+		//	fn:          srv.Ping,
+		//	middlewares: nil,
+		//},
+		//{
+		//	method:      echo.GET,
+		//	path:        "/tokens/info",
+		//	fn:          srv.Ping,
+		//	middlewares: nil,
+		//},
+		//{
+		//	method:      echo.GET,
+		//	path:        "/tokens/info",
+		//	fn:          srv.Ping,
+		//	middlewares: nil,
+		//},
+		//{
+		//	method:      echo.GET,
+		//	path:        "/ping",
+		//	fn:          srv.Ping,
+		//	middlewares: nil,
+		//},
 	}
 
+	for _, api := range apis {
+		gr.Add(api.method, api.path, api.fn, api.middlewares...)
+	}
+
+}
+
+func Start(srv EchoServer) {
+	e := echo.New()
+	v1Gr := e.Group("/api/v1")
+	bind(v1Gr, srv)
 	if err := e.Start(":3000"); err != nil {
 		panic("cannot start echo server")
 	}
-}
-
-type EchoResponse struct {
 }

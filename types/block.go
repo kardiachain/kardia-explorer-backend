@@ -10,7 +10,7 @@ type Block struct {
 	BlockHash string `json:"hash" bson:"hash"`
 	Number    uint64 `json:"height" bson:"height"`
 	CreatedAt uint64 `json:"time" bson:"time"`
-	TxCount   int    `json:"numTxs" bson:"numTxs"`
+	TxCount   int    `json:"tx_count" bson:"tx_count"`
 
 	NumDualEvents uint64 `json:"num_dual_events" bson:"num_dual_events"`
 
@@ -27,7 +27,7 @@ type Block struct {
 	DualEventsHash string      `json:"dual_events_hash" bson:"dual_events_hash"`
 	Root           string      `json:"stateRoot"  bson:"stateRoot"`
 	ReceiptHash    string      `json:"receiptsRoot"     bson:"receiptsRoot"`
-	Bloom          types.Bloom `json:"logsBloom"    bson:"logsBloom"`
+	Bloom          types.Bloom `json:"-"    bson:"logsBloom"`
 
 	Validator string `json:"validator" bson:"validator"`
 	// hashes from the app output from the prev block
@@ -35,8 +35,8 @@ type Block struct {
 	ConsensusHash  string              `json:"consensusHash" bson:"consensusHash"`
 	AppHash        string              `json:"appHash" bson:"appHash"`
 	EvidenceHash   string              `json:"evidenceHash" bson:"evidenceHash"`
-	Txs            []*Transaction      `json:"txs" bson:"txs"`
-	Receipts       []*kai.BasicReceipt `json:"receipts" bson:"receipts"`
+	Txs            []*Transaction      `json:"-" bson:"txs"`
+	Receipts       []*kai.BasicReceipt `json:"-" bson:"receipts"`
 
 	NonceBool bool `json:"nonce_bool" bson:"nonce_bool"`
 }
