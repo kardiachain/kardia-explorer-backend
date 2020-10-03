@@ -74,7 +74,7 @@ func FeatureContext(s *godog.ScenarioContext) {
 	}
 	db := NewDBPool(explorerCfg)
 	c := &suite{
-		logger: logger.With(zap.String("services", "BDD")),
+		logger: logger.With(zap.String("cmd", "BDD")),
 		db:     db,
 	}
 

@@ -35,6 +35,25 @@ services:
     environment: &app-environment
       ENVIRONMENT: dev
       GITHUB_TOKEN: ${GITHUB_TOKEN}
+  grabber:
+    ulimits:
+      memlock: -1
+    build:
+      context: ../
+      dockerfile: ${DOCKER_FILE}
+      target: dev_env
+      args:
+        github_token: ${GITHUB_TOKEN}
+    image: dev_image
+    volumes:
+      - "../:/grabber/"
+    working_dir: /grabber
+    entrypoint: ./scripts/start_dev.sh
+    ports:
+      - 8081:3000
+    environment: &app-environment
+      ENVIRONMENT: dev
+      GITHUB_TOKEN: ${GITHUB_TOKEN}
   app_test:
     ulimits:
       memlock: -1
