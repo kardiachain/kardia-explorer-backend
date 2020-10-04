@@ -28,7 +28,9 @@ import (
 	"github.com/kardiachain/explorer-backend/types"
 	kardia "github.com/kardiachain/go-kardiamain"
 	"github.com/kardiachain/go-kardiamain/lib/common"
+	"github.com/kardiachain/go-kardiamain/lib/rlp"
 	"github.com/kardiachain/go-kardiamain/rpc"
+	coreTypes "github.com/kardiachain/go-kardiamain/types"
 )
 
 // RPCClient return an *rpc.Client instance
@@ -38,12 +40,12 @@ type Client struct {
 }
 
 // NewKaiClient creates a client that uses the given RPC client.
-func NewKaiClient(rpcUrl string, Lgr *zap.Logger) *Client {
+func NewKaiClient(rpcUrl string, Lgr *zap.Logger) (*Client, error) {
 	rpcClient, err := rpc.Dial(rpcUrl)
 	if err != nil {
 		return nil, fmt.Errorf("Failed to dial rpc %q: %v", rpcUrl, err)
 	}
-	return &Client{rpcClient, Lgr}
+	return &Client{rpcClient, Lgr}, nil
 }
 
 // LatestBlockNumber gets latest block number
@@ -72,12 +74,12 @@ func (ec *Client) BlockByNumber(ctx context.Context, number uint64) (*types.Bloc
 
 // BlockHeaderByNumber returns a block header from the current canonical chain.
 // TODO(trinhdn): If number is nil, the latest known block header is returned.
-func (ec *Client) BlockHeaderByNumber(ctx context.Context, number uint64) (*types.Block, error) {
+func (ec *Client) BlockHeaderByNumber(ctx context.Context, number uint64) (*types.Header, error) {
 	return ec.getBlockHeader(ctx, "kai_getBlockHeaderByNumber", number)
 }
 
 // BlockHeaderByHash returns the given block header.
-func (ec *Client) BlockHeaderByHash(ctx context.Context, hash common.Hash) (*types.Block, error) {
+func (ec *Client) BlockHeaderByHash(ctx context.Context, hash common.Hash) (*types.Header, error) {
 	return ec.getBlockHeader(ctx, "kai_getBlockHeaderByHash", hash)
 }
 
@@ -98,11 +100,10 @@ func (ec *Client) TransactionByHash(ctx context.Context, hash common.Hash) (tx *
 
 // BalanceAt returns the wei balance of the given account.
 // The block number can be nil, in which case the balance is taken from the latest known block.
-func (ec *Client) BalanceAt(ctx context.Context, account common.Address, blockHash common.Hash, blockNumber uint64) (*big.Int, error) {
+func (ec *Client) BalanceAt(ctx context.Context, account common.Address, blockHash common.Hash, blockNumber uint64) (string, error) {
 	var result string
 	err := ec.c.CallContext(ctx, &result, "account_balance", account, blockHash, blockNumber)
-	ret, _ := new(big.Int).SetString(result, 10)
-	return ret, err
+	return result, err
 }
 
 // StorageAt returns the value of key in the contract storage of the given account.
@@ -118,7 +119,7 @@ func (ec *Client) StorageAt(ctx context.Context, account common.Address, key com
 func (ec *Client) CodeAt(ctx context.Context, account common.Address, blockNumber uint64) ([]byte, error) {
 	var result common.Bytes
 	err := ec.c.CallContext(ctx, &result, "kai_getCode", account, blockNumber)
-	return result, err.
+	return result, err
 }
 
 // NonceAt returns the account nonce of the given account.
@@ -126,6 +127,19 @@ func (ec *Client) NonceAt(ctx context.Context, account common.Address) (uint64, 
 	var result uint64
 	err := ec.c.CallContext(ctx, &result, "account_nonce", account)
 	return result, err
+}
+
+// SendRawTransaction injects a signed transaction into the pending pool for execution.
+//
+// If the transaction was a contract creation use the TransactionReceipt method to get the
+// contract address after the transaction has been mined.
+// TODO(trinhdn): verify which types of tx is suitable for this API
+func (ec *Client) SendRawTransaction(ctx context.Context, tx *coreTypes.Transaction) error {
+	data, err := rlp.EncodeToBytes(tx)
+	if err != nil {
+		return err
+	}
+	return ec.c.CallContext(ctx, nil, "tx_sendRawTransaction", common.ToHex(data))
 }
 
 func (ec *Client) getBlock(ctx context.Context, method string, args ...interface{}) (*types.Block, error) {
@@ -140,7 +154,7 @@ func (ec *Client) getBlock(ctx context.Context, method string, args ...interface
 		if num == 0 {
 			return &raw, nil
 		}
-		var rawParentBlockHeader kai.BlockHeaderJSON
+		var rawParentBlockHeader types.Header
 		err = ec.c.CallContext(ctx, &rawParentBlockHeader, "kai_getBlockHeaderByNumber", num-1)
 		if err != nil {
 			return nil, fmt.Errorf("marshal parent block header failed: %v", err)
