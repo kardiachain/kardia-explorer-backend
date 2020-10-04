@@ -21,11 +21,11 @@ package kardia
 import (
 	"context"
 
+	"github.com/kardiachain/explorer-backend/types"
 	"github.com/kardiachain/go-kardiamain/lib/common"
-	"github.com/kardiachain/go-kardiamain/types"
 )
 
-type Client interface {
+type ClientInterface interface {
 	BlockByHash(ctx context.Context, hash common.Hash) (*types.Block, error)
 	BlockByNumber(ctx context.Context, number uint64) (*types.Block, error)
 	LatestBlockNumber(ctx context.Context) (uint64, error)

@@ -30,8 +30,3 @@ type Transaction struct {
 type TransactionList struct {
 	Transactions []*Transaction `json:"txs"`
 }
-
-type Tps struct {
-	Time   uint64 `json:"time"`
-	NumTxs uint64 `json:"num_txs"`
-}

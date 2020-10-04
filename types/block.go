@@ -41,6 +41,25 @@ type Block struct {
 	NonceBool bool `json:"nonce_bool" bson:"nonce_bool"`
 }
 
+type Header struct {
+	Hash           string      `json:"hash"`
+	Height         uint64      `json:"height"`
+	LastBlock      string      `json:"lastBlock"`
+	CommitHash     string      `json:"commitHash"`
+	Time           uint64      `json:"time"`
+	NumTxs         uint64      `json:"numTxs"`
+	GasLimit       uint64      `json:"gasLimit"`
+	GasUsed        uint64      `json:"gasUsed"`
+	Validator      string      `json:"validator"`
+	TxHash         string      `json:"dataHash"`     // transactions
+	ReceiptHash    string      `json:"receiptsRoot"` // receipt root
+	Bloom          types.Bloom `json:"logsBloom"`
+	ValidatorsHash string      `json:"validatorHash"` // validators for the current block
+	ConsensusHash  string      `json:"consensusHash"` // hash of current consensus
+	AppHash        string      `json:"appHash"`       // txs state
+	EvidenceHash   string      `json:"evidenceHash"`  // hash of evidence
+}
+
 type BlockList struct {
 	Blocks []*Block `json:"blocks" bson:"blocks"`
 }
