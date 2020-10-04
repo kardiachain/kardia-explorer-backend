@@ -66,11 +66,17 @@ func (m *MongoDB) importBlock(ctx context.Context, block *types.Block) error {
 	}
 
 	for _, tx := range block.Txs {
-		fmt.Printf("Tx %+v \n", tx)
+		m.logger.Debug("Process tx", zap.String("tx", fmt.Sprintf("%#v", tx)))
 	}
 	return nil
 }
 
 func (m *MongoDB) updateActiveAddress() error {
 	panic("implement me")
+}
+
+func (m *MongoDB) dropCollection(collectionName string) {
+	if _, err := m.wrapper.C(collectionName).RemoveAll(nil); err != nil {
+		return
+	}
 }

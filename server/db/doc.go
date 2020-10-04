@@ -15,28 +15,17 @@
  *  You should have received a copy of the GNU Lesser General Public License
  *  along with the go-kardia library. If not, see <http://www.gnu.org/licenses/>.
  */
-// Package db
+
+// Package db actually implement how explorer store data and retrieve data from storage
+// Supported storage: mongoDB and postgres
 package db
 
-import (
-	"context"
+/*
+Assume each blocks contain around [2000, 20000] txs,
+and for each block, mainnet need about [1, 3] seconds for validate,
+and we dont want over 2 blocks behind mainnet
 
-	"github.com/jackc/pgx/v4/pgxpool"
-	"go.uber.org/zap"
-
-	"github.com/kardiachain/explorer-backend/types"
-)
-
-type Postgres struct {
-	logger *zap.Logger
-	db     *pgxpool.Pool
-}
-
-func (r *Postgres) setup() {
-	// Migration
-
-}
-
-func (r *Postgres) importBlock(ctx context.Context, block *types.Block) error {
-	return nil
-}
+Performance requirement:
+- ImportBlock: 20% validate time
+-
+*/
