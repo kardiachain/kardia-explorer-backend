@@ -20,6 +20,10 @@
 package cfg
 
 type ExplorerConfig struct {
-	KaiMainnet string
-	KaiTestnet string
+	KaiMainnet  string
+	KaiTestnet  string
+	PostgresURI string
+}
+
+type GrabberConfig struct {
 }
