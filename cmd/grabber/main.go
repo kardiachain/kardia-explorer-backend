@@ -11,6 +11,11 @@ import (
 
 	"github.com/urfave/cli"
 	"go.uber.org/zap"
+
+	"github.com/kardiachain/explorer-backend/kardia"
+	"github.com/kardiachain/explorer-backend/server"
+	"github.com/kardiachain/explorer-backend/server/cache"
+	"github.com/kardiachain/explorer-backend/server/db"
 )
 
 const (
@@ -23,11 +28,8 @@ func main() {
 	if err != nil {
 		panic("cannot init logger")
 	}
-	defer func() {
-		if err := logger.Sync(); err != nil {
-			logger.Error("cannot sync logger", zap.Error(err))
-		}
-	}()
+
+	logger.Info("Start grabber...")
 
 	defer func() {
 		if err := recover(); err != nil {
@@ -113,42 +115,35 @@ func main() {
 		}
 	}()
 
+	app.Action = func(c *cli.Context) error {
+		ctx := context.Background()
+		srvConfig := server.Config{
+			DBAdapter:       db.MGO,
+			DBUrl:           mongoUrl,
+			KardiaProtocol:  kardia.RPCProtocol,
+			KardiaURL:       rpcUrl,
+			CacheAdapter:    cache.Redis,
+			CacheURL:        "",
+			LockedAccount:   nil,
+			Signers:         nil,
+			IsFlushDatabase: false,
+			Metrics:         nil,
+			Logger:          nil,
+		}
+		srv, err := server.New(srvConfig)
+		if err != nil {
+			logger.Panic(err.Error())
+		}
+
+		// Start listener in new go routine
+		// todo @longnd: Running multi goroutine same time
+		go listener(ctx, srv)
+		updateAddresses(ctx, true, 0, srv)
+		return nil
+	}
+
 	if err := app.Run(os.Args); err != nil {
 		logger.Fatal("Fatal error", zap.Error(err))
 	}
 	logger.Info("Stopping")
-}
-
-func setupAction(cfg zap.Config, c *cli.Context) error {
-	//if c.IsSet("log-level") {
-	//	var lvl zapcore.Level
-	//	s := c.String("log-level")
-	//	if err := lvl.Set(s); err != nil {
-	//		return fmt.Errorf("invalid log-level %q: %v", s, err)
-	//	}
-	//	cfg.Level.SetLevel(lvl)
-	//}
-	//
-	//importer, err := backend.NewBackend(ctx, mongoUrl, rpcUrl, dbName, lockedAccounts, nil, logger, nil, flushDb, metricsProvider)
-	//if err != nil {
-	//	return fmt.Errorf("failed to create backend: %v", err)
-	//}
-	//
-	//listenerImporter, err := backend.NewBackend(ctx, mongoUrl, rpcUrl, dbName, lockedAccounts, nil, logger.With(zap.String("service", "listener")), nil, flushDb, metricsProvider)
-	//if err != nil {
-	//	return fmt.Errorf("failed to create backend: %v", err)
-	//}
-	//backfillImporter, err := backend.NewBackend(ctx, mongoUrl, rpcUrl, dbName, lockedAccounts, nil, logger.With(zap.String("service", "backfill")), nil, false, metricsProvider)
-	//if err != nil {
-	//	return fmt.Errorf("failed to create backend: %v", err)
-	//}
-	//
-	//go listener(ctx, listenerImporter)
-	//go backfill(ctx, backfillImporter, startFrom, checkTxCount)
-	//
-	////go migrator(ctx, importer, logger)
-	//go updateStats(ctx, importer)
-	//go updateAddresses(ctx, 3*time.Minute, false, blockRangeLimit, workersCount, importer) // update only addresses
-	//updateAddresses(ctx, 5*time.Second, true, blockRangeLimit, workersCount, importer)     // update contracts
-	return nil
 }

@@ -23,6 +23,8 @@ import (
 	"fmt"
 
 	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/mongo"
+	"go.mongodb.org/mongo-driver/mongo/options"
 	"go.uber.org/zap"
 
 	"github.com/kardiachain/explorer-backend/types"
@@ -39,19 +41,42 @@ const (
 
 )
 
-type MongoDB struct {
+type mongoDB struct {
 	logger  *zap.Logger
 	wrapper *KaiMgo
 }
 
-func (m *MongoDB) ping() error {
+func newMongoDB(cfg ClientConfig) (*mongoDB, error) {
+	dbClient := &mongoDB{
+		logger:  cfg.Logger.With(zap.String("adapter", "mongo")),
+		wrapper: &KaiMgo{},
+	}
+	mgoURI := fmt.Sprintf("mongodb://%s", cfg.URL)
+	mgoClient, err := mongo.NewClient(options.Client().ApplyURI(mgoURI), options.Client().SetMinPoolSize(32), options.Client().SetMaxPoolSize(64))
+	if err != nil {
+		return nil, err
+	}
+
+	if err := mgoClient.Connect(context.Background()); err != nil {
+		return nil, err
+	}
+	dbClient.wrapper.Database(mgoClient.Database(cfg.DbName))
+
+	return dbClient, nil
+}
+
+func (m *mongoDB) BlockByNumber(ctx context.Context, blockNumber uint64) (*types.Block, error) {
+	panic("implement me")
+}
+
+func (m *mongoDB) ping() error {
 	return nil
 }
 
 // importBlock handle follow task
 // - Upsert block into `Blocks` collections/table
 // - Remove any txs if block exist (if re-import)
-func (m *MongoDB) importBlock(ctx context.Context, block *types.Block) error {
+func (m *mongoDB) ImportBlock(ctx context.Context, block *types.Block) error {
 	lgr := m.logger
 	// todo @longnd: add block info ?
 	// Upsert block into Blocks
@@ -71,11 +96,11 @@ func (m *MongoDB) importBlock(ctx context.Context, block *types.Block) error {
 	return nil
 }
 
-func (m *MongoDB) updateActiveAddress() error {
+func (m *mongoDB) UpdateActiveAddress() error {
 	panic("implement me")
 }
 
-func (m *MongoDB) dropCollection(collectionName string) {
+func (m *mongoDB) dropCollection(collectionName string) {
 	if _, err := m.wrapper.C(collectionName).RemoveAll(nil); err != nil {
 		return
 	}

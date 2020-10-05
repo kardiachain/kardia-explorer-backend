@@ -24,7 +24,7 @@ func MgoImportBlock(size int, b *testing.B) {
 	if err != nil {
 		return
 	}
-	db := &MongoDB{
+	db := &mongoDB{
 		logger:  logger,
 		wrapper: &KaiMgo{},
 	}
@@ -43,13 +43,13 @@ func MgoImportBlock(size int, b *testing.B) {
 		// seeding record into database
 		block := &types.Block{}
 		_ = faker.FakeData(&block)
-		_ = db.importBlock(context.Background(), block)
+		_ = db.ImportBlock(context.Background(), block)
 	}
 
 	block := &types.Block{}
 	_ = faker.FakeData(&block)
 	for i := 0; i < b.N; i++ {
-		_ = db.importBlock(context.Background(), block)
+		_ = db.ImportBlock(context.Background(), block)
 	}
 
 	// Drop

@@ -21,8 +21,29 @@ package server
 import (
 	"go.uber.org/zap"
 
+	"github.com/kardiachain/explorer-backend/kardia"
 	"github.com/kardiachain/explorer-backend/metrics"
+	"github.com/kardiachain/explorer-backend/server/cache"
+	"github.com/kardiachain/explorer-backend/server/db"
+	"github.com/kardiachain/explorer-backend/types"
 )
+
+type Config struct {
+	DBAdapter db.Adapter
+	DBUrl     string
+
+	KardiaProtocol kardia.Protocol
+	KardiaURL      string
+
+	CacheAdapter cache.Adapter
+	CacheURL     string
+
+	LockedAccount   []string
+	Signers         map[string]types.Signer
+	IsFlushDatabase bool
+	Metrics         *metrics.Provider
+	Logger          *zap.Logger
+}
 
 // Server instance kind of a router, which receive request from client (explorer)
 // and control how we react those request
@@ -35,6 +56,29 @@ type Server struct {
 	apiServer
 }
 
-func New() (*Server, error) {
-	return &Server{}, nil
+func New(cfg Config) (*Server, error) {
+
+	dbConfig := db.ClientConfig{
+		DbAdapter: "",
+		DbName:    "",
+		URL:       "",
+		Logger:    nil,
+	}
+	dbClient, err := db.NewClient(dbConfig)
+	if err != nil {
+		return nil, err
+	}
+
+	infoServer := infoServer{
+		dbClient:    dbClient,
+		cacheClient: nil,
+		kaiClient:   nil,
+		metrics:     nil,
+		logger:      nil,
+	}
+
+	return &Server{
+		Logger:     logger,
+		infoServer: infoServer,
+	}, nil
 }
