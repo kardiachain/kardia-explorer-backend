@@ -21,18 +21,21 @@ package kardia
 import (
 	"context"
 
-	"github.com/kardiachain/go-kardiamain/lib/common"
-
 	"github.com/kardiachain/explorer-backend/types"
+	"github.com/kardiachain/go-kardiamain/lib/common"
 )
 
-type Client interface {
+type ClientInterface interface {
+	LatestBlockNumber(ctx context.Context) (uint64, error)
 	BlockByHash(ctx context.Context, hash common.Hash) (*types.Block, error)
 	BlockByNumber(ctx context.Context, number uint64) (*types.Block, error)
-	LatestBlockNumber(ctx context.Context) (uint64, error)
-	HeaderByHash(ctx context.Context, hash common.Hash) (*types.Header, error)
-	HeaderByNumber(ctx context.Context, number uint64) (*types.Header, error)
-	TxByHash(ctx context.Context, hash common.Hash) (*types.Header, error)
-	TxSender(ctx context.Context, tx *types.Transaction, block common.Hash, index uint) (common.Address, error)
-	TotalTransactionOfBlock(ctx context.Context, blockHash common.Hash) (uint, error)
+	BlockHeaderByHash(ctx context.Context, hash common.Hash) (*types.Header, error)
+	BlockHeaderByNumber(ctx context.Context, number uint64) (*types.Header, error)
+	GetTransaction(ctx context.Context, hash common.Hash) (tx *types.Transaction, isPending bool, err error)
+	GetTransactionReceipt(ctx context.Context, txHash common.Hash) (*kai.PublicReceipt, error)
+	BalanceAt(ctx context.Context, account common.Address, blockHash common.Hash, blockNumber uint64) (string, error)
+	StorageAt(ctx context.Context, account common.Address, key common.Hash, blockNumber uint64) ([]byte, error)
+	CodeAt(ctx context.Context, account common.Address, blockNumber uint64) ([]byte, error)
+	NonceAt(ctx context.Context, account common.Address) (uint64, error)
+	SendRawTransaction(ctx context.Context, tx *coreTypes.Transaction) error
 }
