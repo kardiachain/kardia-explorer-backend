@@ -22,7 +22,8 @@ import (
 	"context"
 
 	"github.com/kardiachain/go-kardiamain/lib/common"
-	"github.com/kardiachain/go-kardiamain/types"
+
+	"github.com/kardiachain/explorer-backend/types"
 )
 
 type Client interface {

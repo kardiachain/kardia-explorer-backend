@@ -32,6 +32,14 @@ type Postgres struct {
 	db     *pgxpool.Pool
 }
 
+func (r *Postgres) ping() error {
+	panic("implement me")
+}
+
+func (r *Postgres) updateActiveAddress() error {
+	panic("implement me")
+}
+
 func (r *Postgres) setup() {
 	// Migration
 
