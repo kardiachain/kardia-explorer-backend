@@ -1,32 +1,31 @@
 .EXPORT_ALL_VARIABLES:
 
 COMPOSE_PROJECT_NAME=kardia-explorer
-DOCKER_FILE=./deployments/godev.Dockerfile
+DOCKER_FILE=.Dockerfile
+# Variable for filename for store running processes id
+PID_FILE = /tmp/my-app.pid
+# We can use such syntax to get main.go and other root Go files.
+GO_FILES = $(wildcard *.go)
 
-all: build-docker-compose
-build-docker-compose:
-	docker-compose --file ./deployments/docker-compose.yml build
-run-db:
-	docker-compose --file ./deployments/docker-compose.yml up -d db
-run-clean-db:
-	docker-compose --file ./deployments/docker-compose.yml exec db psql -U postgres -c "DROP SCHEMA IF EXISTS public CASCADE"
-	docker-compose --file ./deployments/docker-compose.yml exec db psql -U postgres -c "CREATE SCHEMA public"
-run-app:
-	docker-compose --file ./deployments/docker-compose.yml up app
-run-app-test:
-	docker-compose --file ./deployments/docker-compose.yml up app_test
+all: build
+build:
+	docker-compose build
+run-grabber:
+	docker-compose up grabber
+run-backend:
+	docker-compose up backend
 utest:
-	go test ./internal/... -cover -covermode=count -coverprofile=cover.out -coverpkg=./internal/...
+	go test ./... -cover -covermode=count -coverprofile=cover.out -coverpkg=./internal/...
 	go tool cover -func=cover.out
-itest:
-	docker-compose --file ./deployments/docker-compose.yml exec app sh -c "cd ./features && godog ."
 list-service:
-	docker-compose --file ./deployments/docker-compose.yml ps
+	docker-compose ps
 exec-service:
-	docker-compose --file ./deployments/docker-compose.yml exec $(service) bash
+	docker-compose exec $(service) bash
 logs:
-	docker-compose --file ./deployments/docker-compose.yml logs -f $(service)
+	docker-compose logs -f $(service)
 destroy:
-	docker-compose --file ./deployments/docker-compose.yml down
-run-app-bg:
-	docker-compose --file ./deployments/docker-compose.yml up -d app
+	docker-compose down
+run-backend-bg:
+	docker-compose up -d backend
+run-all:
+	docker-compose up -d

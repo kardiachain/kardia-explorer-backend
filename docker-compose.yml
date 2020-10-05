@@ -1,0 +1,32 @@
+version: '3.4'
+
+services:
+  mongodb:
+    image: mongo:latest
+    container_name: "explorer-mongodb"
+    volumes:
+      - ../mongo/data/db:/data/db
+    restart: on-failure
+  postgres:
+    image: postgres:11.9
+    container_name: "explorer-postgres"
+    restart: always
+    ports:
+      - 5435:5432
+    environment:
+      POSTGRES_DB: explorer
+      POSTGRES_PASSWORD: example
+    volumes:
+      - ../postgres-explorer:/var/lib/postgresql/data
+  backend:
+    build: .
+    image: kardiachain/backend-explorer
+    ports:
+      - 8000:3000
+    command: "api"
+  grabber:
+    build: .
+    image: kardiachain/backend-explorer
+    ports:
+      - 8001:3000
+    command: "grabber -m mongodb:27017 -u http://10.10.0.251:8551 --log-level info -f true"

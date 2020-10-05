@@ -25,7 +25,6 @@ import (
 
 func CleanUpHex(s string) string {
 	s = strings.Replace(strings.TrimPrefix(s, "0x"), " ", "", -1)
-
 	return strings.ToLower(s)
 }
 
