@@ -22,7 +22,6 @@ import (
 	"context"
 
 	"github.com/kardiachain/go-kardiamain/lib/common"
-	kai "github.com/kardiachain/go-kardiamain/mainchain"
 	coreTypes "github.com/kardiachain/go-kardiamain/types"
 
 	"github.com/kardiachain/explorer-backend/types"
@@ -35,7 +34,7 @@ type ClientInterface interface {
 	BlockHeaderByHash(ctx context.Context, hash common.Hash) (*types.Header, error)
 	BlockHeaderByNumber(ctx context.Context, number uint64) (*types.Header, error)
 	GetTransaction(ctx context.Context, hash common.Hash) (tx *types.Transaction, isPending bool, err error)
-	GetTransactionReceipt(ctx context.Context, txHash common.Hash) (*kai.PublicReceipt, error)
+	GetTransactionReceipt(ctx context.Context, txHash common.Hash) (*types.Receipt, error)
 	BalanceAt(ctx context.Context, account common.Address, blockHash common.Hash, blockNumber uint64) (string, error)
 	StorageAt(ctx context.Context, account common.Address, key common.Hash, blockNumber uint64) ([]byte, error)
 	CodeAt(ctx context.Context, account common.Address, blockNumber uint64) ([]byte, error)

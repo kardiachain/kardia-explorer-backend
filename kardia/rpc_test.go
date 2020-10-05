@@ -32,13 +32,17 @@ import (
 
 	"github.com/kardiachain/explorer-backend/types"
 	"github.com/kardiachain/go-kardiamain/lib/common"
-	kai "github.com/kardiachain/go-kardiamain/mainchain"
 	coreTypes "github.com/kardiachain/go-kardiamain/types"
 )
 
 type testSuite struct {
-	stressTestAmount  uint64
-	minBlockNumber    uint64
+	minBlockNumber uint64
+
+	blockHeight uint64
+	blockHash   string
+	txHash      string
+	address     string
+
 	sampleBlock       *types.Block
 	sampleBlockHeader *types.Header
 	sampleTx          *types.Transaction
@@ -46,16 +50,20 @@ type testSuite struct {
 }
 
 func setupTestSuite() *testSuite {
+	blockHeight := uint64(20)
+	blockHash := "0x634662e42bc71d2a7ca767ca19735c8f19694fd7dfbbc70bb28698e0e01be888"
+	txHash := "0x470570d7b8b40d62398843278b9ff84c2a140d10bda19af8f96c0ae60c994ac1"
+	address := "0xc1fe56E3F58D3244F606306611a5d10c8333f1f6"
 	sampleBlock := &types.Block{
-		BlockHash: "0x63e5862cd056fc0807beb5d47a39b9eac5900c33673df78c1c216b0a3a3f4100",
-		Height:    5,
-		Time:      1601889304,
+		BlockHash: blockHash,
+		Height:    blockHeight,
+		Time:      1601908120,
 		NumTxs:    0,
 		// NumDualEvents:
 		GasLimit:   1050000000,
 		GasUsed:    0,
-		LastBlock:  "0xb7ef72eac2b59540bddd41b117231d35e439a2224d6cf95f9409871bac0cae3a",
-		CommitHash: "0xc733bcd268aaa3bc541ff4a61e307159ff72dd508b571d422c19d5b0ebe23476",
+		LastBlock:  "0xf9fd47f388c3f41214d55c51fc3d59c8a5e550099a2aa3468d500539d15b0c7a",
+		CommitHash: "0x45239add9675da72e0edb5c0ccc80d0f1c758a3cd398fee7f863d69d4863a759",
 		TxHash:     "0x56e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421",
 		// DualEventsHash:
 		Root:          "",
@@ -64,22 +72,22 @@ func setupTestSuite() *testSuite {
 		Validator:     "0xc1fe56E3F58D3244F606306611a5d10c8333f1f6",
 		ValidatorHash: "0x6231cec385931237749482972bf28d819fe9527c5ba618cd3620a1ba3be65bbd",
 		ConsensusHash: "0x0000000000000000000000000000000000000000000000000000000000000000",
-		AppHash:       "0xf05c8cb0cb6db58e20fd2c192693d2468d785b36b6ed95ee243f3bc112014015",
+		AppHash:       "0x0d5d8f1a6fdffac4d9c93b1e230da611b65bad7b3c82fb28300247e3a40df76c",
 		EvidenceHash:  "0x0000000000000000000000000000000000000000000000000000000000000000",
 		Txs:           []*types.Transaction(nil),
-		Receipts:      []*kai.BasicReceipt(nil),
+		Receipts:      []*types.Receipt(nil),
 		NonceBool:     false,
 	}
 	sampleBlockHeader := &types.Header{
-		BlockHash: "0x63e5862cd056fc0807beb5d47a39b9eac5900c33673df78c1c216b0a3a3f4100",
-		Height:    5,
-		Time:      1601889304,
+		BlockHash: blockHash,
+		Height:    blockHeight,
+		Time:      1601908120,
 		NumTxs:    0,
 		// NumDualEvents:
 		GasLimit:   1050000000,
 		GasUsed:    0,
-		LastBlock:  "0xb7ef72eac2b59540bddd41b117231d35e439a2224d6cf95f9409871bac0cae3a",
-		CommitHash: "0xc733bcd268aaa3bc541ff4a61e307159ff72dd508b571d422c19d5b0ebe23476",
+		LastBlock:  "0xf9fd47f388c3f41214d55c51fc3d59c8a5e550099a2aa3468d500539d15b0c7a",
+		CommitHash: "0x45239add9675da72e0edb5c0ccc80d0f1c758a3cd398fee7f863d69d4863a759",
 		TxHash:     "0x56e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421",
 		// DualEventsHash:
 		ReceiptHash:   "",
@@ -87,14 +95,49 @@ func setupTestSuite() *testSuite {
 		Validator:     "0xc1fe56E3F58D3244F606306611a5d10c8333f1f6",
 		ValidatorHash: "0x6231cec385931237749482972bf28d819fe9527c5ba618cd3620a1ba3be65bbd",
 		ConsensusHash: "0x0000000000000000000000000000000000000000000000000000000000000000",
-		AppHash:       "0xf05c8cb0cb6db58e20fd2c192693d2468d785b36b6ed95ee243f3bc112014015",
+		AppHash:       "0x0d5d8f1a6fdffac4d9c93b1e230da611b65bad7b3c82fb28300247e3a40df76c",
 		EvidenceHash:  "0x0000000000000000000000000000000000000000000000000000000000000000",
 	}
-	sampleTx := &types.Transaction{}
-	sampleTxReceipt := &types.Receipt{}
+	sampleTx := &types.Transaction{
+		TxHash: txHash,
+		To:     "0x2500A193147c8B8FfB4808564a2DC0f476400B86",
+		From:   address,
+		// Status:
+		// ContractAddress:
+		Value:    "2",
+		GasPrice: 1,
+		GasFee:   21000,
+		// GasLimit:
+		BlockNumber: 142,
+		Nonce:       1304,
+		BlockHash:   "0x484d030a20881754beea5b17485868df2e9cde3fea20adbe9ae48dbc73529605",
+		Time:        1601908519,
+		InputData:   "0x",
+		// Logs:
+		TransactionIndex: 1,
+		// ReceiptReceived:
+	}
+	sampleTxReceipt := &types.Receipt{
+		BlockHash:         "0x484d030a20881754beea5b17485868df2e9cde3fea20adbe9ae48dbc73529605",
+		BlockHeight:       142,
+		TransactionHash:   txHash,
+		TransactionIndex:  1,
+		From:              address,
+		To:                "0x2500A193147c8B8FfB4808564a2DC0f476400B86",
+		GasUsed:           21000,
+		CumulativeGasUsed: 42000,
+		ContractAddress:   "0x",
+		Logs:              []types.Log{},
+		LogsBloom:         coreTypes.Bloom{0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0},
+		Root:              "0x",
+		Status:            1,
+	}
 	return &testSuite{
-		stressTestAmount:  10,
 		minBlockNumber:    1<<bits.UintSize - 1,
+		blockHeight:       blockHeight,
+		blockHash:         blockHash,
+		txHash:            txHash,
+		address:           address,
 		sampleBlock:       sampleBlock,
 		sampleBlockHeader: sampleBlockHeader,
 		sampleTx:          sampleTx,
@@ -140,11 +183,10 @@ func TestBlockByHash(t *testing.T) {
 	client, ctx, testSuite, err := SetupKAIClient()
 	assert.Nil(t, err)
 
-	hash := "0x63e5862cd056fc0807beb5d47a39b9eac5900c33673df78c1c216b0a3a3f4100"
-	b, err := client.BlockByHash(ctx, common.HexToHash(hash))
+	b, err := client.BlockByHash(ctx, common.HexToHash(testSuite.blockHash))
 
 	assert.Nil(t, err)
-	t.Log("\nHash: ", hash, "\nBlock: ", b)
+	t.Log("\nHash: ", testSuite.blockHash, "\nBlock: ", b)
 	assert.EqualValuesf(t, testSuite.sampleBlock, b, "Received block must be equal to sampleBlock in testSuite")
 }
 
@@ -152,11 +194,10 @@ func TestBlockByNumber(t *testing.T) {
 	client, ctx, testSuite, err := SetupKAIClient()
 	assert.Nil(t, err)
 
-	num := uint64(5)
-	b, err := client.BlockByNumber(ctx, num)
+	b, err := client.BlockByNumber(ctx, testSuite.blockHeight)
 
 	assert.Nil(t, err)
-	t.Log("\nBlock number: ", num, "\nBlock: ", b)
+	t.Log("\nBlock number: ", testSuite.blockHeight, "\nBlock: ", b)
 	assert.EqualValuesf(t, testSuite.sampleBlock, b, "Received block must be equal to sampleBlock in testSuite")
 }
 
@@ -164,11 +205,10 @@ func TestBlockHeaderByNumber(t *testing.T) {
 	client, ctx, testSuite, err := SetupKAIClient()
 	assert.Nil(t, err)
 
-	num := uint64(5)
-	h, err := client.BlockHeaderByNumber(ctx, num)
+	h, err := client.BlockHeaderByNumber(ctx, testSuite.blockHeight)
 
 	assert.Nil(t, err)
-	t.Log("\nBlock number: ", num, "\nBlock header: ", h)
+	t.Log("\nBlock number: ", testSuite.blockHeight, "\nBlock header: ", h)
 	assert.EqualValuesf(t, testSuite.sampleBlockHeader, h, "Received block header must be equal to sampleBlockHeader in testSuite")
 }
 
@@ -176,39 +216,57 @@ func TestBlockHeaderByHash(t *testing.T) {
 	client, ctx, testSuite, err := SetupKAIClient()
 	assert.Nil(t, err)
 
-	hash := "0x63e5862cd056fc0807beb5d47a39b9eac5900c33673df78c1c216b0a3a3f4100"
-	h, err := client.BlockHeaderByHash(ctx, common.HexToHash(hash))
+	h, err := client.BlockHeaderByHash(ctx, common.HexToHash(testSuite.blockHash))
 
 	assert.Nil(t, err)
-	t.Log("\nHash: ", hash, "\nBlock header: ", h)
+	t.Log("\nHash: ", testSuite.blockHash, "\nBlock header: ", h)
 	assert.EqualValuesf(t, testSuite.sampleBlockHeader, h, "Received block header must be equal to sampleBlockHeader in testSuite")
 }
 
 func TestBalanceAt(t *testing.T) {
-	client, ctx, _, err := SetupKAIClient()
+	client, ctx, testSuite, err := SetupKAIClient()
 	assert.Nil(t, err)
 
 	// num, err := client.LatestBlockNumber(ctx)
-	addr := "0xfF3dac4f04dDbD24dE5D6039F90596F0a8bb08fd"
-	b, err := client.BalanceAt(ctx, common.HexToAddress(addr), common.NewZeroHash(), 0)
+	b, err := client.BalanceAt(ctx, common.HexToAddress(testSuite.address), common.NewZeroHash(), 0)
 
 	assert.Nil(t, err)
-	t.Log("Address: ", addr, " Balance: ", b)
+	t.Log("Address: ", testSuite.address, " Balance: ", b)
 	assert.IsTypef(t, "", b, "Balance must be a string")
 	assert.NotEqualValuesf(t, b, "-1", "Balance must be larger than -1")
 }
 
 func TestNonceAt(t *testing.T) {
-	client, ctx, _, err := SetupKAIClient()
+	client, ctx, testSuite, err := SetupKAIClient()
 	assert.Nil(t, err)
 
 	// num, err := client.LatestBlockNumber(ctx)
-	addr := "0xfF3dac4f04dDbD24dE5D6039F90596F0a8bb08fd"
-	n, err := client.NonceAt(ctx, common.HexToAddress(addr))
+	n, err := client.NonceAt(ctx, common.HexToAddress(testSuite.address))
 
 	assert.Nil(t, err)
-	t.Log("Address: ", addr, " Nonce: ", n)
+	t.Log("Address: ", testSuite.address, " Nonce: ", n)
 	assert.IsTypef(t, uint64(0), n, "Nonce must be an uint64")
+}
+
+func TestGetTransaction(t *testing.T) {
+	client, ctx, testSuite, err := SetupKAIClient()
+	assert.Nil(t, err)
+
+	tx, isPending, err := client.GetTransaction(ctx, common.HexToHash(testSuite.txHash))
+
+	assert.Nil(t, err)
+	assert.EqualValuesf(t, false, isPending, "isPending must be true")
+	assert.EqualValuesf(t, testSuite.sampleTx, tx, "Received tx must be equal to sampleTx in testSuite")
+}
+
+func TestGetTransactionReceipt(t *testing.T) {
+	client, ctx, testSuite, err := SetupKAIClient()
+	assert.Nil(t, err)
+
+	receipt, err := client.GetTransactionReceipt(ctx, common.HexToHash(testSuite.txHash))
+
+	assert.Nil(t, err)
+	assert.EqualValuesf(t, testSuite.sampleTxReceipt, receipt, "Received receipt must be equal to sampleTxReceipt in testSuite")
 }
 
 // TODO(trinhdn): continue testing other implemented methods
