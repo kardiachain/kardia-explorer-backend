@@ -74,7 +74,8 @@ func (s *infoServer) ImportBlock(ctx context.Context, block *types.Block) error 
 	}
 
 	// Start import block
-	if err := s.dbClient.ImportBlock(ctx, block); err != nil {
+	// todo @longnd: Use redis or leveldb as mem-write buffer for N blocks
+	if err := s.dbClient.InsertBlock(ctx, block); err != nil {
 		return err
 	}
 
@@ -89,8 +90,34 @@ func (s *infoServer) ImportBlock(ctx context.Context, block *types.Block) error 
 	return nil
 }
 
-func (s *infoServer) pingDB() {
+// ValidateBlock make a simple cache for block
+type ValidateBlockStrategy func(db, network *types.Block) bool
 
+func (s *infoServer) ValidateBlock(ctx context.Context, block *types.Block, validator ValidateBlockStrategy) error {
+	networkBlock, err := s.kaiClient.BlockByNumber(ctx, block.Height)
+	if err != nil {
+		s.logger.Warn("cannot fetch block from network", zap.Uint64("height", block.Height))
+		return err
+	}
+
+	isBlockImported, err := s.dbClient.IsBlockExist(ctx, block)
+	if err != nil || !isBlockImported {
+		if err := s.dbClient.InsertBlock(ctx, networkBlock); err != nil {
+			s.logger.Warn("cannot import block", zap.String("bHash", block.BlockHash))
+			return err
+		}
+	}
+
+	dbBlock, err := s.dbClient.BlockByNumber(ctx, block.Height)
+	if err != nil || !validator(dbBlock, networkBlock) {
+		// Force dbBlock with new information from network block
+		if err := s.dbClient.UpsertBlock(ctx, networkBlock); err != nil {
+			s.logger.Warn("cannot import block", zap.String("bHash", block.BlockHash))
+			return err
+		}
+	}
+
+	return nil
 }
 
 // calculateTPS return TPS per each [10, 20, 50] blocks

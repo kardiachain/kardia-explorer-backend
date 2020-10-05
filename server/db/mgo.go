@@ -44,6 +44,7 @@ const (
 type mongoDB struct {
 	logger  *zap.Logger
 	wrapper *KaiMgo
+	db      *mongo.Database
 }
 
 func newMongoDB(cfg ClientConfig) (*mongoDB, error) {
@@ -70,18 +71,7 @@ func newMongoDB(cfg ClientConfig) (*mongoDB, error) {
 	return dbClient, nil
 }
 
-func (m *mongoDB) BlockByNumber(ctx context.Context, blockNumber uint64) (*types.Block, error) {
-	panic("implement me")
-}
-
-func (m *mongoDB) ping() error {
-	return nil
-}
-
-// importBlock handle follow task
-// - Upsert block into `Blocks` collections/table
-// - Remove any txs if block exist (if re-import)
-func (m *mongoDB) ImportBlock(ctx context.Context, block *types.Block) error {
+func (m *mongoDB) InsertBlock(ctx context.Context, block *types.Block) error {
 	lgr := m.logger
 	// todo @longnd: add block info ?
 	// Upsert block into Blocks
@@ -95,9 +85,55 @@ func (m *mongoDB) ImportBlock(ctx context.Context, block *types.Block) error {
 		return err
 	}
 
-	for _, tx := range block.Txs {
-		m.logger.Debug("Process tx", zap.String("tx", fmt.Sprintf("%#v", tx)))
+	if err := m.InsertTxs(ctx, block.Txs); err != nil {
+		return err
 	}
+
+	return nil
+}
+
+// InsertTxs create bulk writer
+func (m *mongoDB) InsertTxs(ctx context.Context, txs []*types.Transaction) error {
+	var txsBulkWriter []mongo.WriteModel
+	for _, tx := range txs {
+		m.logger.Debug("Process tx", zap.String("tx", fmt.Sprintf("%#v", tx)))
+		txModel := mongo.NewInsertOneModel().SetDocument(tx)
+		txsBulkWriter = append(txsBulkWriter, txModel)
+	}
+
+	if _, err := m.wrapper.C("Transactions").BulkWrite(txsBulkWriter); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (m *mongoDB) UpsertTxs(ctx context.Context, txs []*types.Transaction) error {
+	var txsBulkWriter []mongo.WriteModel
+	for _, tx := range txs {
+		m.logger.Debug("Process tx", zap.String("tx", fmt.Sprintf("%#v", tx)))
+		txModel := mongo.NewInsertOneModel().SetDocument(tx)
+		txsBulkWriter = append(txsBulkWriter, txModel)
+	}
+
+	if _, err := m.wrapper.C("Transactions").BulkWrite(txsBulkWriter); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (m *mongoDB) UpsertBlock(ctx context.Context, block *types.Block) error {
+	panic("implement me")
+}
+
+func (m *mongoDB) IsBlockExist(ctx context.Context, block *types.Block) (bool, error) {
+	panic("implement me")
+}
+
+func (m *mongoDB) BlockByNumber(ctx context.Context, blockNumber uint64) (*types.Block, error) {
+	panic("implement me")
+}
+
+func (m *mongoDB) ping() error {
 	return nil
 }
 

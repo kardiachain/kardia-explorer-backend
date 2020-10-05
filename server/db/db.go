@@ -29,9 +29,13 @@ type ClientConfig struct {
 // DB define list API used by infoServer
 type Client interface {
 	ping() error
-	ImportBlock(ctx context.Context, block *types.Block) error
+	InsertBlock(ctx context.Context, block *types.Block) error
+	UpsertBlock(ctx context.Context, block *types.Block) error
+	InsertTxs(ctx context.Context, txs []*types.Transaction) error
+	UpsertTxs(ctx context.Context, txs []*types.Transaction) error
 	UpdateActiveAddress() error
 	BlockByNumber(ctx context.Context, blockNumber uint64) (*types.Block, error)
+	IsBlockExist(ctx context.Context, block *types.Block) (bool, error)
 }
 
 func NewClient(cfg ClientConfig) (Client, error) {

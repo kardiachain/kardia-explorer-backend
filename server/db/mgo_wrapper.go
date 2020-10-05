@@ -95,6 +95,18 @@ func (w *KaiMgo) BulkWrite(models []mongo.WriteModel,
 	return w.col.BulkWrite(context.TODO(), models, opts...)
 }
 
+func (w *KaiMgo) BulkInsert(models []mongo.WriteModel,
+	opts ...*options.BulkWriteOptions) (*mongo.BulkWriteResult, error) {
+	opts = append(opts, options.BulkWrite().SetOrdered(false), options.BulkWrite().SetBypassDocumentValidation(true))
+	return w.col.BulkWrite(context.TODO(), models, opts...)
+}
+
+func (w *KaiMgo) BulkUpsert(models []mongo.WriteModel,
+	opts ...*options.BulkWriteOptions) (*mongo.BulkWriteResult, error) {
+	opts = append(opts, options.BulkWrite().SetOrdered(false), options.BulkWrite().SetBypassDocumentValidation(true))
+	return w.col.BulkWrite(context.TODO(), models, opts...)
+}
+
 func (w *KaiMgo) Count(filter interface{},
 	opts ...*options.CountOptions) (int64, error) {
 	return w.col.CountDocuments(context.TODO(), filter, opts...)

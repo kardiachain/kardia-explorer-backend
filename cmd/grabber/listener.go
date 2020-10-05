@@ -11,6 +11,8 @@ import (
 	"github.com/kardiachain/explorer-backend/server"
 )
 
+// listener fetch LatestBlockNumber every second and check if we stay behind latest block
+// todo: implement pipeline with worker for dispatch InsertBlock task
 func listener(ctx context.Context, srv *server.Server) {
 	srv.Logger.Info("Start listening...")
 	var prevHeader uint64
@@ -27,6 +29,8 @@ func listener(ctx context.Context, srv *server.Server) {
 				continue
 			}
 			lgr := srv.Logger.With(zap.Uint64("block", latest))
+			// todo @longnd: this check quite bad, since its require us to keep backfill running
+			// for example, if our
 			if prevHeader != latest {
 				lgr.Info("Listener: Getting block " + strconv.FormatUint(latest, 10))
 				block, err := srv.BlockByNumber(ctx, latest)

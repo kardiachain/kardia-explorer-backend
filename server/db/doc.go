@@ -26,6 +26,6 @@ and for each block, mainnet need about [1, 3] seconds for validate,
 and we dont want over 2 blocks behind mainnet
 
 Performance requirement:
-- ImportBlock: 20% validate time
+- InsertBlock: 20% validate time
 -
 */

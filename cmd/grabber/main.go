@@ -108,10 +108,12 @@ func main() {
 
 	ctx, cancel := context.WithCancel(context.Background())
 	sigCh := make(chan os.Signal, 1)
+	waitExit := make(chan bool)
 	signal.Notify(sigCh, syscall.SIGINT, syscall.SIGTERM)
 	go func() {
 		for range sigCh {
 			cancel()
+			waitExit <- true
 		}
 	}()
 
@@ -138,12 +140,14 @@ func main() {
 		// Start listener in new go routine
 		// todo @longnd: Running multi goroutine same time
 		go listener(ctx, srv)
-		updateAddresses(ctx, true, 0, srv)
+		//updateAddresses(ctx, true, 0, srv)
+		<-waitExit
+		logger.Info("Grabber stopping")
 		return nil
 	}
 
 	if err := app.Run(os.Args); err != nil {
 		logger.Fatal("Fatal error", zap.Error(err))
 	}
-	logger.Info("Stopping")
+	logger.Info("Stopped")
 }

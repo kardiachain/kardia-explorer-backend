@@ -7,7 +7,12 @@ PID_FILE = /tmp/my-app.pid
 # We can use such syntax to get main.go and other root Go files.
 GO_FILES = $(wildcard *.go)
 
-all: build
+all: env build
+env:
+	if test ! -f .env ; \
+    then \
+         cp .env.sample .env ; \
+    fi;
 build:
 	docker-compose build
 run-grabber:
