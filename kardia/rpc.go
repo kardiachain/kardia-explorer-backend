@@ -57,16 +57,14 @@ func (ec *Client) LatestBlockNumber(ctx context.Context) (uint64, error) {
 
 // BlockByHash returns the given full block.
 //
-// Note that loading full blocks requires two requests. Use HeaderByHash
-// if you don't need all transactions or uncle headers.
+// Use HeaderByHash if you don't need all transactions or uncle headers.
 func (ec *Client) BlockByHash(ctx context.Context, hash common.Hash) (*types.Block, error) {
 	return ec.getBlock(ctx, "kai_getBlockByHash", hash)
 }
 
 // BlockByNumber returns a block from the current canonical chain.
 //
-// Note that loading full blocks requires two requests. Use HeaderByNumber
-// if you don't need all transactions or uncle headers.
+// Use HeaderByNumber if you don't need all transactions or uncle headers.
 // TODO(trinhdn): If number is nil, the latest known block is returned.
 func (ec *Client) BlockByNumber(ctx context.Context, number uint64) (*types.Block, error) {
 	return ec.getBlock(ctx, "kai_getBlockByNumber", number)

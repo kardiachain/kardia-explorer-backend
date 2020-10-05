@@ -15,11 +15,12 @@ import (
 )
 
 const (
-	stressTestAmount uint64 = 10000
+	stressTestAmount uint64 = 0
 	// minBlockNumber uint64 = 1<<bits.UintSize - 1
+
 )
 
-func SetupRPCClient() (*Client, context.Context, *metrics.Provider, error) {
+func SetupKAIClient() (*Client, context.Context, *metrics.Provider, error) {
 	ctx, _ := context.WithCancel(context.Background())
 	cfg := zapdriver.NewProductionConfig()
 	logger, err := cfg.Build()
@@ -35,7 +36,7 @@ func SetupRPCClient() (*Client, context.Context, *metrics.Provider, error) {
 }
 
 func TestLatestBlockNumber(t *testing.T) {
-	client, ctx, metrics, err := SetupRPCClient()
+	client, ctx, metrics, err := SetupKAIClient()
 	assert.Nil(t, err)
 
 	startTime := time.Now()
@@ -45,6 +46,7 @@ func TestLatestBlockNumber(t *testing.T) {
 	assert.Nil(t, err)
 	t.Log("Latest block number: ", num, " Elasped time: ", metrics.GetProcessingTime())
 	assert.IsTypef(t, uint64(0), num, "Block number must be an uint64")
+	assert.NotNil(t, num)
 
 	for i := uint64(0); i < stressTestAmount; i++ {
 		startTime = time.Now()
@@ -53,13 +55,14 @@ func TestLatestBlockNumber(t *testing.T) {
 
 		assert.Nil(t, err)
 		assert.IsTypef(t, uint64(0), num, "Block number must be an uint64")
+		assert.NotNil(t, num)
 	}
 	t.Log("Latest block number: ", num, " Last operation executed time: ", time.Since(startTime))
 	t.Log("Stress test average time: ", metrics.GetProcessingTime())
 }
 
 func TestBlockByHash(t *testing.T) {
-	client, ctx, metrics, err := SetupRPCClient()
+	client, ctx, metrics, err := SetupKAIClient()
 	assert.Nil(t, err)
 	emptyBlock := types.Block{}
 
@@ -71,6 +74,7 @@ func TestBlockByHash(t *testing.T) {
 	assert.Nil(t, err)
 	t.Log("\nHash: ", hash, "\nBlock: ", b, "\nElasped time: ", metrics.GetProcessingTime())
 	assert.IsTypef(t, &emptyBlock, b, "Block must be a types.Block object")
+	assert.NotNil(t, b)
 
 	for i := uint64(0); i < stressTestAmount; i++ {
 		startTime = time.Now()
@@ -79,13 +83,14 @@ func TestBlockByHash(t *testing.T) {
 
 		assert.Nil(t, err)
 		assert.IsTypef(t, &emptyBlock, b, "Block must be a types.Block object")
+		assert.NotNil(t, b)
 	}
 	t.Log("Block: ", b, "\nLast operation executed time: ", time.Since(startTime))
 	t.Log("Stress test average time: ", metrics.GetProcessingTime())
 }
 
 func TestBlockByNumber(t *testing.T) {
-	client, ctx, metrics, err := SetupRPCClient()
+	client, ctx, metrics, err := SetupKAIClient()
 	assert.Nil(t, err)
 	emptyBlock := types.Block{}
 
@@ -97,6 +102,7 @@ func TestBlockByNumber(t *testing.T) {
 	assert.Nil(t, err)
 	t.Log("\nBlock number: ", num, "\nBlock: ", b, "\nElasped time: ", metrics.GetProcessingTime())
 	assert.IsTypef(t, &emptyBlock, b, "Block must be a types.Block object")
+	assert.NotNil(t, b)
 
 	for i := uint64(num); i > uint64(num)-stressTestAmount; i-- {
 		startTime = time.Now()
@@ -105,13 +111,14 @@ func TestBlockByNumber(t *testing.T) {
 
 		assert.Nil(t, err)
 		assert.IsTypef(t, &emptyBlock, b, "Block must be a types.Block object")
+		assert.NotNil(t, b)
 	}
 	t.Log("Block: ", b, "\nLast operation executed time: ", time.Since(startTime))
 	t.Log("Stress test average time: ", metrics.GetProcessingTime())
 }
 
 func TestBlockHeaderByNumber(t *testing.T) {
-	client, ctx, metrics, err := SetupRPCClient()
+	client, ctx, metrics, err := SetupKAIClient()
 	assert.Nil(t, err)
 	emptyBlockHeader := types.Header{}
 
@@ -123,6 +130,7 @@ func TestBlockHeaderByNumber(t *testing.T) {
 	assert.Nil(t, err)
 	t.Log("\nBlock number: ", num, "\nBlock header: ", h, "\nElasped time: ", metrics.GetProcessingTime())
 	assert.IsTypef(t, &emptyBlockHeader, h, "Block header must be a types.Header object")
+	assert.NotNil(t, h)
 
 	for i := uint64(num); i > uint64(num)-stressTestAmount; i-- {
 		startTime = time.Now()
@@ -131,13 +139,14 @@ func TestBlockHeaderByNumber(t *testing.T) {
 
 		assert.Nil(t, err)
 		assert.IsTypef(t, &emptyBlockHeader, h, "Block header must be a types.Header object")
+		assert.NotNil(t, h)
 	}
 	t.Log("Block header: ", h, "\nLast operation executed time: ", time.Since(startTime))
 	t.Log("Stress test average time: ", metrics.GetProcessingTime())
 }
 
 func TestBlockHeaderByHash(t *testing.T) {
-	client, ctx, metrics, err := SetupRPCClient()
+	client, ctx, metrics, err := SetupKAIClient()
 	assert.Nil(t, err)
 	emptyBlockHeader := types.Header{}
 
@@ -149,6 +158,7 @@ func TestBlockHeaderByHash(t *testing.T) {
 	assert.Nil(t, err)
 	t.Log("\nHash: ", hash, "\nBlock header: ", h, "\nElasped time: ", metrics.GetProcessingTime())
 	assert.IsTypef(t, &emptyBlockHeader, h, "Block header must be a types.Header object")
+	assert.NotNil(t, h)
 
 	for i := uint64(0); i < stressTestAmount; i++ {
 		startTime = time.Now()
@@ -157,13 +167,14 @@ func TestBlockHeaderByHash(t *testing.T) {
 
 		assert.Nil(t, err)
 		assert.IsTypef(t, &emptyBlockHeader, h, "Block header must be a types.Header object")
+		assert.NotNil(t, h)
 	}
 	t.Log("Block header: ", h, "\nLast operation executed time: ", time.Since(startTime))
 	t.Log("Stress test average time: ", metrics.GetProcessingTime())
 }
 
 func TestBalanceAt(t *testing.T) {
-	client, ctx, metrics, err := SetupRPCClient()
+	client, ctx, metrics, err := SetupKAIClient()
 	assert.Nil(t, err)
 
 	// num, err := client.LatestBlockNumber(ctx)
@@ -175,6 +186,7 @@ func TestBalanceAt(t *testing.T) {
 	assert.Nil(t, err)
 	t.Log("Address: ", addr, " Balance: ", b, " Elasped time: ", metrics.GetProcessingTime())
 	assert.IsTypef(t, "", b, "Balance must be a string")
+	assert.NotEqualValuesf(t, b, "-1", "Balance must be larger than -1")
 
 	for i := uint64(0); i < stressTestAmount; i++ {
 		startTime = time.Now()
@@ -183,13 +195,14 @@ func TestBalanceAt(t *testing.T) {
 
 		assert.Nil(t, err)
 		assert.IsTypef(t, "", b, "Balance must be a string")
+		assert.NotEqualValuesf(t, b, "-1", "Balance must be larger than -1")
 	}
 	t.Log("Address: ", addr, " Balance: ", b, " Last operation executed time: ", time.Since(startTime))
 	t.Log("Stress test average time: ", metrics.GetProcessingTime())
 }
 
 func TestNonceAt(t *testing.T) {
-	client, ctx, metrics, err := SetupRPCClient()
+	client, ctx, metrics, err := SetupKAIClient()
 	assert.Nil(t, err)
 
 	// num, err := client.LatestBlockNumber(ctx)
@@ -201,6 +214,7 @@ func TestNonceAt(t *testing.T) {
 	assert.Nil(t, err)
 	t.Log("Address: ", addr, " Nonce: ", n, " Elasped time: ", metrics.GetProcessingTime())
 	assert.IsTypef(t, uint64(0), n, "Nonce must be an uint64")
+	assert.NotNil(t, n)
 
 	for i := uint64(0); i < stressTestAmount; i++ {
 		startTime = time.Now()
@@ -209,6 +223,7 @@ func TestNonceAt(t *testing.T) {
 
 		assert.Nil(t, err)
 		assert.IsTypef(t, uint64(0), n, "Nonce must be an uint64")
+		assert.NotNil(t, n)
 	}
 	t.Log("Address: ", addr, " Nonce: ", n, " Last operation executed time: ", time.Since(startTime))
 	t.Log("Stress test average time: ", metrics.GetProcessingTime())
