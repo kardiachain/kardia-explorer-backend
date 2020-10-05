@@ -3,6 +3,7 @@ module github.com/kardiachain/explorer-backend
 go 1.14
 
 require (
+	github.com/blendle/zapdriver v1.2.1
 	github.com/bxcodec/faker/v3 v3.5.0
 	github.com/cucumber/godog v0.10.0
 	github.com/ethereum/go-ethereum v1.9.18
@@ -13,7 +14,9 @@ require (
 	github.com/kardiachain/network-explorer v0.0.0-20201001080217-b7929bb8aae8
 	github.com/labstack/echo v3.3.10+incompatible
 	github.com/labstack/gommon v0.3.0 // indirect
+	github.com/stretchr/testify v1.6.1
 	github.com/urfave/cli v1.22.4
 	go.mongodb.org/mongo-driver v1.4.1
 	go.uber.org/zap v1.16.0
+	golang.org/dl v0.0.0-20200909201834-1fb66e01de4d // indirect
 )

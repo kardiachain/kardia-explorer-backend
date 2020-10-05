@@ -4,6 +4,7 @@ import (
 	"math/big"
 
 	"github.com/kardiachain/go-kardiamain/lib/common"
+	"github.com/kardiachain/go-kardiamain/types"
 )
 
 type Transaction struct {
@@ -27,11 +28,34 @@ type Transaction struct {
 	ReceiptReceived bool `json:"-" bson:"receipt_received"`
 }
 
-type TransactionList struct {
-	Transactions []*Transaction `json:"txs"`
+type Log struct {
+	Address     string   `json:"address"`
+	Topics      []string `json:"topics"`
+	Data        string   `json:"data"`
+	BlockHeight uint64   `json:"blockHeight"`
+	TxHash      string   `json:"transactionHash"`
+	TxIndex     uint     `json:"transactionIndex"`
+	BlockHash   string   `json:"blockHash"`
+	Index       uint     `json:"logIndex"`
+	Removed     bool     `json:"removed"`
 }
 
-type Tps struct {
-	Time   uint64 `json:"time"`
-	NumTxs uint64 `json:"num_txs"`
+type Receipt struct {
+	BlockHash         string       `json:"blockHash"`
+	BlockHeight       uint64       `json:"blockHeight"`
+	TransactionHash   string       `json:"transactionHash"`
+	TransactionIndex  uint64       `json:"transactionIndex"`
+	From              string       `json:"from"`
+	To                string       `json:"to"`
+	GasUsed           uint64       `json:"gasUsed"`
+	CumulativeGasUsed uint64       `json:"cumulativeGasUsed"`
+	ContractAddress   string       `json:"contractAddress"`
+	Logs              []Log        `json:"logs"`
+	LogsBloom         types.Bloom  `json:"logsBloom"`
+	Root              common.Bytes `json:"root"`
+	Status            uint         `json:"status"`
+}
+
+type TransactionList struct {
+	Transactions []*Transaction `json:"txs"`
 }
