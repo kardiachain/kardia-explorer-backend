@@ -25,13 +25,14 @@ import (
 
 	"go.uber.org/zap"
 
-	"github.com/kardiachain/explorer-backend/types"
 	kardia "github.com/kardiachain/go-kardiamain"
 	"github.com/kardiachain/go-kardiamain/lib/common"
 	"github.com/kardiachain/go-kardiamain/lib/rlp"
 	kai "github.com/kardiachain/go-kardiamain/mainchain"
 	"github.com/kardiachain/go-kardiamain/rpc"
 	coreTypes "github.com/kardiachain/go-kardiamain/types"
+
+	"github.com/kardiachain/explorer-backend/types"
 )
 
 // RPCClient return an *rpc.Client instance
@@ -41,11 +42,14 @@ type Client struct {
 }
 
 // NewKaiClient creates a client that uses the given RPC client.
-func NewKaiClient(rpcUrl string, Lgr *zap.Logger) (*Client, error) {
+func NewKaiClient(rpcUrl string, Lgr *zap.Logger) (ClientInterface, error) {
+
 	rpcClient, err := rpc.Dial(rpcUrl)
+	fmt.Printf("RPC Client %+v \n", rpcClient)
 	if err != nil {
-		return nil, fmt.Errorf("Failed to dial rpc %q: %v", rpcUrl, err)
+		return nil, err
 	}
+
 	return &Client{rpcClient, Lgr}, nil
 }
 

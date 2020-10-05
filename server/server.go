@@ -19,6 +19,9 @@
 package server
 
 import (
+	"errors"
+
+	"github.com/go-redis/redis/v8"
 	"go.uber.org/zap"
 
 	"github.com/kardiachain/explorer-backend/kardia"
@@ -31,6 +34,7 @@ import (
 type Config struct {
 	DBAdapter db.Adapter
 	DBUrl     string
+	DBName    string
 
 	KardiaProtocol kardia.Protocol
 	KardiaURL      string
@@ -53,32 +57,38 @@ type Server struct {
 	metrics *metrics.Provider
 
 	infoServer
-	apiServer
 }
 
 func New(cfg Config) (*Server, error) {
-
+	cfg.Logger.Info("Create new server instance", zap.Any("config", cfg))
 	dbConfig := db.ClientConfig{
-		DbAdapter: "",
-		DbName:    "",
-		URL:       "",
-		Logger:    nil,
+		DbAdapter: cfg.DBAdapter,
+		DbName:    cfg.DBName,
+		URL:       cfg.DBUrl,
+		Logger:    cfg.Logger,
 	}
 	dbClient, err := db.NewClient(dbConfig)
 	if err != nil {
 		return nil, err
 	}
+	kaiClient, err := kardia.NewKaiClient(cfg.KardiaURL, cfg.Logger)
+	if err != nil {
+		return nil, errors.New("cannot create kai client")
+	}
+
+	cacheClient := redis.NewClient(&redis.Options{
+		Addr: cfg.CacheURL,
+	})
 
 	infoServer := infoServer{
 		dbClient:    dbClient,
-		cacheClient: nil,
-		kaiClient:   nil,
-		metrics:     nil,
-		logger:      nil,
+		cacheClient: cacheClient,
+		kaiClient:   kaiClient,
+		logger:      cfg.Logger,
 	}
 
 	return &Server{
-		Logger:     logger,
+		Logger:     cfg.Logger,
 		infoServer: infoServer,
 	}, nil
 }

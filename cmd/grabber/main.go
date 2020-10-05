@@ -24,7 +24,7 @@ const (
 
 func main() {
 	runtime.GOMAXPROCS(runtime.NumCPU())
-	logger, err := zap.NewProduction()
+	logger, err := zap.NewDevelopment()
 	if err != nil {
 		panic("cannot init logger")
 	}
@@ -106,7 +106,7 @@ func main() {
 		},
 	}
 
-	_, cancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithCancel(context.Background())
 	sigCh := make(chan os.Signal, 1)
 	signal.Notify(sigCh, syscall.SIGINT, syscall.SIGTERM)
 	go func() {
@@ -116,19 +116,19 @@ func main() {
 	}()
 
 	app.Action = func(c *cli.Context) error {
-		ctx := context.Background()
 		srvConfig := server.Config{
 			DBAdapter:       db.MGO,
 			DBUrl:           mongoUrl,
+			DBName:          dbName,
 			KardiaProtocol:  kardia.RPCProtocol,
 			KardiaURL:       rpcUrl,
 			CacheAdapter:    cache.Redis,
-			CacheURL:        "",
+			CacheURL:        "localhost:6379",
 			LockedAccount:   nil,
 			Signers:         nil,
 			IsFlushDatabase: false,
 			Metrics:         nil,
-			Logger:          nil,
+			Logger:          logger,
 		}
 		srv, err := server.New(srvConfig)
 		if err != nil {

@@ -47,8 +47,9 @@ type mongoDB struct {
 }
 
 func newMongoDB(cfg ClientConfig) (*mongoDB, error) {
+	ctx := context.Background()
 	dbClient := &mongoDB{
-		logger:  cfg.Logger.With(zap.String("adapter", "mongo")),
+		logger:  cfg.Logger,
 		wrapper: &KaiMgo{},
 	}
 	mgoURI := fmt.Sprintf("mongodb://%s", cfg.URL)
@@ -61,6 +62,10 @@ func newMongoDB(cfg ClientConfig) (*mongoDB, error) {
 		return nil, err
 	}
 	dbClient.wrapper.Database(mgoClient.Database(cfg.DbName))
+
+	if cfg.FlushDB {
+		dbClient.wrapper.DropDatabase(ctx)
+	}
 
 	return dbClient, nil
 }
@@ -80,13 +85,13 @@ func (m *mongoDB) ImportBlock(ctx context.Context, block *types.Block) error {
 	lgr := m.logger
 	// todo @longnd: add block info ?
 	// Upsert block into Blocks
-	_, err := m.wrapper.C(cBlocks).Upsert(bson.M{"height": block.Number}, block)
+	_, err := m.wrapper.C(cBlocks).Insert(block)
 	if err != nil {
 		lgr.Warn("cannot insert new block", zap.Error(err))
 		return fmt.Errorf("cannot insert new block")
 	}
 
-	if _, err := m.wrapper.C(cTxs).RemoveAll(bson.M{"blockNumber": block.Number}); err != nil {
+	if _, err := m.wrapper.C(cTxs).RemoveAll(bson.M{"blockNumber": block.Height}); err != nil {
 		return err
 	}
 

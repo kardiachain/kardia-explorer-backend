@@ -22,11 +22,12 @@ import (
 	"context"
 
 	"github.com/kardiachain/go-kardiamain/lib/common"
+	kai "github.com/kardiachain/go-kardiamain/mainchain"
+	coreTypes "github.com/kardiachain/go-kardiamain/types"
 
 	"github.com/kardiachain/explorer-backend/types"
-\
-
 )
+
 type ClientInterface interface {
 	LatestBlockNumber(ctx context.Context) (uint64, error)
 	BlockByHash(ctx context.Context, hash common.Hash) (*types.Block, error)

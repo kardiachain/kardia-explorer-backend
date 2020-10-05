@@ -21,6 +21,7 @@ type ClientConfig struct {
 	DbAdapter Adapter
 	DbName    string
 	URL       string
+	FlushDB   bool
 
 	Logger *zap.Logger
 }

@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/go-redis/redis"
+	"github.com/go-redis/redis/v8"
 	"go.uber.org/zap"
 
 	"github.com/kardiachain/explorer-backend/kardia"
@@ -24,7 +24,7 @@ type InfoServer interface {
 type infoServer struct {
 	dbClient    db.Client
 	cacheClient *redis.Client
-	kaiClient   kardia.Client
+	kaiClient   kardia.ClientInterface
 
 	metrics *metrics.Provider
 
@@ -35,7 +35,7 @@ type infoServer struct {
 // If our network got stuck atm, then make request to mainnet
 func (s *infoServer) BlockByNumber(ctx context.Context, blockNumber uint64) (*types.Block, error) {
 	var latestBlockNumber uint64
-	if err := s.cacheClient.Get(KeyLatestBlock).Scan(latestBlockNumber); err != nil || latestBlockNumber < blockNumber {
+	if err := s.cacheClient.Get(ctx, KeyLatestBlock).Scan(latestBlockNumber); err != nil || latestBlockNumber < blockNumber {
 		// If error then we assume we got some problems with our system
 		// or our explorer is behind with mainnet
 		// then make request to our mainnet instead waiting for network call
@@ -45,7 +45,7 @@ func (s *infoServer) BlockByNumber(ctx context.Context, blockNumber uint64) (*ty
 
 	keyBlockByNumber := fmt.Sprintf(KeyBlockByNumber, blockNumber)
 	cacheBlock := &types.CacheBlock{}
-	if err := s.cacheClient.Get(keyBlockByNumber).Scan(&cacheBlock); err != nil {
+	if err := s.cacheClient.Get(ctx, keyBlockByNumber).Scan(&cacheBlock); err != nil {
 		return s.kaiClient.BlockByNumber(ctx, blockNumber)
 	}
 
@@ -59,18 +59,18 @@ func (s *infoServer) BlockByNumber(ctx context.Context, blockNumber uint64) (*ty
 // ImportBlock make a simple cache for block
 func (s *infoServer) ImportBlock(ctx context.Context, block *types.Block) error {
 	// Update cacheClient with simple struct for tracking
-	keyBlockByNumber := fmt.Sprintf(KeyBlockByNumber, block.Number)
+	keyBlockByNumber := fmt.Sprintf(KeyBlockByNumber, block.Height)
 	keyBlockByHash := fmt.Sprintf(KeyBlockByHash, block.BlockHash)
 	cacheBlock := &types.CacheBlock{
 		Hash:     block.BlockHash,
-		Number:   block.Number,
+		Number:   block.Height,
 		IsSynced: false,
 	}
-	if _, err := s.cacheClient.Set(keyBlockByNumber, cacheBlock, 0).Result(); err != nil {
-		return err
+	if _, err := s.cacheClient.Set(ctx, keyBlockByNumber, cacheBlock, 0).Result(); err != nil {
+		//
 	}
-	if _, err := s.cacheClient.Set(keyBlockByHash, cacheBlock, 0).Result(); err != nil {
-		return err
+	if _, err := s.cacheClient.Set(ctx, keyBlockByHash, cacheBlock, 0).Result(); err != nil {
+		//
 	}
 
 	// Start import block
@@ -79,11 +79,11 @@ func (s *infoServer) ImportBlock(ctx context.Context, block *types.Block) error 
 	}
 
 	cacheBlock.IsSynced = true
-	if _, err := s.cacheClient.Set(keyBlockByNumber, cacheBlock, 0).Result(); err != nil {
-		return err
+	if _, err := s.cacheClient.Set(ctx, keyBlockByNumber, cacheBlock, 0).Result(); err != nil {
+		//
 	}
-	if _, err := s.cacheClient.Set(keyBlockByHash, cacheBlock, 0).Result(); err != nil {
-		return err
+	if _, err := s.cacheClient.Set(ctx, keyBlockByHash, cacheBlock, 0).Result(); err != nil {
+		//
 	}
 
 	return nil
@@ -108,29 +108,29 @@ func (s *infoServer) getTxsByBlockNumber(blockNumber int64, filter *types.Pagina
 }
 
 // getLatestBlock return 50 latest block from cacheClient
-func (s *infoServer) getLatestBlock() ([]*types.Block, error) {
+func (s *infoServer) getLatestBlock(ctx context.Context) ([]*types.Block, error) {
 	var blocks []*types.Block
-	if err := s.cacheClient.Get(KeyLatestBlock).Scan(&blocks); err != nil {
+	if err := s.cacheClient.Get(ctx, KeyLatestBlock).Scan(&blocks); err != nil {
 		// Query latest blocks
 	}
 	return blocks, nil
 }
 
-func (s *infoServer) getStats() (*types.Stats, error) {
+func (s *infoServer) getStats(ctx context.Context) (*types.Stats, error) {
 	var stats *types.Stats
-	if err := s.cacheClient.Get(KeyLatestStats).Scan(stats); err != nil {
+	if err := s.cacheClient.Get(ctx, KeyLatestStats).Scan(stats); err != nil {
 		// Query from `stats` collection
 	}
 	return stats, nil
 }
 
 // insertStats insert new stats record for each 24h
-func (s *infoServer) insertStats() (*types.Stats, error) {
+func (s *infoServer) insertStats(ctx context.Context) (*types.Stats, error) {
 	stats := &types.Stats{
 		UpdatedAt: time.Now(),
 	}
 
-	if err := s.cacheClient.Set(KeyLatestStats, stats, DefaultExpiredTime).Err(); err != nil {
+	if err := s.cacheClient.Set(ctx, KeyLatestStats, stats, DefaultExpiredTime).Err(); err != nil {
 		return nil, err
 	}
 

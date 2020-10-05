@@ -62,6 +62,3 @@ type Header struct {
 type BlockList struct {
 	Blocks []*Block `json:"blocks" bson:"blocks"`
 }
-
-type Header struct {
-}

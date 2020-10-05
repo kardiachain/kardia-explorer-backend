@@ -23,26 +23,19 @@ import (
 	"time"
 
 	"github.com/kardiachain/go-kardiamain/lib/common"
-
-	"github.com/kardiachain/explorer-backend/kardia"
 )
 
 const (
 	DefaultTimeout = 5 * time.Second
 )
 
-// apiServer handle how we retrieve and interact with other network for information
-type apiServer struct {
-	kaiClient kardia.Client
-}
-
-func (s *apiServer) LatestBlockNumber(ctx context.Context) (uint64, error) {
+func (s *infoServer) LatestBlockNumber(ctx context.Context) (uint64, error) {
 	ctx, cancel := context.WithTimeout(ctx, DefaultTimeout)
 	defer cancel()
 
 	return s.kaiClient.LatestBlockNumber(ctx)
 }
 
-func (s *apiServer) BlockByHash(ctx context.Context, hash common.Hash) {
+func (s *infoServer) BlockByHash(ctx context.Context, hash common.Hash) {
 
 }
