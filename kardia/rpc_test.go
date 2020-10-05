@@ -1,230 +1,214 @@
+/*
+ *  Copyright 2018 KardiaChain
+ *  This file is part of the go-kardia library.
+ *
+ *  The go-kardia library is free software: you can redistribute it and/or modify
+ *  it under the terms of the GNU Lesser General Public License as published by
+ *  the Free Software Foundation, either version 3 of the License, or
+ *  (at your option) any later version.
+ *
+ *  The go-kardia library is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ *  GNU Lesser General Public License for more details.
+ *
+ *  You should have received a copy of the GNU Lesser General Public License
+ *  along with the go-kardia library. If not, see <http://www.gnu.org/licenses/>.
+ */
+// Package kardia
 package kardia
 
 import (
 	"context"
 	"fmt"
+	"math/bits"
+	"os"
+	"os/signal"
+	"syscall"
 	"testing"
-	"time"
 
 	"github.com/blendle/zapdriver"
 	"github.com/stretchr/testify/assert"
 
-	"github.com/kardiachain/explorer-backend/metrics"
 	"github.com/kardiachain/explorer-backend/types"
 	"github.com/kardiachain/go-kardiamain/lib/common"
+	kai "github.com/kardiachain/go-kardiamain/mainchain"
+	coreTypes "github.com/kardiachain/go-kardiamain/types"
 )
 
-const (
-	stressTestAmount uint64 = 0
-	// minBlockNumber uint64 = 1<<bits.UintSize - 1
+type testSuite struct {
+	stressTestAmount  uint64
+	minBlockNumber    uint64
+	sampleBlock       *types.Block
+	sampleBlockHeader *types.Header
+	sampleTx          *types.Transaction
+	sampleTxReceipt   *types.Receipt
+}
 
-)
+func setupTestSuite() *testSuite {
+	sampleBlock := &types.Block{
+		BlockHash: "0x63e5862cd056fc0807beb5d47a39b9eac5900c33673df78c1c216b0a3a3f4100",
+		Height:    5,
+		Time:      1601889304,
+		NumTxs:    0,
+		// NumDualEvents:
+		GasLimit:   1050000000,
+		GasUsed:    0,
+		LastBlock:  "0xb7ef72eac2b59540bddd41b117231d35e439a2224d6cf95f9409871bac0cae3a",
+		CommitHash: "0xc733bcd268aaa3bc541ff4a61e307159ff72dd508b571d422c19d5b0ebe23476",
+		TxHash:     "0x56e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421",
+		// DualEventsHash:
+		Root:          "",
+		ReceiptHash:   "",
+		Bloom:         coreTypes.Bloom{0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0},
+		Validator:     "0xc1fe56E3F58D3244F606306611a5d10c8333f1f6",
+		ValidatorHash: "0x6231cec385931237749482972bf28d819fe9527c5ba618cd3620a1ba3be65bbd",
+		ConsensusHash: "0x0000000000000000000000000000000000000000000000000000000000000000",
+		AppHash:       "0xf05c8cb0cb6db58e20fd2c192693d2468d785b36b6ed95ee243f3bc112014015",
+		EvidenceHash:  "0x0000000000000000000000000000000000000000000000000000000000000000",
+		Txs:           []*types.Transaction(nil),
+		Receipts:      []*kai.BasicReceipt(nil),
+		NonceBool:     false,
+	}
+	sampleBlockHeader := &types.Header{
+		BlockHash: "0x63e5862cd056fc0807beb5d47a39b9eac5900c33673df78c1c216b0a3a3f4100",
+		Height:    5,
+		Time:      1601889304,
+		NumTxs:    0,
+		// NumDualEvents:
+		GasLimit:   1050000000,
+		GasUsed:    0,
+		LastBlock:  "0xb7ef72eac2b59540bddd41b117231d35e439a2224d6cf95f9409871bac0cae3a",
+		CommitHash: "0xc733bcd268aaa3bc541ff4a61e307159ff72dd508b571d422c19d5b0ebe23476",
+		TxHash:     "0x56e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421",
+		// DualEventsHash:
+		ReceiptHash:   "",
+		Bloom:         coreTypes.Bloom{0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0},
+		Validator:     "0xc1fe56E3F58D3244F606306611a5d10c8333f1f6",
+		ValidatorHash: "0x6231cec385931237749482972bf28d819fe9527c5ba618cd3620a1ba3be65bbd",
+		ConsensusHash: "0x0000000000000000000000000000000000000000000000000000000000000000",
+		AppHash:       "0xf05c8cb0cb6db58e20fd2c192693d2468d785b36b6ed95ee243f3bc112014015",
+		EvidenceHash:  "0x0000000000000000000000000000000000000000000000000000000000000000",
+	}
+	sampleTx := &types.Transaction{}
+	sampleTxReceipt := &types.Receipt{}
+	return &testSuite{
+		stressTestAmount:  10,
+		minBlockNumber:    1<<bits.UintSize - 1,
+		sampleBlock:       sampleBlock,
+		sampleBlockHeader: sampleBlockHeader,
+		sampleTx:          sampleTx,
+		sampleTxReceipt:   sampleTxReceipt,
+	}
+}
 
-func SetupKAIClient() (*Client, context.Context, *metrics.Provider, error) {
-	ctx, _ := context.WithCancel(context.Background())
+func SetupKAIClient() (*Client, context.Context, *testSuite, error) {
+	suite := setupTestSuite()
+	ctx, cancelFn := context.WithCancel(context.Background())
+	sigCh := make(chan os.Signal, 1)
+	signal.Notify(sigCh, syscall.SIGINT, syscall.SIGTERM)
+	go func() {
+		for range sigCh {
+			cancelFn()
+		}
+	}()
 	cfg := zapdriver.NewProductionConfig()
 	logger, err := cfg.Build()
 	if err != nil {
-		return nil, nil, nil, fmt.Errorf("Failed to create logger: %v", err)
+		return nil, nil, suite, fmt.Errorf("Failed to create logger: %v", err)
 	}
-	// defer logger.Sync()
+	defer logger.Sync()
 	client, err := NewKaiClient("http://10.10.0.251:8551", logger)
 	if err != nil {
-		return nil, nil, nil, fmt.Errorf("Failed to create new KaiClient: %v", err)
+		return nil, nil, suite, fmt.Errorf("Failed to create new KaiClient: %v", err)
 	}
-	return client, ctx, metrics.New(), nil
+	return client, ctx, suite, nil
 }
 
 func TestLatestBlockNumber(t *testing.T) {
-	client, ctx, metrics, err := SetupKAIClient()
+	client, ctx, _, err := SetupKAIClient()
 	assert.Nil(t, err)
 
-	startTime := time.Now()
 	num, err := client.LatestBlockNumber(ctx)
-	metrics.RecordProcessingTime(time.Since(startTime))
 
 	assert.Nil(t, err)
-	t.Log("Latest block number: ", num, " Elasped time: ", metrics.GetProcessingTime())
+	t.Log("Latest block number: ", num)
 	assert.IsTypef(t, uint64(0), num, "Block number must be an uint64")
-	assert.NotNil(t, num)
-
-	for i := uint64(0); i < stressTestAmount; i++ {
-		startTime = time.Now()
-		num, err = client.LatestBlockNumber(ctx)
-		metrics.RecordProcessingTime(time.Since(startTime))
-
-		assert.Nil(t, err)
-		assert.IsTypef(t, uint64(0), num, "Block number must be an uint64")
-		assert.NotNil(t, num)
-	}
-	t.Log("Latest block number: ", num, " Last operation executed time: ", time.Since(startTime))
-	t.Log("Stress test average time: ", metrics.GetProcessingTime())
 }
 
 func TestBlockByHash(t *testing.T) {
-	client, ctx, metrics, err := SetupKAIClient()
+	client, ctx, testSuite, err := SetupKAIClient()
 	assert.Nil(t, err)
-	emptyBlock := types.Block{}
 
-	hash := "0xd533fc1f9d6836394c6fd43fa3c6d86524fa5d45795a021ed7cccbe7164f7200"
-	startTime := time.Now()
+	hash := "0x63e5862cd056fc0807beb5d47a39b9eac5900c33673df78c1c216b0a3a3f4100"
 	b, err := client.BlockByHash(ctx, common.HexToHash(hash))
-	metrics.RecordProcessingTime(time.Since(startTime))
 
 	assert.Nil(t, err)
-	t.Log("\nHash: ", hash, "\nBlock: ", b, "\nElasped time: ", metrics.GetProcessingTime())
-	assert.IsTypef(t, &emptyBlock, b, "Block must be a types.Block object")
-	assert.NotNil(t, b)
-
-	for i := uint64(0); i < stressTestAmount; i++ {
-		startTime = time.Now()
-		b, err = client.BlockByHash(ctx, common.HexToHash(hash))
-		metrics.RecordProcessingTime(time.Since(startTime))
-
-		assert.Nil(t, err)
-		assert.IsTypef(t, &emptyBlock, b, "Block must be a types.Block object")
-		assert.NotNil(t, b)
-	}
-	t.Log("Block: ", b, "\nLast operation executed time: ", time.Since(startTime))
-	t.Log("Stress test average time: ", metrics.GetProcessingTime())
+	t.Log("\nHash: ", hash, "\nBlock: ", b)
+	assert.EqualValuesf(t, testSuite.sampleBlock, b, "Received block must be equal to sampleBlock in testSuite")
 }
 
 func TestBlockByNumber(t *testing.T) {
-	client, ctx, metrics, err := SetupKAIClient()
+	client, ctx, testSuite, err := SetupKAIClient()
 	assert.Nil(t, err)
-	emptyBlock := types.Block{}
 
-	num, err := client.LatestBlockNumber(ctx)
-	startTime := time.Now()
+	num := uint64(5)
 	b, err := client.BlockByNumber(ctx, num)
-	metrics.RecordProcessingTime(time.Since(startTime))
 
 	assert.Nil(t, err)
-	t.Log("\nBlock number: ", num, "\nBlock: ", b, "\nElasped time: ", metrics.GetProcessingTime())
-	assert.IsTypef(t, &emptyBlock, b, "Block must be a types.Block object")
-	assert.NotNil(t, b)
-
-	for i := uint64(num); i > uint64(num)-stressTestAmount; i-- {
-		startTime = time.Now()
-		b, err = client.BlockByNumber(ctx, i)
-		metrics.RecordProcessingTime(time.Since(startTime))
-
-		assert.Nil(t, err)
-		assert.IsTypef(t, &emptyBlock, b, "Block must be a types.Block object")
-		assert.NotNil(t, b)
-	}
-	t.Log("Block: ", b, "\nLast operation executed time: ", time.Since(startTime))
-	t.Log("Stress test average time: ", metrics.GetProcessingTime())
+	t.Log("\nBlock number: ", num, "\nBlock: ", b)
+	assert.EqualValuesf(t, testSuite.sampleBlock, b, "Received block must be equal to sampleBlock in testSuite")
 }
 
 func TestBlockHeaderByNumber(t *testing.T) {
-	client, ctx, metrics, err := SetupKAIClient()
+	client, ctx, testSuite, err := SetupKAIClient()
 	assert.Nil(t, err)
-	emptyBlockHeader := types.Header{}
 
-	num, err := client.LatestBlockNumber(ctx)
-	startTime := time.Now()
+	num := uint64(5)
 	h, err := client.BlockHeaderByNumber(ctx, num)
-	metrics.RecordProcessingTime(time.Since(startTime))
 
 	assert.Nil(t, err)
-	t.Log("\nBlock number: ", num, "\nBlock header: ", h, "\nElasped time: ", metrics.GetProcessingTime())
-	assert.IsTypef(t, &emptyBlockHeader, h, "Block header must be a types.Header object")
-	assert.NotNil(t, h)
-
-	for i := uint64(num); i > uint64(num)-stressTestAmount; i-- {
-		startTime = time.Now()
-		h, err = client.BlockHeaderByNumber(ctx, i)
-		metrics.RecordProcessingTime(time.Since(startTime))
-
-		assert.Nil(t, err)
-		assert.IsTypef(t, &emptyBlockHeader, h, "Block header must be a types.Header object")
-		assert.NotNil(t, h)
-	}
-	t.Log("Block header: ", h, "\nLast operation executed time: ", time.Since(startTime))
-	t.Log("Stress test average time: ", metrics.GetProcessingTime())
+	t.Log("\nBlock number: ", num, "\nBlock header: ", h)
+	assert.EqualValuesf(t, testSuite.sampleBlockHeader, h, "Received block header must be equal to sampleBlockHeader in testSuite")
 }
 
 func TestBlockHeaderByHash(t *testing.T) {
-	client, ctx, metrics, err := SetupKAIClient()
+	client, ctx, testSuite, err := SetupKAIClient()
 	assert.Nil(t, err)
-	emptyBlockHeader := types.Header{}
 
-	hash := "0xd533fc1f9d6836394c6fd43fa3c6d86524fa5d45795a021ed7cccbe7164f7200"
-	startTime := time.Now()
+	hash := "0x63e5862cd056fc0807beb5d47a39b9eac5900c33673df78c1c216b0a3a3f4100"
 	h, err := client.BlockHeaderByHash(ctx, common.HexToHash(hash))
-	metrics.RecordProcessingTime(time.Since(startTime))
 
 	assert.Nil(t, err)
-	t.Log("\nHash: ", hash, "\nBlock header: ", h, "\nElasped time: ", metrics.GetProcessingTime())
-	assert.IsTypef(t, &emptyBlockHeader, h, "Block header must be a types.Header object")
-	assert.NotNil(t, h)
-
-	for i := uint64(0); i < stressTestAmount; i++ {
-		startTime = time.Now()
-		h, err := client.BlockHeaderByHash(ctx, common.HexToHash(hash))
-		metrics.RecordProcessingTime(time.Since(startTime))
-
-		assert.Nil(t, err)
-		assert.IsTypef(t, &emptyBlockHeader, h, "Block header must be a types.Header object")
-		assert.NotNil(t, h)
-	}
-	t.Log("Block header: ", h, "\nLast operation executed time: ", time.Since(startTime))
-	t.Log("Stress test average time: ", metrics.GetProcessingTime())
+	t.Log("\nHash: ", hash, "\nBlock header: ", h)
+	assert.EqualValuesf(t, testSuite.sampleBlockHeader, h, "Received block header must be equal to sampleBlockHeader in testSuite")
 }
 
 func TestBalanceAt(t *testing.T) {
-	client, ctx, metrics, err := SetupKAIClient()
+	client, ctx, _, err := SetupKAIClient()
 	assert.Nil(t, err)
 
 	// num, err := client.LatestBlockNumber(ctx)
 	addr := "0xfF3dac4f04dDbD24dE5D6039F90596F0a8bb08fd"
-	startTime := time.Now()
 	b, err := client.BalanceAt(ctx, common.HexToAddress(addr), common.NewZeroHash(), 0)
-	metrics.RecordProcessingTime(time.Since(startTime))
 
 	assert.Nil(t, err)
-	t.Log("Address: ", addr, " Balance: ", b, " Elasped time: ", metrics.GetProcessingTime())
+	t.Log("Address: ", addr, " Balance: ", b)
 	assert.IsTypef(t, "", b, "Balance must be a string")
 	assert.NotEqualValuesf(t, b, "-1", "Balance must be larger than -1")
-
-	for i := uint64(0); i < stressTestAmount; i++ {
-		startTime = time.Now()
-		b, err = client.BalanceAt(ctx, common.HexToAddress(addr), common.NewZeroHash(), 0)
-		metrics.RecordProcessingTime(time.Since(startTime))
-
-		assert.Nil(t, err)
-		assert.IsTypef(t, "", b, "Balance must be a string")
-		assert.NotEqualValuesf(t, b, "-1", "Balance must be larger than -1")
-	}
-	t.Log("Address: ", addr, " Balance: ", b, " Last operation executed time: ", time.Since(startTime))
-	t.Log("Stress test average time: ", metrics.GetProcessingTime())
 }
 
 func TestNonceAt(t *testing.T) {
-	client, ctx, metrics, err := SetupKAIClient()
+	client, ctx, _, err := SetupKAIClient()
 	assert.Nil(t, err)
 
 	// num, err := client.LatestBlockNumber(ctx)
 	addr := "0xfF3dac4f04dDbD24dE5D6039F90596F0a8bb08fd"
-	startTime := time.Now()
 	n, err := client.NonceAt(ctx, common.HexToAddress(addr))
-	metrics.RecordProcessingTime(time.Since(startTime))
 
 	assert.Nil(t, err)
-	t.Log("Address: ", addr, " Nonce: ", n, " Elasped time: ", metrics.GetProcessingTime())
+	t.Log("Address: ", addr, " Nonce: ", n)
 	assert.IsTypef(t, uint64(0), n, "Nonce must be an uint64")
-	assert.NotNil(t, n)
-
-	for i := uint64(0); i < stressTestAmount; i++ {
-		startTime = time.Now()
-		n, err = client.NonceAt(ctx, common.HexToAddress(addr))
-		metrics.RecordProcessingTime(time.Since(startTime))
-
-		assert.Nil(t, err)
-		assert.IsTypef(t, uint64(0), n, "Nonce must be an uint64")
-		assert.NotNil(t, n)
-	}
-	t.Log("Address: ", addr, " Nonce: ", n, " Last operation executed time: ", time.Since(startTime))
-	t.Log("Stress test average time: ", metrics.GetProcessingTime())
 }
+
+// TODO(trinhdn): continue testing other implemented methods

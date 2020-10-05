@@ -29,6 +29,7 @@ import (
 	kardia "github.com/kardiachain/go-kardiamain"
 	"github.com/kardiachain/go-kardiamain/lib/common"
 	"github.com/kardiachain/go-kardiamain/lib/rlp"
+	kai "github.com/kardiachain/go-kardiamain/mainchain"
 	"github.com/kardiachain/go-kardiamain/rpc"
 	coreTypes "github.com/kardiachain/go-kardiamain/types"
 )
@@ -81,8 +82,8 @@ func (ec *Client) BlockHeaderByHash(ctx context.Context, hash common.Hash) (*typ
 	return ec.getBlockHeader(ctx, "kai_getBlockHeaderByHash", hash)
 }
 
-// TransactionByHash returns the transaction with the given hash.
-func (ec *Client) TransactionByHash(ctx context.Context, hash common.Hash) (tx *types.Transaction, isPending bool, err error) {
+// GetTransaction returns the transaction with the given hash.
+func (ec *Client) GetTransaction(ctx context.Context, hash common.Hash) (tx *types.Transaction, isPending bool, err error) {
 	var raw *types.Transaction
 	err = ec.c.CallContext(ctx, &raw, "tx_getTransaction", hash)
 	if err != nil {
@@ -90,10 +91,20 @@ func (ec *Client) TransactionByHash(ctx context.Context, hash common.Hash) (tx *
 	} else if raw == nil {
 		return nil, false, kardia.NotFound
 	}
-	// if raw.From != "" && raw.BlockHash != "" {
-	// 	setSenderFromServer(ctx, raw, common.HexToAddress(raw.From), common.HexToHash(raw.BlockHash))
-	// }
 	return raw, raw.BlockNumber == 0, nil
+}
+
+// GetTransactionReceipt returns the receipt of a transaction by transaction hash.
+// Note that the receipt is not available for pending transactions.
+func (ec *Client) GetTransactionReceipt(ctx context.Context, txHash common.Hash) (*kai.PublicReceipt, error) {
+	var r *kai.PublicReceipt
+	err := ec.c.CallContext(ctx, &r, "tx_getTransactionReceipt", txHash.Hex())
+	if err == nil {
+		if r == nil {
+			return nil, kardia.NotFound
+		}
+	}
+	return r, err
 }
 
 // BalanceAt returns the wei balance of the given account.
@@ -129,7 +140,7 @@ func (ec *Client) NonceAt(ctx context.Context, account common.Address) (uint64, 
 
 // SendRawTransaction injects a signed transaction into the pending pool for execution.
 //
-// If the transaction was a contract creation use the TransactionReceipt method to get the
+// If the transaction was a contract creation use the GetTransactionReceipt method to get the
 // contract address after the transaction has been mined.
 // TODO(trinhdn): verify which types of tx is suitable for this API
 func (ec *Client) SendRawTransaction(ctx context.Context, tx *coreTypes.Transaction) error {
@@ -144,21 +155,9 @@ func (ec *Client) getBlock(ctx context.Context, method string, args ...interface
 	var raw types.Block
 	err := ec.c.CallContext(ctx, &raw, method, args...)
 	if err != nil {
-		return nil, fmt.Errorf("marshal block failed: %v", err)
+		return nil, err
 	}
 	raw.NonceBool = false
-	// get parent block for its hash
-	if num, ok := args[0].(uint64); ok {
-		if num == 0 {
-			return &raw, nil
-		}
-		var rawParentBlockHeader types.Header
-		err = ec.c.CallContext(ctx, &rawParentBlockHeader, "kai_getBlockHeaderByNumber", num-1)
-		if err != nil {
-			return nil, fmt.Errorf("marshal parent block header failed: %v", err)
-		}
-		raw.ParentHash = rawParentBlockHeader.Hash
-	}
 	return &raw, nil
 }
 
@@ -166,7 +165,7 @@ func (ec *Client) getBlockHeader(ctx context.Context, method string, args ...int
 	var raw types.Header
 	err := ec.c.CallContext(ctx, &raw, method, args...)
 	if err != nil {
-		return nil, fmt.Errorf("marshal block header failed: %v", err)
+		return nil, err
 	}
 	return &raw, nil
 }
