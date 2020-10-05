@@ -29,7 +29,6 @@ import (
 	kardia "github.com/kardiachain/go-kardiamain"
 	"github.com/kardiachain/go-kardiamain/lib/common"
 	"github.com/kardiachain/go-kardiamain/lib/rlp"
-	kai "github.com/kardiachain/go-kardiamain/mainchain"
 	"github.com/kardiachain/go-kardiamain/rpc"
 	coreTypes "github.com/kardiachain/go-kardiamain/types"
 )
@@ -96,8 +95,8 @@ func (ec *Client) GetTransaction(ctx context.Context, hash common.Hash) (tx *typ
 
 // GetTransactionReceipt returns the receipt of a transaction by transaction hash.
 // Note that the receipt is not available for pending transactions.
-func (ec *Client) GetTransactionReceipt(ctx context.Context, txHash common.Hash) (*kai.PublicReceipt, error) {
-	var r *kai.PublicReceipt
+func (ec *Client) GetTransactionReceipt(ctx context.Context, txHash common.Hash) (*types.Receipt, error) {
+	var r *types.Receipt
 	err := ec.c.CallContext(ctx, &r, "tx_getTransactionReceipt", txHash.Hex())
 	if err == nil {
 		if r == nil {

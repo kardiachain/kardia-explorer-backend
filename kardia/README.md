@@ -41,6 +41,10 @@ func (ec *Client) BlockHeaderByHash(ctx context.Context, hash common.Hash) (*typ
 ```go
 func (ec *Client) GetTransaction(ctx context.Context, hash common.Hash) (tx *types.Transaction, isPending bool, err error)
 ```
+**GetTransactionReceipt**
+```go
+func (ec *Client) GetTransactionReceipt(ctx context.Context, txHash common.Hash) (*kai.PublicReceipt, error)
+```
 **BalanceAt**
 ```go
 func (ec *Client) BalanceAt(ctx context.Context, account common.Address, blockHash common.Hash, blockNumber uint64) (string, error)
@@ -53,9 +57,4 @@ func (ec *Client) NonceAt(ctx context.Context, account common.Address) (uint64, 
 ```go
 func (ec *Client) SendRawTransaction(ctx context.Context, tx *coreTypes.Transaction) error
 ```
-**GetTransactionReceipt**
-```go
-func (ec *Client) GetTransactionReceipt(ctx context.Context, txHash common.Hash) (*kai.PublicReceipt, error)
-```
 ## Benchmark result
-RPC benchmark result with 1 RPC endpoint can be found at: [https://docs.google.com/spreadsheets/d/1gvNmU1VL2khfVzxBc3UYgTQrhfPGW5AeU3pKfnYNJ6E/edit](https://docs.google.com/spreadsheets/d/1gvNmU1VL2khfVzxBc3UYgTQrhfPGW5AeU3pKfnYNJ6E/edit)

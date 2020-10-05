@@ -1,7 +1,6 @@
 package types
 
 import (
-	kai "github.com/kardiachain/go-kardiamain/mainchain"
 	"github.com/kardiachain/go-kardiamain/types"
 )
 
@@ -30,12 +29,12 @@ type Block struct {
 
 	Validator string `json:"validator" bson:"validator"`
 	// hashes from the app output from the prev block
-	ValidatorHash string              `json:"validatorHash" bson:"validatorHash"`
-	ConsensusHash string              `json:"consensusHash" bson:"consensusHash"`
-	AppHash       string              `json:"appHash" bson:"appHash"`
-	EvidenceHash  string              `json:"evidenceHash" bson:"evidenceHash"`
-	Txs           []*Transaction      `json:"-" bson:"txs"`
-	Receipts      []*kai.BasicReceipt `json:"-" bson:"receipts"`
+	ValidatorHash string         `json:"validatorHash" bson:"validatorHash"`
+	ConsensusHash string         `json:"consensusHash" bson:"consensusHash"`
+	AppHash       string         `json:"appHash" bson:"appHash"`
+	EvidenceHash  string         `json:"evidenceHash" bson:"evidenceHash"`
+	Txs           []*Transaction `json:"-" bson:"txs"`
+	Receipts      []*Receipt     `json:"-" bson:"receipts"`
 
 	NonceBool bool `json:"nonce_bool" bson:"nonce_bool"`
 }
