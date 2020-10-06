@@ -4,6 +4,8 @@ services:
   mongodb:
     image: mongo
     container_name: "explorer_mongodb"
+    ports:
+      - 27017:27017
     volumes:
       - ../mongo/data/db:/data/db
   postgres:
