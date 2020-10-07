@@ -3,27 +3,27 @@ package server
 
 import (
 	"context"
-	"fmt"
 	"time"
 
-	"github.com/go-redis/redis/v8"
 	"go.uber.org/zap"
 
 	"github.com/kardiachain/explorer-backend/kardia"
 	"github.com/kardiachain/explorer-backend/metrics"
+	"github.com/kardiachain/explorer-backend/server/cache"
 	"github.com/kardiachain/explorer-backend/server/db"
 	"github.com/kardiachain/explorer-backend/types"
 )
 
 type InfoServer interface {
-	BlockByNumber(ctx context.Context, blockNumber uint64) (*types.Block, error)
+	BlockByHeight(ctx context.Context, blockHeight uint64) (*types.Block, error)
+	BlockByHash(ctx context.Context, blockHash string) (*types.Block, error)
 	ImportBlock(ctx context.Context, block *types.Block) (*types.Block, error)
 }
 
 // infoServer handle how data was retrieved, stored without interact with other network excluded dbClient
 type infoServer struct {
 	dbClient    db.Client
-	cacheClient *redis.Client
+	cacheClient cache.Client
 	kaiClient   kardia.ClientInterface
 
 	metrics *metrics.Provider
@@ -31,60 +31,38 @@ type infoServer struct {
 	logger *zap.Logger
 }
 
-// BlockByNumber return a block by height number
+// BlockByHeight return a block by height number
 // If our network got stuck atm, then make request to mainnet
-func (s *infoServer) BlockByNumber(ctx context.Context, blockNumber uint64) (*types.Block, error) {
-	var latestBlockNumber uint64
-	if err := s.cacheClient.Get(ctx, KeyLatestBlock).Scan(latestBlockNumber); err != nil || latestBlockNumber < blockNumber {
-		// If error then we assume we got some problems with our system
-		// or our explorer is behind with mainnet
-		// then make request to our mainnet instead waiting for network call
-		s.logger.Warn("Delay with latest block")
-		return s.kaiClient.BlockByNumber(ctx, blockNumber)
+func (s *infoServer) BlockByHeight(ctx context.Context, blockHeight uint64) (*types.Block, error) {
+	lgr := s.logger.With(zap.Uint64("Height", blockHeight))
+	cacheBlock, err := s.cacheClient.BlockByHeight(ctx, blockHeight)
+	if err == nil {
+		return cacheBlock, nil
 	}
+	lgr.Debug("cannot find block in cache")
 
-	keyBlockByNumber := fmt.Sprintf(KeyBlockByNumber, blockNumber)
-	cacheBlock := &types.CacheBlock{}
-	if err := s.cacheClient.Get(ctx, keyBlockByNumber).Scan(&cacheBlock); err != nil {
-		return s.kaiClient.BlockByNumber(ctx, blockNumber)
+	dbBlock, err := s.dbClient.BlockByHeight(ctx, blockHeight)
+	if err == nil {
+		return dbBlock, nil
 	}
+	lgr.Debug("cannot find in db")
 
-	if !cacheBlock.IsSynced {
-		return s.kaiClient.BlockByNumber(ctx, blockNumber)
-	}
-
-	return s.dbClient.BlockByNumber(ctx, blockNumber)
+	return s.kaiClient.BlockByHeight(ctx, blockHeight)
 }
 
 // ImportBlock make a simple cache for block
 func (s *infoServer) ImportBlock(ctx context.Context, block *types.Block) error {
 	// Update cacheClient with simple struct for tracking
-	keyBlockByNumber := fmt.Sprintf(KeyBlockByNumber, block.Height)
-	keyBlockByHash := fmt.Sprintf(KeyBlockByHash, block.BlockHash)
-	cacheBlock := &types.CacheBlock{
-		Hash:     block.BlockHash,
-		Number:   block.Height,
-		IsSynced: false,
-	}
-	if _, err := s.cacheClient.Set(ctx, keyBlockByNumber, cacheBlock, 0).Result(); err != nil {
-		//
-	}
-	if _, err := s.cacheClient.Set(ctx, keyBlockByHash, cacheBlock, 0).Result(); err != nil {
-		//
+	if err := s.cacheClient.ImportBlock(ctx, block); err != nil {
+		s.logger.Debug("cannot import block to cache", zap.Error(err))
 	}
 
 	// Start import block
+	// consider new routine here
 	// todo @longnd: Use redis or leveldb as mem-write buffer for N blocks
 	if err := s.dbClient.InsertBlock(ctx, block); err != nil {
+		s.logger.Debug("cannot import block to db", zap.Error(err))
 		return err
-	}
-
-	cacheBlock.IsSynced = true
-	if _, err := s.cacheClient.Set(ctx, keyBlockByNumber, cacheBlock, 0).Result(); err != nil {
-		//
-	}
-	if _, err := s.cacheClient.Set(ctx, keyBlockByHash, cacheBlock, 0).Result(); err != nil {
-		//
 	}
 
 	return nil
@@ -93,8 +71,9 @@ func (s *infoServer) ImportBlock(ctx context.Context, block *types.Block) error 
 // ValidateBlock make a simple cache for block
 type ValidateBlockStrategy func(db, network *types.Block) bool
 
+// ValidateBlock called by backfill
 func (s *infoServer) ValidateBlock(ctx context.Context, block *types.Block, validator ValidateBlockStrategy) error {
-	networkBlock, err := s.kaiClient.BlockByNumber(ctx, block.Height)
+	networkBlock, err := s.kaiClient.BlockByHeight(ctx, block.Height)
 	if err != nil {
 		s.logger.Warn("cannot fetch block from network", zap.Uint64("height", block.Height))
 		return err
@@ -108,7 +87,7 @@ func (s *infoServer) ValidateBlock(ctx context.Context, block *types.Block, vali
 		}
 	}
 
-	dbBlock, err := s.dbClient.BlockByNumber(ctx, block.Height)
+	dbBlock, err := s.dbClient.BlockByHeight(ctx, block.Height)
 	if err != nil || !validator(dbBlock, networkBlock) {
 		// Force dbBlock with new information from network block
 		if err := s.dbClient.UpsertBlock(ctx, networkBlock); err != nil {
@@ -137,17 +116,13 @@ func (s *infoServer) getTxsByBlockNumber(blockNumber int64, filter *types.Pagina
 // getLatestBlock return 50 latest block from cacheClient
 func (s *infoServer) getLatestBlock(ctx context.Context) ([]*types.Block, error) {
 	var blocks []*types.Block
-	if err := s.cacheClient.Get(ctx, KeyLatestBlock).Scan(&blocks); err != nil {
-		// Query latest blocks
-	}
+
 	return blocks, nil
 }
 
 func (s *infoServer) getStats(ctx context.Context) (*types.Stats, error) {
 	var stats *types.Stats
-	if err := s.cacheClient.Get(ctx, KeyLatestStats).Scan(stats); err != nil {
-		// Query from `stats` collection
-	}
+
 	return stats, nil
 }
 
@@ -155,10 +130,6 @@ func (s *infoServer) getStats(ctx context.Context) (*types.Stats, error) {
 func (s *infoServer) insertStats(ctx context.Context) (*types.Stats, error) {
 	stats := &types.Stats{
 		UpdatedAt: time.Now(),
-	}
-
-	if err := s.cacheClient.Set(ctx, KeyLatestStats, stats, DefaultExpiredTime).Err(); err != nil {
-		return nil, err
 	}
 
 	return stats, nil

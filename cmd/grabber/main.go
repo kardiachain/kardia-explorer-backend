@@ -36,7 +36,6 @@ func main() {
 			logger.Error("cannot recover")
 		}
 	}()
-
 	var rpcUrl string
 	var checkTxCount bool
 	var mongoUrl string
@@ -124,7 +123,7 @@ func main() {
 			DBName:          dbName,
 			KardiaProtocol:  kardia.RPCProtocol,
 			KardiaURL:       rpcUrl,
-			CacheAdapter:    cache.Redis,
+			CacheAdapter:    cache.RedisAdapter,
 			CacheURL:        "localhost:6379",
 			LockedAccount:   nil,
 			Signers:         nil,

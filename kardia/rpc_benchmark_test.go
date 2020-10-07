@@ -47,7 +47,7 @@ func BenchmarkBlockByNumber(b *testing.B) {
 	client, ctx, testSuite, err := SetupKAIClient()
 	assert.Nil(b, err)
 	for i := 0; i < b.N; i++ {
-		_, _ = client.BlockByNumber(ctx, testSuite.blockHeight)
+		_, _ = client.BlockByHeight(ctx, testSuite.blockHeight)
 	}
 }
 

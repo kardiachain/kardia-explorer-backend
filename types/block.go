@@ -1,6 +1,8 @@
 package types
 
 import (
+	"encoding/json"
+
 	"github.com/kardiachain/go-kardiamain/types"
 )
 
@@ -33,10 +35,18 @@ type Block struct {
 	ConsensusHash string         `json:"consensusHash" bson:"consensusHash"`
 	AppHash       string         `json:"appHash" bson:"appHash"`
 	EvidenceHash  string         `json:"evidenceHash" bson:"evidenceHash"`
-	Txs           []*Transaction `json:"-" bson:"txs"`
-	Receipts      []*Receipt     `json:"-" bson:"receipts"`
+	Txs           []*Transaction `json:"txs" bson:"txs"`
+	Receipts      []*Receipt     `json:"receipts" bson:"receipts"`
 
 	NonceBool bool `json:"nonce_bool" bson:"nonce_bool"`
+}
+
+func (b *Block) String() string {
+	data, err := json.Marshal(b)
+	if err != nil {
+		return ""
+	}
+	return string(data)
 }
 
 type Header struct {

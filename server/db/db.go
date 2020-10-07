@@ -34,7 +34,7 @@ type Client interface {
 	InsertTxs(ctx context.Context, txs []*types.Transaction) error
 	UpsertTxs(ctx context.Context, txs []*types.Transaction) error
 	UpdateActiveAddress() error
-	BlockByNumber(ctx context.Context, blockNumber uint64) (*types.Block, error)
+	BlockByHeight(ctx context.Context, blockHeight uint64) (*types.Block, error)
 	IsBlockExist(ctx context.Context, block *types.Block) (bool, error)
 }
 

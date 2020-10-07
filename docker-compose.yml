@@ -19,14 +19,24 @@ services:
     volumes:
       - ../postgres-explorer:/var/lib/postgresql/data
   backend:
-    build: .
+    build:
+      context: .
+      args:
+        GITHUB_TOKEN: ${GITHUB_TOKEN}
     image: kardiachain/backend-explorer
     ports:
       - 8000:3000
+    environment:
+      GITHUB_TOKEN: ${GITHUB_TOKEN}
     command: "api"
   grabber:
-    build: .
+    build:
+      context: .
+      args:
+        GITHUB_TOKEN: ${GITHUB_TOKEN}
     image: kardiachain/backend-explorer
     ports:
       - 8001:3000
+    environment:
+      GITHUB_TOKEN: ${GITHUB_TOKEN}
     command: "grabber -m mongodb:27017 -u http://10.10.0.251:8551 --log-level info -f true"

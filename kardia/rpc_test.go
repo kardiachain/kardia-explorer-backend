@@ -30,9 +30,10 @@ import (
 	"github.com/blendle/zapdriver"
 	"github.com/stretchr/testify/assert"
 
-	"github.com/kardiachain/explorer-backend/types"
 	"github.com/kardiachain/go-kardiamain/lib/common"
 	coreTypes "github.com/kardiachain/go-kardiamain/types"
+
+	"github.com/kardiachain/explorer-backend/types"
 )
 
 type testSuite struct {
@@ -194,7 +195,7 @@ func TestBlockByNumber(t *testing.T) {
 	client, ctx, testSuite, err := SetupKAIClient()
 	assert.Nil(t, err)
 
-	b, err := client.BlockByNumber(ctx, testSuite.blockHeight)
+	b, err := client.BlockByHeight(ctx, testSuite.blockHeight)
 
 	assert.Nil(t, err)
 	t.Log("\nBlock number: ", testSuite.blockHeight, "\nBlock: ", b)

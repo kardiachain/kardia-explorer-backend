@@ -21,7 +21,6 @@ package server
 import (
 	"errors"
 
-	"github.com/go-redis/redis/v8"
 	"go.uber.org/zap"
 
 	"github.com/kardiachain/explorer-backend/kardia"
@@ -76,8 +75,9 @@ func New(cfg Config) (*Server, error) {
 		return nil, errors.New("cannot create kai client")
 	}
 
-	cacheClient := redis.NewClient(&redis.Options{
-		Addr: cfg.CacheURL,
+	cacheClient := cache.New(cache.Config{
+		RedisUrl: cfg.CacheURL,
+		Logger:   cfg.Logger,
 	})
 
 	infoServer := infoServer{

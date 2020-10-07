@@ -66,12 +66,12 @@ func (ec *Client) BlockByHash(ctx context.Context, hash common.Hash) (*types.Blo
 	return ec.getBlock(ctx, "kai_getBlockByHash", hash)
 }
 
-// BlockByNumber returns a block from the current canonical chain.
+// BlockByHeight returns a block from the current canonical chain.
 //
 // Use HeaderByNumber if you don't need all transactions or uncle headers.
 // TODO(trinhdn): If number is nil, the latest known block is returned.
-func (ec *Client) BlockByNumber(ctx context.Context, number uint64) (*types.Block, error) {
-	return ec.getBlock(ctx, "kai_getBlockByNumber", number)
+func (ec *Client) BlockByHeight(ctx context.Context, height uint64) (*types.Block, error) {
+	return ec.getBlock(ctx, "kai_getBlockByNumber", height)
 }
 
 // BlockHeaderByNumber returns a block header from the current canonical chain.

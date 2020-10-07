@@ -30,7 +30,7 @@ import (
 type ClientInterface interface {
 	LatestBlockNumber(ctx context.Context) (uint64, error)
 	BlockByHash(ctx context.Context, hash common.Hash) (*types.Block, error)
-	BlockByNumber(ctx context.Context, number uint64) (*types.Block, error)
+	BlockByHeight(ctx context.Context, height uint64) (*types.Block, error)
 	BlockHeaderByHash(ctx context.Context, hash common.Hash) (*types.Header, error)
 	BlockHeaderByNumber(ctx context.Context, number uint64) (*types.Header, error)
 	GetTransaction(ctx context.Context, hash common.Hash) (tx *types.Transaction, isPending bool, err error)

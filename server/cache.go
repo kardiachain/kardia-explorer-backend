@@ -23,12 +23,3 @@ import (
 )
 
 const DefaultExpiredTime = 24 * time.Hour
-
-const (
-	KeyLatestStats = "#stats#latest"
-
-	KeyLatestBlockNumber = "#block#latestNumber"
-	KeyLatestBlock       = "#block#latest"
-	KeyBlockByNumber     = "#block#%d"
-	KeyBlockByHash       = "#block#%s"
-)

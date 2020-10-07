@@ -33,9 +33,10 @@ func listener(ctx context.Context, srv *server.Server) {
 			// for example, if our
 			if prevHeader != latest {
 				lgr.Info("Listener: Getting block " + strconv.FormatUint(latest, 10))
-				block, err := srv.BlockByNumber(ctx, latest)
+				block, err := srv.BlockByHeight(ctx, latest)
 				if err != nil {
 					lgr.Error("Listener: Failed to get block", zap.Error(err))
+					lgr.Debug("Block not found result", zap.Error(err))
 					continue
 				}
 				if block == nil {
