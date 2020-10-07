@@ -28,6 +28,7 @@ import (
 	"github.com/kardiachain/explorer-backend/types"
 	kardia "github.com/kardiachain/go-kardiamain"
 	"github.com/kardiachain/go-kardiamain/lib/common"
+	"github.com/kardiachain/go-kardiamain/lib/p2p"
 	"github.com/kardiachain/go-kardiamain/lib/rlp"
 	"github.com/kardiachain/go-kardiamain/rpc"
 	coreTypes "github.com/kardiachain/go-kardiamain/types"
@@ -148,6 +149,36 @@ func (ec *Client) SendRawTransaction(ctx context.Context, tx *coreTypes.Transact
 		return err
 	}
 	return ec.c.CallContext(ctx, nil, "tx_sendRawTransaction", common.ToHex(data))
+}
+
+func (ec *Client) Peers(ctx context.Context) ([]*p2p.PeerInfo, error) {
+	var result []*p2p.PeerInfo
+	err := ec.c.CallContext(ctx, &result, "node_peers")
+	return result, err
+}
+
+func (ec *Client) NodeInfo(ctx context.Context) (*p2p.NodeInfo, error) {
+	var result *p2p.NodeInfo
+	err := ec.c.CallContext(ctx, &result, "node_nodeInfo")
+	return result, err
+}
+
+func (ec *Client) Datadir(ctx context.Context) (string, error) {
+	var result string
+	err := ec.c.CallContext(ctx, &result, "node_datadir")
+	return result, err
+}
+
+func (ec *Client) Validator(ctx context.Context) []map[string]interface{} {
+	var result []map[string]interface{}
+	_ = ec.c.CallContext(ctx, &result, "kai_validator")
+	return result
+}
+
+func (ec *Client) Validators(ctx context.Context) []map[string]interface{} {
+	var result []map[string]interface{}
+	_ = ec.c.CallContext(ctx, &result, "kai_validators")
+	return result
 }
 
 func (ec *Client) getBlock(ctx context.Context, method string, args ...interface{}) (*types.Block, error) {

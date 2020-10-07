@@ -99,4 +99,45 @@ func BenchmarkGetTransactionReceipt(b *testing.B) {
 	}
 }
 
+func BenchmarkPeers(b *testing.B) {
+	client, ctx, _, err := SetupKAIClient()
+	assert.Nil(b, err)
+	for i := 0; i < b.N; i++ {
+		_, _ = client.Peers(ctx)
+	}
+}
+
+func BenchmarkNodeInfo(b *testing.B) {
+	client, ctx, _, err := SetupKAIClient()
+	assert.Nil(b, err)
+	for i := 0; i < b.N; i++ {
+		_, _ = client.NodeInfo(ctx)
+	}
+
+}
+
+func BenchmarkDataDir(b *testing.B) {
+	client, ctx, _, err := SetupKAIClient()
+	assert.Nil(b, err)
+	for i := 0; i < b.N; i++ {
+		_, _ = client.Datadir(ctx)
+	}
+}
+
+func BenchmarkValidators(b *testing.B) {
+	client, ctx, _, err := SetupKAIClient()
+	assert.Nil(b, err)
+	for i := 0; i < b.N; i++ {
+		_ = client.Validators(ctx)
+	}
+}
+
+func BenchmarkValidator(b *testing.B) {
+	client, ctx, _, err := SetupKAIClient()
+	assert.Nil(b, err)
+	for i := 0; i < b.N; i++ {
+		_ = client.Validator(ctx)
+	}
+}
+
 // TODO(trinhdn): continue testing other implemented methods

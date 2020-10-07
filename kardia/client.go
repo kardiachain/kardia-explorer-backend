@@ -23,6 +23,7 @@ import (
 
 	"github.com/kardiachain/explorer-backend/types"
 	"github.com/kardiachain/go-kardiamain/lib/common"
+	"github.com/kardiachain/go-kardiamain/lib/p2p"
 	coreTypes "github.com/kardiachain/go-kardiamain/types"
 )
 
@@ -39,4 +40,9 @@ type ClientInterface interface {
 	CodeAt(ctx context.Context, account common.Address, blockNumber uint64) ([]byte, error)
 	NonceAt(ctx context.Context, account common.Address) (uint64, error)
 	SendRawTransaction(ctx context.Context, tx *coreTypes.Transaction) error
+	Peers(ctx context.Context) ([]*p2p.PeerInfo, error)
+	NodeInfo(ctx context.Context) (*p2p.NodeInfo, error)
+	Datadir(ctx context.Context) (string, error)
+	Validator(ctx context.Context) []map[string]interface{}
+	Validators(ctx context.Context) []map[string]interface{}
 }
