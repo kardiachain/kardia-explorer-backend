@@ -23,7 +23,7 @@ func listener(ctx context.Context, srv *server.Server) {
 		case <-ctx.Done():
 			return
 		case <-t.C:
-			latest, err := srv.LatestBlockNumber(ctx)
+			latest, err := srv.LatestBlockHeight(ctx)
 			if err != nil {
 				srv.Logger.Error("Listener: Failed to get latest block number", zap.Error(err))
 				continue
@@ -47,11 +47,7 @@ func listener(ctx context.Context, srv *server.Server) {
 					lgr.Error("Listener: Failed to import block", zap.Error(err))
 					continue
 				}
-				//if err := checkAncestors(ctx, srv, block.Number, 100); err != nil {
-				//	lgr.Warn("Listener: Failed to check ancestors", zap.Error(err))
-				//}
 				prevHeader = latest
-
 			}
 		}
 	}

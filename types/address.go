@@ -1,33 +1,26 @@
 package types
 
-import (
-	"time"
-)
-
 type Address struct {
-	Address        string    `json:"address" bson:"address"`
-	BalanceFloat   float64   `json:"-" bson:"balance_float"`        //low precise balance for sorting purposes
-	BalanceString  string    `json:"balance" bson:"balance_string"` //high precise balance for API
-	BalanceWei     string    `json:"balance_wei" bson:"balance_wei"`
-	UpdatedAt      time.Time `json:"updated_at" bson:"updated_at"`
-	UpdatedAtBlock uint64    `json:"-" bson:"updated_at_block"`
+	Address string `json:"address" bson:"address"`
+	Balance string `json:"balance" bson:"balance"`
 
-	TokenName   string `json:"token_name,omitempty" bson:"token_name"`
-	TokenSymbol string `json:"token_symbol,omitempty" bson:"token_symbol"`
-	Decimals    int64  `json:"decimals,omitempty" bson:"decimals"`
-	TotalSupply string `json:"total_supply" bson:"total_supply"`
+	// Token
+	TokenName   string `json:"tokenName" bson:"tokenName"`
+	TokenSymbol string `json:"tokenSymbol" bson:"tokenSymbol"`
+	Decimals    int64  `json:"decimals" bson:"decimals"`
+	TotalSupply string `json:"totalSupply" bson:"totalSupply"`
 
-	Contract   bool     `json:"contract" bson:"contract"`
-	ErcTypes   []string `json:"erc_types" bson:"erc_types"`
-	Interfaces []string `json:"interfaces" bson:"interfaces"`
+	// SMC
+	IsContract   bool     `json:"isContract" bson:"isContract"`
+	ErcTypes     []string `json:"ercTypes" bson:"ercTypes"`
+	Interfaces   []string `json:"interfaces" bson:"interfaces"`
+	OwnerAddress string   `json:"ownerAddress" bson:"ownerAddress"`
 
-	NumberOfTransactions         int `json:"number_of_transactions" bson:"number_of_transactions"`
-	NumberOfTokenHolders         int `json:"number_of_token_holders,omitempty" bson:"number_of_token_holders"`
-	NumberOfInternalTransactions int `json:"number_of_internal_transactions,omitempty" bson:"number_of_internal_transactions"`
-	NumberOfTokenTransactions    int `json:"number_of_token_transactions,omitempty" bson:"number_of_token_transactions"`
+	// Stats
+	TxCount         int `json:"txCount" bson:"txCount"`
+	HolderCount     int `json:"holderCount" bson:"holderCount"`
+	InternalTxCount int `json:"internalTxCount" bson:"internalTxCount"`
+	TokenTxCount    int `json:"tokenTxCount" bson:"tokenTxCount"`
 
-	Target string `json:"target,omitempty" bson:"target"`
-	Owner  string `json:"owner,omitempty" bson:"owner"`
-
-	AttachedContract Contract `json:"attached_contract,omitempty" bson:"attached_contract,omitempty"`
+	UpdatedAt int64 `json:"updatedAt" bson:"updatedAt"`
 }

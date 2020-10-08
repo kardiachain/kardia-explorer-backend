@@ -1,32 +1,40 @@
 package main
 
 import (
+	"go.uber.org/zap"
+
 	"github.com/kardiachain/explorer-backend/api"
 	"github.com/kardiachain/explorer-backend/cfg"
+	"github.com/kardiachain/explorer-backend/kardia"
 	"github.com/kardiachain/explorer-backend/server"
+	"github.com/kardiachain/explorer-backend/server/cache"
 	"github.com/kardiachain/explorer-backend/server/db"
 )
 
 func main() {
 	serviceCfg, err := cfg.New()
 	if err != nil {
-		panic("cannot get configuration")
+		panic(err.Error())
 		return
+	}
+
+	logger, err := zap.NewProduction()
+	if err != nil {
+		panic("cannot create logger")
 	}
 
 	srvCfg := server.Config{
 		DBAdapter:       db.MGO,
 		DBUrl:           serviceCfg.MongoURL,
 		DBName:          serviceCfg.MongoDB,
-		KardiaProtocol:  "",
-		KardiaURL:       "",
-		CacheAdapter:    "",
-		CacheURL:        "",
+		KardiaProtocol:  kardia.RPCProtocol,
+		KardiaURL:       serviceCfg.KardiaURLs[0],
+		CacheAdapter:    cache.RedisAdapter,
+		CacheURL:        serviceCfg.CacheUrl,
 		LockedAccount:   nil,
-		Signers:         nil,
-		IsFlushDatabase: false,
+		IsFlushDatabase: true,
 		Metrics:         nil,
-		Logger:          nil,
+		Logger:          logger,
 	}
 	srv, err := server.New(srvCfg)
 	if err != nil {

@@ -29,6 +29,10 @@ services:
     environment:
       GITHUB_TOKEN: ${GITHUB_TOKEN}
     command: "api"
+    depends_on:
+      - grabber
+      - mongodb
+      - postgres
   grabber:
     build:
       context: .

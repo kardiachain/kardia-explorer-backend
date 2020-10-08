@@ -1,2 +1,0 @@
-// Package types
-package types

@@ -3,7 +3,6 @@ package server
 
 import (
 	"context"
-	"time"
 
 	"go.uber.org/zap"
 
@@ -15,8 +14,16 @@ import (
 )
 
 type InfoServer interface {
+	// API
+	LatestBlockHeight(ctx context.Context) (uint64, error)
+
+	// DB
+	LatestInsertBlockHeight(ctx context.Context) (uint64, error)
+
+	// Share interface
 	BlockByHeight(ctx context.Context, blockHeight uint64) (*types.Block, error)
 	BlockByHash(ctx context.Context, blockHash string) (*types.Block, error)
+
 	ImportBlock(ctx context.Context, block *types.Block) (*types.Block, error)
 }
 
@@ -82,7 +89,7 @@ func (s *infoServer) ValidateBlock(ctx context.Context, block *types.Block, vali
 	isBlockImported, err := s.dbClient.IsBlockExist(ctx, block)
 	if err != nil || !isBlockImported {
 		if err := s.dbClient.InsertBlock(ctx, networkBlock); err != nil {
-			s.logger.Warn("cannot import block", zap.String("bHash", block.BlockHash))
+			s.logger.Warn("cannot import block", zap.String("bHash", block.Hash))
 			return err
 		}
 	}
@@ -91,7 +98,7 @@ func (s *infoServer) ValidateBlock(ctx context.Context, block *types.Block, vali
 	if err != nil || !validator(dbBlock, networkBlock) {
 		// Force dbBlock with new information from network block
 		if err := s.dbClient.UpsertBlock(ctx, networkBlock); err != nil {
-			s.logger.Warn("cannot import block", zap.String("bHash", block.BlockHash))
+			s.logger.Warn("cannot import block", zap.String("bHash", block.Hash))
 			return err
 		}
 	}
@@ -109,7 +116,7 @@ func (s *infoServer) getAddressByHash(address string) (*types.Address, error) {
 	return nil, nil
 }
 
-func (s *infoServer) getTxsByBlockNumber(blockNumber int64, filter *types.PaginationFilter) ([]*types.Transaction, error) {
+func (s *infoServer) getTxsByBlockNumber(blockNumber int64, filter *types.Pagination) ([]*types.Transaction, error) {
 	return nil, nil
 }
 
@@ -118,19 +125,4 @@ func (s *infoServer) getLatestBlock(ctx context.Context) ([]*types.Block, error)
 	var blocks []*types.Block
 
 	return blocks, nil
-}
-
-func (s *infoServer) getStats(ctx context.Context) (*types.Stats, error) {
-	var stats *types.Stats
-
-	return stats, nil
-}
-
-// insertStats insert new stats record for each 24h
-func (s *infoServer) insertStats(ctx context.Context) (*types.Stats, error) {
-	stats := &types.Stats{
-		UpdatedAt: time.Now(),
-	}
-
-	return stats, nil
 }

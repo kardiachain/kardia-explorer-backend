@@ -31,7 +31,7 @@ const (
 	DefaultTimeout = 5 * time.Second
 )
 
-func (s *infoServer) LatestBlockNumber(ctx context.Context) (uint64, error) {
+func (s *infoServer) LatestBlockHeight(ctx context.Context) (uint64, error) {
 	toCtx, timeout := context.WithTimeout(ctx, DefaultTimeout)
 	defer timeout()
 	return s.kaiClient.LatestBlockNumber(toCtx)

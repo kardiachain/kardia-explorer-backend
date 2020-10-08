@@ -50,7 +50,7 @@ type ExplorerConfig struct {
 
 func New() (ExplorerConfig, error) {
 	if err := godotenv.Load(); err != nil {
-		return ExplorerConfig{}, err
+		panic(err.Error())
 	}
 
 	bufferedBlocksStr := os.Getenv("BUFFER_BLOCKS")

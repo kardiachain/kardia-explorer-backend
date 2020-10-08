@@ -27,7 +27,6 @@ import (
 	"github.com/kardiachain/explorer-backend/metrics"
 	"github.com/kardiachain/explorer-backend/server/cache"
 	"github.com/kardiachain/explorer-backend/server/db"
-	"github.com/kardiachain/explorer-backend/types"
 )
 
 type Config struct {
@@ -42,7 +41,6 @@ type Config struct {
 	CacheURL     string
 
 	LockedAccount   []string
-	Signers         map[string]types.Signer
 	IsFlushDatabase bool
 	Metrics         *metrics.Provider
 	Logger          *zap.Logger

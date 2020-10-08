@@ -29,7 +29,7 @@ func (c *Redis) ImportBlock(ctx context.Context, block *types.Block) error {
 	}
 
 	c.logger.Debug("Push new block success", zap.Int64("index", blockIndex))
-	blockByHashKey := fmt.Sprintf(KeyBlockByHash, block.BlockHash)
+	blockByHashKey := fmt.Sprintf(KeyBlockByHash, block.Hash)
 	blockByNumberKey := fmt.Sprintf(KeyBlockByNumber, block.Height)
 	if err := c.client.Set(ctx, blockByHashKey, blockIndex, 0).Err(); err != nil {
 		return err

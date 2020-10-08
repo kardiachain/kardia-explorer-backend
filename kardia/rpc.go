@@ -42,13 +42,11 @@ type Client struct {
 
 // NewKaiClient creates a client that uses the given RPC client.
 func NewKaiClient(rpcUrl string, Lgr *zap.Logger) (ClientInterface, error) {
-
 	rpcClient, err := rpc.Dial(rpcUrl)
 	fmt.Printf("RPC Client %+v \n", rpcClient)
 	if err != nil {
 		return nil, err
 	}
-
 	return &Client{rpcClient, Lgr}, nil
 }
 
@@ -160,7 +158,6 @@ func (ec *Client) getBlock(ctx context.Context, method string, args ...interface
 	if err != nil {
 		return nil, err
 	}
-	raw.NonceBool = false
 	return &raw, nil
 }
 
