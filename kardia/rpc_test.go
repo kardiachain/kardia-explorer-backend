@@ -37,7 +37,7 @@ import (
 )
 
 type testSuite struct {
-	rpcURL string
+	rpcURL []string
 
 	minBlockNumber uint64
 
@@ -143,7 +143,7 @@ func setupTestSuite() *testSuite {
 	sampleNodeInfo := &p2p.NodeInfo{}
 	sampleValidator := []map[string]interface{}{}
 	return &testSuite{
-		rpcURL:            "http://10.10.0.251:8551",
+		rpcURL:            []string{"http://10.10.0.251:8545", "http://10.10.0.251:8546", "http://10.10.0.251:8547", "http://10.10.0.251:8548", "http://10.10.0.251:8549", "http://10.10.0.251:8550", "http://10.10.0.251:8551"},
 		minBlockNumber:    1<<bits.UintSize - 1,
 		blockHeight:       blockHeight,
 		blockHash:         blockHash,
@@ -176,11 +176,15 @@ func SetupKAIClient() (*Client, context.Context, *testSuite, error) {
 		return nil, nil, suite, fmt.Errorf("Failed to create logger: %v", err)
 	}
 	defer logger.Sync()
-	client, err := NewKaiClient(suite.rpcURL, logger)
+	client, err := NewKaiClient(suite.rpcURL, logger, nil)
 	if err != nil {
 		return nil, nil, suite, fmt.Errorf("Failed to create new KaiClient: %v", err)
 	}
 	return client, ctx, suite, nil
+}
+
+func TestSanity(t *testing.T) {
+
 }
 
 func TestLatestBlockNumber(t *testing.T) {
