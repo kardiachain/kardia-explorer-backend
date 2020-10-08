@@ -18,24 +18,6 @@
 // Package server
 package server
 
-import (
-	"github.com/ethereum/go-ethereum/common"
-	"go.uber.org/zap"
-
-	"github.com/kardiachain/explorer-backend/metrics"
-	"github.com/kardiachain/explorer-backend/types"
-)
-
-type Config struct {
-	DBUrl           string
-	RPCUrl          string
-	LockedAccount   []string
-	Signers         map[common.Address]types.Signer
-	IsFlushDatabase bool
-	Metrics         *metrics.Provider
-	Logger          *zap.Logger
-}
-
 type smcServer struct {
 	cfg Config
 }

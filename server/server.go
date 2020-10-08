@@ -19,10 +19,32 @@
 package server
 
 import (
+	"errors"
+
 	"go.uber.org/zap"
 
+	"github.com/kardiachain/explorer-backend/kardia"
 	"github.com/kardiachain/explorer-backend/metrics"
+	"github.com/kardiachain/explorer-backend/server/cache"
+	"github.com/kardiachain/explorer-backend/server/db"
 )
+
+type Config struct {
+	DBAdapter db.Adapter
+	DBUrl     string
+	DBName    string
+
+	KardiaProtocol kardia.Protocol
+	KardiaURL      string
+
+	CacheAdapter cache.Adapter
+	CacheURL     string
+
+	LockedAccount   []string
+	IsFlushDatabase bool
+	Metrics         *metrics.Provider
+	Logger          *zap.Logger
+}
 
 // Server instance kind of a router, which receive request from client (explorer)
 // and control how we react those request
@@ -32,9 +54,39 @@ type Server struct {
 	metrics *metrics.Provider
 
 	infoServer
-	apiServer
 }
 
-func New() (*Server, error) {
-	return &Server{}, nil
+func New(cfg Config) (*Server, error) {
+	cfg.Logger.Info("Create new server instance", zap.Any("config", cfg))
+	dbConfig := db.ClientConfig{
+		DbAdapter: cfg.DBAdapter,
+		DbName:    cfg.DBName,
+		URL:       cfg.DBUrl,
+		Logger:    cfg.Logger,
+	}
+	dbClient, err := db.NewClient(dbConfig)
+	if err != nil {
+		return nil, err
+	}
+	kaiClient, err := kardia.NewKaiClient(cfg.KardiaURL, cfg.Logger)
+	if err != nil {
+		return nil, errors.New("cannot create kai client")
+	}
+
+	cacheClient := cache.New(cache.Config{
+		RedisUrl: cfg.CacheURL,
+		Logger:   cfg.Logger,
+	})
+
+	infoServer := infoServer{
+		dbClient:    dbClient,
+		cacheClient: cacheClient,
+		kaiClient:   kaiClient,
+		logger:      cfg.Logger,
+	}
+
+	return &Server{
+		Logger:     cfg.Logger,
+		infoServer: infoServer,
+	}, nil
 }

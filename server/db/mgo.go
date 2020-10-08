@@ -23,54 +23,319 @@ import (
 	"fmt"
 
 	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/mongo"
+	"go.mongodb.org/mongo-driver/mongo/options"
 	"go.uber.org/zap"
+	"gopkg.in/mgo.v2"
 
 	"github.com/kardiachain/explorer-backend/types"
 )
 
 const (
-	cBlocks = "Blocks"
-	cTxs    = "Transactions"
-	//CBlocks = "Blocks"
-	//CBlocks = "Blocks"
-	//CBlocks = "Blocks"
-	//CBlocks = "Blocks"
-	//CBlocks = "Blocks"
-
+	cBlocks       = "Blocks"
+	cTxs          = "Transactions"
+	cAddresses    = "Addresses"
+	cTxsByAddress = "TransactionsByAddress"
+	//cActiveAddresses = "ActiveAddresses"
 )
 
-type MongoDB struct {
+type mongoDB struct {
 	logger  *zap.Logger
 	wrapper *KaiMgo
+	db      *mongo.Database
 }
 
-func (m *MongoDB) ping() error {
+func newMongoDB(cfg ClientConfig) (*mongoDB, error) {
+	ctx := context.Background()
+	dbClient := &mongoDB{
+		logger:  cfg.Logger,
+		wrapper: &KaiMgo{},
+	}
+	mgoURI := fmt.Sprintf("mongodb://%s", cfg.URL)
+	mgoClient, err := mongo.NewClient(options.Client().ApplyURI(mgoURI), options.Client().SetMinPoolSize(32), options.Client().SetMaxPoolSize(64))
+	if err != nil {
+		return nil, err
+	}
+
+	if err := mgoClient.Connect(context.Background()); err != nil {
+		return nil, err
+	}
+	dbClient.wrapper.Database(mgoClient.Database(cfg.DbName))
+
+	if cfg.FlushDB {
+		dbClient.wrapper.DropDatabase(ctx)
+	}
+
+	return dbClient, nil
+}
+
+//region General
+
+func (m *mongoDB) ping() error {
 	return nil
 }
 
-// importBlock handle follow task
-// - Upsert block into `Blocks` collections/table
-// - Remove any txs if block exist (if re-import)
-func (m *MongoDB) importBlock(ctx context.Context, block *types.Block) error {
-	lgr := m.logger
+func (m *mongoDB) dropCollection(collectionName string) {
+	if _, err := m.wrapper.C(collectionName).RemoveAll(nil); err != nil {
+		return
+	}
+}
+
+//endregion General
+
+//region Blocks
+
+func (m *mongoDB) Blocks(ctx context.Context, pagination *types.Pagination) ([]*types.Block, error) {
+	var blocks []*types.Block
+	opts := []*options.FindOptions{
+		m.wrapper.FindSetSort("-height"),
+		options.Find().SetProjection(bson.M{"height": 1, "time": 1, "validator": 1, "numTxs": 1}),
+		options.Find().SetSkip(int64(pagination.Skip)),
+		options.Find().SetLimit(int64(pagination.Limit)),
+	}
+
+	cursor, err := m.wrapper.C(cBlocks).
+		Find(bson.D{}, opts...)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get latest blocks: %v", err)
+	}
+	for cursor.Next(ctx) {
+		block := &types.Block{}
+		if err := cursor.Decode(&block); err != nil {
+			return nil, err
+		}
+		m.logger.Debug("Get block success", zap.Any("block", block))
+		blocks = append(blocks, block)
+	}
+
+	return blocks, nil
+}
+
+func (m *mongoDB) BlockByHeight(ctx context.Context, blockNumber uint64) (*types.Block, error) {
+	var c types.Block
+	if err := m.wrapper.C(cBlocks).FindOne(bson.M{"height": blockNumber}, options.FindOne().SetProjection(bson.M{"txs": 0, "receipts": 0})).Decode(&c); err != nil {
+		return nil, fmt.Errorf("failed to get block: %v", err)
+	}
+	return &c, nil
+}
+
+func (m *mongoDB) BlockByHash(ctx context.Context, blockHash string) (*types.Block, error) {
+	var block types.Block
+	err := m.wrapper.C(cBlocks).FindOne(bson.M{"hash": blockHash}, options.FindOne().SetProjection(bson.M{"txs": 0, "receipts": 0})).Decode(&block)
+	if err != nil {
+		if err == mongo.ErrNoDocuments {
+			return nil, nil
+		}
+		return nil, err
+	}
+	return &block, nil
+}
+
+func (m *mongoDB) IsBlockExist(ctx context.Context, block *types.Block) (bool, error) {
+	panic("implement me")
+}
+
+func (m *mongoDB) InsertBlock(ctx context.Context, block *types.Block) error {
+	logger := m.logger
 	// todo @longnd: add block info ?
 	// Upsert block into Blocks
-	_, err := m.wrapper.C(cBlocks).Upsert(bson.M{"height": block.Number}, block)
+	_, err := m.wrapper.C(cBlocks).Insert(block)
 	if err != nil {
-		lgr.Warn("cannot insert new block", zap.Error(err))
+		logger.Warn("cannot insert new block", zap.Error(err))
 		return fmt.Errorf("cannot insert new block")
 	}
 
-	if _, err := m.wrapper.C(cTxs).RemoveAll(bson.M{"blockNumber": block.Number}); err != nil {
+	if _, err := m.wrapper.C(cTxs).RemoveAll(bson.M{"blockNumber": block.Height}); err != nil {
 		return err
 	}
 
-	for _, tx := range block.Txs {
-		fmt.Printf("Tx %+v \n", tx)
+	if err := m.InsertTxs(ctx, block.Txs); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (m *mongoDB) UpsertBlock(ctx context.Context, block *types.Block) error {
+	return nil
+}
+
+//endregion BLocks
+
+//region Txs
+
+func (m *mongoDB) Txs(ctx context.Context, pagination *types.Pagination) {
+	panic("implement me")
+}
+
+func (m *mongoDB) TxsByBlockHash(ctx context.Context, blockHash string, pagination *types.Pagination) ([]*types.Transaction, error) {
+	var txs []*types.Transaction
+	opts := []*options.FindOptions{
+		options.Find().SetSkip(int64(pagination.Skip)),
+		options.Find().SetLimit(int64(pagination.Limit)),
+	}
+	cursor, err := m.wrapper.C(cTxs).
+		Find(bson.M{"blockHash": blockHash}, opts...)
+	if err != nil {
+		if err == mgo.ErrNotFound {
+			return nil, nil
+		}
+		return nil, fmt.Errorf("failed to get txs for block: %v", err)
+	}
+	for cursor.Next(ctx) {
+		tx := &types.Transaction{}
+		if err := cursor.Decode(tx); err != nil {
+			return nil, err
+		}
+		txs = append(txs, tx)
+	}
+
+	return txs, nil
+}
+
+func (m *mongoDB) TxsByBlockHeight(ctx context.Context, blockHeight uint64, pagination *types.Pagination) ([]*types.Transaction, error) {
+	var txs []*types.Transaction
+	opts := []*options.FindOptions{
+		options.Find().SetSkip(int64(pagination.Skip)),
+		options.Find().SetLimit(int64(pagination.Limit)),
+	}
+	cursor, err := m.wrapper.C(cTxs).
+		Find(bson.M{"blockHeight": blockHeight}, opts...)
+	if err != nil {
+		if err == mgo.ErrNotFound {
+			return nil, nil
+		}
+		return nil, fmt.Errorf("failed to get txs for block: %v", err)
+	}
+	for cursor.Next(ctx) {
+		tx := &types.Transaction{}
+		if err := cursor.Decode(tx); err != nil {
+			return nil, err
+		}
+		txs = append(txs, tx)
+	}
+
+	return txs, nil
+}
+
+// TxsByAddress return txs match input address in FROM/TO field
+func (m *mongoDB) TxsByAddress(ctx context.Context, address string, pagination *types.Pagination) ([]*types.Transaction, error) {
+	var txs []*types.Transaction
+	opts := []*options.FindOptions{
+		options.Find().SetSkip(int64(pagination.Skip)),
+		options.Find().SetLimit(int64(pagination.Limit)),
+	}
+	cursor, err := m.wrapper.C(cTxs).
+		Find(bson.M{"from": address}, opts...)
+	if err != nil {
+		if err == mgo.ErrNotFound {
+			return nil, nil
+		}
+		return nil, fmt.Errorf("failed to get txs for block: %v", err)
+	}
+	for cursor.Next(ctx) {
+		tx := &types.Transaction{}
+		if err := cursor.Decode(tx); err != nil {
+			return nil, err
+		}
+		txs = append(txs, tx)
+	}
+
+	return txs, nil
+}
+
+func (m *mongoDB) TxByHash(ctx context.Context, txHash string) (*types.Transaction, error) {
+	var tx *types.Transaction
+	err := m.wrapper.C(cTxs).FindOne(bson.M{"hash": txHash}).Decode(&tx)
+	if err != nil {
+		if err == mgo.ErrNotFound {
+			return nil, nil
+		}
+		return nil, fmt.Errorf("failed to get tx: %v", err)
+	}
+	return tx, nil
+}
+
+func (m *mongoDB) TxByNonce(ctx context.Context, nonce int64) (*types.Transaction, error) {
+	var tx *types.Transaction
+	err := m.wrapper.C(cTxs).FindOne(bson.M{"nonce": nonce}).Decode(&tx)
+	if err != nil {
+		if err == mgo.ErrNotFound {
+			return nil, nil
+		}
+		return nil, fmt.Errorf("failed to get tx: %v", err)
+	}
+	return tx, nil
+}
+
+// InsertTxs create bulk writer
+func (m *mongoDB) InsertTxs(ctx context.Context, txs []*types.Transaction) error {
+	m.logger.Debug("Start insert txs", zap.Int("TxSize", len(txs)))
+	var txsBulkWriter []mongo.WriteModel
+	for _, tx := range txs {
+		m.logger.Debug("Process tx", zap.String("tx", fmt.Sprintf("%#v", tx)))
+		txModel := mongo.NewInsertOneModel().SetDocument(tx)
+		txsBulkWriter = append(txsBulkWriter, txModel)
+	}
+	if len(txsBulkWriter) > 0 {
+		if _, err := m.wrapper.C(cTxs).BulkWrite(txsBulkWriter); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func (m *mongoDB) UpsertTxs(ctx context.Context, txs []*types.Transaction) error {
+	var txsBulkWriter []mongo.WriteModel
+	for _, tx := range txs {
+		m.logger.Debug("Process tx", zap.String("tx", fmt.Sprintf("%#v", tx)))
+		txModel := mongo.NewInsertOneModel().SetDocument(tx)
+		txsBulkWriter = append(txsBulkWriter, txModel)
+	}
+
+	if _, err := m.wrapper.C(cTxs).BulkWrite(txsBulkWriter); err != nil {
+		return err
 	}
 	return nil
 }
 
-func (m *MongoDB) updateActiveAddress() error {
+//endregion Txs
+
+//region Receipts
+
+func (m *mongoDB) InsertReceipts(ctx context.Context, block *types.Block) error {
+	return nil
+}
+
+func (m *mongoDB) UpsertReceipts(ctx context.Context, block *types.Block) error {
+	return nil
+}
+
+//endregion Receipts
+
+//region Token
+func (m *mongoDB) TokenHolders(ctx context.Context, tokenAddress string, pagination *types.Pagination) ([]*types.TokenHolder, error) {
 	panic("implement me")
 }
+
+//endregion Token
+
+//region Address
+
+func (m *mongoDB) AddressByHash(ctx context.Context, addressHash string) (*types.Address, error) {
+	var c types.Address
+	err := m.wrapper.C(cAddresses).FindOne(bson.M{"address": addressHash}).Decode(&c)
+	if err != nil {
+		if err == mgo.ErrNotFound {
+			return nil, nil
+		}
+		return nil, fmt.Errorf("failed to get address: %v", err)
+	}
+	return &c, nil
+}
+func (m *mongoDB) OwnedTokensOfAddress(ctx context.Context, walletAddress string, pagination *types.Pagination) ([]*types.TokenHolder, error) {
+	panic("implement me")
+}
+
+//endregion Address

@@ -35,6 +35,8 @@ import (
 	"github.com/kardiachain/go-kardiamain/lib/rlp"
 	"github.com/kardiachain/go-kardiamain/rpc"
 	coreTypes "github.com/kardiachain/go-kardiamain/types"
+
+	"github.com/kardiachain/explorer-backend/types"
 )
 
 // RPCClient return an *rpc.Client instance
@@ -49,7 +51,7 @@ type Client struct {
 }
 
 // NewKaiClient creates a client that uses the given RPC client.
-func NewKaiClient(rpcURL []string, lgr *zap.Logger, r *redis.Client) (*Client, error) {
+func NewKaiClient(rpcUrl string, Lgr *zap.Logger) (ClientInterface, error) {
 	if err := godotenv.Load(); err != nil {
 		return nil, err
 	}
@@ -150,12 +152,12 @@ func (ec *Client) BlockByHash(ctx context.Context, hash common.Hash) (*types.Blo
 	return ec.getBlock(ctx, "kai_getBlockByHash", hash)
 }
 
-// BlockByNumber returns a block from the current canonical chain.
+// BlockByHeight returns a block from the current canonical chain.
 //
 // Use HeaderByNumber if you don't need all transactions or uncle headers.
 // TODO(trinhdn): If number is nil, the latest known block is returned.
-func (ec *Client) BlockByNumber(ctx context.Context, number uint64) (*types.Block, error) {
-	return ec.getBlock(ctx, "kai_getBlockByNumber", number)
+func (ec *Client) BlockByHeight(ctx context.Context, height uint64) (*types.Block, error) {
+	return ec.getBlock(ctx, "kai_getBlockByNumber", height)
 }
 
 // BlockHeaderByNumber returns a block header from the current canonical chain.
@@ -326,7 +328,6 @@ func (ec *Client) getBlock(ctx context.Context, method string, args ...interface
 	if err != nil {
 		return nil, err
 	}
-	raw.NonceBool = false
 	return &raw, nil
 }
 

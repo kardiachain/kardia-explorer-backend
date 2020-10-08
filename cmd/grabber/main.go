@@ -11,6 +11,11 @@ import (
 
 	"github.com/urfave/cli"
 	"go.uber.org/zap"
+
+	"github.com/kardiachain/explorer-backend/kardia"
+	"github.com/kardiachain/explorer-backend/server"
+	"github.com/kardiachain/explorer-backend/server/cache"
+	"github.com/kardiachain/explorer-backend/server/db"
 )
 
 const (
@@ -19,22 +24,18 @@ const (
 
 func main() {
 	runtime.GOMAXPROCS(runtime.NumCPU())
-	logger, err := zap.NewProduction()
+	logger, err := zap.NewDevelopment()
 	if err != nil {
 		panic("cannot init logger")
 	}
-	defer func() {
-		if err := logger.Sync(); err != nil {
-			logger.Error("cannot sync logger", zap.Error(err))
-		}
-	}()
+
+	logger.Info("Start grabber...")
 
 	defer func() {
 		if err := recover(); err != nil {
 			logger.Error("cannot recover")
 		}
 	}()
-
 	var rpcUrl string
 	var checkTxCount bool
 	var mongoUrl string
@@ -104,51 +105,48 @@ func main() {
 		},
 	}
 
-	_, cancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithCancel(context.Background())
 	sigCh := make(chan os.Signal, 1)
+	waitExit := make(chan bool)
 	signal.Notify(sigCh, syscall.SIGINT, syscall.SIGTERM)
 	go func() {
 		for range sigCh {
 			cancel()
+			waitExit <- true
 		}
 	}()
+
+	app.Action = func(c *cli.Context) error {
+		srvConfig := server.Config{
+			DBAdapter:       db.MGO,
+			DBUrl:           mongoUrl,
+			DBName:          dbName,
+			KardiaProtocol:  kardia.RPCProtocol,
+			KardiaURL:       rpcUrl,
+			CacheAdapter:    cache.RedisAdapter,
+			CacheURL:        "localhost:6379",
+			LockedAccount:   nil,
+			Signers:         nil,
+			IsFlushDatabase: false,
+			Metrics:         nil,
+			Logger:          logger,
+		}
+		srv, err := server.New(srvConfig)
+		if err != nil {
+			logger.Panic(err.Error())
+		}
+
+		// Start listener in new go routine
+		// todo @longnd: Running multi goroutine same time
+		go listener(ctx, srv)
+		//updateAddresses(ctx, true, 0, srv)
+		<-waitExit
+		logger.Info("Grabber stopping")
+		return nil
+	}
 
 	if err := app.Run(os.Args); err != nil {
 		logger.Fatal("Fatal error", zap.Error(err))
 	}
-	logger.Info("Stopping")
-}
-
-func setupAction(cfg zap.Config, c *cli.Context) error {
-	//if c.IsSet("log-level") {
-	//	var lvl zapcore.Level
-	//	s := c.String("log-level")
-	//	if err := lvl.Set(s); err != nil {
-	//		return fmt.Errorf("invalid log-level %q: %v", s, err)
-	//	}
-	//	cfg.Level.SetLevel(lvl)
-	//}
-	//
-	//importer, err := backend.NewBackend(ctx, mongoUrl, rpcUrl, dbName, lockedAccounts, nil, logger, nil, flushDb, metricsProvider)
-	//if err != nil {
-	//	return fmt.Errorf("failed to create backend: %v", err)
-	//}
-	//
-	//listenerImporter, err := backend.NewBackend(ctx, mongoUrl, rpcUrl, dbName, lockedAccounts, nil, logger.With(zap.String("service", "listener")), nil, flushDb, metricsProvider)
-	//if err != nil {
-	//	return fmt.Errorf("failed to create backend: %v", err)
-	//}
-	//backfillImporter, err := backend.NewBackend(ctx, mongoUrl, rpcUrl, dbName, lockedAccounts, nil, logger.With(zap.String("service", "backfill")), nil, false, metricsProvider)
-	//if err != nil {
-	//	return fmt.Errorf("failed to create backend: %v", err)
-	//}
-	//
-	//go listener(ctx, listenerImporter)
-	//go backfill(ctx, backfillImporter, startFrom, checkTxCount)
-	//
-	////go migrator(ctx, importer, logger)
-	//go updateStats(ctx, importer)
-	//go updateAddresses(ctx, 3*time.Minute, false, blockRangeLimit, workersCount, importer) // update only addresses
-	//updateAddresses(ctx, 5*time.Second, true, blockRangeLimit, workersCount, importer)     // update contracts
-	return nil
+	logger.Info("Stopped")
 }
