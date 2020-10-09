@@ -23,20 +23,22 @@ type Config struct {
 }
 
 const (
-	KeyBlocks = "#blocks" // List
-
-	KeyLatestStats = "#stats#latest"
-
+	KeyBlocks            = "#blocks" // List
 	KeyLatestBlockNumber = "#block#latestNumber"
 	KeyLatestBlock       = "#block#latest"
 	KeyBlockByNumber     = "#block#%d"
 	KeyBlockByHash       = "#block#%s"
+
+	KeyLatestStats = "#stats#latest"
 )
 
 type Client interface {
 	ImportBlock(ctx context.Context, block *types.Block) error
 	BlockByHeight(ctx context.Context, blockHeight uint64) (*types.Block, error)
 	BlockByHash(ctx context.Context, blockHash string) (*types.Block, error)
+
+	ImportTx(ctx context.Context, txs []*types.Transaction) error
+	TxByHash(ctx context.Context, txHash string) (*types.Transaction, error)
 }
 
 func New(cfg Config) Client {

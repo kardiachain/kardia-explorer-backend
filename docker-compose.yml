@@ -6,7 +6,9 @@ services:
     container_name: "explorer-mongodb"
     volumes:
       - ../mongo/data/db:/data/db
-    restart: on-failure
+    restart: always
+    ports:
+      - 27017:27017
   postgres:
     image: postgres:11.9
     container_name: "explorer-postgres"

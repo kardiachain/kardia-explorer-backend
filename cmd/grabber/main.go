@@ -51,7 +51,7 @@ func main() {
 	app.Flags = []cli.Flag{
 		cli.StringFlag{
 			Name:        "rpc-url, u",
-			Value:       "http://dev-7.kardiachain.io",
+			Value:       "http://10.10.0.251:8551",
 			Usage:       "rpc api url",
 			Destination: &rpcUrl,
 		},
@@ -126,7 +126,6 @@ func main() {
 			CacheAdapter:    cache.RedisAdapter,
 			CacheURL:        "localhost:6379",
 			LockedAccount:   nil,
-			Signers:         nil,
 			IsFlushDatabase: false,
 			Metrics:         nil,
 			Logger:          logger,

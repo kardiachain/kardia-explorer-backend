@@ -66,11 +66,14 @@ func (s *infoServer) ImportBlock(ctx context.Context, block *types.Block) error 
 
 	// Start import block
 	// consider new routine here
+	// todo: add metrics
 	// todo @longnd: Use redis or leveldb as mem-write buffer for N blocks
 	if err := s.dbClient.InsertBlock(ctx, block); err != nil {
 		s.logger.Debug("cannot import block to db", zap.Error(err))
 		return err
 	}
+
+	// todo: handle receipts
 
 	return nil
 }
