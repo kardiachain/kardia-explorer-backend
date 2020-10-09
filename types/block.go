@@ -5,7 +5,6 @@ import (
 
 	"github.com/kardiachain/go-kardiamain/types"
 )
-
 type Header struct {
 	Hash   string `json:"hash" bson:"blockHash"`
 	Height uint64 `json:"height" bson:"height"`

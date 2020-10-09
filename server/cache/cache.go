@@ -24,7 +24,7 @@ type Config struct {
 
 const (
 	KeyBlocks            = "#blocks" // List
-	KeyLatestBlockNumber = "#block#latestNumber"
+	KeyLatestBlockHeight = "#block#latestHeight"
 	KeyLatestBlock       = "#block#latest"
 	KeyBlockByNumber     = "#block#%d"
 	KeyBlockByHash       = "#block#%s"

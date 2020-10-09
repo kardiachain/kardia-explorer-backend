@@ -75,6 +75,7 @@ func (s *infoServer) ImportBlock(ctx context.Context, block *types.Block) error 
 
 	// todo: handle receipts
 
+
 	return nil
 }
 

@@ -31,12 +31,15 @@ import (
 	"github.com/stretchr/testify/assert"
 
 	"github.com/kardiachain/go-kardiamain/lib/common"
+	"github.com/kardiachain/go-kardiamain/lib/p2p"
 	coreTypes "github.com/kardiachain/go-kardiamain/types"
 
 	"github.com/kardiachain/explorer-backend/types"
 )
 
 type testSuite struct {
+	rpcURL []string
+
 	minBlockNumber uint64
 
 	blockHeight uint64
@@ -48,10 +51,14 @@ type testSuite struct {
 	sampleBlockHeader *types.Header
 	sampleTx          *types.Transaction
 	sampleTxReceipt   *types.Receipt
+	samplePeer        *p2p.PeerInfo
+	sampleNodeInfo    *p2p.NodeInfo
+	sampleDatadir     string
+	sampleValidator   []map[string]interface{}
 }
 
 func setupTestSuite() *testSuite {
-	blockHeight := uint64(20)
+	blockHeight := uint64(395)
 	blockHash := "0x634662e42bc71d2a7ca767ca19735c8f19694fd7dfbbc70bb28698e0e01be888"
 	txHash := "0x470570d7b8b40d62398843278b9ff84c2a140d10bda19af8f96c0ae60c994ac1"
 	address := "0xc1fe56E3F58D3244F606306611a5d10c8333f1f6"
@@ -134,7 +141,11 @@ func setupTestSuite() *testSuite {
 		Root:              "0x",
 		Status:            1,
 	}
+	samplePeer := &p2p.PeerInfo{}
+	sampleNodeInfo := &p2p.NodeInfo{}
+	sampleValidator := []map[string]interface{}{}
 	return &testSuite{
+		rpcURL:            []string{"http://10.10.0.251:8545", "http://10.10.0.251:8546", "http://10.10.0.251:8547", "http://10.10.0.251:8548", "http://10.10.0.251:8549", "http://10.10.0.251:8550", "http://10.10.0.251:8551"},
 		minBlockNumber:    1<<bits.UintSize - 1,
 		blockHeight:       blockHeight,
 		blockHash:         blockHash,
@@ -144,6 +155,10 @@ func setupTestSuite() *testSuite {
 		sampleBlockHeader: sampleBlockHeader,
 		sampleTx:          sampleTx,
 		sampleTxReceipt:   sampleTxReceipt,
+		samplePeer:        samplePeer,
+		sampleNodeInfo:    sampleNodeInfo,
+		sampleDatadir:     "/home/.kardia",
+		sampleValidator:   sampleValidator,
 	}
 }
 
@@ -163,11 +178,15 @@ func SetupKAIClient() (ClientInterface, context.Context, *testSuite, error) {
 		return nil, nil, suite, fmt.Errorf("Failed to create logger: %v", err)
 	}
 	defer logger.Sync()
-	client, err := NewKaiClient("http://10.10.0.251:8551", logger)
+	client, err := NewKaiClient(suite.rpcURL, logger, nil)
 	if err != nil {
 		return nil, nil, suite, fmt.Errorf("Failed to create new KaiClient: %v", err)
 	}
 	return client, ctx, suite, nil
+}
+
+func TestSanity(t *testing.T) {
+
 }
 
 func TestLatestBlockNumber(t *testing.T) {
@@ -269,6 +288,58 @@ func TestGetTransactionReceipt(t *testing.T) {
 
 	assert.Nil(t, err)
 	assert.EqualValuesf(t, testSuite.sampleTxReceipt, receipt, "Received receipt must be equal to sampleTxReceipt in testSuite")
+}
+
+func TestPeers(t *testing.T) {
+	client, ctx, _, err := SetupKAIClient()
+	assert.Nil(t, err)
+
+	peers, err := client.Peers(ctx)
+
+	assert.Nil(t, err)
+	assert.IsTypef(t, []*p2p.PeerInfo{}, peers, "peers must be an array of *p2p.PeerInfo")
+	// assert.EqualValuesf(t, testSuite.sampleTxReceipt, peers, "Received receipt must be equal to sampleTxReceipt in testSuite")
+}
+
+func TestNodeInfo(t *testing.T) {
+	client, ctx, _, err := SetupKAIClient()
+	assert.Nil(t, err)
+
+	node, err := client.NodeInfo(ctx)
+
+	assert.Nil(t, err)
+	assert.IsTypef(t, &p2p.NodeInfo{}, node, "node must be a *p2p.NodeInfo")
+	// assert.EqualValuesf(t, testSuite.sampleTxReceipt, node, "Received receipt must be equal to sampleTxReceipt in testSuite")
+}
+
+func TestDataDir(t *testing.T) {
+	client, ctx, testSuite, err := SetupKAIClient()
+	assert.Nil(t, err)
+
+	dir, err := client.Datadir(ctx)
+
+	assert.Nil(t, err)
+	assert.EqualValuesf(t, testSuite.sampleDatadir, dir, "Receive data directory must be equal to sampleDatadir in testSuite")
+}
+
+func TestValidators(t *testing.T) {
+	client, ctx, testSuite, err := SetupKAIClient()
+	assert.Nil(t, err)
+
+	validators := client.Validators(ctx)
+
+	assert.IsTypef(t, testSuite.sampleValidator, validators, "Validators must be a []map[string]interface{}")
+	// assert.EqualValuesf(t, testSuite.sampleDatadir, dir, "Receive data directory must be equal to sampleDatadir in testSuite")
+}
+
+func TestValidator(t *testing.T) {
+	client, ctx, testSuite, err := SetupKAIClient()
+	assert.Nil(t, err)
+
+	validator := client.Validator(ctx)
+
+	assert.IsTypef(t, testSuite.sampleValidator, validator, "Validator must be a []map[string]interface{}")
+	// assert.EqualValuesf(t, testSuite.sampleDatadir, dir, "Receive data directory must be equal to sampleDatadir in testSuite")
 }
 
 // TODO(trinhdn): continue testing other implemented methods

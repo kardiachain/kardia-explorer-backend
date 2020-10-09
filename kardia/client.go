@@ -22,6 +22,7 @@ import (
 	"context"
 
 	"github.com/kardiachain/go-kardiamain/lib/common"
+	"github.com/kardiachain/go-kardiamain/lib/p2p"
 	coreTypes "github.com/kardiachain/go-kardiamain/types"
 
 	"github.com/kardiachain/explorer-backend/types"
@@ -33,11 +34,16 @@ type ClientInterface interface {
 	BlockByHeight(ctx context.Context, height uint64) (*types.Block, error)
 	BlockHeaderByHash(ctx context.Context, hash common.Hash) (*types.Header, error)
 	BlockHeaderByNumber(ctx context.Context, number uint64) (*types.Header, error)
-	GetTransaction(ctx context.Context, hash common.Hash) (tx *types.Transaction, isPending bool, err error)
+	GetTransaction(ctx context.Context, hash common.Hash) (*types.Transaction, bool, error)
 	GetTransactionReceipt(ctx context.Context, txHash common.Hash) (*types.Receipt, error)
 	BalanceAt(ctx context.Context, account common.Address, blockHash common.Hash, blockNumber uint64) (string, error)
 	StorageAt(ctx context.Context, account common.Address, key common.Hash, blockNumber uint64) ([]byte, error)
 	CodeAt(ctx context.Context, account common.Address, blockNumber uint64) ([]byte, error)
 	NonceAt(ctx context.Context, account common.Address) (uint64, error)
 	SendRawTransaction(ctx context.Context, tx *coreTypes.Transaction) error
+	Peers(ctx context.Context) ([]*p2p.PeerInfo, error)
+	NodeInfo(ctx context.Context) (*p2p.NodeInfo, error)
+	Datadir(ctx context.Context) (string, error)
+	Validator(ctx context.Context) []map[string]interface{}
+	Validators(ctx context.Context) []map[string]interface{}
 }
