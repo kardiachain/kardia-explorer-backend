@@ -47,7 +47,7 @@ func (ec *Client) GetTransactionReceipt(ctx context.Context, txHash common.Hash)
 ```
 **BalanceAt**
 ```go
-func (ec *Client) BalanceAt(ctx context.Context, account common.Address, blockHash common.Hash, blockNumber uint64) (string, error)
+func (ec *Client) BalanceAt(ctx context.Context, account common.Address, args interface{}) (string, error)
 ```
 **NonceAt**
 ```go

@@ -30,7 +30,6 @@ import (
 	"github.com/blendle/zapdriver"
 	"github.com/stretchr/testify/assert"
 
-	"github.com/kardiachain/go-kardiamain/lib/common"
 	"github.com/kardiachain/go-kardiamain/lib/p2p"
 	coreTypes "github.com/kardiachain/go-kardiamain/types"
 
@@ -54,7 +53,7 @@ type testSuite struct {
 	samplePeer        *p2p.PeerInfo
 	sampleNodeInfo    *p2p.NodeInfo
 	sampleDatadir     string
-	sampleValidator   []map[string]interface{}
+	sampleValidator   []*Validator
 }
 
 func setupTestSuite() *testSuite {
@@ -143,9 +142,9 @@ func setupTestSuite() *testSuite {
 	}
 	samplePeer := &p2p.PeerInfo{}
 	sampleNodeInfo := &p2p.NodeInfo{}
-	sampleValidator := []map[string]interface{}{}
+	sampleValidator := []*Validator{}
 	return &testSuite{
-		rpcURL:            []string{"http://10.10.0.251:8545", "http://10.10.0.251:8546", "http://10.10.0.251:8547", "http://10.10.0.251:8548", "http://10.10.0.251:8549", "http://10.10.0.251:8550", "http://10.10.0.251:8551"},
+		rpcURL:            []string{"http://10.10.0.251:8545", "http://10.10.0.251:8551", "http://10.10.0.251:8547", "http://10.10.0.251:8548", "http://10.10.0.251:8549", "http://10.10.0.251:8550", "http://10.10.0.251:8546"},
 		minBlockNumber:    1<<bits.UintSize - 1,
 		blockHeight:       blockHeight,
 		blockHash:         blockHash,
@@ -178,7 +177,7 @@ func SetupKAIClient() (ClientInterface, context.Context, *testSuite, error) {
 		return nil, nil, suite, fmt.Errorf("Failed to create logger: %v", err)
 	}
 	defer logger.Sync()
-	client, err := NewKaiClient(suite.rpcURL, logger, nil)
+	client, err := NewKaiClient(suite.rpcURL, logger)
 	if err != nil {
 		return nil, nil, suite, fmt.Errorf("Failed to create new KaiClient: %v", err)
 	}
@@ -204,7 +203,7 @@ func TestBlockByHash(t *testing.T) {
 	client, ctx, testSuite, err := SetupKAIClient()
 	assert.Nil(t, err)
 
-	b, err := client.BlockByHash(ctx, common.HexToHash(testSuite.blockHash))
+	b, err := client.BlockByHash(ctx, testSuite.blockHash)
 
 	assert.Nil(t, err)
 	t.Log("\nHash: ", testSuite.blockHash, "\nBlock: ", b)
@@ -237,7 +236,7 @@ func TestBlockHeaderByHash(t *testing.T) {
 	client, ctx, testSuite, err := SetupKAIClient()
 	assert.Nil(t, err)
 
-	h, err := client.BlockHeaderByHash(ctx, common.HexToHash(testSuite.blockHash))
+	h, err := client.BlockHeaderByHash(ctx, testSuite.blockHash)
 
 	assert.Nil(t, err)
 	t.Log("\nHash: ", testSuite.blockHash, "\nBlock header: ", h)
@@ -249,7 +248,7 @@ func TestBalanceAt(t *testing.T) {
 	assert.Nil(t, err)
 
 	// num, err := client.LatestBlockNumber(ctx)
-	b, err := client.BalanceAt(ctx, common.HexToAddress(testSuite.address), common.NewZeroHash(), 0)
+	b, err := client.BalanceAt(ctx, testSuite.address, nil)
 
 	assert.Nil(t, err)
 	t.Log("Address: ", testSuite.address, " Balance: ", b)
@@ -262,7 +261,7 @@ func TestNonceAt(t *testing.T) {
 	assert.Nil(t, err)
 
 	// num, err := client.LatestBlockNumber(ctx)
-	n, err := client.NonceAt(ctx, common.HexToAddress(testSuite.address))
+	n, err := client.NonceAt(ctx, testSuite.address)
 
 	assert.Nil(t, err)
 	t.Log("Address: ", testSuite.address, " Nonce: ", n)
@@ -273,7 +272,7 @@ func TestGetTransaction(t *testing.T) {
 	client, ctx, testSuite, err := SetupKAIClient()
 	assert.Nil(t, err)
 
-	tx, isPending, err := client.GetTransaction(ctx, common.HexToHash(testSuite.txHash))
+	tx, isPending, err := client.GetTransaction(ctx, testSuite.txHash)
 
 	assert.Nil(t, err)
 	assert.EqualValuesf(t, false, isPending, "isPending must be true")
@@ -284,7 +283,7 @@ func TestGetTransactionReceipt(t *testing.T) {
 	client, ctx, testSuite, err := SetupKAIClient()
 	assert.Nil(t, err)
 
-	receipt, err := client.GetTransactionReceipt(ctx, common.HexToHash(testSuite.txHash))
+	receipt, err := client.GetTransactionReceipt(ctx, testSuite.txHash)
 
 	assert.Nil(t, err)
 	assert.EqualValuesf(t, testSuite.sampleTxReceipt, receipt, "Received receipt must be equal to sampleTxReceipt in testSuite")
@@ -327,18 +326,20 @@ func TestValidators(t *testing.T) {
 	assert.Nil(t, err)
 
 	validators := client.Validators(ctx)
+	t.Log(validators[0])
 
-	assert.IsTypef(t, testSuite.sampleValidator, validators, "Validators must be a []map[string]interface{}")
+	assert.IsTypef(t, testSuite.sampleValidator, validators, "Validators must be a []*Validator")
 	// assert.EqualValuesf(t, testSuite.sampleDatadir, dir, "Receive data directory must be equal to sampleDatadir in testSuite")
 }
 
 func TestValidator(t *testing.T) {
-	client, ctx, testSuite, err := SetupKAIClient()
+	client, ctx, _, err := SetupKAIClient()
 	assert.Nil(t, err)
 
 	validator := client.Validator(ctx)
+	t.Log(validator)
 
-	assert.IsTypef(t, testSuite.sampleValidator, validator, "Validator must be a []map[string]interface{}")
+	assert.IsTypef(t, &Validator{}, validator, "Validator must be a *Validator")
 	// assert.EqualValuesf(t, testSuite.sampleDatadir, dir, "Receive data directory must be equal to sampleDatadir in testSuite")
 }
 
