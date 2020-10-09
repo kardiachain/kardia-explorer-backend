@@ -48,8 +48,8 @@ type Client struct {
 }
 
 type Validator struct {
-	address     string
-	votingPower float64
+	address     string  `json:"address"`
+	votingPower float64 `json:"votingPower"`
 }
 
 // NewKaiClient creates a client that uses the given RPC client.
