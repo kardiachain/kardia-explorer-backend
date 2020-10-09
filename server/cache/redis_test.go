@@ -33,7 +33,7 @@ func TestRedis_ImportBlock(t *testing.T) {
 	ctx := context.Background()
 	for name, c := range cases {
 		t.Run(name, func(t *testing.T) {
-			assert.Equal(t, cache.ImportBlock(ctx, c.Input), c.WantErr)
+			assert.Equal(t, cache.InsertBlock(ctx, c.Input), c.WantErr)
 		})
 	}
 }

@@ -33,11 +33,11 @@ const (
 )
 
 type Client interface {
-	ImportBlock(ctx context.Context, block *types.Block) error
+	InsertBlock(ctx context.Context, block *types.Block) error
 	BlockByHeight(ctx context.Context, blockHeight uint64) (*types.Block, error)
 	BlockByHash(ctx context.Context, blockHash string) (*types.Block, error)
 
-	ImportTx(ctx context.Context, txs []*types.Transaction) error
+	InsertTx(ctx context.Context, txs []*types.Transaction) error
 	TxByHash(ctx context.Context, txHash string) (*types.Transaction, error)
 }
 

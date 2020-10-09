@@ -44,3 +44,7 @@ func AppendNotEmpty(slice []string, str string) []string {
 
 	return slice
 }
+
+func IsNilAddress(address string) bool {
+	return address == "0x0000000000000000000000000000000000000000"
+}

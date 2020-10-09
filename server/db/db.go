@@ -55,6 +55,7 @@ type Client interface {
 	// Interact with tx
 	InsertTxs(ctx context.Context, txs []*types.Transaction) error
 	UpsertTxs(ctx context.Context, txs []*types.Transaction) error
+	InsertTxByAddress(ctx context.Context, address, txHash string, createdAt int64) error
 
 	// Interact with receipts
 	InsertReceipts(ctx context.Context, block *types.Block) error
@@ -67,6 +68,8 @@ type Client interface {
 	// Address
 	AddressByHash(ctx context.Context, addressHash string) (*types.Address, error)
 	OwnedTokensOfAddress(ctx context.Context, address string, pagination *types.Pagination) ([]*types.TokenHolder, error)
+
+	UpdateActiveAddresses(ctx context.Context, addresses []string) error
 }
 
 func NewClient(cfg ClientConfig) (Client, error) {

@@ -54,6 +54,7 @@ func (s *Server) Blocks(c echo.Context) error {
 	}
 
 	var blocks []*types.Block
+
 	for i := 0; i < limit; i++ {
 		block := &types.Block{}
 		if err := faker.FakeData(&block); err != nil {

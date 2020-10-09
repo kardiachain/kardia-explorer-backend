@@ -45,6 +45,10 @@ type mongoDB struct {
 	db      *mongo.Database
 }
 
+func (m *mongoDB) UpdateActiveAddresses(ctx context.Context, addresses []string) error {
+	panic("implement me")
+}
+
 func newMongoDB(cfg ClientConfig) (*mongoDB, error) {
 	ctx := context.Background()
 	dbClient := &mongoDB{
@@ -300,6 +304,12 @@ func (m *mongoDB) UpsertTxs(ctx context.Context, txs []*types.Transaction) error
 		return err
 	}
 	return nil
+}
+
+func (m *mongoDB) InsertTxByAddress(ctx context.Context, address, txHash string, createdAt int64) error {
+	_, err := m.wrapper.C(cTxsByAddress).Upsert(bson.M{"address": address, "txHash": txHash},
+		bson.M{"address": address, "txHash": txHash, "time": createdAt})
+	return err
 }
 
 //endregion Txs

@@ -11,6 +11,7 @@ import (
 	"github.com/kardiachain/explorer-backend/server/cache"
 	"github.com/kardiachain/explorer-backend/server/db"
 	"github.com/kardiachain/explorer-backend/types"
+	"github.com/kardiachain/explorer-backend/utils"
 )
 
 type InfoServer interface {
@@ -60,7 +61,7 @@ func (s *infoServer) BlockByHeight(ctx context.Context, blockHeight uint64) (*ty
 // ImportBlock make a simple cache for block
 func (s *infoServer) ImportBlock(ctx context.Context, block *types.Block) error {
 	// Update cacheClient with simple struct for tracking
-	if err := s.cacheClient.ImportBlock(ctx, block); err != nil {
+	if err := s.cacheClient.InsertBlock(ctx, block); err != nil {
 		s.logger.Debug("cannot import block to cache", zap.Error(err))
 	}
 
@@ -73,9 +74,58 @@ func (s *infoServer) ImportBlock(ctx context.Context, block *types.Block) error 
 		return err
 	}
 
-	// todo: handle receipts
+	if err := s.ImportReceipts(ctx, block); err != nil {
+		return err
+	}
 
+	return nil
+}
 
+func (s *infoServer) ImportReceipts(ctx context.Context, block *types.Block) error {
+	for _, tx := range block.Txs {
+		receipt, err := s.kaiClient.GetTransactionReceipt(ctx, tx.Hash)
+		if err != nil {
+			s.logger.Warn("get receipt err", zap.Error(err))
+			//todo: consider how we handle this err, just skip it now
+			return err
+		}
+		toAddress := tx.To
+		if tx.To == "" {
+			if !utils.IsNilAddress(receipt.ContractAddress) {
+				tx.ContractAddress = receipt.ContractAddress
+			}
+			tx.Status = receipt.Status == 1
+			toAddress = tx.ContractAddress
+		}
+
+		address, err := s.dbClient.AddressByHash(ctx, toAddress)
+		if err != nil {
+			// Handle err
+		}
+
+		if address == nil || address.IsContract {
+			var addresses []string
+			for _, l := range receipt.Logs {
+				addresses = append(addresses, l.Address)
+			}
+
+			if err := s.dbClient.UpdateActiveAddresses(ctx, addresses); err != nil {
+				return err
+			}
+		}
+
+		err = s.dbClient.InsertTxByAddress(ctx, tx.From, tx.Hash, tx.Time)
+		if err != nil {
+			return err
+		}
+
+		if tx.From != toAddress {
+			if err := s.dbClient.InsertTxByAddress(ctx, toAddress, tx.Hash, tx.Time); err != nil {
+				return err
+			}
+		}
+
+	}
 	return nil
 }
 
