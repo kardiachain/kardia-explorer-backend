@@ -17,3 +17,34 @@
  */
 // Package db
 package db
+
+import (
+	"context"
+
+	"github.com/jackc/pgx/v4/pgxpool"
+	"go.uber.org/zap"
+
+	"github.com/kardiachain/explorer-backend/types"
+)
+
+type Postgres struct {
+	logger *zap.Logger
+	db     *pgxpool.Pool
+}
+
+func (r *Postgres) ping() error {
+	panic("implement me")
+}
+
+func (r *Postgres) updateActiveAddress() error {
+	panic("implement me")
+}
+
+func (r *Postgres) setup() {
+	// Migration
+
+}
+
+func (r *Postgres) importBlock(ctx context.Context, block *types.Block) error {
+	return nil
+}

@@ -19,9 +19,15 @@
 package utils
 
 import (
+	"context"
 	"time"
 )
 
-func GetNowInMs() int64 {
-	return time.Now().UnixNano() / int64(time.Millisecond)
+func SleepFor(ctx context.Context, dur time.Duration) error {
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	case <-time.After(dur):
+		return nil
+	}
 }

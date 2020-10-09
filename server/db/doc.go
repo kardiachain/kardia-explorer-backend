@@ -16,29 +16,16 @@
  *  along with the go-kardia library. If not, see <http://www.gnu.org/licenses/>.
  */
 
-package server
+// Package db actually implement how explorer store data and retrieve data from storage
+// Supported storage: mongoDB and postgres
+package db
 
-import (
-	"context"
-	"time"
+/*
+Assume each blocks contain around [2000, 20000] txs,
+and for each block, mainnet need about [1, 3] seconds for validate,
+and we dont want over 2 blocks behind mainnet
 
-	"github.com/kardiachain/go-kardiamain/lib/common"
-
-	"github.com/kardiachain/explorer-backend/types"
-)
-
-const (
-	DefaultTimeout = 5 * time.Second
-)
-
-func (s *infoServer) LatestBlockHeight(ctx context.Context) (uint64, error) {
-	toCtx, timeout := context.WithTimeout(ctx, DefaultTimeout)
-	defer timeout()
-	return s.kaiClient.LatestBlockNumber(toCtx)
-}
-
-func (s *infoServer) BlockByHash(ctx context.Context, hash common.Hash) (*types.Block, error) {
-	toCtx, timeout := context.WithTimeout(ctx, DefaultTimeout)
-	defer timeout()
-	return s.kaiClient.BlockByHash(toCtx, hash)
-}
+Performance requirement:
+- InsertBlock: 20% validate time
+-
+*/

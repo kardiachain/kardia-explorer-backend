@@ -6,8 +6,7 @@ require (
 	github.com/blendle/zapdriver v1.2.1
 	github.com/bxcodec/faker/v3 v3.5.0
 	github.com/cucumber/godog v0.10.0
-	github.com/ethereum/go-ethereum v1.9.18
-	github.com/go-redis/redis v6.15.9+incompatible
+	github.com/go-redis/redis/v8 v8.2.3
 	github.com/jackc/pgx/v4 v4.9.0
 	github.com/joho/godotenv v1.3.0
 	github.com/kardiachain/go-kardiamain v0.10.2
@@ -18,5 +17,5 @@ require (
 	github.com/urfave/cli v1.22.4
 	go.mongodb.org/mongo-driver v1.4.1
 	go.uber.org/zap v1.16.0
-	golang.org/dl v0.0.0-20200909201834-1fb66e01de4d // indirect
+	gopkg.in/mgo.v2 v2.0.0-20180705113604-9856a29383ce
 )

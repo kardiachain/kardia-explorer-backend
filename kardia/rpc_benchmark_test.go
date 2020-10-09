@@ -47,7 +47,7 @@ func BenchmarkBlockByNumber(b *testing.B) {
 	client, ctx, testSuite, err := SetupKAIClient()
 	assert.Nil(b, err)
 	for i := 0; i < b.N; i++ {
-		_, _ = client.BlockByNumber(ctx, testSuite.blockHeight)
+		_, _ = client.BlockByHeight(ctx, testSuite.blockHeight)
 	}
 }
 
@@ -96,6 +96,47 @@ func BenchmarkGetTransactionReceipt(b *testing.B) {
 	assert.Nil(b, err)
 	for i := 0; i < b.N; i++ {
 		_, _ = client.GetTransactionReceipt(ctx, common.HexToHash(testSuite.txHash))
+	}
+}
+
+func BenchmarkPeers(b *testing.B) {
+	client, ctx, _, err := SetupKAIClient()
+	assert.Nil(b, err)
+	for i := 0; i < b.N; i++ {
+		_, _ = client.Peers(ctx)
+	}
+}
+
+func BenchmarkNodeInfo(b *testing.B) {
+	client, ctx, _, err := SetupKAIClient()
+	assert.Nil(b, err)
+	for i := 0; i < b.N; i++ {
+		_, _ = client.NodeInfo(ctx)
+	}
+
+}
+
+func BenchmarkDataDir(b *testing.B) {
+	client, ctx, _, err := SetupKAIClient()
+	assert.Nil(b, err)
+	for i := 0; i < b.N; i++ {
+		_, _ = client.Datadir(ctx)
+	}
+}
+
+func BenchmarkValidators(b *testing.B) {
+	client, ctx, _, err := SetupKAIClient()
+	assert.Nil(b, err)
+	for i := 0; i < b.N; i++ {
+		_ = client.Validators(ctx)
+	}
+}
+
+func BenchmarkValidator(b *testing.B) {
+	client, ctx, _, err := SetupKAIClient()
+	assert.Nil(b, err)
+	for i := 0; i < b.N; i++ {
+		_ = client.Validator(ctx)
 	}
 }
 
