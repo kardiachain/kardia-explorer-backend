@@ -22,8 +22,6 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-
-	"github.com/kardiachain/go-kardiamain/lib/common"
 )
 
 func BenchmarkLatestBlockNumber(b *testing.B) {
@@ -39,7 +37,7 @@ func BenchmarkBlockByHash(b *testing.B) {
 	client, ctx, testSuite, err := SetupKAIClient()
 	assert.Nil(b, err)
 	for i := 0; i < b.N; i++ {
-		_, _ = client.BlockByHash(ctx, common.HexToHash(testSuite.blockHash))
+		_, _ = client.BlockByHash(ctx, testSuite.blockHash)
 	}
 }
 
@@ -63,7 +61,7 @@ func BenchmarkBlockHeaderByHash(b *testing.B) {
 	client, ctx, testSuite, err := SetupKAIClient()
 	assert.Nil(b, err)
 	for i := 0; i < b.N; i++ {
-		_, _ = client.BlockHeaderByHash(ctx, common.HexToHash(testSuite.blockHash))
+		_, _ = client.BlockHeaderByHash(ctx, testSuite.blockHash)
 	}
 }
 
@@ -71,7 +69,7 @@ func BenchmarkBalanceAt(b *testing.B) {
 	client, ctx, testSuite, err := SetupKAIClient()
 	assert.Nil(b, err)
 	for i := 0; i < b.N; i++ {
-		_, _ = client.BalanceAt(ctx, common.HexToAddress(testSuite.address), common.NewZeroHash(), 0)
+		_, _ = client.BalanceAt(ctx, testSuite.address, nil)
 	}
 }
 
@@ -79,7 +77,7 @@ func BenchmarkNonceAt(b *testing.B) {
 	client, ctx, testSuite, err := SetupKAIClient()
 	assert.Nil(b, err)
 	for i := 0; i < b.N; i++ {
-		_, _ = client.NonceAt(ctx, common.HexToAddress(testSuite.address))
+		_, _ = client.NonceAt(ctx, testSuite.address)
 	}
 }
 
@@ -87,7 +85,7 @@ func BenchmarkGetTransaction(b *testing.B) {
 	client, ctx, testSuite, err := SetupKAIClient()
 	assert.Nil(b, err)
 	for i := 0; i < b.N; i++ {
-		_, _, _ = client.GetTransaction(ctx, common.HexToHash(testSuite.txHash))
+		_, _, _ = client.GetTransaction(ctx, testSuite.txHash)
 	}
 }
 
@@ -95,7 +93,48 @@ func BenchmarkGetTransactionReceipt(b *testing.B) {
 	client, ctx, testSuite, err := SetupKAIClient()
 	assert.Nil(b, err)
 	for i := 0; i < b.N; i++ {
-		_, _ = client.GetTransactionReceipt(ctx, common.HexToHash(testSuite.txHash))
+		_, _ = client.GetTransactionReceipt(ctx, testSuite.txHash)
+	}
+}
+
+func BenchmarkPeers(b *testing.B) {
+	client, ctx, _, err := SetupKAIClient()
+	assert.Nil(b, err)
+	for i := 0; i < b.N; i++ {
+		_, _ = client.Peers(ctx)
+	}
+}
+
+func BenchmarkNodeInfo(b *testing.B) {
+	client, ctx, _, err := SetupKAIClient()
+	assert.Nil(b, err)
+	for i := 0; i < b.N; i++ {
+		_, _ = client.NodeInfo(ctx)
+	}
+
+}
+
+func BenchmarkDataDir(b *testing.B) {
+	client, ctx, _, err := SetupKAIClient()
+	assert.Nil(b, err)
+	for i := 0; i < b.N; i++ {
+		_, _ = client.Datadir(ctx)
+	}
+}
+
+func BenchmarkValidators(b *testing.B) {
+	client, ctx, _, err := SetupKAIClient()
+	assert.Nil(b, err)
+	for i := 0; i < b.N; i++ {
+		_ = client.Validators(ctx)
+	}
+}
+
+func BenchmarkValidator(b *testing.B) {
+	client, ctx, _, err := SetupKAIClient()
+	assert.Nil(b, err)
+	for i := 0; i < b.N; i++ {
+		_ = client.Validator(ctx)
 	}
 }
 
