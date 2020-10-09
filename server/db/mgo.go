@@ -32,10 +32,11 @@ import (
 )
 
 const (
-	cBlocks       = "Blocks"
-	cTxs          = "Transactions"
-	cAddresses    = "Addresses"
-	cTxsByAddress = "TransactionsByAddress"
+	cBlocks          = "Blocks"
+	cTxs             = "Transactions"
+	cAddresses       = "Addresses"
+	cTxsByAddress    = "TransactionsByAddress"
+	cActiveAddresses = "ActiveAddresses"
 	//cActiveAddresses = "ActiveAddresses"
 )
 
@@ -45,8 +46,10 @@ type mongoDB struct {
 	db      *mongo.Database
 }
 
+// UpdateActiveAddresses update last time those addresses active
+// Just skip for now
 func (m *mongoDB) UpdateActiveAddresses(ctx context.Context, addresses []string) error {
-	panic("implement me")
+	return nil
 }
 
 func newMongoDB(cfg ClientConfig) (*mongoDB, error) {
@@ -153,11 +156,6 @@ func (m *mongoDB) InsertBlock(ctx context.Context, block *types.Block) error {
 		return err
 	}
 
-	// todo: add metrics
-	if err := m.InsertTxs(ctx, block.Txs); err != nil {
-		return err
-	}
-
 	return nil
 }
 
@@ -170,7 +168,7 @@ func (m *mongoDB) UpsertBlock(ctx context.Context, block *types.Block) error {
 
 //region Txs
 
-func (m *mongoDB) Txs(ctx context.Context, pagination *types.Pagination) {
+func (m *mongoDB) Txs(ctx context.Context, pagination *types.Pagination) ([]*types.Transaction, error) {
 	panic("implement me")
 }
 
@@ -279,7 +277,6 @@ func (m *mongoDB) InsertTxs(ctx context.Context, txs []*types.Transaction) error
 	m.logger.Debug("Start insert txs", zap.Int("TxSize", len(txs)))
 	var txsBulkWriter []mongo.WriteModel
 	for _, tx := range txs {
-		m.logger.Debug("Process tx", zap.String("tx", fmt.Sprintf("%#v", tx)))
 		txModel := mongo.NewInsertOneModel().SetDocument(tx)
 		txsBulkWriter = append(txsBulkWriter, txModel)
 	}
@@ -306,10 +303,17 @@ func (m *mongoDB) UpsertTxs(ctx context.Context, txs []*types.Transaction) error
 	return nil
 }
 
-func (m *mongoDB) InsertTxByAddress(ctx context.Context, address, txHash string, createdAt int64) error {
-	_, err := m.wrapper.C(cTxsByAddress).Upsert(bson.M{"address": address, "txHash": txHash},
-		bson.M{"address": address, "txHash": txHash, "time": createdAt})
-	return err
+func (m *mongoDB) InsertListTxByAddress(ctx context.Context, list []*types.TransactionByAddress) error {
+	var txsBulkWriter []mongo.WriteModel
+	for _, txByAddress := range list {
+		txByAddressModel := mongo.NewInsertOneModel().SetDocument(txByAddress)
+		txsBulkWriter = append(txsBulkWriter, txByAddressModel)
+	}
+
+	if _, err := m.wrapper.C(cTxsByAddress).BulkWrite(txsBulkWriter); err != nil {
+		return err
+	}
+	return nil
 }
 
 //endregion Txs
@@ -339,7 +343,7 @@ func (m *mongoDB) AddressByHash(ctx context.Context, addressHash string) (*types
 	var c types.Address
 	err := m.wrapper.C(cAddresses).FindOne(bson.M{"address": addressHash}).Decode(&c)
 	if err != nil {
-		if err == mgo.ErrNotFound {
+		if err == mongo.ErrNoDocuments {
 			return nil, nil
 		}
 		return nil, fmt.Errorf("failed to get address: %v", err)

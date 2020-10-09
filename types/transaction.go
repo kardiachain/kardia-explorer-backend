@@ -55,3 +55,9 @@ type Receipt struct {
 	Root              string      `json:"root"`
 	Status            uint        `json:"status"`
 }
+
+type TransactionByAddress struct {
+	Address string `json:"address" bson:"address"`
+	TxHash  string `json:"txHash" bson:"txHash"`
+	Time    int64  `json:"time" bson:"time"`
+}

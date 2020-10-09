@@ -43,7 +43,7 @@ type Client interface {
 	UpsertBlock(ctx context.Context, block *types.Block) error
 
 	// Txs
-	Txs(ctx context.Context, pagination *types.Pagination)
+	Txs(ctx context.Context, pagination *types.Pagination) ([]*types.Transaction, error)
 	TxsByBlockHash(ctx context.Context, blockHash string, pagination *types.Pagination) ([]*types.Transaction, error)
 	TxsByBlockHeight(ctx context.Context, blockNumber uint64, pagination *types.Pagination) ([]*types.Transaction, error)
 	TxsByAddress(ctx context.Context, address string, pagination *types.Pagination) ([]*types.Transaction, error)
@@ -55,7 +55,7 @@ type Client interface {
 	// Interact with tx
 	InsertTxs(ctx context.Context, txs []*types.Transaction) error
 	UpsertTxs(ctx context.Context, txs []*types.Transaction) error
-	InsertTxByAddress(ctx context.Context, address, txHash string, createdAt int64) error
+	InsertListTxByAddress(ctx context.Context, list []*types.TransactionByAddress) error
 
 	// Interact with receipts
 	InsertReceipts(ctx context.Context, block *types.Block) error

@@ -22,8 +22,6 @@ import (
 	"context"
 	"time"
 
-	"github.com/kardiachain/go-kardiamain/lib/common"
-
 	"github.com/kardiachain/explorer-backend/types"
 )
 
@@ -37,7 +35,7 @@ func (s *infoServer) LatestBlockHeight(ctx context.Context) (uint64, error) {
 	return s.kaiClient.LatestBlockNumber(toCtx)
 }
 
-func (s *infoServer) BlockByHash(ctx context.Context, hash common.Hash) (*types.Block, error) {
+func (s *infoServer) BlockByHash(ctx context.Context, hash string) (*types.Block, error) {
 	toCtx, timeout := context.WithTimeout(ctx, DefaultTimeout)
 	defer timeout()
 	return s.kaiClient.BlockByHash(toCtx, hash)

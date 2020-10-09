@@ -22,22 +22,12 @@ type Config struct {
 	Logger *zap.Logger
 }
 
-const (
-	KeyBlocks            = "#blocks" // List
-	KeyLatestBlockHeight = "#block#latestHeight"
-	KeyLatestBlock       = "#block#latest"
-	KeyBlockByNumber     = "#block#%d"
-	KeyBlockByHash       = "#block#%s"
-
-	KeyLatestStats = "#stats#latest"
-)
-
 type Client interface {
 	InsertBlock(ctx context.Context, block *types.Block) error
 	BlockByHeight(ctx context.Context, blockHeight uint64) (*types.Block, error)
 	BlockByHash(ctx context.Context, blockHash string) (*types.Block, error)
 
-	InsertTx(ctx context.Context, txs []*types.Transaction) error
+	InsertTxs(ctx context.Context, txs []*types.Transaction) error
 	TxByHash(ctx context.Context, txHash string) (*types.Transaction, error)
 }
 

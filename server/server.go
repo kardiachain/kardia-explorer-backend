@@ -68,7 +68,9 @@ func New(cfg Config) (*Server, error) {
 	if err != nil {
 		return nil, err
 	}
-	kaiClient, err := kardia.NewKaiClient(cfg.KardiaURL, cfg.Logger)
+
+	urls := []string{"http://10.10.0.251:8551", "http://10.10.0.251:8548", "http://10.10.0.251:8549", "http://10.10.0.251:8550"}
+	kaiClient, err := kardia.NewKaiClient(urls, cfg.Logger)
 	if err != nil {
 		return nil, errors.New("cannot create kai client")
 	}
