@@ -149,6 +149,7 @@ func (m *mongoDB) InsertBlock(ctx context.Context, block *types.Block) error {
 		return err
 	}
 
+	// todo: add metrics
 	if err := m.InsertTxs(ctx, block.Txs); err != nil {
 		return err
 	}
@@ -156,11 +157,12 @@ func (m *mongoDB) InsertBlock(ctx context.Context, block *types.Block) error {
 	return nil
 }
 
+// UpsertBlock call by backfill, to avoid duplicate block record
 func (m *mongoDB) UpsertBlock(ctx context.Context, block *types.Block) error {
 	return nil
 }
 
-//endregion BLocks
+//endregion Blocks
 
 //region Txs
 

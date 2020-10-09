@@ -17,6 +17,14 @@ type Redis struct {
 	logger *zap.Logger
 }
 
+func (c *Redis) ImportTx(ctx context.Context, txs []*types.Transaction) error {
+	panic("implement me")
+}
+
+func (c *Redis) TxByHash(ctx context.Context, txHash string) (*types.Transaction, error) {
+	panic("implement me")
+}
+
 // ImportBlock cache follow step:
 // Keep recent N blocks in memory as cache and temp write DB
 // Maintain SetByHash and SetByNumber return blockIndex
