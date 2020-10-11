@@ -51,7 +51,7 @@ func MgoImportBlock(size int, b *testing.B) {
 	}
 
 	// Drop
-	db.dropCollection("Blocks")
+	db.dropCollection(cBlocks)
 }
 
 func BenchmarkMgo_ImportBlock10(b *testing.B) { MgoImportBlock(10, b) }

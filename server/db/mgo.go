@@ -52,14 +52,17 @@ func (m *mongoDB) UpdateActiveAddresses(ctx context.Context, addresses []string)
 	return nil
 }
 
-func newMongoDB(cfg ClientConfig) (*mongoDB, error) {
+func newMongoDB(cfg Config) (*mongoDB, error) {
 	ctx := context.Background()
 	dbClient := &mongoDB{
 		logger:  cfg.Logger,
 		wrapper: &KaiMgo{},
 	}
-	mgoURI := fmt.Sprintf("mongodb://%s", cfg.URL)
-	mgoClient, err := mongo.NewClient(options.Client().ApplyURI(mgoURI), options.Client().SetMinPoolSize(32), options.Client().SetMaxPoolSize(64))
+	mgoOptions := options.Client()
+	mgoOptions.ApplyURI(cfg.URL)
+	mgoOptions.SetMinPoolSize(uint64(cfg.MinConn))
+	mgoOptions.SetMaxPoolSize(uint64(cfg.MaxConn))
+	mgoClient, err := mongo.NewClient(mgoOptions)
 	if err != nil {
 		return nil, err
 	}
@@ -67,10 +70,23 @@ func newMongoDB(cfg ClientConfig) (*mongoDB, error) {
 	if err := mgoClient.Connect(context.Background()); err != nil {
 		return nil, err
 	}
+
 	dbClient.wrapper.Database(mgoClient.Database(cfg.DbName))
 
 	if cfg.FlushDB {
-		dbClient.wrapper.DropDatabase(ctx)
+		//colNames, err := mgoClient.Database(cfg.DbName).ListCollectionNames(ctx, bson.M{})
+		//if err != nil {
+		//	return nil, err
+		//}
+		//for _, c := range colNames {
+		//	if _, err := dbClient.wrapper.C(c).RemoveAll(bson.M{}); err != nil {
+		//		return nil, err
+		//	}
+		//}
+
+		if err := mgoClient.Database(cfg.DbName).Drop(ctx); err != nil {
+			return nil, err
+		}
 	}
 
 	return dbClient, nil
@@ -93,6 +109,7 @@ func (m *mongoDB) dropCollection(collectionName string) {
 //region Blocks
 
 func (m *mongoDB) Blocks(ctx context.Context, pagination *types.Pagination) ([]*types.Block, error) {
+	m.logger.Debug("get blocks from db", zap.Any("pagination", pagination))
 	var blocks []*types.Block
 	opts := []*options.FindOptions{
 		m.wrapper.FindSetSort("-height"),

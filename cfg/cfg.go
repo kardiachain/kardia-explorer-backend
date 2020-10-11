@@ -23,62 +23,113 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"time"
+)
 
-	"github.com/joho/godotenv"
+const (
+	ModeDev        = "dev"
+	ModeProduction = "prod"
 )
 
 type ExplorerConfig struct {
 	ServerMode string
 	Port       string
 
+	LogLevel string
+
+	DefaultAPITimeout     time.Duration
+	DefaultBlockFetchTime time.Duration
+
 	BufferedBlocks int
 
-	CacheEngine string
-	CacheUrl    string
-	CacheFile   string
+	CacheEngine  string
+	CacheURL     string
+	CacheDB      int
+	CacheFile    string
+	CacheIsFlush bool
 
 	KardiaProtocol string
 	KardiaURLs     []string
 
-	PostgresUri     string
-	PostgresDB      string
-	PostgresMaxConn int
-
-	MongoURL string
-	MongoDB  string
+	StorageDriver  string
+	StorageURI     string
+	StorageDB      string
+	StorageMinConn int
+	StorageMaxConn int
+	StorageIsFlush bool
 }
 
 func New() (ExplorerConfig, error) {
-	if err := godotenv.Load(); err != nil {
-		panic(err.Error())
+	apiDefaultTimeoutStr := os.Getenv("DEFAULT_API_TIMEOUT")
+	apiDefaultTimeout, err := strconv.Atoi(apiDefaultTimeoutStr)
+	if err != nil {
+		apiDefaultTimeout = 2
 	}
 
-	bufferedBlocksStr := os.Getenv("BUFFER_BLOCKS")
-	bufferedBlocks, err := strconv.Atoi(bufferedBlocksStr)
+	apiDefaultBlockFetchTimeStr := os.Getenv("DEFAULT_BLOCK_FETCH_TIME")
+	apiDefaultBlockFetchTime, err := strconv.Atoi(apiDefaultBlockFetchTimeStr)
+	if err != nil {
+		apiDefaultBlockFetchTime = 500
+	}
+
+	bufferBlocksStr := os.Getenv("BUFFER_BLOCKS")
+	bufferBlocks, err := strconv.Atoi(bufferBlocksStr)
+	if err != nil {
+		bufferBlocks = 50
+	}
+
+	cacheDBStr := os.Getenv("CACHE_DB")
+	cacheDB, err := strconv.Atoi(cacheDBStr)
 	if err != nil {
 		return ExplorerConfig{}, err
 	}
 
-	postgresMaxConnStr := os.Getenv("POSTGRES_MAX_CONN")
-	postgresMaxConn, err := strconv.Atoi(postgresMaxConnStr)
+	cacheIsFlushStr := os.Getenv("CACHE_IS_FLUSH")
+	cacheIsFlush, err := strconv.ParseBool(cacheIsFlushStr)
 	if err != nil {
-		return ExplorerConfig{}, err
+		cacheIsFlush = false
+	}
+
+	storageMinConnStr := os.Getenv("STORAGE_MIN_CONN")
+	storageMinConn, err := strconv.Atoi(storageMinConnStr)
+	if err != nil {
+		storageMinConn = 8
+	}
+
+	storageMaxConnStr := os.Getenv("STORAGE_MIN_CONN")
+	storageMaxConn, err := strconv.Atoi(storageMaxConnStr)
+	if err != nil {
+		storageMaxConn = 32
+	}
+
+	storageIsFlushStr := os.Getenv("STORAGE_IS_FLUSH")
+	storageIsFLush, err := strconv.ParseBool(storageIsFlushStr)
+	if err != nil {
+		storageIsFLush = false
 	}
 
 	cfg := ExplorerConfig{
-		ServerMode:      os.Getenv("SERVER_MODE"),
-		Port:            os.Getenv("PORT"),
-		BufferedBlocks:  bufferedBlocks,
-		CacheEngine:     os.Getenv("CACHE_ENGINE"),
-		CacheUrl:        os.Getenv("CACHE_URL"),
-		CacheFile:       os.Getenv("CACHE_FILE"),
-		KardiaProtocol:  os.Getenv("KARDIA_PROTOCOL"),
-		KardiaURLs:      strings.Split(os.Getenv("KARDIA_URL"), ","),
-		PostgresUri:     os.Getenv("POSTGRES_URI"),
-		PostgresDB:      os.Getenv("POSTGRES_URI"),
-		PostgresMaxConn: postgresMaxConn,
-		MongoURL:        os.Getenv("MONGO_URL"),
-		MongoDB:         os.Getenv("MONGO_DB"),
+		ServerMode:            os.Getenv("SERVER_MODE"),
+		Port:                  os.Getenv("PORT"),
+		LogLevel:              os.Getenv("LOG_LEVEL"),
+		DefaultAPITimeout:     time.Duration(apiDefaultTimeout) * time.Second,
+		DefaultBlockFetchTime: time.Duration(apiDefaultBlockFetchTime) * time.Millisecond,
+		BufferedBlocks:        bufferBlocks,
+		CacheEngine:           os.Getenv("CACHE_ENGINE"),
+		CacheURL:              os.Getenv("CACHE_URI"),
+		CacheDB:               cacheDB,
+		CacheFile:             os.Getenv("CACHE_FILE"),
+		CacheIsFlush:          cacheIsFlush,
+
+		KardiaProtocol: os.Getenv("KARDIA_PROTOCOL"),
+		KardiaURLs:     strings.Split(os.Getenv("KARDIA_URL"), ","),
+
+		StorageDriver:  os.Getenv("STORAGE_DRIVER"),
+		StorageURI:     os.Getenv("STORAGE_URI"),
+		StorageDB:      os.Getenv("STORAGE_DB"),
+		StorageMinConn: storageMinConn,
+		StorageMaxConn: storageMaxConn,
+		StorageIsFlush: storageIsFLush,
 	}
 
 	return cfg, nil

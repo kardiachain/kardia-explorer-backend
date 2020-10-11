@@ -13,13 +13,15 @@ import (
 type Adapter string
 
 const (
-	MGO Adapter = "mongo"
+	MGO Adapter = "mgo"
 )
 
-type ClientConfig struct {
+type Config struct {
 	DbAdapter Adapter
 	DbName    string
 	URL       string
+	MinConn   int
+	MaxConn   int
 	FlushDB   bool
 
 	Logger *zap.Logger
@@ -72,11 +74,12 @@ type Client interface {
 	UpdateActiveAddresses(ctx context.Context, addresses []string) error
 }
 
-func NewClient(cfg ClientConfig) (Client, error) {
+func NewClient(cfg Config) (Client, error) {
+	cfg.Logger.Debug("Create new db instance with config", zap.Any("config", cfg))
 	switch cfg.DbAdapter {
 	case MGO:
 		return newMongoDB(cfg)
 	default:
-		return nil, errors.New("invalid config")
+		return nil, errors.New("invalid db config")
 	}
 }

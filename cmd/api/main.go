@@ -1,7 +1,7 @@
 package main
 
 import (
-	"go.uber.org/zap"
+	"github.com/joho/godotenv"
 
 	"github.com/kardiachain/explorer-backend/api"
 	"github.com/kardiachain/explorer-backend/cfg"
@@ -12,31 +12,48 @@ import (
 )
 
 func main() {
+	if err := godotenv.Load(); err != nil {
+		panic(err.Error())
+	}
+
 	serviceCfg, err := cfg.New()
 	if err != nil {
 		panic(err.Error())
-		return
 	}
 
-	logger, err := zap.NewProduction()
+	logger, err := newLogger(serviceCfg)
 	if err != nil {
-		panic("cannot create logger")
+		panic("cannot init logger")
 	}
+	logger.Info("Start API server...")
 
-	srvCfg := server.Config{
-		DBAdapter:       db.MGO,
-		DBUrl:           serviceCfg.MongoURL,
-		DBName:          serviceCfg.MongoDB,
-		KardiaProtocol:  kardia.RPCProtocol,
-		KardiaURL:       serviceCfg.KardiaURLs[0],
-		CacheAdapter:    cache.RedisAdapter,
-		CacheURL:        serviceCfg.CacheUrl,
-		LockedAccount:   nil,
-		IsFlushDatabase: true,
-		Metrics:         nil,
-		Logger:          logger,
+	defer func() {
+		if err := recover(); err != nil {
+			logger.Error("cannot recover")
+		}
+		if err := logger.Sync(); err != nil {
+			logger.Error("cannot sync log")
+		}
+	}()
+
+	srvConfig := server.Config{
+		StorageAdapter: db.Adapter(serviceCfg.StorageDriver),
+		StorageURI:     serviceCfg.StorageURI,
+		StorageDB:      serviceCfg.StorageDB,
+		StorageIsFlush: serviceCfg.StorageIsFlush,
+
+		KardiaProtocol: kardia.Protocol(serviceCfg.KardiaProtocol),
+		KardiaURLs:     serviceCfg.KardiaURLs,
+
+		CacheAdapter: cache.Adapter(serviceCfg.CacheEngine),
+		CacheURL:     serviceCfg.CacheURL,
+		CacheDB:      serviceCfg.CacheDB,
+		CacheIsFlush: serviceCfg.CacheIsFlush,
+
+		Metrics: nil,
+		Logger:  logger,
 	}
-	srv, err := server.New(srvCfg)
+	srv, err := server.New(srvConfig)
 	if err != nil {
 		panic("cannot create server instance")
 	}

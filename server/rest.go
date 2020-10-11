@@ -2,7 +2,9 @@
 package server
 
 import (
+	"context"
 	"strconv"
+	"time"
 
 	"github.com/bxcodec/faker/v3"
 	"github.com/labstack/echo"
@@ -40,6 +42,8 @@ func (s *Server) Validators(c echo.Context) error {
 }
 
 func (s *Server) Blocks(c echo.Context) error {
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
 	var page, limit int
 	var err error
 	pageParams := c.QueryParam("page")
@@ -53,14 +57,13 @@ func (s *Server) Blocks(c echo.Context) error {
 		limit = 20
 	}
 
-	var blocks []*types.Block
-
-	for i := 0; i < limit; i++ {
-		block := &types.Block{}
-		if err := faker.FakeData(&block); err != nil {
-			return err
-		}
-		blocks = append(blocks, block)
+	// todo @londnd: implement read from cache,
+	blocks, err := s.dbClient.Blocks(ctx, &types.Pagination{
+		Skip:  page*limit - limit,
+		Limit: limit,
+	})
+	if err != nil {
+		return api.InternalServer.Build(c)
 	}
 
 	return api.OK.SetData(struct {
@@ -75,6 +78,9 @@ func (s *Server) Blocks(c echo.Context) error {
 }
 
 func (s *Server) Block(c echo.Context) error {
+	//blockHash := c.QueryParam("hash")
+	//blockHeightStr := c.QueryParam("height")
+
 	block := &types.Block{}
 	if err := faker.FakeData(&block); err != nil {
 		return api.InternalServer.Build(c)

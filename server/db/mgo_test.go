@@ -835,7 +835,7 @@ func Test_mongoDB_ping(t *testing.T) {
 
 func Test_newMongoDB(t *testing.T) {
 	type args struct {
-		cfg ClientConfig
+		cfg Config
 	}
 	tests := []struct {
 		name    string

@@ -13,8 +13,8 @@ require (
 	github.com/kardiachain/network-explorer v0.0.0-20201001080217-b7929bb8aae8
 	github.com/labstack/echo v3.3.10+incompatible
 	github.com/labstack/gommon v0.3.0 // indirect
+	github.com/mattn/go-colorable v0.1.8 // indirect
 	github.com/stretchr/testify v1.6.1
-	github.com/urfave/cli v1.22.4
 	go.mongodb.org/mongo-driver v1.4.1
 	go.uber.org/zap v1.16.0
 	gopkg.in/mgo.v2 v2.0.0-20180705113604-9856a29383ce

@@ -100,7 +100,7 @@ func bind(gr *echo.Group, srv EchoServer) {
 		{
 			method: echo.GET,
 			// Query params: ?page=1&limit=10
-			path: "/blocks/",
+			path: "/blocks",
 			fn:   srv.Blocks,
 		},
 		{

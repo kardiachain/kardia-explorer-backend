@@ -4,6 +4,7 @@ package cache
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 
 	"github.com/go-redis/redis/v8"
@@ -34,6 +35,18 @@ const (
 type Redis struct {
 	client *redis.Client
 	logger *zap.Logger
+}
+
+func (c *Redis) BlocksSize(ctx context.Context) (int64, error) {
+	size, err := c.client.LLen(ctx, KeyBlocks).Result()
+	if err != nil {
+		return -1, err
+	}
+	if size == 0 {
+		return 0, errors.New("blocks has no cache")
+	}
+
+	return size, nil
 }
 
 func (c *Redis) InsertTxs(ctx context.Context, txs []*types.Transaction) error {

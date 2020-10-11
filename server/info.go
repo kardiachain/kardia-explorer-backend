@@ -40,6 +40,24 @@ type infoServer struct {
 	logger *zap.Logger
 }
 
+// BlockByHash return block by its hash
+func (s *infoServer) BlockByHash(ctx context.Context, hash string) (*types.Block, error) {
+	lgr := s.logger.With(zap.String("Hash", hash))
+	cacheBlock, err := s.cacheClient.BlockByHash(ctx, hash)
+	if err == nil {
+		return cacheBlock, nil
+	}
+	lgr.Debug("cannot find block in cache", zap.Error(err))
+
+	dbBlock, err := s.dbClient.BlockByHash(ctx, hash)
+	if err == nil {
+		return dbBlock, nil
+	}
+	// Something wrong or we stay behind the network
+	lgr.Warn("cannot find block in db", zap.Error(err))
+	return s.kaiClient.BlockByHash(ctx, hash)
+}
+
 // BlockByHeight return a block by height number
 // If our network got stuck atm, then make request to mainnet
 func (s *infoServer) BlockByHeight(ctx context.Context, blockHeight uint64) (*types.Block, error) {
@@ -54,12 +72,13 @@ func (s *infoServer) BlockByHeight(ctx context.Context, blockHeight uint64) (*ty
 	if err == nil {
 		return dbBlock, nil
 	}
-	lgr.Debug("cannot find in db")
+	// Something wrong or we stay behind the network
+	lgr.Warn("cannot find block in db")
 
 	return s.kaiClient.BlockByHeight(ctx, blockHeight)
 }
 
-// ImportBlock make a simple cache for block
+// ImportBlock handle workflow of import block into system
 func (s *infoServer) ImportBlock(ctx context.Context, block *types.Block) error {
 	// Update cacheClient with simple struct for tracking
 	if err := s.cacheClient.InsertBlock(ctx, block); err != nil {
@@ -81,7 +100,7 @@ func (s *infoServer) ImportBlock(ctx context.Context, block *types.Block) error 
 	}
 
 	insertTxTime := time.Now()
-	// todo: add metrics
+	// todo @trinh: Consider using avgTime metric for reporting/monitor
 	if err := s.dbClient.InsertTxs(ctx, block.Txs); err != nil {
 		return err
 	}
@@ -109,6 +128,7 @@ func (s *infoServer) ImportReceipts(ctx context.Context, block *types.Block) err
 	}
 	results := make(chan response, block.NumTxs)
 
+	//todo @longnd: Move this workers to config or dynamic settings
 	for w := 0; w <= 10; w++ {
 		go func(jobs <-chan types.Transaction, results chan<- response) {
 			for tx := range jobs {
@@ -133,6 +153,7 @@ func (s *infoServer) ImportReceipts(ctx context.Context, block *types.Block) err
 
 				address, err := s.dbClient.AddressByHash(ctx, toAddress)
 				if err != nil {
+					//todo: consider how we handle this err, just skip it now
 					s.logger.Warn("cannot get address by hash")
 					results <- response{
 						err: err,
@@ -147,6 +168,7 @@ func (s *infoServer) ImportReceipts(ctx context.Context, block *types.Block) err
 					}
 
 					if err := s.dbClient.UpdateActiveAddresses(ctx, addresses); err != nil {
+						//todo: consider how we handle this err, just skip it now
 						s.logger.Warn("cannot update active address")
 						results <- response{
 							err: err,
@@ -160,11 +182,6 @@ func (s *infoServer) ImportReceipts(ctx context.Context, block *types.Block) err
 					TxHash:  tx.Hash,
 					Time:    tx.Time,
 				}
-				//listTxByFromAddress = append(listTxByFromAddress, types.TransactionByAddress{
-				//	Address: tx.From,
-				//	TxHash:  tx.Hash,
-				//	Time:    tx.Time,
-				//})
 
 				if tx.From != toAddress {
 					res.txByToAdd = &types.TransactionByAddress{
@@ -172,7 +189,6 @@ func (s *infoServer) ImportReceipts(ctx context.Context, block *types.Block) err
 						TxHash:  tx.Hash,
 						Time:    tx.Time,
 					}
-					//listTxByToAddress = append(listTxByToAddress, )
 				}
 				results <- res
 			}
@@ -183,6 +199,7 @@ func (s *infoServer) ImportReceipts(ctx context.Context, block *types.Block) err
 		jobs <- *tx
 	}
 	close(jobs)
+	// todo @longnd: try to remove this loop
 	size := int(block.NumTxs)
 	for i := 0; i < size; i++ {
 		r := <-results
@@ -197,6 +214,7 @@ func (s *infoServer) ImportReceipts(ctx context.Context, block *types.Block) err
 		}
 	}
 
+	// todo @longnd: Handle insert failed
 	if len(listTxByToAddress) > 0 {
 		s.logger.Debug("ListTxFromAddress", zap.Int("Size", len(listTxByFromAddress)))
 		if err := s.dbClient.InsertListTxByAddress(ctx, listTxByFromAddress); err != nil {
@@ -204,70 +222,12 @@ func (s *infoServer) ImportReceipts(ctx context.Context, block *types.Block) err
 		}
 	}
 
+	// todo @longnd: Handle insert failed
 	if len(listTxByToAddress) > 0 {
 		s.logger.Debug("ListTxByToAddress", zap.Int("Size", len(listTxByFromAddress)))
 		if err := s.dbClient.InsertListTxByAddress(ctx, listTxByToAddress); err != nil {
 			return err
 		}
-	}
-
-	return nil
-}
-
-func (s *infoServer) ImportReceiptsWithoutWorkerPool(ctx context.Context, block *types.Block) error {
-	var listTxByFromAddress []*types.TransactionByAddress
-	var listTxByToAddress []*types.TransactionByAddress
-	for _, tx := range block.Txs {
-		receipt, err := s.kaiClient.GetTransactionReceipt(ctx, tx.Hash)
-		if err != nil {
-			s.logger.Warn("get receipt err", zap.Error(err))
-			//todo: consider how we handle this err, just skip it now
-			return err
-		}
-		toAddress := tx.To
-		if tx.To == "" {
-			if !utils.IsNilAddress(receipt.ContractAddress) {
-				tx.ContractAddress = receipt.ContractAddress
-			}
-			tx.Status = receipt.Status == 1
-			toAddress = tx.ContractAddress
-		}
-
-		address, err := s.dbClient.AddressByHash(ctx, toAddress)
-		if err != nil {
-			return err
-		}
-		if address == nil || address.IsContract {
-			var addresses []string
-			for _, l := range receipt.Logs {
-				addresses = append(addresses, l.Address)
-			}
-
-			if err := s.dbClient.UpdateActiveAddresses(ctx, addresses); err != nil {
-				return err
-			}
-		}
-
-		listTxByFromAddress = append(listTxByFromAddress, &types.TransactionByAddress{
-			Address: tx.From,
-			TxHash:  tx.Hash,
-			Time:    tx.Time,
-		})
-
-		if tx.From != toAddress {
-			listTxByToAddress = append(listTxByToAddress, &types.TransactionByAddress{
-				Address: toAddress,
-				TxHash:  tx.Hash,
-				Time:    tx.Time,
-			})
-		}
-	}
-
-	if err := s.dbClient.InsertListTxByAddress(ctx, listTxByFromAddress); err != nil {
-		return err
-	}
-	if err := s.dbClient.InsertListTxByAddress(ctx, listTxByToAddress); err != nil {
-		return err
 	}
 
 	return nil
@@ -316,11 +276,4 @@ func (s *infoServer) getAddressByHash(address string) (*types.Address, error) {
 
 func (s *infoServer) getTxsByBlockNumber(blockNumber int64, filter *types.Pagination) ([]*types.Transaction, error) {
 	return nil, nil
-}
-
-// getLatestBlock return 50 latest block from cacheClient
-func (s *infoServer) getLatestBlock(ctx context.Context) ([]*types.Block, error) {
-	var blocks []*types.Block
-
-	return blocks, nil
 }
