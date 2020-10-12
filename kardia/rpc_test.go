@@ -26,6 +26,7 @@ import (
 	"os/signal"
 	"syscall"
 	"testing"
+	"time"
 
 	"github.com/blendle/zapdriver"
 	"github.com/stretchr/testify/assert"
@@ -33,6 +34,7 @@ import (
 	"github.com/kardiachain/go-kardiamain/lib/p2p"
 	coreTypes "github.com/kardiachain/go-kardiamain/types"
 
+	"github.com/kardiachain/explorer-backend/metrics"
 	"github.com/kardiachain/explorer-backend/types"
 )
 
@@ -40,6 +42,8 @@ type testSuite struct {
 	rpcURL []string
 
 	minBlockNumber uint64
+
+	m *metrics.Provider
 
 	blockHeight uint64
 	blockHash   string
@@ -59,7 +63,7 @@ type testSuite struct {
 func setupTestSuite() *testSuite {
 	blockHeight := uint64(395)
 	blockHash := "0x634662e42bc71d2a7ca767ca19735c8f19694fd7dfbbc70bb28698e0e01be888"
-	txHash := "0x470570d7b8b40d62398843278b9ff84c2a140d10bda19af8f96c0ae60c994ac1"
+	txHash := "0x02e90c26892a6d230b6964a78446e055b289c5ad53039468ea6a147c0ee31990"
 	address := "0xc1fe56E3F58D3244F606306611a5d10c8333f1f6"
 	sampleBlock := &types.Block{
 		Hash:   blockHash,
@@ -141,9 +145,11 @@ func setupTestSuite() *testSuite {
 	samplePeer := &p2p.PeerInfo{}
 	sampleNodeInfo := &p2p.NodeInfo{}
 	sampleValidator := []*types.Validator{}
+	m := metrics.New()
 	return &testSuite{
-		rpcURL:            []string{"http://10.10.0.251:8545", "http://10.10.0.251:8551", "http://10.10.0.251:8547", "http://10.10.0.251:8548", "http://10.10.0.251:8549", "http://10.10.0.251:8550", "http://10.10.0.251:8546"},
+		rpcURL:            []string{"http://10.10.0.251:8545", "http://10.10.0.251:8546", "http://10.10.0.251:8547", "http://10.10.0.251:8548", "http://10.10.0.251:8549", "http://10.10.0.251:8550", "http://10.10.0.251:8551"},
 		minBlockNumber:    1<<bits.UintSize - 1,
+		m:                 m,
 		blockHeight:       blockHeight,
 		blockHash:         blockHash,
 		txHash:            txHash,
@@ -204,7 +210,7 @@ func TestBlockByHash(t *testing.T) {
 	b, err := client.BlockByHash(ctx, testSuite.blockHash)
 
 	assert.Nil(t, err)
-	t.Log("\nHash: ", testSuite.blockHash, "\nBlock: ", b)
+	t.Log("Hash: ", testSuite.blockHash, "\nBlock: ", b)
 	assert.EqualValuesf(t, testSuite.sampleBlock, b, "Received block must be equal to sampleBlock in testSuite")
 }
 
@@ -226,7 +232,7 @@ func TestBlockHeaderByNumber(t *testing.T) {
 	h, err := client.BlockHeaderByNumber(ctx, testSuite.blockHeight)
 
 	assert.Nil(t, err)
-	t.Log("\nBlock number: ", testSuite.blockHeight, "\nBlock header: ", h)
+	t.Log("Block number: ", testSuite.blockHeight, "\nBlock header: ", h)
 	assert.EqualValuesf(t, testSuite.sampleBlockHeader, h, "Received block header must be equal to sampleBlockHeader in testSuite")
 }
 
@@ -245,7 +251,6 @@ func TestBalanceAt(t *testing.T) {
 	client, ctx, testSuite, err := SetupKAIClient()
 	assert.Nil(t, err)
 
-	// num, err := client.LatestBlockNumber(ctx)
 	b, err := client.BalanceAt(ctx, testSuite.address, nil)
 
 	assert.Nil(t, err)
@@ -258,7 +263,6 @@ func TestNonceAt(t *testing.T) {
 	client, ctx, testSuite, err := SetupKAIClient()
 	assert.Nil(t, err)
 
-	// num, err := client.LatestBlockNumber(ctx)
 	n, err := client.NonceAt(ctx, testSuite.address)
 
 	assert.Nil(t, err)
@@ -285,6 +289,33 @@ func TestGetTransactionReceipt(t *testing.T) {
 
 	assert.Nil(t, err)
 	assert.EqualValuesf(t, testSuite.sampleTxReceipt, receipt, "Received receipt must be equal to sampleTxReceipt in testSuite")
+
+	for i := 0; i < 1000; i++ {
+		startTime := time.Now()
+		_, _ = client.GetTransactionReceipt(ctx, testSuite.txHash)
+		testSuite.m.RecordProcessingTime(time.Since(startTime))
+	}
+
+	t.Log("1000 req: ", testSuite.m.GetProcessingTime())
+	testSuite.m.Reset()
+
+	// for i := 0; i < 10000; i++ {
+	// 	startTime := time.Now()
+	// 	_, _ = client.GetTransactionReceipt(ctx, testSuite.txHash)
+	// 	testSuite.m.RecordProcessingTime(time.Since(startTime))
+	// }
+
+	// t.Log("10000 req: ", testSuite.m.GetProcessingTime())
+	// testSuite.m.Reset()
+
+	// for i := 0; i < 100000; i++ {
+	// 	startTime := time.Now()
+	// 	_, _ = client.GetTransactionReceipt(ctx, testSuite.txHash)
+	// 	testSuite.m.RecordProcessingTime(time.Since(startTime))
+	// }
+
+	// t.Log("100000 req: ", testSuite.m.GetProcessingTime())
+	// testSuite.m.Reset()
 }
 
 func TestPeers(t *testing.T) {
