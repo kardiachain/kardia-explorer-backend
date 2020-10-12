@@ -40,7 +40,7 @@ type ExplorerConfig struct {
 	DefaultAPITimeout     time.Duration
 	DefaultBlockFetchTime time.Duration
 
-	BufferedBlocks int
+	BufferedBlocks int64
 
 	CacheEngine  string
 	CacheURL     string
@@ -114,7 +114,7 @@ func New() (ExplorerConfig, error) {
 		LogLevel:              os.Getenv("LOG_LEVEL"),
 		DefaultAPITimeout:     time.Duration(apiDefaultTimeout) * time.Second,
 		DefaultBlockFetchTime: time.Duration(apiDefaultBlockFetchTime) * time.Millisecond,
-		BufferedBlocks:        bufferBlocks,
+		BufferedBlocks:        int64(bufferBlocks),
 		CacheEngine:           os.Getenv("CACHE_ENGINE"),
 		CacheURL:              os.Getenv("CACHE_URI"),
 		CacheDB:               cacheDB,

@@ -49,6 +49,7 @@ func main() {
 		CacheURL:     serviceCfg.CacheURL,
 		CacheDB:      serviceCfg.CacheDB,
 		CacheIsFlush: serviceCfg.CacheIsFlush,
+		BlockBuffer:  serviceCfg.BufferedBlocks,
 
 		Metrics: nil,
 		Logger:  logger,

@@ -24,6 +24,8 @@ type Config struct {
 
 	IsFlush bool
 
+	BlockBuffer int64
+
 	Logger *zap.Logger
 }
 

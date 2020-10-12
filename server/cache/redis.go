@@ -17,23 +17,23 @@ const (
 	KeyLatestBlockHeight = "#block#latestHeight"
 	KeyLatestBlock       = "#block#latest"
 
-	KeyBlocks       = "#blocks" // List
-	KeyBlockKeyList = "#block#%s#keys"
-	// Maintain a list to remove all key
+	KeyBlocks        = "#blocks" // List
 	KeyBlockByNumber = "#block#%d"
 	KeyBlockByHash   = "#block#%s"
 
-	KeyTxsOfBlockIndex        = "#block#index#%d#txs"
-	KeyTxsOfBlockIndexKeyList = "#block#index#%d#txs#keys"
-
+	KeyTxsOfBlockIndex       = "#block#index#%d#txs"
 	KeyTxOfBlockIndexByNonce = "#block#index#%d#tx#%d"
 	KeyTxOfBlockIndexByHash  = "#block#index#%d#tx#%s"
 
 	KeyLatestStats = "#stats#latest"
+
+	PatternGetAllKeyOfBlockIndex = "#block#index#%d*"
 )
 
 type Redis struct {
+	cfg    Config
 	client *redis.Client
+
 	logger *zap.Logger
 }
 
@@ -53,6 +53,7 @@ func (c *Redis) InsertTxs(ctx context.Context, txs []*types.Transaction) error {
 	// Get block index
 	var blockIndex int
 	if err := c.client.Get(ctx, fmt.Sprintf(KeyBlockByNumber, txs[0].BlockNumber)).Scan(&blockIndex); err != nil {
+		c.logger.Debug("cannot get block at index", zap.Int("BlockIndex", blockIndex))
 		return err
 	}
 	// todo: benchmark with different size of txs
@@ -90,8 +91,33 @@ func (c *Redis) TxByHash(ctx context.Context, txHash string) (*types.Transaction
 // Keep recent N blocks in memory as cache and temp write DB
 // Maintain SetByHash and SetByNumber return blockIndex
 func (c *Redis) InsertBlock(ctx context.Context, block *types.Block) error {
+	c.logger.Debug("Start insert block")
+	size, err := c.client.LLen(ctx, KeyBlocks).Result()
+	if err != nil {
+		c.logger.Debug("cannot get size of #blocks", zap.Error(err))
+		return err
+	}
+	// Size over buffer then
+	if size >= c.cfg.BlockBuffer && size != 0 {
+		// Delete block at last index
+		if err := c.deleteKeysOfBlockIndex(ctx, size-1); err != nil {
+			c.logger.Debug("cannot delete keys of block index", zap.Error(err))
+			return err
+		}
+
+		if _, err := c.client.RPop(ctx, KeyBlocks).Result(); err != nil {
+			c.logger.Debug("cannot pop last element", zap.Error(err))
+			return err
+		}
+	}
+
 	// Push new block to list
-	lPushResult := c.client.LPush(ctx, KeyBlocks, block.String())
+	// Using clone instead assign
+	blockCache := *block
+	blockCache.Txs = []*types.Transaction{}
+	blockCache.Receipts = []*types.Receipt{}
+
+	lPushResult := c.client.LPush(ctx, KeyBlocks, blockCache.String())
 	blockIndex, err := lPushResult.Result()
 	if err != nil {
 		return err
@@ -138,4 +164,37 @@ func (c *Redis) getBlockIndex(ctx context.Context, index int64) (*types.Block, e
 		return nil, err
 	}
 	return nil, nil
+}
+
+func (c *Redis) deleteKeysOfBlockIndex(ctx context.Context, blockIndex int64) error {
+	pattern := fmt.Sprintf(PatternGetAllKeyOfBlockIndex, blockIndex)
+	keys, err := c.client.Keys(ctx, pattern).Result()
+	if err != nil {
+		c.logger.Debug("cannot get keys", zap.Error(err))
+		return err
+	}
+
+	var blockStr string
+	if err := c.client.LIndex(ctx, KeyBlocks, blockIndex).Scan(&blockStr); err != nil {
+		c.logger.Debug("cannot get block", zap.Int64("BlockIndex", blockIndex), zap.Error(err))
+		return err
+	}
+	var block types.Block
+	if err := json.Unmarshal([]byte(blockStr), &block); err != nil {
+		c.logger.Debug("cannot marshal block from cache to object", zap.Error(err))
+		return err
+	}
+
+	c.logger.Debug("Block info", zap.Any("block", block))
+
+	keys = append(keys, []string{
+		fmt.Sprintf(KeyBlockByNumber, block.Height),
+		fmt.Sprintf(KeyBlockByHash, block.Hash),
+	}...)
+
+	if _, err := c.client.Del(ctx, keys...).Result(); err != nil {
+		return err
+	}
+
+	return nil
 }
