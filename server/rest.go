@@ -78,13 +78,35 @@ func (s *Server) Blocks(c echo.Context) error {
 }
 
 func (s *Server) Block(c echo.Context) error {
-	//blockHash := c.QueryParam("hash")
-	//blockHeightStr := c.QueryParam("height")
+	ctx := context.Background()
+	blockHash := c.QueryParam("hash")
 
-	block := &types.Block{}
-	if err := faker.FakeData(&block); err != nil {
-		return api.InternalServer.Build(c)
+	var blockHeight uint64
+	blockHeightStr := c.QueryParam("height")
+	if blockHeightStr != "" {
+		height, err := strconv.Atoi(blockHeightStr)
+		if err != nil || height <= 0 {
+			return api.Invalid.Build(c)
+		}
+		blockHeight = uint64(height)
 	}
+
+	var block *types.Block
+	var err error
+	if blockHash != "" {
+		block, err = s.dbClient.BlockByHash(ctx, blockHash)
+		if err != nil {
+			return api.Invalid.Build(c)
+		}
+	}
+
+	if blockHeight > 0 {
+		block, err = s.dbClient.BlockByHeight(ctx, blockHeight)
+		if err != nil {
+			return api.Invalid.Build(c)
+		}
+	}
+
 	return api.OK.SetData(block).Build(c)
 }
 

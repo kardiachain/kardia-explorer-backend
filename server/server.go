@@ -43,6 +43,8 @@ type Config struct {
 	CacheDB      int
 	CacheIsFlush bool
 
+	BlockBuffer int64
+
 	Metrics *metrics.Provider
 	Logger  *zap.Logger
 }
@@ -82,11 +84,12 @@ func New(cfg Config) (*Server, error) {
 	}
 
 	cacheCfg := cache.Config{
-		Adapter: cfg.CacheAdapter,
-		URL:     cfg.CacheURL,
-		DB:      cfg.CacheDB,
-		IsFlush: cfg.CacheIsFlush,
-		Logger:  cfg.Logger,
+		Adapter:     cfg.CacheAdapter,
+		URL:         cfg.CacheURL,
+		DB:          cfg.CacheDB,
+		IsFlush:     cfg.CacheIsFlush,
+		BlockBuffer: cfg.BlockBuffer,
+		Logger:      cfg.Logger,
 	}
 	cacheClient, err := cache.New(cacheCfg)
 	if err != nil {
