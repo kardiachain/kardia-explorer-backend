@@ -53,7 +53,7 @@ type testSuite struct {
 	samplePeer        *p2p.PeerInfo
 	sampleNodeInfo    *p2p.NodeInfo
 	sampleDatadir     string
-	sampleValidator   []*Validator
+	sampleValidator   []*types.Validator
 }
 
 func setupTestSuite() *testSuite {
@@ -140,7 +140,7 @@ func setupTestSuite() *testSuite {
 	}
 	samplePeer := &p2p.PeerInfo{}
 	sampleNodeInfo := &p2p.NodeInfo{}
-	sampleValidator := []*Validator{}
+	sampleValidator := []*types.Validator{}
 	return &testSuite{
 		rpcURL:            []string{"http://10.10.0.251:8545", "http://10.10.0.251:8551", "http://10.10.0.251:8547", "http://10.10.0.251:8548", "http://10.10.0.251:8549", "http://10.10.0.251:8550", "http://10.10.0.251:8546"},
 		minBlockNumber:    1<<bits.UintSize - 1,
@@ -337,7 +337,7 @@ func TestValidator(t *testing.T) {
 	validator := client.Validator(ctx)
 	t.Log(validator)
 
-	assert.IsTypef(t, &Validator{}, validator, "Validator must be a *Validator")
+	assert.IsTypef(t, &types.Validator{}, validator, "Validator must be a *Validator")
 	// assert.EqualValuesf(t, testSuite.sampleDatadir, dir, "Receive data directory must be equal to sampleDatadir in testSuite")
 }
 

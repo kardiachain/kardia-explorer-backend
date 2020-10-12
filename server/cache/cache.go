@@ -4,6 +4,7 @@ package cache
 import (
 	"context"
 	"errors"
+	"time"
 
 	"github.com/go-redis/redis/v8"
 	"go.uber.org/zap"
@@ -24,7 +25,8 @@ type Config struct {
 
 	IsFlush bool
 
-	BlockBuffer int64
+	BlockBuffer        int64
+	DefaultExpiredTime time.Duration
 
 	Logger *zap.Logger
 }

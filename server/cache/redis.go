@@ -72,10 +72,10 @@ func (c *Redis) InsertTxs(ctx context.Context, txs []*types.Transaction) error {
 		}
 		txOfBlockIndexByNonce := fmt.Sprintf(KeyTxOfBlockIndexByNonce, blockIndex, tx.Nonce)
 		txOfBlockIndexByHash := fmt.Sprintf(KeyTxOfBlockIndexByHash, blockIndex, tx.Hash)
-		if err := c.client.Set(ctx, txOfBlockIndexByNonce, txIndex, 0).Err(); err != nil {
+		if err := c.client.Set(ctx, txOfBlockIndexByNonce, txIndex, c.cfg.DefaultExpiredTime).Err(); err != nil {
 			return err
 		}
-		if err := c.client.Set(ctx, txOfBlockIndexByHash, txIndex, 0).Err(); err != nil {
+		if err := c.client.Set(ctx, txOfBlockIndexByHash, txIndex, c.cfg.DefaultExpiredTime).Err(); err != nil {
 			return err
 		}
 	}

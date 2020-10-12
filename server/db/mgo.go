@@ -113,7 +113,7 @@ func (m *mongoDB) Blocks(ctx context.Context, pagination *types.Pagination) ([]*
 	var blocks []*types.Block
 	opts := []*options.FindOptions{
 		m.wrapper.FindSetSort("-height"),
-		options.Find().SetProjection(bson.M{"height": 1, "time": 1, "validator": 1, "numTxs": 1}),
+		options.Find().SetProjection(bson.M{"hash": 1, "height": 1, "time": 1, "validator": 1, "numTxs": 1}),
 		options.Find().SetSkip(int64(pagination.Skip)),
 		options.Find().SetLimit(int64(pagination.Limit)),
 	}
@@ -189,6 +189,11 @@ func (m *mongoDB) Txs(ctx context.Context, pagination *types.Pagination) ([]*typ
 	panic("implement me")
 }
 
+func (m *mongoDB) BlockTxCount(ctx context.Context, hash string) (int64, error) {
+
+	return 0, nil
+}
+
 func (m *mongoDB) TxsByBlockHash(ctx context.Context, blockHash string, pagination *types.Pagination) ([]*types.Transaction, error) {
 	var txs []*types.Transaction
 	opts := []*options.FindOptions{
@@ -220,8 +225,9 @@ func (m *mongoDB) TxsByBlockHeight(ctx context.Context, blockHeight uint64, pagi
 		options.Find().SetSkip(int64(pagination.Skip)),
 		options.Find().SetLimit(int64(pagination.Limit)),
 	}
+
 	cursor, err := m.wrapper.C(cTxs).
-		Find(bson.M{"blockHeight": blockHeight}, opts...)
+		Find(bson.M{"blockNumber": blockHeight}, opts...)
 	if err != nil {
 		if err == mgo.ErrNotFound {
 			return nil, nil

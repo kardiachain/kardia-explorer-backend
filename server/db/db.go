@@ -40,6 +40,8 @@ type Client interface {
 	BlockByHash(ctx context.Context, blockHash string) (*types.Block, error)
 	IsBlockExist(ctx context.Context, block *types.Block) (bool, error)
 
+	BlockTxCount(ctx context.Context, hash string) (int64, error)
+
 	// Interact with block
 	InsertBlock(ctx context.Context, block *types.Block) error
 	UpsertBlock(ctx context.Context, block *types.Block) error

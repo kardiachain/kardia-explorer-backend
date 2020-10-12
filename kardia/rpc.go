@@ -44,7 +44,7 @@ type RPCClient struct {
 type Client struct {
 	clientList    []*RPCClient
 	defaultClient *RPCClient
-	numRequest    uint64
+	numRequest    int
 	lgr           *zap.Logger
 }
 
@@ -76,10 +76,12 @@ func NewKaiClient(rpcURL []string, lgr *zap.Logger) (ClientInterface, error) {
 
 func (ec *Client) chooseClient() *RPCClient {
 	if len(ec.clientList) > 1 {
-		if ec.numRequest >= 50000 {
+		if ec.numRequest == len(ec.clientList)-2 {
 			ec.numRequest = 0
+		} else {
+			ec.numRequest++
 		}
-		return ec.clientList[ec.numRequest%(uint64(len(ec.clientList))-1)]
+		return ec.clientList[ec.numRequest%(len(ec.clientList)-1)]
 	}
 	return ec.defaultClient
 }
@@ -210,31 +212,32 @@ func (ec *Client) Datadir(ctx context.Context) (string, error) {
 	return result, err
 }
 
-func (ec *Client) Validator(ctx context.Context) *Validator {
+func (ec *Client) Validator(ctx context.Context) *types.Validator {
 	var result map[string]interface{}
 	_ = ec.defaultClient.c.CallContext(ctx, &result, "kai_validator")
-	var ret = &Validator{}
+	var ret = &types.Validator{}
 	for key, value := range result {
 		if key == "address" {
-			ret.address = value.(string)
+			ret.Address = value.(string)
 		} else if key == "votingPower" {
-			ret.votingPower = value.(float64)
+			ret.VotingPower = value.(float64)
 		}
 	}
 	return ret
 }
 
-func (ec *Client) Validators(ctx context.Context) []*Validator {
+func (ec *Client) Validators(ctx context.Context) []*types.Validator {
 	var result []map[string]interface{}
 	_ = ec.defaultClient.c.CallContext(ctx, &result, "kai_validators")
-	var ret []*Validator
+	var ret []*types.Validator
 	for _, val := range result {
-		var tmp = &Validator{}
+		ec.lgr.Debug("Val", zap.Any("validator", val))
+		var tmp = &types.Validator{}
 		for key, value := range val {
 			if key == "address" {
-				tmp.address = value.(string)
+				tmp.Address = value.(string)
 			} else if key == "votingPower" {
-				tmp.votingPower = value.(float64)
+				tmp.VotingPower = value.(float64)
 			}
 		}
 		ret = append(ret, tmp)

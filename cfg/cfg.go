@@ -42,11 +42,12 @@ type ExplorerConfig struct {
 
 	BufferedBlocks int64
 
-	CacheEngine  string
-	CacheURL     string
-	CacheDB      int
-	CacheFile    string
-	CacheIsFlush bool
+	CacheEngine      string
+	CacheURL         string
+	CacheDB          int
+	CacheFile        string
+	CacheIsFlush     bool
+	CacheExpiredTime time.Duration
 
 	KardiaProtocol string
 	KardiaURLs     []string
@@ -70,6 +71,12 @@ func New() (ExplorerConfig, error) {
 	apiDefaultBlockFetchTime, err := strconv.Atoi(apiDefaultBlockFetchTimeStr)
 	if err != nil {
 		apiDefaultBlockFetchTime = 500
+	}
+
+	cacheExpiredTimeStr := os.Getenv("CACHE_EXPIRED_TIME")
+	cacheExpiredTime, err := strconv.Atoi(cacheExpiredTimeStr)
+	if err != nil {
+		cacheExpiredTime = 12
 	}
 
 	bufferBlocksStr := os.Getenv("BUFFER_BLOCKS")
@@ -119,7 +126,9 @@ func New() (ExplorerConfig, error) {
 		CacheURL:              os.Getenv("CACHE_URI"),
 		CacheDB:               cacheDB,
 		CacheFile:             os.Getenv("CACHE_FILE"),
-		CacheIsFlush:          cacheIsFlush,
+		CacheExpiredTime:      time.Duration(cacheExpiredTime) * time.Hour,
+
+		CacheIsFlush: cacheIsFlush,
 
 		KardiaProtocol: os.Getenv("KARDIA_PROTOCOL"),
 		KardiaURLs:     strings.Split(os.Getenv("KARDIA_URL"), ","),
