@@ -151,10 +151,14 @@ func (s *Server) BlockTxs(c echo.Context) error {
 		Skip:  page * limit,
 		Limit: limit,
 	}
-	if strings.HasPrefix("0x", block) {
+	if strings.HasPrefix(block, "0x") {
 		s.logger.Debug("fetch block txs by hash", zap.String("hash", block))
 
 		txs, err = s.dbClient.TxsByBlockHash(ctx, block, pagination)
+		if err != nil {
+			s.logger.Debug("cannot get txs by block hash", zap.String("blockHash", block))
+			return api.InternalServer.Build(c)
+		}
 	} else {
 		s.logger.Debug("fetch block txs by height", zap.String("height", block))
 		height, err := strconv.Atoi(block)
