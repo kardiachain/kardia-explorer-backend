@@ -44,7 +44,7 @@ type RPCClient struct {
 type Client struct {
 	clientList    []*RPCClient
 	defaultClient *RPCClient
-	numRequest    uint64
+	numRequest    int
 	lgr           *zap.Logger
 }
 
@@ -76,10 +76,12 @@ func NewKaiClient(rpcURL []string, lgr *zap.Logger) (ClientInterface, error) {
 
 func (ec *Client) chooseClient() *RPCClient {
 	if len(ec.clientList) > 1 {
-		if ec.numRequest >= 50000 {
+		if ec.numRequest == len(ec.clientList)-2 {
 			ec.numRequest = 0
+		} else {
+			ec.numRequest++
 		}
-		return ec.clientList[ec.numRequest%(uint64(len(ec.clientList))-1)]
+		return ec.clientList[ec.numRequest%(len(ec.clientList)-1)]
 	}
 	return ec.defaultClient
 }
