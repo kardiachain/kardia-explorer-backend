@@ -22,14 +22,17 @@ import (
 	"context"
 	"fmt"
 	"math/bits"
+	"math/rand"
 	"os"
 	"os/signal"
+	"sync"
 	"syscall"
 	"testing"
 	"time"
 
 	"github.com/blendle/zapdriver"
 	"github.com/stretchr/testify/assert"
+	"go.uber.org/zap"
 
 	"github.com/kardiachain/go-kardiamain/lib/p2p"
 	coreTypes "github.com/kardiachain/go-kardiamain/types"
@@ -289,33 +292,100 @@ func TestGetTransactionReceipt(t *testing.T) {
 
 	assert.Nil(t, err)
 	assert.EqualValuesf(t, testSuite.sampleTxReceipt, receipt, "Received receipt must be equal to sampleTxReceipt in testSuite")
+}
 
-	for i := 0; i < 1000; i++ {
-		startTime := time.Now()
-		_, _ = client.GetTransactionReceipt(ctx, testSuite.txHash)
-		testSuite.m.RecordProcessingTime(time.Since(startTime))
+// createCustomClient create a Client instance which has a custom number of RPC nodes
+func createCustomClient(numOfNodes int) (*Client, error) {
+	testSuite := setupTestSuite()
+	rpcUrls := []string{}
+	for i := 0; i < numOfNodes; i++ {
+		rpcUrls = append(rpcUrls, testSuite.rpcURL[i])
+	}
+	cfg := zapdriver.NewProductionConfig()
+	logger, err := cfg.Build()
+	if err != nil {
+		return nil, fmt.Errorf("Failed to create logger: %v", err)
+	}
+	defer logger.Sync()
+	client, err := NewKaiClient(rpcUrls, logger)
+	if err != nil {
+		return nil, fmt.Errorf("Failed to create new KaiClient: %v", err)
+	}
+	return client.(*Client), nil
+}
+
+// getTxsHashList get tx hashes of a random block to avoid data caching at RPC nodes
+func getTxsHashList(ctx context.Context, client *Client, requiredNumOfTxs int) []string {
+	txsHash := []string{}
+	for {
+		num, _ := client.LatestBlockNumber(ctx)
+		blockHeight := uint64(rand.Intn(int(num)))
+		b, _ := client.BlockByHeight(ctx, blockHeight)
+		for _, tx := range b.Txs {
+			txsHash = append(txsHash, tx.Hash)
+			if len(txsHash) >= requiredNumOfTxs {
+				break
+			}
+		}
+		if len(txsHash) >= requiredNumOfTxs {
+			break
+		}
+	}
+	return txsHash
+}
+
+func workerGetTxReceipt(ctx context.Context, wg *sync.WaitGroup, client *Client, m *metrics.Provider, jobs <-chan string, logger *zap.Logger, workerIndex int) {
+	defer wg.Done()
+	startTime := time.Now()
+	for j := range jobs {
+		_, _ = client.GetTransactionReceipt(ctx, j)
+	}
+	endTime := time.Since(startTime)
+	m.RecordProcessingTime(endTime)
+	logger.Info("Result: ", zap.Int("Worker index: ", workerIndex), zap.String("Processing time: ", endTime.String()))
+	return
+}
+
+// getTxReceipts benchmark a batch of get tx receipt calls with custom parameters
+func getTxReceipts(m *metrics.Provider, numOfTx int, numOfWorker int, numOfNodes int) {
+	ctx := context.Background()
+	client, err := createCustomClient(numOfNodes)
+	if err != nil {
+		return
+	}
+	txsHashList := getTxsHashList(ctx, client, numOfTx)
+	logger := client.lgr.With(zap.Int("numOfTx: ", len(txsHashList)), zap.Int("numOfWorker: ", numOfWorker), zap.Int("numOfNodes: ", numOfNodes))
+
+	job := make(chan string, 10000)
+	var wg sync.WaitGroup
+	for i := 0; i < numOfWorker; i++ {
+		wg.Add(1)
+		go workerGetTxReceipt(ctx, &wg, client, m, job, logger, i)
 	}
 
-	t.Log("1000 req: ", testSuite.m.GetProcessingTime())
-	testSuite.m.Reset()
+	for _, hash := range txsHashList {
+		job <- hash
+	}
+	close(job)
 
-	// for i := 0; i < 10000; i++ {
-	// 	startTime := time.Now()
-	// 	_, _ = client.GetTransactionReceipt(ctx, testSuite.txHash)
-	// 	testSuite.m.RecordProcessingTime(time.Since(startTime))
-	// }
+	wg.Wait()
+	logger.Info("Elapsed time: ", zap.String("Avg processing time: ", m.GetProcessingTime()))
+	m.Reset()
+}
 
-	// t.Log("10000 req: ", testSuite.m.GetProcessingTime())
-	// testSuite.m.Reset()
+func TestGetTransactionReceipt2(t *testing.T) {
+	numOfTx := []int{1000, 10000}
+	numOfWorker := []int{4, 8, 16}
+	numOfNodes := []int{3, 5, 7} // mean 2, 4, 6 because one node will be excluded to retrive normal RPC requests
+	m := metrics.New()
 
-	// for i := 0; i < 100000; i++ {
-	// 	startTime := time.Now()
-	// 	_, _ = client.GetTransactionReceipt(ctx, testSuite.txHash)
-	// 	testSuite.m.RecordProcessingTime(time.Since(startTime))
-	// }
-
-	// t.Log("100000 req: ", testSuite.m.GetProcessingTime())
-	// testSuite.m.Reset()
+	for i := 0; i < len(numOfTx); i++ {
+		for j := 0; j < len(numOfWorker); j++ {
+			for k := 0; k < len(numOfNodes); k++ {
+				getTxReceipts(m, numOfTx[i], numOfWorker[j], numOfNodes[k])
+			}
+		}
+	}
 }
 
 func TestPeers(t *testing.T) {
