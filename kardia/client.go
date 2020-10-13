@@ -43,6 +43,6 @@ type ClientInterface interface {
 	Peers(ctx context.Context) ([]*p2p.PeerInfo, error)
 	NodeInfo(ctx context.Context) (*p2p.NodeInfo, error)
 	Datadir(ctx context.Context) (string, error)
-	Validator(ctx context.Context) *Validator
-	Validators(ctx context.Context) []*Validator
+	Validator(ctx context.Context) *types.Validator
+	Validators(ctx context.Context) []*types.Validator
 }

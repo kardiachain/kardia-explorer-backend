@@ -212,31 +212,32 @@ func (ec *Client) Datadir(ctx context.Context) (string, error) {
 	return result, err
 }
 
-func (ec *Client) Validator(ctx context.Context) *Validator {
+func (ec *Client) Validator(ctx context.Context) *types.Validator {
 	var result map[string]interface{}
 	_ = ec.defaultClient.c.CallContext(ctx, &result, "kai_validator")
-	var ret = &Validator{}
+	var ret = &types.Validator{}
 	for key, value := range result {
 		if key == "address" {
-			ret.address = value.(string)
+			ret.Address = value.(string)
 		} else if key == "votingPower" {
-			ret.votingPower = value.(float64)
+			ret.VotingPower = value.(float64)
 		}
 	}
 	return ret
 }
 
-func (ec *Client) Validators(ctx context.Context) []*Validator {
+func (ec *Client) Validators(ctx context.Context) []*types.Validator {
 	var result []map[string]interface{}
 	_ = ec.defaultClient.c.CallContext(ctx, &result, "kai_validators")
-	var ret []*Validator
+	var ret []*types.Validator
 	for _, val := range result {
-		var tmp = &Validator{}
+		ec.lgr.Debug("Val", zap.Any("validator", val))
+		var tmp = &types.Validator{}
 		for key, value := range val {
 			if key == "address" {
-				tmp.address = value.(string)
+				tmp.Address = value.(string)
 			} else if key == "votingPower" {
-				tmp.votingPower = value.(float64)
+				tmp.VotingPower = value.(float64)
 			}
 		}
 		ret = append(ret, tmp)
