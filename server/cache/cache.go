@@ -3,6 +3,8 @@ package cache
 
 import (
 	"context"
+	"errors"
+	"time"
 
 	"github.com/go-redis/redis/v8"
 	"go.uber.org/zap"
@@ -17,35 +19,58 @@ const (
 )
 
 type Config struct {
-	RedisUrl string
+	Adapter Adapter
+	URL     string
+	DB      int
+
+	IsFlush bool
+
+	BlockBuffer        int64
+	DefaultExpiredTime time.Duration
 
 	Logger *zap.Logger
 }
 
-const (
-	KeyBlocks = "#blocks" // List
-
-	KeyLatestStats = "#stats#latest"
-
-	KeyLatestBlockNumber = "#block#latestNumber"
-	KeyLatestBlock       = "#block#latest"
-	KeyBlockByNumber     = "#block#%d"
-	KeyBlockByHash       = "#block#%s"
-)
-
 type Client interface {
-	ImportBlock(ctx context.Context, block *types.Block) error
+	InsertBlock(ctx context.Context, block *types.Block) error
 	BlockByHeight(ctx context.Context, blockHeight uint64) (*types.Block, error)
 	BlockByHash(ctx context.Context, blockHash string) (*types.Block, error)
+
+	InsertTxs(ctx context.Context, txs []*types.Transaction) error
+	TxByHash(ctx context.Context, txHash string) (*types.Transaction, error)
+
+	BlocksSize(ctx context.Context) (int64, error)
 }
 
-func New(cfg Config) Client {
+func New(cfg Config) (Client, error) {
+	cfg.Logger.Debug("create cache client with config", zap.Any("config", cfg))
+	switch cfg.Adapter {
+	case RedisAdapter:
+		return newRedis(cfg)
+	}
+	return nil, errors.New("invalid cache config")
+}
+
+func newRedis(cfg Config) (Client, error) {
 	redisClient := redis.NewClient(&redis.Options{
-		Addr: cfg.RedisUrl,
+		Addr: cfg.URL,
+		DB:   cfg.DB,
 	})
+
+	if _, err := redisClient.Ping(context.Background()).Result(); err != nil {
+		return nil, err
+	}
+	if cfg.IsFlush {
+		msg, err := redisClient.FlushAll(context.Background()).Result()
+		if err != nil || msg != "OK" {
+			return nil, err
+		}
+	}
+
 	logger := cfg.Logger.With(zap.String("cache", "redis"))
-	return &Redis{
+	client := &Redis{
 		client: redisClient,
 		logger: logger,
 	}
+	return client, nil
 }

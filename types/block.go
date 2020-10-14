@@ -34,10 +34,33 @@ type Header struct {
 }
 
 type Block struct {
-	Header
+	Hash   string `json:"hash,omitempty" bson:"hash"`
+	Height uint64 `json:"height,omitempty" bson:"height"`
 
-	Txs      []*Transaction `json:"txs" bson:"txs"`
-	Receipts []*Receipt     `json:"receipts" bson:"receipts"`
+	CommitHash string `json:"commitHash,omitempty" bson:"commitHash"`
+	GasLimit   uint64 `json:"gasLimit,omitempty" bson:"gasLimit"`
+	GasUsed    uint64 `json:"gasUsed,omitempty" bson:"gasUsed"`
+	NumTxs     uint64 `json:"numTxs,omitempty" bson:"numTxs"`
+	Time       uint64 `json:"time,omitempty" bson:"time"`
+	Validator  string `json:"validator,omitempty" bson:"validator"`
+
+	LastBlock string `json:"lastBlock,omitempty" bson:"lastBlock"`
+
+	DataHash     string      `json:"dataHash,omitempty" bson:"dataHash"`
+	ReceiptsRoot string      `json:"receiptsRoot,omitempty" bson:"receiptsRoot"`
+	LogsBloom    types.Bloom `json:"logsBloom,omitempty" bson:"logsBloom"`
+
+	ValidatorHash string `json:"validatorHash,omitempty" bson:"validatorHash"`
+	ConsensusHash string `json:"consensusHash,omitempty" bson:"consensusHash"`
+	AppHash       string `json:"appHash,omitempty" bson:"appHash"`
+	EvidenceHash  string `json:"evidenceHash,omitempty" bson:"evidenceHash"`
+
+	// Dual nodes
+	NumDualEvents  uint64 `json:"numDualEvents,omitempty" bson:"numDualEvents"`
+	DualEventsHash string `json:"dualEventsHash,omitempty" bson:"dualEventsHash"`
+
+	Txs      []*Transaction `json:"txs,omitempty" bson:"-"`
+	Receipts []*Receipt     `json:"receipts,omitempty" bson:"-"`
 }
 
 func (b *Block) String() string {

@@ -59,6 +59,7 @@ type suite struct {
 
 	StepState
 }
+
 type StepState struct {
 }
 
@@ -83,8 +84,7 @@ func FeatureContext(s *godog.ScenarioContext) {
 }
 
 func NewDBPool(cfg cfg.ExplorerConfig) *pgxpool.Pool {
-
-	config, err := pgxpool.ParseConfig(cfg.PostgresURI)
+	config, err := pgxpool.ParseConfig(cfg.StorageURI)
 	if err != nil {
 		panic(err.Error())
 	}
@@ -96,8 +96,3 @@ func NewDBPool(cfg cfg.ExplorerConfig) *pgxpool.Pool {
 
 	return pool
 }
-
-const (
-	ServerDev  = "dev"
-	ServerProd = "prod"
-)

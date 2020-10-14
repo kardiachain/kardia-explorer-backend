@@ -32,10 +32,11 @@ import (
 )
 
 const (
-	cBlocks       = "Blocks"
-	cTxs          = "Transactions"
-	cAddresses    = "Addresses"
-	cTxsByAddress = "TransactionsByAddress"
+	cBlocks          = "Blocks"
+	cTxs             = "Transactions"
+	cAddresses       = "Addresses"
+	cTxsByAddress    = "TransactionsByAddress"
+	cActiveAddresses = "ActiveAddresses"
 	//cActiveAddresses = "ActiveAddresses"
 )
 
@@ -45,14 +46,23 @@ type mongoDB struct {
 	db      *mongo.Database
 }
 
-func newMongoDB(cfg ClientConfig) (*mongoDB, error) {
+// UpdateActiveAddresses update last time those addresses active
+// Just skip for now
+func (m *mongoDB) UpdateActiveAddresses(ctx context.Context, addresses []string) error {
+	return nil
+}
+
+func newMongoDB(cfg Config) (*mongoDB, error) {
 	ctx := context.Background()
 	dbClient := &mongoDB{
 		logger:  cfg.Logger,
 		wrapper: &KaiMgo{},
 	}
-	mgoURI := fmt.Sprintf("mongodb://%s", cfg.URL)
-	mgoClient, err := mongo.NewClient(options.Client().ApplyURI(mgoURI), options.Client().SetMinPoolSize(32), options.Client().SetMaxPoolSize(64))
+	mgoOptions := options.Client()
+	mgoOptions.ApplyURI(cfg.URL)
+	mgoOptions.SetMinPoolSize(uint64(cfg.MinConn))
+	mgoOptions.SetMaxPoolSize(uint64(cfg.MaxConn))
+	mgoClient, err := mongo.NewClient(mgoOptions)
 	if err != nil {
 		return nil, err
 	}
@@ -60,10 +70,23 @@ func newMongoDB(cfg ClientConfig) (*mongoDB, error) {
 	if err := mgoClient.Connect(context.Background()); err != nil {
 		return nil, err
 	}
+
 	dbClient.wrapper.Database(mgoClient.Database(cfg.DbName))
 
 	if cfg.FlushDB {
-		dbClient.wrapper.DropDatabase(ctx)
+		//colNames, err := mgoClient.Database(cfg.DbName).ListCollectionNames(ctx, bson.M{})
+		//if err != nil {
+		//	return nil, err
+		//}
+		//for _, c := range colNames {
+		//	if _, err := dbClient.wrapper.C(c).RemoveAll(bson.M{}); err != nil {
+		//		return nil, err
+		//	}
+		//}
+
+		if err := mgoClient.Database(cfg.DbName).Drop(ctx); err != nil {
+			return nil, err
+		}
 	}
 
 	return dbClient, nil
@@ -86,10 +109,11 @@ func (m *mongoDB) dropCollection(collectionName string) {
 //region Blocks
 
 func (m *mongoDB) Blocks(ctx context.Context, pagination *types.Pagination) ([]*types.Block, error) {
+	m.logger.Debug("get blocks from db", zap.Any("pagination", pagination))
 	var blocks []*types.Block
 	opts := []*options.FindOptions{
 		m.wrapper.FindSetSort("-height"),
-		options.Find().SetProjection(bson.M{"height": 1, "time": 1, "validator": 1, "numTxs": 1}),
+		options.Find().SetProjection(bson.M{"hash": 1, "height": 1, "time": 1, "validator": 1, "numTxs": 1}),
 		options.Find().SetSkip(int64(pagination.Skip)),
 		options.Find().SetLimit(int64(pagination.Limit)),
 	}
@@ -149,23 +173,25 @@ func (m *mongoDB) InsertBlock(ctx context.Context, block *types.Block) error {
 		return err
 	}
 
-	if err := m.InsertTxs(ctx, block.Txs); err != nil {
-		return err
-	}
-
 	return nil
 }
 
+// UpsertBlock call by backfill, to avoid duplicate block record
 func (m *mongoDB) UpsertBlock(ctx context.Context, block *types.Block) error {
 	return nil
 }
 
-//endregion BLocks
+//endregion Blocks
 
 //region Txs
 
-func (m *mongoDB) Txs(ctx context.Context, pagination *types.Pagination) {
+func (m *mongoDB) Txs(ctx context.Context, pagination *types.Pagination) ([]*types.Transaction, error) {
 	panic("implement me")
+}
+
+func (m *mongoDB) BlockTxCount(ctx context.Context, hash string) (int64, error) {
+
+	return 0, nil
 }
 
 func (m *mongoDB) TxsByBlockHash(ctx context.Context, blockHash string, pagination *types.Pagination) ([]*types.Transaction, error) {
@@ -199,8 +225,9 @@ func (m *mongoDB) TxsByBlockHeight(ctx context.Context, blockHeight uint64, pagi
 		options.Find().SetSkip(int64(pagination.Skip)),
 		options.Find().SetLimit(int64(pagination.Limit)),
 	}
+
 	cursor, err := m.wrapper.C(cTxs).
-		Find(bson.M{"blockHeight": blockHeight}, opts...)
+		Find(bson.M{"blockNumber": blockHeight}, opts...)
 	if err != nil {
 		if err == mgo.ErrNotFound {
 			return nil, nil
@@ -273,7 +300,6 @@ func (m *mongoDB) InsertTxs(ctx context.Context, txs []*types.Transaction) error
 	m.logger.Debug("Start insert txs", zap.Int("TxSize", len(txs)))
 	var txsBulkWriter []mongo.WriteModel
 	for _, tx := range txs {
-		m.logger.Debug("Process tx", zap.String("tx", fmt.Sprintf("%#v", tx)))
 		txModel := mongo.NewInsertOneModel().SetDocument(tx)
 		txsBulkWriter = append(txsBulkWriter, txModel)
 	}
@@ -295,6 +321,19 @@ func (m *mongoDB) UpsertTxs(ctx context.Context, txs []*types.Transaction) error
 	}
 
 	if _, err := m.wrapper.C(cTxs).BulkWrite(txsBulkWriter); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (m *mongoDB) InsertListTxByAddress(ctx context.Context, list []*types.TransactionByAddress) error {
+	var txsBulkWriter []mongo.WriteModel
+	for _, txByAddress := range list {
+		txByAddressModel := mongo.NewInsertOneModel().SetDocument(txByAddress)
+		txsBulkWriter = append(txsBulkWriter, txByAddressModel)
+	}
+
+	if _, err := m.wrapper.C(cTxsByAddress).BulkWrite(txsBulkWriter); err != nil {
 		return err
 	}
 	return nil
@@ -327,7 +366,7 @@ func (m *mongoDB) AddressByHash(ctx context.Context, addressHash string) (*types
 	var c types.Address
 	err := m.wrapper.C(cAddresses).FindOne(bson.M{"address": addressHash}).Decode(&c)
 	if err != nil {
-		if err == mgo.ErrNotFound {
+		if err == mongo.ErrNoDocuments {
 			return nil, nil
 		}
 		return nil, fmt.Errorf("failed to get address: %v", err)

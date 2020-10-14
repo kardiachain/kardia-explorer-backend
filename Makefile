@@ -13,6 +13,11 @@ env:
     then \
          cp .env.sample .env ; \
     fi;
+env_dev:
+	cp .env ./features/.env ; \
+	cp .env ./cmd/api/.env ; \
+	cp .env ./cmd/grabber/.env ; \
+	cp .env ./server/db/.env ;
 build:
 	docker-compose build
 run-grabber:

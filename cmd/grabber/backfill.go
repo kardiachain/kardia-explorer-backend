@@ -30,7 +30,7 @@ func backfill(ctx context.Context, srv server.Server, blockHeight uint64) {
 				continue
 			}
 		}
-		block := &types.Block{Header: types.Header{Height: blockHeight}}
+		block := &types.Block{Height: blockHeight}
 		if err := srv.ValidateBlock(ctx, block, validateBlockStrategy); err != nil {
 			logger.Error("failed to validate block", zap.Error(err))
 			return

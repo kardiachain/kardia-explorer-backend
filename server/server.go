@@ -19,8 +19,6 @@
 package server
 
 import (
-	"errors"
-
 	"go.uber.org/zap"
 
 	"github.com/kardiachain/explorer-backend/kardia"
@@ -30,20 +28,25 @@ import (
 )
 
 type Config struct {
-	DBAdapter db.Adapter
-	DBUrl     string
-	DBName    string
+	StorageAdapter db.Adapter
+	StorageURI     string
+	StorageDB      string
+	StorageIsFlush bool
+	MinConn        int
+	MaxConn        int
 
 	KardiaProtocol kardia.Protocol
-	KardiaURL      string
+	KardiaURLs     []string
 
 	CacheAdapter cache.Adapter
 	CacheURL     string
+	CacheDB      int
+	CacheIsFlush bool
 
-	LockedAccount   []string
-	IsFlushDatabase bool
-	Metrics         *metrics.Provider
-	Logger          *zap.Logger
+	BlockBuffer int64
+
+	Metrics *metrics.Provider
+	Logger  *zap.Logger
 }
 
 // Server instance kind of a router, which receive request from client (explorer)
@@ -58,25 +61,40 @@ type Server struct {
 
 func New(cfg Config) (*Server, error) {
 	cfg.Logger.Info("Create new server instance", zap.Any("config", cfg))
-	dbConfig := db.ClientConfig{
-		DbAdapter: cfg.DBAdapter,
-		DbName:    cfg.DBName,
-		URL:       cfg.DBUrl,
+	dbConfig := db.Config{
+		DbAdapter: cfg.StorageAdapter,
+		DbName:    cfg.StorageDB,
+		URL:       cfg.StorageURI,
 		Logger:    cfg.Logger,
+		MinConn:   cfg.MinConn,
+		MaxConn:   cfg.MaxConn,
+
+		FlushDB: cfg.StorageIsFlush,
 	}
 	dbClient, err := db.NewClient(dbConfig)
 	if err != nil {
+		cfg.Logger.Debug("cannot create db client", zap.Error(err))
 		return nil, err
 	}
-	kaiClient, err := kardia.NewKaiClient(cfg.KardiaURL, cfg.Logger)
+
+	kaiClient, err := kardia.NewKaiClient(cfg.KardiaURLs, cfg.Logger)
 	if err != nil {
-		return nil, errors.New("cannot create kai client")
+		cfg.Logger.Debug("cannot create db client", zap.Error(err))
+		return nil, err
 	}
 
-	cacheClient := cache.New(cache.Config{
-		RedisUrl: cfg.CacheURL,
-		Logger:   cfg.Logger,
-	})
+	cacheCfg := cache.Config{
+		Adapter:     cfg.CacheAdapter,
+		URL:         cfg.CacheURL,
+		DB:          cfg.CacheDB,
+		IsFlush:     cfg.CacheIsFlush,
+		BlockBuffer: cfg.BlockBuffer,
+		Logger:      cfg.Logger,
+	}
+	cacheClient, err := cache.New(cacheCfg)
+	if err != nil {
+		return nil, err
+	}
 
 	infoServer := infoServer{
 		dbClient:    dbClient,

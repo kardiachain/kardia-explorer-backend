@@ -8,7 +8,7 @@ type Transaction struct {
 	BlockHash   string `json:"blockHash" bson:"blockHash"`
 	BlockNumber uint64 `json:"blockNumber" bson:"blockNumber"`
 
-	TxHash           string `json:"hash" bson:"hash"`
+	Hash             string `json:"hash" bson:"hash"`
 	From             string `json:"from" bson:"from"`
 	To               string `json:"to" bson:"to"`
 	Status           bool   `json:"status" bson:"status"`
@@ -18,7 +18,7 @@ type Transaction struct {
 	GasFee           uint64 `json:"gas" bson:"gas"`
 	GasLimit         uint64 `json:"gasLimit" bson:"gasLimit"`
 	Nonce            uint64 `json:"nonce" bson:"nonce"`
-	Time             uint64 `json:"time" bson:"time"`
+	Time             int64  `json:"time" bson:"time"`
 	InputData        string `json:"input" bson:"input"`
 	Logs             string `json:"logs" bson:"logs"`
 	TransactionIndex uint   `json:"transactionIndex"`
@@ -54,4 +54,10 @@ type Receipt struct {
 	LogsBloom         types.Bloom `json:"logsBloom"`
 	Root              string      `json:"root"`
 	Status            uint        `json:"status"`
+}
+
+type TransactionByAddress struct {
+	Address string `json:"address" bson:"address"`
+	TxHash  string `json:"txHash" bson:"txHash"`
+	Time    int64  `json:"time" bson:"time"`
 }

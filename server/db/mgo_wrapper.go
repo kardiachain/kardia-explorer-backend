@@ -135,8 +135,9 @@ func (w *KaiMgo) FindOneSetSort(data string) *options.FindOneOptions {
 
 }
 
-func (w *KaiMgo) DropDatabase(ctx context.Context) {
+func (w *KaiMgo) DropDatabase(ctx context.Context) error {
 	if err := w.DB.Drop(ctx); err != nil {
-		return
+		return err
 	}
+	return nil
 }

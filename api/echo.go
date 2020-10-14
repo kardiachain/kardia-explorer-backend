@@ -62,6 +62,9 @@ type EchoServer interface {
 
 	// Contracts
 	Contracts(c echo.Context) error
+
+	// Info
+	Nodes(c echo.Context) error
 }
 
 type restDefinition struct {
@@ -88,26 +91,21 @@ func bind(gr *echo.Group, srv EchoServer) {
 		// Dashboarad
 		{
 			method: echo.GET,
-			path:   "/dashboard/tps",
-			fn:     srv.TPS,
-		},
-		{
-			method: echo.GET,
-			path:   "/dashboard/time",
-			fn:     srv.BlockTime,
+			path:   "/dashboard/stats",
+			fn:     srv.Stats,
 		},
 		// Blocks
 		{
 			method: echo.GET,
 			// Query params: ?page=1&limit=10
-			path: "/blocks/",
+			path: "/blocks",
 			fn:   srv.Blocks,
 		},
 		{
 			method: echo.GET,
 			// Params: block's hash
 			// Query params: ?page=1&limit=10
-			path: "/block/:blockHash/txs",
+			path: "/block/:block/txs",
 			fn:   srv.BlockTxs,
 		},
 		{
@@ -128,102 +126,24 @@ func bind(gr *echo.Group, srv EchoServer) {
 			fn:          srv.AddressTxs,
 			middlewares: nil,
 		},
-		//{
-		//	method:      echo.GET,
-		//	path:        "/tokens/info",
-		//	fn:          srv.Ping,
-		//	middlewares: nil,
-		//},
-		//{
-		//	method:      echo.GET,
-		//	path:        "/tokens/info",
-		//	fn:          srv.Ping,
-		//	middlewares: nil,
-		//},
-		//{
-		//	method:      echo.GET,
-		//	path:        "/tokens/info",
-		//	fn:          srv.Ping,
-		//	middlewares: nil,
-		//},
-		//{
-		//	method:      echo.GET,
-		//	path:        "/tokens/info",
-		//	fn:          srv.Ping,
-		//	middlewares: nil,
-		//},
-		//{
-		//	method:      echo.GET,
-		//	path:        "/tokens/info",
-		//	fn:          srv.Ping,
-		//	middlewares: nil,
-		//},
-		//{
-		//	method:      echo.GET,
-		//	path:        "/tokens/info",
-		//	fn:          srv.Ping,
-		//	middlewares: nil,
-		//},
-		//{
-		//	method:      echo.GET,
-		//	path:        "/tokens/info",
-		//	fn:          srv.Ping,
-		//	middlewares: nil,
-		//},
-		//{
-		//	method:      echo.GET,
-		//	path:        "/tokens/info",
-		//	fn:          srv.Ping,
-		//	middlewares: nil,
-		//},
-		//{
-		//	method:      echo.GET,
-		//	path:        "/tokens/info",
-		//	fn:          srv.Ping,
-		//	middlewares: nil,
-		//},
-		//{
-		//	method:      echo.GET,
-		//	path:        "/tokens/info",
-		//	fn:          srv.Ping,
-		//	middlewares: nil,
-		//},
-		//{
-		//	method:      echo.GET,
-		//	path:        "/tokens/info",
-		//	fn:          srv.Ping,
-		//	middlewares: nil,
-		//},
-		//{
-		//	method:      echo.GET,
-		//	path:        "/tokens/info",
-		//	fn:          srv.Ping,
-		//	middlewares: nil,
-		//},
-		//{
-		//	method:      echo.GET,
-		//	path:        "/tokens/info",
-		//	fn:          srv.Ping,
-		//	middlewares: nil,
-		//},
-		//{
-		//	method:      echo.GET,
-		//	path:        "/tokens/info",
-		//	fn:          srv.Ping,
-		//	middlewares: nil,
-		//},
-		//{
-		//	method:      echo.GET,
-		//	path:        "/tokens/info",
-		//	fn:          srv.Ping,
-		//	middlewares: nil,
-		//},
-		//{
-		//	method:      echo.GET,
-		//	path:        "/ping",
-		//	fn:          srv.Ping,
-		//	middlewares: nil,
-		//},
+		{
+			method:      echo.GET,
+			path:        "/nodes",
+			fn:          srv.Nodes,
+			middlewares: nil,
+		},
+		{
+			method:      echo.GET,
+			path:        "/validators",
+			fn:          srv.Validators,
+			middlewares: nil,
+		},
+		{
+			method:      echo.GET,
+			path:        "/validators/info",
+			fn:          srv.ValidatorStats,
+			middlewares: nil,
+		},
 	}
 
 	for _, api := range apis {

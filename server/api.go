@@ -21,10 +21,6 @@ package server
 import (
 	"context"
 	"time"
-
-	"github.com/kardiachain/go-kardiamain/lib/common"
-
-	"github.com/kardiachain/explorer-backend/types"
 )
 
 const (
@@ -32,13 +28,9 @@ const (
 )
 
 func (s *infoServer) LatestBlockHeight(ctx context.Context) (uint64, error) {
-	toCtx, timeout := context.WithTimeout(ctx, DefaultTimeout)
-	defer timeout()
-	return s.kaiClient.LatestBlockNumber(toCtx)
+	return s.kaiClient.LatestBlockNumber(ctx)
 }
 
-func (s *infoServer) BlockByHash(ctx context.Context, hash common.Hash) (*types.Block, error) {
-	toCtx, timeout := context.WithTimeout(ctx, DefaultTimeout)
-	defer timeout()
-	return s.kaiClient.BlockByHash(toCtx, hash)
+func (s *infoServer) BlockCacheSize(ctx context.Context) (int64, error) {
+	return s.cacheClient.BlocksSize(ctx)
 }

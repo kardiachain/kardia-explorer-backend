@@ -13,13 +13,15 @@ import (
 type Adapter string
 
 const (
-	MGO Adapter = "mongo"
+	MGO Adapter = "mgo"
 )
 
-type ClientConfig struct {
+type Config struct {
 	DbAdapter Adapter
 	DbName    string
 	URL       string
+	MinConn   int
+	MaxConn   int
 	FlushDB   bool
 
 	Logger *zap.Logger
@@ -38,12 +40,14 @@ type Client interface {
 	BlockByHash(ctx context.Context, blockHash string) (*types.Block, error)
 	IsBlockExist(ctx context.Context, block *types.Block) (bool, error)
 
+	BlockTxCount(ctx context.Context, hash string) (int64, error)
+
 	// Interact with block
 	InsertBlock(ctx context.Context, block *types.Block) error
 	UpsertBlock(ctx context.Context, block *types.Block) error
 
 	// Txs
-	Txs(ctx context.Context, pagination *types.Pagination)
+	Txs(ctx context.Context, pagination *types.Pagination) ([]*types.Transaction, error)
 	TxsByBlockHash(ctx context.Context, blockHash string, pagination *types.Pagination) ([]*types.Transaction, error)
 	TxsByBlockHeight(ctx context.Context, blockNumber uint64, pagination *types.Pagination) ([]*types.Transaction, error)
 	TxsByAddress(ctx context.Context, address string, pagination *types.Pagination) ([]*types.Transaction, error)
@@ -55,6 +59,7 @@ type Client interface {
 	// Interact with tx
 	InsertTxs(ctx context.Context, txs []*types.Transaction) error
 	UpsertTxs(ctx context.Context, txs []*types.Transaction) error
+	InsertListTxByAddress(ctx context.Context, list []*types.TransactionByAddress) error
 
 	// Interact with receipts
 	InsertReceipts(ctx context.Context, block *types.Block) error
@@ -67,13 +72,16 @@ type Client interface {
 	// Address
 	AddressByHash(ctx context.Context, addressHash string) (*types.Address, error)
 	OwnedTokensOfAddress(ctx context.Context, address string, pagination *types.Pagination) ([]*types.TokenHolder, error)
+
+	UpdateActiveAddresses(ctx context.Context, addresses []string) error
 }
 
-func NewClient(cfg ClientConfig) (Client, error) {
+func NewClient(cfg Config) (Client, error) {
+	cfg.Logger.Debug("Create new db instance with config", zap.Any("config", cfg))
 	switch cfg.DbAdapter {
 	case MGO:
 		return newMongoDB(cfg)
 	default:
-		return nil, errors.New("invalid config")
+		return nil, errors.New("invalid db config")
 	}
 }
