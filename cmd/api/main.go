@@ -59,5 +59,5 @@ func main() {
 		panic("cannot create server instance")
 	}
 
-	api.Start(srv)
+	api.Start(srv, serviceCfg)
 }

@@ -7,7 +7,7 @@ services:
       - 6379:6379
     volumes:
       - ./redis.conf:/usr/local/etc/redis/redis.conf
-    restart: on-failure
+    restart: always
   mongodb:
     image: mongo:latest
     container_name: "explorer-mongodb"
@@ -34,7 +34,7 @@ services:
         GITHUB_TOKEN: ${GITHUB_TOKEN}
     image: kardiachain/backend-explorer
     ports:
-      - 8000:3000
+      - 8101:3000
     environment:
       GITHUB_TOKEN: ${GITHUB_TOKEN}
     command: "api"
@@ -49,7 +49,7 @@ services:
         GITHUB_TOKEN: ${GITHUB_TOKEN}
     image: kardiachain/backend-explorer
     ports:
-      - 8001:3000
+      - 8100:3000
     environment:
       GITHUB_TOKEN: ${GITHUB_TOKEN}
     command: "grabber -m mongodb:27017 -u http://10.10.0.251:8551 --log-level info -f true"

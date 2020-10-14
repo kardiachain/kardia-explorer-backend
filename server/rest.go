@@ -153,7 +153,6 @@ func (s *Server) Block(c echo.Context) error {
 }
 
 func (s *Server) BlockExist(c echo.Context) error {
-
 	return api.OK.Build(c)
 }
 

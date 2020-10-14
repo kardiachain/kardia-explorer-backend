@@ -20,6 +20,8 @@ package api
 
 import (
 	"github.com/labstack/echo"
+
+	"github.com/kardiachain/explorer-backend/cfg"
 )
 
 // EchoServer define all API expose
@@ -152,11 +154,11 @@ func bind(gr *echo.Group, srv EchoServer) {
 
 }
 
-func Start(srv EchoServer) {
+func Start(srv EchoServer, cfg cfg.ExplorerConfig) {
 	e := echo.New()
 	v1Gr := e.Group("/api/v1")
 	bind(v1Gr, srv)
-	if err := e.Start(":3000"); err != nil {
+	if err := e.Start(cfg.Port); err != nil {
 		panic("cannot start echo server")
 	}
 }
