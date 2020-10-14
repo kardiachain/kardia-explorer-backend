@@ -3,6 +3,7 @@ version: '3.4'
 services:
   redis:
     image: redis:latest
+    container_name: "explorer-redis"
     ports:
       - 6379:6379
     volumes:
@@ -16,25 +17,26 @@ services:
     restart: always
     ports:
       - 27017:27017
-  postgres:
-    image: postgres:11.9
-    container_name: "explorer-postgres"
-    restart: always
-    ports:
-      - 5435:5432
-    environment:
-      POSTGRES_DB: explorer
-      POSTGRES_PASSWORD: example
-    volumes:
-      - ../postgres-explorer:/var/lib/postgresql/data
+  #postgres:
+  #  image: postgres:11.9
+  #  container_name: "explorer-postgres"
+  #  restart: always
+  #  ports:
+  #    - 5435:5432
+  #  environment:
+  #    POSTGRES_DB: explorer
+  #    POSTGRES_PASSWORD: example
+  #  volumes:
+  #    - ../postgres-explorer:/var/lib/postgresql/data
   backend:
     build:
       context: .
       args:
         GITHUB_TOKEN: ${GITHUB_TOKEN}
     image: kardiachain/backend-explorer
+    container_name: "explorer-backend"
     ports:
-      - 8101:3000
+      - 8000:3000
     environment:
       GITHUB_TOKEN: ${GITHUB_TOKEN}
     command: "api"
@@ -48,8 +50,7 @@ services:
       args:
         GITHUB_TOKEN: ${GITHUB_TOKEN}
     image: kardiachain/backend-explorer
-    ports:
-      - 8100:3000
+    container_name: "explorer-graber"
     environment:
       GITHUB_TOKEN: ${GITHUB_TOKEN}
     command: "grabber -m mongodb:27017 -u http://10.10.0.251:8551 --log-level info -f true"
