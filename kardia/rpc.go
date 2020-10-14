@@ -26,10 +26,9 @@ import (
 
 	kardia "github.com/kardiachain/go-kardiamain"
 	"github.com/kardiachain/go-kardiamain/lib/common"
-	"github.com/kardiachain/go-kardiamain/lib/p2p"
+	"github.com/kardiachain/go-kardiamain/lib/crypto"
 	"github.com/kardiachain/go-kardiamain/lib/rlp"
 	"github.com/kardiachain/go-kardiamain/rpc"
-	coreTypes "github.com/kardiachain/go-kardiamain/types"
 
 	"github.com/kardiachain/explorer-backend/types"
 )
@@ -150,7 +149,9 @@ func (ec *Client) GetTransactionReceipt(ctx context.Context, txHash string) (*ty
 func (ec *Client) BalanceAt(ctx context.Context, account string, args interface{}) (string, error) {
 	var result string
 	var err error
-	if blockHeight, ok := args.(uint64); ok {
+	if args == nil {
+		err = ec.defaultClient.c.CallContext(ctx, &result, "account_balance", common.HexToAddress(account), nil, nil)
+	} else if blockHeight, ok := args.(uint64); ok {
 		err = ec.defaultClient.c.CallContext(ctx, &result, "account_balance", common.HexToAddress(account), nil, blockHeight)
 	} else if blockHash, ok := args.(string); ok {
 		err = ec.defaultClient.c.CallContext(ctx, &result, "account_balance", common.HexToAddress(account), blockHash, nil)
@@ -186,7 +187,7 @@ func (ec *Client) NonceAt(ctx context.Context, account string) (uint64, error) {
 // If the transaction was a contract creation use the GetTransactionReceipt method to get the
 // contract address after the transaction has been mined.
 // TODO(trinhdn): verify which types of tx is suitable for this API
-func (ec *Client) SendRawTransaction(ctx context.Context, tx *coreTypes.Transaction) error {
+func (ec *Client) SendRawTransaction(ctx context.Context, tx *types.Transaction) error {
 	data, err := rlp.EncodeToBytes(tx)
 	if err != nil {
 		return err
@@ -194,14 +195,14 @@ func (ec *Client) SendRawTransaction(ctx context.Context, tx *coreTypes.Transact
 	return ec.defaultClient.c.CallContext(ctx, nil, "tx_sendRawTransaction", common.ToHex(data))
 }
 
-func (ec *Client) Peers(ctx context.Context) ([]*p2p.PeerInfo, error) {
-	var result []*p2p.PeerInfo
+func (ec *Client) Peers(ctx context.Context) ([]*types.PeerInfo, error) {
+	var result []*types.PeerInfo
 	err := ec.defaultClient.c.CallContext(ctx, &result, "node_peers")
 	return result, err
 }
 
-func (ec *Client) NodeInfo(ctx context.Context) (*p2p.NodeInfo, error) {
-	var result *p2p.NodeInfo
+func (ec *Client) NodeInfo(ctx context.Context) (*types.NodeInfo, error) {
+	var result *types.NodeInfo
 	err := ec.defaultClient.c.CallContext(ctx, &result, "node_nodeInfo")
 	return result, err
 }
@@ -229,6 +230,18 @@ func (ec *Client) Validator(ctx context.Context) *types.Validator {
 func (ec *Client) Validators(ctx context.Context) []*types.Validator {
 	var result []map[string]interface{}
 	_ = ec.defaultClient.c.CallContext(ctx, &result, "kai_validators")
+	peers, err := ec.Peers(ctx)
+	if err != nil {
+		return []*types.Validator(nil)
+	}
+	for _, peer := range peers {
+		bytePubKey := []byte(peer.Enode)[8:136]
+		pubKey, err := crypto.StringToPublicKey(string(bytePubKey))
+		if err != nil {
+			return []*types.Validator(nil)
+		}
+		peer.Address = crypto.PubkeyToAddress(*pubKey).Hex()
+	}
 	var ret []*types.Validator
 	for _, val := range result {
 		ec.lgr.Debug("Val", zap.Any("validator", val))

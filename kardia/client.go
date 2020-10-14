@@ -21,9 +21,6 @@ package kardia
 import (
 	"context"
 
-	"github.com/kardiachain/go-kardiamain/lib/p2p"
-	coreTypes "github.com/kardiachain/go-kardiamain/types"
-
 	"github.com/kardiachain/explorer-backend/types"
 )
 
@@ -39,9 +36,9 @@ type ClientInterface interface {
 	StorageAt(ctx context.Context, account string, key string, blockNumber uint64) ([]byte, error)
 	CodeAt(ctx context.Context, account string, blockNumber uint64) ([]byte, error)
 	NonceAt(ctx context.Context, account string) (uint64, error)
-	SendRawTransaction(ctx context.Context, tx *coreTypes.Transaction) error
-	Peers(ctx context.Context) ([]*p2p.PeerInfo, error)
-	NodeInfo(ctx context.Context) (*p2p.NodeInfo, error)
+	SendRawTransaction(ctx context.Context, tx *types.Transaction) error
+	Peers(ctx context.Context) ([]*types.PeerInfo, error)
+	NodeInfo(ctx context.Context) (*types.NodeInfo, error)
 	Datadir(ctx context.Context) (string, error)
 	Validator(ctx context.Context) *types.Validator
 	Validators(ctx context.Context) []*types.Validator

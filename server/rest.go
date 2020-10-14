@@ -226,6 +226,18 @@ func (s *Server) Addresses(c echo.Context) error {
 	}).Build(c)
 }
 
+func (s *Server) Balance(c echo.Context) error {
+	ctx := context.Background()
+	address := c.Param("address")
+	balance, err := s.kaiClient.BalanceAt(ctx, address, nil)
+	if err != nil {
+		return err
+	}
+	s.logger.Debug("Balance", zap.String("address", address), zap.String("balance", balance))
+
+	return api.OK.SetData(balance).Build(c)
+}
+
 func (s *Server) AddressTxs(c echo.Context) error {
 	var page, limit int
 	var err error

@@ -12,7 +12,7 @@ import (
 	"github.com/kardiachain/explorer-backend/types"
 )
 
-func backfill(ctx context.Context, srv server.Server, blockHeight uint64) {
+func backfill(ctx context.Context, srv *server.Server, blockHeight uint64) {
 	var minBlockNum uint64 = 0
 	var err error
 
