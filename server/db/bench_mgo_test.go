@@ -15,7 +15,7 @@ import (
 )
 
 func MgoImportBlock(size int, b *testing.B) {
-	size = size * 1000000
+	size *= 1000000
 	host := "127.0.0.1:27017"
 	dbName := "explorer_benchmark"
 	logger, err := zap.NewDevelopment()

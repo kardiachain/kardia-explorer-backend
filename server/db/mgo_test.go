@@ -7,27 +7,31 @@ import (
 	"reflect"
 	"testing"
 
+	"github.com/bxcodec/faker/v3"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.uber.org/zap"
+	"gotest.tools/assert"
 
 	"github.com/kardiachain/explorer-backend/types"
 )
 
-// MgoImportBlock seed size * 1000000 records into Blocks collection before run
-// todo: Improve setup time for benchmark (should we ?)
-
 func TestMgo_ImportBlock(t *testing.T) {
+	block := &types.Block{}
+	assert.NilError(t, faker.FakeData(&block))
 	type testCase struct {
+		block *types.Block
+		err   error
 	}
 	cases := map[string]testCase{
-		"Success":  {},
-		"Failed":   {},
-		"Failed 2": {},
+		"Success": {
+			block: block,
+			err:   nil,
+		},
 	}
 
 	for name, c := range cases {
 		t.Run(name, func(t *testing.T) {
-			fmt.Printf("%#v", c)
+			fmt.Println(c)
 		})
 	}
 }
@@ -523,12 +527,7 @@ func Test_mongoDB_Txs(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			m := &mongoDB{
-				logger:  tt.fields.logger,
-				wrapper: tt.fields.wrapper,
-				db:      tt.fields.db,
-			}
-			m.Txs(context.Background(), &types.Pagination{})
+
 		})
 	}
 }
