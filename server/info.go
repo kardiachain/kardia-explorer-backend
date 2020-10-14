@@ -104,14 +104,14 @@ func (s *infoServer) ImportBlock(ctx context.Context, block *types.Block) error 
 	if err := s.dbClient.InsertTxs(ctx, block.Txs); err != nil {
 		return err
 	}
-	insertTxConsume := time.Now().Sub(insertTxTime)
+	insertTxConsume := time.Since(insertTxTime)
 	s.logger.Debug("Total time for import tx", zap.Any("TimeConsumed", insertTxConsume))
 
 	insertReceiptsTime := time.Now()
 	if err := s.ImportReceipts(ctx, block); err != nil {
 		return err
 	}
-	insertReceiptsConsume := time.Now().Sub(insertReceiptsTime)
+	insertReceiptsConsume := time.Since(insertReceiptsTime)
 	s.logger.Debug("Total time for import receipt", zap.Any("TimeConsumed", insertReceiptsConsume))
 
 	return nil

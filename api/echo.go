@@ -92,13 +92,8 @@ func bind(gr *echo.Group, srv EchoServer) {
 		// Dashboarad
 		{
 			method: echo.GET,
-			path:   "/dashboard/tps",
-			fn:     srv.TPS,
-		},
-		{
-			method: echo.GET,
-			path:   "/dashboard/time",
-			fn:     srv.BlockTime,
+			path:   "/dashboard/stats",
+			fn:     srv.Stats,
 		},
 		// Blocks
 		{
@@ -155,84 +150,6 @@ func bind(gr *echo.Group, srv EchoServer) {
 			fn:          srv.ValidatorStats,
 			middlewares: nil,
 		},
-		//{
-		//	method:      echo.GET,
-		//	path:        "/tokens/info",
-		//	fn:          srv.Ping,
-		//	middlewares: nil,
-		//},
-		//{
-		//	method:      echo.GET,
-		//	path:        "/tokens/info",
-		//	fn:          srv.Ping,
-		//	middlewares: nil,
-		//},
-		//{
-		//	method:      echo.GET,
-		//	path:        "/tokens/info",
-		//	fn:          srv.Ping,
-		//	middlewares: nil,
-		//},
-		//{
-		//	method:      echo.GET,
-		//	path:        "/tokens/info",
-		//	fn:          srv.Ping,
-		//	middlewares: nil,
-		//},
-		//{
-		//	method:      echo.GET,
-		//	path:        "/tokens/info",
-		//	fn:          srv.Ping,
-		//	middlewares: nil,
-		//},
-		//{
-		//	method:      echo.GET,
-		//	path:        "/tokens/info",
-		//	fn:          srv.Ping,
-		//	middlewares: nil,
-		//},
-		//{
-		//	method:      echo.GET,
-		//	path:        "/tokens/info",
-		//	fn:          srv.Ping,
-		//	middlewares: nil,
-		//},
-		//{
-		//	method:      echo.GET,
-		//	path:        "/tokens/info",
-		//	fn:          srv.Ping,
-		//	middlewares: nil,
-		//},
-		//{
-		//	method:      echo.GET,
-		//	path:        "/tokens/info",
-		//	fn:          srv.Ping,
-		//	middlewares: nil,
-		//},
-		//{
-		//	method:      echo.GET,
-		//	path:        "/tokens/info",
-		//	fn:          srv.Ping,
-		//	middlewares: nil,
-		//},
-		//{
-		//	method:      echo.GET,
-		//	path:        "/tokens/info",
-		//	fn:          srv.Ping,
-		//	middlewares: nil,
-		//},
-		//{
-		//	method:      echo.GET,
-		//	path:        "/tokens/info",
-		//	fn:          srv.Ping,
-		//	middlewares: nil,
-		//},
-		//{
-		//	method:      echo.GET,
-		//	path:        "/ping",
-		//	fn:          srv.Ping,
-		//	middlewares: nil,
-		//},
 	}
 
 	for _, api := range apis {

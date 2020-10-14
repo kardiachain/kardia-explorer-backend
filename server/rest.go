@@ -24,7 +24,35 @@ func (s *Server) Info(c echo.Context) error {
 }
 
 func (s *Server) Stats(c echo.Context) error {
-	return api.OK.Build(c)
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+	blocks, err := s.dbClient.Blocks(ctx, &types.Pagination{
+		Skip:  0,
+		Limit: 11,
+	})
+	if err != nil {
+		return api.InternalServer.Build(c)
+	}
+
+	type Stat struct {
+		NumTxs uint64 `json:"numTxs"`
+		Time   uint64 `json:"time"`
+	}
+
+	var stats []*Stat
+	for _, b := range blocks {
+		stat := &Stat{
+			NumTxs: b.NumTxs,
+			Time:   b.Time,
+		}
+		stats = append(stats, stat)
+	}
+
+	return api.OK.SetData(struct {
+		Data interface{} `json:"data"`
+	}{
+		Data: stats,
+	}).Build(c)
 }
 
 func (s *Server) Nodes(c echo.Context) error {
