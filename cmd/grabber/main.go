@@ -60,8 +60,9 @@ func main() {
 		StorageDB:      serviceCfg.StorageDB,
 		StorageIsFlush: serviceCfg.StorageIsFlush,
 
-		KardiaProtocol: kardia.Protocol(serviceCfg.KardiaProtocol),
-		KardiaURLs:     serviceCfg.KardiaURLs,
+		KardiaProtocol:     kardia.Protocol(serviceCfg.KardiaProtocol),
+		KardiaURLs:         serviceCfg.KardiaURLs,
+		KardiaTrustedNodes: serviceCfg.KardiaTrustedNodes,
 
 		CacheAdapter: cache.Adapter(serviceCfg.CacheEngine),
 		CacheURL:     serviceCfg.CacheURL,
@@ -80,6 +81,7 @@ func main() {
 	// Start listener in new go routine
 	// todo @longnd: Running multi goroutine same time
 	go listener(ctx, srv)
+	// go backfill(ctx, srv, 0)
 	//updateAddresses(ctx, true, 0, srv)
 	<-waitExit
 	logger.Info("Grabber stopping")

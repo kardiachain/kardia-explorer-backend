@@ -35,8 +35,9 @@ type Config struct {
 	MinConn        int
 	MaxConn        int
 
-	KardiaProtocol kardia.Protocol
-	KardiaURLs     []string
+	KardiaProtocol     kardia.Protocol
+	KardiaURLs         []string
+	KardiaTrustedNodes []string
 
 	CacheAdapter cache.Adapter
 	CacheURL     string
@@ -77,7 +78,8 @@ func New(cfg Config) (*Server, error) {
 		return nil, err
 	}
 
-	kaiClient, err := kardia.NewKaiClient(cfg.KardiaURLs, cfg.Logger)
+	kaiClientCfg := kardia.NewConfig(cfg.KardiaURLs, cfg.KardiaTrustedNodes, cfg.Logger)
+	kaiClient, err := kardia.NewKaiClient(kaiClientCfg)
 	if err != nil {
 		cfg.Logger.Debug("cannot create db client", zap.Error(err))
 		return nil, err

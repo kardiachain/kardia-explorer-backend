@@ -50,6 +50,9 @@ func (c *Redis) BlocksSize(ctx context.Context) (int64, error) {
 }
 
 func (c *Redis) InsertTxs(ctx context.Context, txs []*types.Transaction) error {
+	if len(txs) == 0 {
+		return nil
+	}
 	// Get block index
 	var blockIndex int
 	if err := c.client.Get(ctx, fmt.Sprintf(KeyBlockByNumber, txs[0].BlockNumber)).Scan(&blockIndex); err != nil {

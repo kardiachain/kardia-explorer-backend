@@ -50,6 +50,7 @@ type EchoServer interface {
 
 	// Addresses
 	Addresses(c echo.Context) error
+	Balance(c echo.Context) error
 	AddressTxs(c echo.Context) error
 	AddressHolders(c echo.Context) error
 	AddressOwnedTokens(c echo.Context) error
@@ -121,6 +122,11 @@ func bind(gr *echo.Group, srv EchoServer) {
 			path:   "/addresses",
 			fn:     srv.Addresses,
 		},
+		{
+			method: echo.GET,
+			path:   "/addresses/:address/balance",
+			fn:     srv.Balance,
+		},
 		// Tokens
 		{
 			method:      echo.GET,
@@ -142,7 +148,7 @@ func bind(gr *echo.Group, srv EchoServer) {
 		},
 		{
 			method:      echo.GET,
-			path:        "/validators/info",
+			path:        "/validators/:rpcURL/info",
 			fn:          srv.ValidatorStats,
 			middlewares: nil,
 		},

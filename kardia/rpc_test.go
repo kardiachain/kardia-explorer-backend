@@ -42,7 +42,7 @@ import (
 )
 
 type testSuite struct {
-	rpcURL []string
+	cfg *Config
 
 	minBlockNumber uint64
 
@@ -149,8 +149,19 @@ func setupTestSuite() *testSuite {
 	sampleNodeInfo := &p2p.NodeInfo{}
 	sampleValidator := []*types.Validator{}
 	m := metrics.New()
-	return &testSuite{
+	cfg := &Config{
 		rpcURL:            []string{"http://10.10.0.251:8545", "http://10.10.0.251:8546", "http://10.10.0.251:8547", "http://10.10.0.251:8548", "http://10.10.0.251:8549", "http://10.10.0.251:8550", "http://10.10.0.251:8551"},
+		trustedNodeRPCURL: []string{"http://10.10.0.251:8545", "http://10.10.0.251:8546", "http://10.10.0.251:8547"},
+	}
+	loggerCfg := zapdriver.NewProductionConfig()
+	logger, err := loggerCfg.Build()
+	if err != nil {
+		return nil
+	}
+	defer logger.Sync()
+	cfg.lgr = logger
+	return &testSuite{
+		cfg:               cfg,
 		minBlockNumber:    1<<bits.UintSize - 1,
 		m:                 m,
 		blockHeight:       blockHeight,
@@ -178,13 +189,7 @@ func SetupKAIClient() (ClientInterface, context.Context, *testSuite, error) {
 			cancelFn()
 		}
 	}()
-	cfg := zapdriver.NewProductionConfig()
-	logger, err := cfg.Build()
-	if err != nil {
-		return nil, nil, suite, fmt.Errorf("Failed to create logger: %v", err)
-	}
-	defer logger.Sync()
-	client, err := NewKaiClient(suite.rpcURL, logger)
+	client, err := NewKaiClient(suite.cfg)
 	if err != nil {
 		return nil, nil, suite, fmt.Errorf("Failed to create new KaiClient: %v", err)
 	}
@@ -299,15 +304,9 @@ func createCustomClient(numOfNodes int) (*Client, error) {
 	testSuite := setupTestSuite()
 	rpcUrls := []string{}
 	for i := 0; i < numOfNodes; i++ {
-		rpcUrls = append(rpcUrls, testSuite.rpcURL[i])
+		rpcUrls = append(rpcUrls, testSuite.cfg.rpcURL[i])
 	}
-	cfg := zapdriver.NewProductionConfig()
-	logger, err := cfg.Build()
-	if err != nil {
-		return nil, fmt.Errorf("Failed to create logger: %v", err)
-	}
-	defer logger.Sync()
-	client, err := NewKaiClient(rpcUrls, logger)
+	client, err := NewKaiClient(testSuite.cfg)
 	if err != nil {
 		return nil, fmt.Errorf("Failed to create new KaiClient: %v", err)
 	}
@@ -399,11 +398,11 @@ func TestPeers(t *testing.T) {
 	// assert.EqualValuesf(t, testSuite.sampleTxReceipt, peers, "Received receipt must be equal to sampleTxReceipt in testSuite")
 }
 
-func TestNodeInfo(t *testing.T) {
+func TestNodesInfo(t *testing.T) {
 	client, ctx, _, err := SetupKAIClient()
 	assert.Nil(t, err)
 
-	node, err := client.NodeInfo(ctx)
+	node, err := client.NodesInfo(ctx)
 
 	assert.Nil(t, err)
 	assert.IsTypef(t, &p2p.NodeInfo{}, node, "node must be a *p2p.NodeInfo")
@@ -424,8 +423,8 @@ func TestValidators(t *testing.T) {
 	client, ctx, testSuite, err := SetupKAIClient()
 	assert.Nil(t, err)
 
-	validators := client.Validators(ctx)
-	t.Log(validators[0])
+	validators, err := client.Validators(ctx)
+	assert.Nil(t, err)
 
 	assert.IsTypef(t, testSuite.sampleValidator, validators, "Validators must be a []*Validator")
 	// assert.EqualValuesf(t, testSuite.sampleDatadir, dir, "Receive data directory must be equal to sampleDatadir in testSuite")
@@ -435,8 +434,8 @@ func TestValidator(t *testing.T) {
 	client, ctx, _, err := SetupKAIClient()
 	assert.Nil(t, err)
 
-	validator := client.Validator(ctx)
-	t.Log(validator)
+	validator, err := client.Validator(ctx, "")
+	assert.Nil(t, err)
 
 	assert.IsTypef(t, &types.Validator{}, validator, "Validator must be a *Validator")
 	// assert.EqualValuesf(t, testSuite.sampleDatadir, dir, "Receive data directory must be equal to sampleDatadir in testSuite")

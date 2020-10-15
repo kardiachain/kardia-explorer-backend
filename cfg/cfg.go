@@ -49,8 +49,9 @@ type ExplorerConfig struct {
 	CacheIsFlush     bool
 	CacheExpiredTime time.Duration
 
-	KardiaProtocol string
-	KardiaURLs     []string
+	KardiaProtocol     string
+	KardiaURLs         []string
+	KardiaTrustedNodes []string
 
 	StorageDriver  string
 	StorageURI     string
@@ -130,8 +131,9 @@ func New() (ExplorerConfig, error) {
 
 		CacheIsFlush: cacheIsFlush,
 
-		KardiaProtocol: os.Getenv("KARDIA_PROTOCOL"),
-		KardiaURLs:     strings.Split(os.Getenv("KARDIA_URL"), ","),
+		KardiaProtocol:     os.Getenv("KARDIA_PROTOCOL"),
+		KardiaURLs:         strings.Split(os.Getenv("KARDIA_URL"), ","),
+		KardiaTrustedNodes: strings.Split(os.Getenv("KARDIA_TRUSTED_NODES"), ","),
 
 		StorageDriver:  os.Getenv("STORAGE_DRIVER"),
 		StorageURI:     os.Getenv("STORAGE_URI"),
