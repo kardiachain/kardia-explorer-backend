@@ -42,8 +42,9 @@ func main() {
 		StorageDB:      serviceCfg.StorageDB,
 		StorageIsFlush: serviceCfg.StorageIsFlush,
 
-		KardiaProtocol: kardia.Protocol(serviceCfg.KardiaProtocol),
-		KardiaURLs:     serviceCfg.KardiaURLs,
+		KardiaProtocol:     kardia.Protocol(serviceCfg.KardiaProtocol),
+		KardiaURLs:         serviceCfg.KardiaURLs,
+		KardiaTrustedNodes: serviceCfg.KardiaTrustedNodes,
 
 		CacheAdapter: cache.Adapter(serviceCfg.CacheEngine),
 		CacheURL:     serviceCfg.CacheURL,

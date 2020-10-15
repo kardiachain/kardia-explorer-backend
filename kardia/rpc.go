@@ -21,16 +21,17 @@ package kardia
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	"go.uber.org/zap"
 
 	kardia "github.com/kardiachain/go-kardiamain"
 	"github.com/kardiachain/go-kardiamain/lib/common"
-	"github.com/kardiachain/go-kardiamain/lib/crypto"
 	"github.com/kardiachain/go-kardiamain/lib/rlp"
 	"github.com/kardiachain/go-kardiamain/rpc"
 
 	"github.com/kardiachain/explorer-backend/types"
+	"github.com/kardiachain/explorer-backend/utils"
 )
 
 type RPCClient struct {
@@ -41,19 +42,15 @@ type RPCClient struct {
 
 // Client return an *rpc.Client instance
 type Client struct {
-	clientList    []*RPCClient
-	defaultClient *RPCClient
-	numRequest    int
-	lgr           *zap.Logger
-}
-
-type Validator struct {
-	address     string  `json:"address"`
-	votingPower float64 `json:"votingPower"`
+	clientList        []*RPCClient
+	trustedClientList []*RPCClient
+	defaultClient     *RPCClient
+	numRequest        int
+	lgr               *zap.Logger
 }
 
 // NewKaiClient creates a client that uses the given RPC client.
-func NewKaiClient(rpcURL []string, lgr *zap.Logger) (ClientInterface, error) {
+func NewKaiClient(rpcURL []string, trustedNodeRPCURL []string, lgr *zap.Logger) (ClientInterface, error) {
 	if len(rpcURL) == 0 {
 		return nil, fmt.Errorf("Empty RPC URL")
 	}
@@ -69,8 +66,20 @@ func NewKaiClient(rpcURL []string, lgr *zap.Logger) (ClientInterface, error) {
 			ip:     u,
 		})
 	}
+	var trustedClientList = []*RPCClient{}
+	for _, u := range trustedNodeRPCURL {
+		rpcClient, err := rpc.Dial(u)
+		if err != nil {
+			return nil, fmt.Errorf("Failed to dial rpc %q: %v", u, err)
+		}
+		trustedClientList = append(trustedClientList, &RPCClient{
+			c:      rpcClient,
+			isDead: false,
+			ip:     u,
+		})
+	}
 
-	return &Client{clientList, clientList[len(clientList)-1], 0, lgr}, nil
+	return &Client{clientList, trustedClientList, clientList[len(clientList)-1], 0, lgr}, nil
 }
 
 func (ec *Client) chooseClient() *RPCClient {
@@ -195,16 +204,30 @@ func (ec *Client) SendRawTransaction(ctx context.Context, tx *types.Transaction)
 	return ec.defaultClient.c.CallContext(ctx, nil, "tx_sendRawTransaction", common.ToHex(data))
 }
 
-func (ec *Client) Peers(ctx context.Context) ([]*types.PeerInfo, error) {
-	var result []*types.PeerInfo
-	err := ec.defaultClient.c.CallContext(ctx, &result, "node_peers")
-	return result, err
+func (ec *Client) Peers(ctx context.Context) (peers []*types.PeerInfo, err error) {
+	var tempPeers []*types.PeerInfo
+	for _, client := range ec.clientList {
+		err = client.c.CallContext(ctx, &tempPeers, "node_peers")
+		for _, tempPeer := range tempPeers {
+			tempPeer.Address = utils.EnodeToAddress(tempPeer.Enode)
+			appendPeersList(tempPeer, peers)
+		}
+	}
+	return peers, err
 }
 
-func (ec *Client) NodeInfo(ctx context.Context) (*types.NodeInfo, error) {
-	var result *types.NodeInfo
-	err := ec.defaultClient.c.CallContext(ctx, &result, "node_nodeInfo")
-	return result, err
+func (ec *Client) NodeInfo(ctx context.Context) (nodes []*types.NodeInfo, err error) {
+	var node *types.NodeInfo
+	for _, client := range ec.clientList {
+		err = client.c.CallContext(ctx, &node, "node_nodeInfo")
+		nodes = append(nodes, node)
+	}
+	for _, client := range ec.trustedClientList {
+		err = client.c.CallContext(ctx, &node, "node_nodeInfo")
+		nodes = append(nodes, node)
+	}
+
+	return nodes, err
 }
 
 func (ec *Client) Datadir(ctx context.Context) (string, error) {
@@ -217,6 +240,10 @@ func (ec *Client) Validator(ctx context.Context) *types.Validator {
 	var result map[string]interface{}
 	_ = ec.defaultClient.c.CallContext(ctx, &result, "kai_validator")
 	var ret = &types.Validator{}
+	nodes, _, err := ec.getNodeAndPeersInfo(ctx)
+	if err != nil {
+		return ret
+	}
 	for key, value := range result {
 		if key == "address" {
 			ret.Address = value.(string)
@@ -224,25 +251,31 @@ func (ec *Client) Validator(ctx context.Context) *types.Validator {
 			ret.VotingPower = value.(float64)
 		}
 	}
+	for _, node := range nodes {
+		if node.Address == ret.Address {
+			ret.Name = node.Name
+			arr := strings.Split(node.Enode, "@")
+			ret.PeerCount = node.PeerCount
+			ret.RpcUrl = arr[len(arr)-1]
+			ret.Protocols = []string{}
+			for key, _ := range node.Protocols {
+				ret.Protocols = append(ret.Protocols, key)
+			}
+			return ret
+		}
+	}
+
 	return ret
 }
 
 func (ec *Client) Validators(ctx context.Context) []*types.Validator {
 	var result []map[string]interface{}
 	_ = ec.defaultClient.c.CallContext(ctx, &result, "kai_validators")
-	peers, err := ec.Peers(ctx)
-	if err != nil {
-		return []*types.Validator(nil)
-	}
-	for _, peer := range peers {
-		bytePubKey := []byte(peer.Enode)[8:136]
-		pubKey, err := crypto.StringToPublicKey(string(bytePubKey))
-		if err != nil {
-			return []*types.Validator(nil)
-		}
-		peer.Address = crypto.PubkeyToAddress(*pubKey).Hex()
-	}
 	var ret []*types.Validator
+	nodes, _, err := ec.getNodeAndPeersInfo(ctx)
+	if err != nil {
+		return ret
+	}
 	for _, val := range result {
 		ec.lgr.Debug("Val", zap.Any("validator", val))
 		var tmp = &types.Validator{}
@@ -251,6 +284,20 @@ func (ec *Client) Validators(ctx context.Context) []*types.Validator {
 				tmp.Address = value.(string)
 			} else if key == "votingPower" {
 				tmp.VotingPower = value.(float64)
+			}
+		}
+		for _, node := range nodes {
+			if node.Address == tmp.Address {
+				tmp.Name = node.Name
+				arr := strings.Split(node.Enode, "@")
+				tmp.PeerCount = node.PeerCount
+				tmp.RpcUrl = arr[len(arr)-1]
+				tmp.Protocols = []string{}
+				for key, _ := range node.Protocols {
+					tmp.Protocols = append(tmp.Protocols, key)
+				}
+				ret = append(ret, tmp)
+				break
 			}
 		}
 		ret = append(ret, tmp)
@@ -274,4 +321,25 @@ func (ec *Client) getBlockHeader(ctx context.Context, method string, args ...int
 		return nil, err
 	}
 	return &raw, nil
+}
+
+func (ec *Client) getNodeAndPeersInfo(ctx context.Context) (nodes []*types.NodeInfo, peers []*types.PeerInfo, err error) {
+	nodes, err = ec.NodeInfo(ctx)
+	if err != nil {
+		return nodes, peers, err
+	}
+	// peers, err = ec.Peers(ctx)
+	// if err != nil {
+	// 	return nodes, peers, err
+	// }
+	return nodes, peers, nil
+}
+
+func appendPeersList(peer *types.PeerInfo, peersList []*types.PeerInfo) {
+	for _, tmp := range peersList {
+		if tmp.Enode == peer.Enode {
+			return
+		}
+	}
+	peersList = append(peersList, peer)
 }

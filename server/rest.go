@@ -73,7 +73,10 @@ func (s *Server) TPS(c echo.Context) error {
 }
 
 func (s *Server) ValidatorStats(c echo.Context) error {
-	return api.OK.Build(c)
+	ctx := context.Background()
+	validator := s.kaiClient.Validator(ctx)
+	s.logger.Debug("ValidatorInfo", zap.Any("ValidatorInfo", validator))
+	return api.OK.SetData(validator).Build(c)
 }
 
 func (s *Server) Validators(c echo.Context) error {

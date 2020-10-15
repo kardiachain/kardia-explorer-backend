@@ -2,8 +2,12 @@
 package types
 
 type Validator struct {
-	Address     string  `json:"address"`
-	VotingPower float64 `json:"votingPower"`
+	Address     string   `json:"address"`
+	VotingPower float64  `json:"votingPower"`
+	Name        string   `json:"name"`
+	Protocols   []string `json:"protocol"`
+	PeerCount   int      `json:"peerCount"`
+	RpcUrl      string   `json:"rpcUrl"`
 }
 
 type PeerInfo struct {
