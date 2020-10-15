@@ -24,13 +24,13 @@ type PeerInfo struct {
 }
 
 type NodeInfo struct {
-	ID        string `json:"id"`       // Unique node identifier (also the encryption key)
-	Name      string `json:"name"`     // Name of the node, including client type, version, OS, custom data
-	Enode     string `json:"enode"`    // Enode URL for adding this peer from remote peers
-	ENR       string `json:"enr"`      // Ethereum Node Record
-	IP        string `json:"ip"`       // IP address of the node
-	Address   string `json:"address"`  // Coinbase address
-	PeerCount int    `json:"peerCount` // Number of other peers connecting to this peer
+	ID        string `json:"id"`        // Unique node identifier (also the encryption key)
+	Name      string `json:"name"`      // Name of the node, including client type, version, OS, custom data
+	Enode     string `json:"enode"`     // Enode URL for adding this peer from remote peers
+	ENR       string `json:"enr"`       // Ethereum Node Record
+	IP        string `json:"ip"`        // IP address of the node
+	Address   string `json:"address"`   // Coinbase address
+	PeerCount int    `json:"peerCount"` // Number of other peers connecting to this peer
 	Ports     struct {
 		Discovery int `json:"discovery"` // UDP listening port for discovery protocol
 		Listener  int `json:"listener"`  // TCP listening port for RLPx
