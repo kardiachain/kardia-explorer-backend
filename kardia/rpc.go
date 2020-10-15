@@ -217,16 +217,16 @@ func (ec *Client) Peers(ctx context.Context) (peers []*types.PeerInfo, err error
 }
 
 func (ec *Client) NodeInfo(ctx context.Context) (nodes []*types.NodeInfo, err error) {
-	var node *types.NodeInfo
 	for _, client := range ec.clientList {
+		var node *types.NodeInfo
 		err = client.c.CallContext(ctx, &node, "node_nodeInfo")
 		nodes = append(nodes, node)
 	}
 	for _, client := range ec.trustedClientList {
+		var node *types.NodeInfo
 		err = client.c.CallContext(ctx, &node, "node_nodeInfo")
 		nodes = append(nodes, node)
 	}
-
 	return nodes, err
 }
 
@@ -240,7 +240,7 @@ func (ec *Client) Validator(ctx context.Context) *types.Validator {
 	var result map[string]interface{}
 	_ = ec.defaultClient.c.CallContext(ctx, &result, "kai_validator")
 	var ret = &types.Validator{}
-	nodes, _, err := ec.getNodeAndPeersInfo(ctx)
+	nodes, err := ec.NodeInfo(ctx)
 	if err != nil {
 		return ret
 	}
@@ -258,7 +258,7 @@ func (ec *Client) Validator(ctx context.Context) *types.Validator {
 			ret.PeerCount = node.PeerCount
 			ret.RpcUrl = arr[len(arr)-1]
 			ret.Protocols = []string{}
-			for key, _ := range node.Protocols {
+			for key := range node.Protocols {
 				ret.Protocols = append(ret.Protocols, key)
 			}
 			return ret
@@ -272,12 +272,11 @@ func (ec *Client) Validators(ctx context.Context) []*types.Validator {
 	var result []map[string]interface{}
 	_ = ec.defaultClient.c.CallContext(ctx, &result, "kai_validators")
 	var ret []*types.Validator
-	nodes, _, err := ec.getNodeAndPeersInfo(ctx)
+	nodes, err := ec.NodeInfo(ctx)
 	if err != nil {
 		return ret
 	}
 	for _, val := range result {
-		ec.lgr.Debug("Val", zap.Any("validator", val))
 		var tmp = &types.Validator{}
 		for key, value := range val {
 			if key == "address" {
@@ -293,14 +292,13 @@ func (ec *Client) Validators(ctx context.Context) []*types.Validator {
 				tmp.PeerCount = node.PeerCount
 				tmp.RpcUrl = arr[len(arr)-1]
 				tmp.Protocols = []string{}
-				for key, _ := range node.Protocols {
+				for key := range node.Protocols {
 					tmp.Protocols = append(tmp.Protocols, key)
 				}
 				ret = append(ret, tmp)
 				break
 			}
 		}
-		ret = append(ret, tmp)
 	}
 	return ret
 }
@@ -321,18 +319,6 @@ func (ec *Client) getBlockHeader(ctx context.Context, method string, args ...int
 		return nil, err
 	}
 	return &raw, nil
-}
-
-func (ec *Client) getNodeAndPeersInfo(ctx context.Context) (nodes []*types.NodeInfo, peers []*types.PeerInfo, err error) {
-	nodes, err = ec.NodeInfo(ctx)
-	if err != nil {
-		return nodes, peers, err
-	}
-	// peers, err = ec.Peers(ctx)
-	// if err != nil {
-	// 	return nodes, peers, err
-	// }
-	return nodes, peers, nil
 }
 
 func appendPeersList(peer *types.PeerInfo, peersList []*types.PeerInfo) {
