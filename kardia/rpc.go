@@ -236,9 +236,24 @@ func (ec *Client) Datadir(ctx context.Context) (string, error) {
 	return result, err
 }
 
-func (ec *Client) Validator(ctx context.Context) *types.Validator {
+func (ec *Client) Validator(ctx context.Context, rpcURL string) *types.Validator {
 	var result map[string]interface{}
-	_ = ec.defaultClient.c.CallContext(ctx, &result, "kai_validator")
+	if rpcURL != "" {
+		for _, client := range ec.clientList {
+			if strings.Contains(client.ip, rpcURL) {
+				_ = client.c.CallContext(ctx, &result, "kai_validator")
+				break
+			}
+		}
+		for _, client := range ec.trustedClientList {
+			if strings.Contains(client.ip, rpcURL) {
+				_ = client.c.CallContext(ctx, &result, "kai_validator")
+				break
+			}
+		}
+	} else {
+		_ = ec.defaultClient.c.CallContext(ctx, &result, "kai_validator")
+	}
 	var ret = &types.Validator{}
 	nodes, err := ec.NodesInfo(ctx)
 	if err != nil {

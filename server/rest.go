@@ -73,8 +73,10 @@ func (s *Server) TPS(c echo.Context) error {
 }
 
 func (s *Server) ValidatorStats(c echo.Context) error {
+	s.logger.Debug("ValidatorInfo", zap.Any("URL", c.Param("rpcURL")))
 	ctx := context.Background()
-	validator := s.kaiClient.Validator(ctx)
+	rpcURL := c.Param("rpcURL")
+	validator := s.kaiClient.Validator(ctx, rpcURL)
 	s.logger.Debug("ValidatorInfo", zap.Any("ValidatorInfo", validator))
 	return api.OK.SetData(validator).Build(c)
 }
