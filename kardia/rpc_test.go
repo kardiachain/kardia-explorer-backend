@@ -150,8 +150,8 @@ func setupTestSuite() *testSuite {
 	sampleValidator := []*types.Validator{}
 	m := metrics.New()
 	cfg := &Config{
-		RpcURL:            []string{"http://10.10.0.251:8545", "http://10.10.0.251:8546", "http://10.10.0.251:8547", "http://10.10.0.251:8548", "http://10.10.0.251:8549", "http://10.10.0.251:8550", "http://10.10.0.251:8551"},
-		TrustedNodeRPCURL: []string{"http://10.10.0.251:8545", "http://10.10.0.251:8546", "http://10.10.0.251:8547"},
+		rpcURL:            []string{"http://10.10.0.251:8545", "http://10.10.0.251:8546", "http://10.10.0.251:8547", "http://10.10.0.251:8548", "http://10.10.0.251:8549", "http://10.10.0.251:8550", "http://10.10.0.251:8551"},
+		trustedNodeRPCURL: []string{"http://10.10.0.251:8545", "http://10.10.0.251:8546", "http://10.10.0.251:8547"},
 	}
 	loggerCfg := zapdriver.NewProductionConfig()
 	logger, err := loggerCfg.Build()
@@ -159,7 +159,7 @@ func setupTestSuite() *testSuite {
 		return nil
 	}
 	defer logger.Sync()
-	cfg.Lgr = logger
+	cfg.lgr = logger
 	return &testSuite{
 		cfg:               cfg,
 		minBlockNumber:    1<<bits.UintSize - 1,
@@ -304,7 +304,7 @@ func createCustomClient(numOfNodes int) (*Client, error) {
 	testSuite := setupTestSuite()
 	rpcUrls := []string{}
 	for i := 0; i < numOfNodes; i++ {
-		rpcUrls = append(rpcUrls, testSuite.cfg.RpcURL[i])
+		rpcUrls = append(rpcUrls, testSuite.cfg.rpcURL[i])
 	}
 	client, err := NewKaiClient(testSuite.cfg)
 	if err != nil {
@@ -423,8 +423,8 @@ func TestValidators(t *testing.T) {
 	client, ctx, testSuite, err := SetupKAIClient()
 	assert.Nil(t, err)
 
-	validators := client.Validators(ctx)
-	t.Log(validators[0])
+	validators, err := client.Validators(ctx)
+	assert.Nil(t, err)
 
 	assert.IsTypef(t, testSuite.sampleValidator, validators, "Validators must be a []*Validator")
 	// assert.EqualValuesf(t, testSuite.sampleDatadir, dir, "Receive data directory must be equal to sampleDatadir in testSuite")
@@ -434,8 +434,8 @@ func TestValidator(t *testing.T) {
 	client, ctx, _, err := SetupKAIClient()
 	assert.Nil(t, err)
 
-	validator := client.Validator(ctx, "")
-	t.Log(validator)
+	validator, err := client.Validator(ctx, "")
+	assert.Nil(t, err)
 
 	assert.IsTypef(t, &types.Validator{}, validator, "Validator must be a *Validator")
 	// assert.EqualValuesf(t, testSuite.sampleDatadir, dir, "Receive data directory must be equal to sampleDatadir in testSuite")

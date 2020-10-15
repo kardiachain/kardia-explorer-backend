@@ -33,7 +33,7 @@ type ClientInterface interface {
 	BlockHeaderByNumber(ctx context.Context, number uint64) (*types.Header, error)
 	GetTransaction(ctx context.Context, hash string) (*types.Transaction, bool, error)
 	GetTransactionReceipt(ctx context.Context, txHash string) (*types.Receipt, error)
-	BalanceAt(ctx context.Context, account string, args interface{}) (string, error)
+	BalanceAt(ctx context.Context, account string, blockHeightOrHash interface{}) (string, error)
 	StorageAt(ctx context.Context, account string, key string, blockNumber uint64) ([]byte, error)
 	CodeAt(ctx context.Context, account string, blockNumber uint64) ([]byte, error)
 	NonceAt(ctx context.Context, account string) (uint64, error)
@@ -41,12 +41,20 @@ type ClientInterface interface {
 	Peers(ctx context.Context) ([]*types.PeerInfo, error)
 	NodesInfo(ctx context.Context) ([]*types.NodeInfo, error)
 	Datadir(ctx context.Context) (string, error)
-	Validator(ctx context.Context, rpcURL string) *types.Validator
-	Validators(ctx context.Context) []*types.Validator
+	Validator(ctx context.Context, rpcURL string) (*types.Validator, error)
+	Validators(ctx context.Context) ([]*types.Validator, error)
 }
 
 type Config struct {
-	RpcURL            []string
-	TrustedNodeRPCURL []string
-	Lgr               *zap.Logger
+	rpcURL            []string
+	trustedNodeRPCURL []string
+	lgr               *zap.Logger
+}
+
+func NewConfig(rpcURL []string, trustedNodeRPCURL []string, lgr *zap.Logger) *Config {
+	return &Config{
+		rpcURL:            rpcURL,
+		trustedNodeRPCURL: trustedNodeRPCURL,
+		lgr:               lgr,
+	}
 }

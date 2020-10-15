@@ -20,7 +20,7 @@ package kardia
 
 import (
 	"context"
-	"fmt"
+	"errors"
 	"strings"
 
 	"go.uber.org/zap"
@@ -51,14 +51,14 @@ type Client struct {
 
 // NewKaiClient creates a client that uses the given RPC client.
 func NewKaiClient(cfg *Config) (ClientInterface, error) {
-	if len(cfg.RpcURL) == 0 {
-		return nil, fmt.Errorf("Empty RPC URL")
+	if len(cfg.rpcURL) == 0 {
+		return nil, errors.New("empty RPC URL")
 	}
 	var clientList = []*RPCClient{}
-	for _, u := range cfg.RpcURL {
+	for _, u := range cfg.rpcURL {
 		rpcClient, err := rpc.Dial(u)
 		if err != nil {
-			return nil, fmt.Errorf("Failed to dial rpc %q: %v", u, err)
+			return nil, err
 		}
 		clientList = append(clientList, &RPCClient{
 			c:      rpcClient,
@@ -67,10 +67,10 @@ func NewKaiClient(cfg *Config) (ClientInterface, error) {
 		})
 	}
 	var trustedClientList = []*RPCClient{}
-	for _, u := range cfg.TrustedNodeRPCURL {
+	for _, u := range cfg.trustedNodeRPCURL {
 		rpcClient, err := rpc.Dial(u)
 		if err != nil {
-			return nil, fmt.Errorf("Failed to dial rpc %q: %v", u, err)
+			return nil, err
 		}
 		trustedClientList = append(trustedClientList, &RPCClient{
 			c:      rpcClient,
@@ -79,7 +79,7 @@ func NewKaiClient(cfg *Config) (ClientInterface, error) {
 		})
 	}
 
-	return &Client{clientList, trustedClientList, clientList[len(clientList)-1], 0, cfg.Lgr}, nil
+	return &Client{clientList, trustedClientList, clientList[len(clientList)-1], 0, cfg.lgr}, nil
 }
 
 func (ec *Client) chooseClient() *RPCClient {
@@ -155,14 +155,14 @@ func (ec *Client) GetTransactionReceipt(ctx context.Context, txHash string) (*ty
 
 // BalanceAt returns the wei balance of the given account.
 // The block number can be nil, in which case the balance is taken from the latest known block.
-func (ec *Client) BalanceAt(ctx context.Context, account string, args interface{}) (string, error) {
+func (ec *Client) BalanceAt(ctx context.Context, account string, blockHeightOrHash interface{}) (string, error) {
 	var result string
 	var err error
-	if args == nil {
+	if blockHeightOrHash == nil {
 		err = ec.defaultClient.c.CallContext(ctx, &result, "account_balance", common.HexToAddress(account), nil, nil)
-	} else if blockHeight, ok := args.(uint64); ok {
+	} else if blockHeight, ok := blockHeightOrHash.(uint64); ok {
 		err = ec.defaultClient.c.CallContext(ctx, &result, "account_balance", common.HexToAddress(account), nil, blockHeight)
-	} else if blockHash, ok := args.(string); ok {
+	} else if blockHash, ok := blockHeightOrHash.(string); ok {
 		err = ec.defaultClient.c.CallContext(ctx, &result, "account_balance", common.HexToAddress(account), blockHash, nil)
 	}
 	return result, err
@@ -236,35 +236,43 @@ func (ec *Client) Datadir(ctx context.Context) (string, error) {
 	return result, err
 }
 
-func (ec *Client) Validator(ctx context.Context, rpcURL string) *types.Validator {
+func (ec *Client) Validator(ctx context.Context, rpcURL string) (*types.Validator, error) {
 	var result map[string]interface{}
 	if rpcURL != "" {
 		for _, client := range ec.clientList {
 			if strings.Contains(client.ip, rpcURL) {
-				_ = client.c.CallContext(ctx, &result, "kai_validator")
+				err := client.c.CallContext(ctx, &result, "kai_validator")
+				if err != nil {
+					return nil, err
+				}
 				break
 			}
 		}
 		for _, client := range ec.trustedClientList {
 			if strings.Contains(client.ip, rpcURL) {
-				_ = client.c.CallContext(ctx, &result, "kai_validator")
+				err := client.c.CallContext(ctx, &result, "kai_validator")
+				if err != nil {
+					return nil, err
+				}
 				break
 			}
 		}
 	} else {
-		_ = ec.defaultClient.c.CallContext(ctx, &result, "kai_validator")
+		err := ec.defaultClient.c.CallContext(ctx, &result, "kai_validator")
+		if err != nil {
+			return nil, err
+		}
 	}
-	var ret = &types.Validator{}
+	if result == nil {
+		return &types.Validator{}, nil
+	}
+	ret := &types.Validator{
+		Address:     result["address"].(string),
+		VotingPower: result["votingPower"].(float64),
+	}
 	nodes, err := ec.NodesInfo(ctx)
 	if err != nil {
-		return ret
-	}
-	for key, value := range result {
-		if key == "address" {
-			ret.Address = value.(string)
-		} else if key == "votingPower" {
-			ret.VotingPower = value.(float64)
-		}
+		return nil, err
 	}
 	for _, node := range nodes {
 		if node.Address == ret.Address {
@@ -276,29 +284,31 @@ func (ec *Client) Validator(ctx context.Context, rpcURL string) *types.Validator
 			for key := range node.Protocols {
 				ret.Protocols = append(ret.Protocols, key)
 			}
-			return ret
+			return ret, nil
 		}
 	}
 
-	return ret
+	return ret, nil
 }
 
-func (ec *Client) Validators(ctx context.Context) []*types.Validator {
+func (ec *Client) Validators(ctx context.Context) ([]*types.Validator, error) {
 	var result []map[string]interface{}
-	_ = ec.defaultClient.c.CallContext(ctx, &result, "kai_validators")
+	err := ec.defaultClient.c.CallContext(ctx, &result, "kai_validators")
+	if err != nil {
+		return nil, err
+	}
 	var ret []*types.Validator
 	nodes, err := ec.NodesInfo(ctx)
 	if err != nil {
-		return ret
+		return nil, err
 	}
 	for _, val := range result {
-		var tmp = &types.Validator{}
-		for key, value := range val {
-			if key == "address" {
-				tmp.Address = value.(string)
-			} else if key == "votingPower" {
-				tmp.VotingPower = value.(float64)
-			}
+		if result == nil {
+			continue
+		}
+		tmp := &types.Validator{
+			Address:     val["address"].(string),
+			VotingPower: val["votingPower"].(float64),
 		}
 		for _, node := range nodes {
 			if node.Address == tmp.Address {
@@ -315,7 +325,7 @@ func (ec *Client) Validators(ctx context.Context) []*types.Validator {
 			}
 		}
 	}
-	return ret
+	return ret, nil
 }
 
 func (ec *Client) getBlock(ctx context.Context, method string, args ...interface{}) (*types.Block, error) {

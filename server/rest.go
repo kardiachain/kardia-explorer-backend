@@ -76,14 +76,20 @@ func (s *Server) ValidatorStats(c echo.Context) error {
 	s.logger.Debug("ValidatorInfo", zap.Any("URL", c.Param("rpcURL")))
 	ctx := context.Background()
 	rpcURL := c.Param("rpcURL")
-	validator := s.kaiClient.Validator(ctx, rpcURL)
+	validator, err := s.kaiClient.Validator(ctx, rpcURL)
+	if err != nil {
+		return api.Invalid.Build(c)
+	}
 	s.logger.Debug("ValidatorInfo", zap.Any("ValidatorInfo", validator))
 	return api.OK.SetData(validator).Build(c)
 }
 
 func (s *Server) Validators(c echo.Context) error {
 	ctx := context.Background()
-	validators := s.kaiClient.Validators(ctx)
+	validators, err := s.kaiClient.Validators(ctx)
+	if err != nil {
+		return api.Invalid.Build(c)
+	}
 	s.logger.Debug("Validators", zap.Any("validators", validators))
 	return api.OK.SetData(validators).Build(c)
 }
