@@ -50,6 +50,9 @@ func (c *Redis) BlocksSize(ctx context.Context) (int64, error) {
 }
 
 func (c *Redis) InsertTxs(ctx context.Context, txs []*types.Transaction) error {
+	if len(txs) == 0 {
+		return nil
+	}
 	// Get block index
 	var blockIndex int
 	if err := c.client.Get(ctx, fmt.Sprintf(KeyBlockByNumber, txs[0].BlockNumber)).Scan(&blockIndex); err != nil {
@@ -97,10 +100,12 @@ func (c *Redis) InsertBlock(ctx context.Context, block *types.Block) error {
 		c.logger.Debug("cannot get size of #blocks", zap.Error(err))
 		return err
 	}
+
 	// Size over buffer then
+	c.logger.Debug("size of list", zap.Int64("Size", size), zap.Int64("buffer", c.cfg.BlockBuffer))
 	if size >= c.cfg.BlockBuffer && size != 0 {
 		// Delete block at last index
-		if err := c.deleteKeysOfBlockIndex(ctx, size-1); err != nil {
+		if err := c.deleteKeysOfBlockIndex(ctx, size); err != nil {
 			c.logger.Debug("cannot delete keys of block index", zap.Error(err))
 			return err
 		}
@@ -175,8 +180,8 @@ func (c *Redis) deleteKeysOfBlockIndex(ctx context.Context, blockIndex int64) er
 	}
 
 	var blockStr string
-	if err := c.client.LIndex(ctx, KeyBlocks, blockIndex).Scan(&blockStr); err != nil {
-		c.logger.Debug("cannot get block", zap.Int64("BlockIndex", blockIndex), zap.Error(err))
+	if err := c.client.LIndex(ctx, KeyBlocks, blockIndex-1).Scan(&blockStr); err != nil {
+		c.logger.Debug("cannot get block", zap.Int64("BlockIndex", blockIndex-1), zap.Error(err))
 		return err
 	}
 	var block types.Block
@@ -193,6 +198,7 @@ func (c *Redis) deleteKeysOfBlockIndex(ctx context.Context, blockIndex int64) er
 	}...)
 
 	if _, err := c.client.Del(ctx, keys...).Result(); err != nil {
+		c.logger.Debug("cannot delete keys", zap.Strings("Keys", keys))
 		return err
 	}
 

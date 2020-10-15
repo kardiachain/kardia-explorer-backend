@@ -72,5 +72,6 @@ func newRedis(cfg Config) (Client, error) {
 		client: redisClient,
 		logger: logger,
 	}
+	client.cfg = cfg
 	return client, nil
 }
