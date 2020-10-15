@@ -399,11 +399,11 @@ func TestPeers(t *testing.T) {
 	// assert.EqualValuesf(t, testSuite.sampleTxReceipt, peers, "Received receipt must be equal to sampleTxReceipt in testSuite")
 }
 
-func TestNodeInfo(t *testing.T) {
+func TestNodesInfo(t *testing.T) {
 	client, ctx, _, err := SetupKAIClient()
 	assert.Nil(t, err)
 
-	node, err := client.NodeInfo(ctx)
+	node, err := client.NodesInfo(ctx)
 
 	assert.Nil(t, err)
 	assert.IsTypef(t, &p2p.NodeInfo{}, node, "node must be a *p2p.NodeInfo")

@@ -105,11 +105,11 @@ func BenchmarkPeers(b *testing.B) {
 	}
 }
 
-func BenchmarkNodeInfo(b *testing.B) {
+func BenchmarkNodesInfo(b *testing.B) {
 	client, ctx, _, err := SetupKAIClient()
 	assert.Nil(b, err)
 	for i := 0; i < b.N; i++ {
-		_, _ = client.NodeInfo(ctx)
+		_, _ = client.NodesInfo(ctx)
 	}
 
 }

@@ -50,12 +50,12 @@ type Client struct {
 }
 
 // NewKaiClient creates a client that uses the given RPC client.
-func NewKaiClient(rpcURL []string, trustedNodeRPCURL []string, lgr *zap.Logger) (ClientInterface, error) {
-	if len(rpcURL) == 0 {
+func NewKaiClient(cfg *Config) (ClientInterface, error) {
+	if len(cfg.RpcURL) == 0 {
 		return nil, fmt.Errorf("Empty RPC URL")
 	}
 	var clientList = []*RPCClient{}
-	for _, u := range rpcURL {
+	for _, u := range cfg.RpcURL {
 		rpcClient, err := rpc.Dial(u)
 		if err != nil {
 			return nil, fmt.Errorf("Failed to dial rpc %q: %v", u, err)
@@ -67,7 +67,7 @@ func NewKaiClient(rpcURL []string, trustedNodeRPCURL []string, lgr *zap.Logger) 
 		})
 	}
 	var trustedClientList = []*RPCClient{}
-	for _, u := range trustedNodeRPCURL {
+	for _, u := range cfg.TrustedNodeRPCURL {
 		rpcClient, err := rpc.Dial(u)
 		if err != nil {
 			return nil, fmt.Errorf("Failed to dial rpc %q: %v", u, err)
@@ -79,7 +79,7 @@ func NewKaiClient(rpcURL []string, trustedNodeRPCURL []string, lgr *zap.Logger) 
 		})
 	}
 
-	return &Client{clientList, trustedClientList, clientList[len(clientList)-1], 0, lgr}, nil
+	return &Client{clientList, trustedClientList, clientList[len(clientList)-1], 0, cfg.Lgr}, nil
 }
 
 func (ec *Client) chooseClient() *RPCClient {
@@ -216,7 +216,7 @@ func (ec *Client) Peers(ctx context.Context) (peers []*types.PeerInfo, err error
 	return peers, err
 }
 
-func (ec *Client) NodeInfo(ctx context.Context) (nodes []*types.NodeInfo, err error) {
+func (ec *Client) NodesInfo(ctx context.Context) (nodes []*types.NodeInfo, err error) {
 	for _, client := range ec.clientList {
 		var node *types.NodeInfo
 		err = client.c.CallContext(ctx, &node, "node_nodeInfo")
@@ -240,7 +240,7 @@ func (ec *Client) Validator(ctx context.Context) *types.Validator {
 	var result map[string]interface{}
 	_ = ec.defaultClient.c.CallContext(ctx, &result, "kai_validator")
 	var ret = &types.Validator{}
-	nodes, err := ec.NodeInfo(ctx)
+	nodes, err := ec.NodesInfo(ctx)
 	if err != nil {
 		return ret
 	}
@@ -272,7 +272,7 @@ func (ec *Client) Validators(ctx context.Context) []*types.Validator {
 	var result []map[string]interface{}
 	_ = ec.defaultClient.c.CallContext(ctx, &result, "kai_validators")
 	var ret []*types.Validator
-	nodes, err := ec.NodeInfo(ctx)
+	nodes, err := ec.NodesInfo(ctx)
 	if err != nil {
 		return ret
 	}

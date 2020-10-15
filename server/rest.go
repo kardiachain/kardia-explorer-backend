@@ -57,7 +57,7 @@ func (s *Server) Stats(c echo.Context) error {
 
 func (s *Server) Nodes(c echo.Context) error {
 	ctx := context.Background()
-	nodes, err := s.kaiClient.NodeInfo(ctx)
+	nodes, err := s.kaiClient.NodesInfo(ctx)
 	if err != nil {
 		return api.Invalid.Build(c)
 	}

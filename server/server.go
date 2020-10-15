@@ -78,7 +78,12 @@ func New(cfg Config) (*Server, error) {
 		return nil, err
 	}
 
-	kaiClient, err := kardia.NewKaiClient(cfg.KardiaURLs, cfg.KardiaTrustedNodes, cfg.Logger)
+	kaiClientCfg := &kardia.Config{
+		RpcURL:            cfg.KardiaURLs,
+		TrustedNodeRPCURL: cfg.KardiaTrustedNodes,
+		Lgr:               cfg.Logger,
+	}
+	kaiClient, err := kardia.NewKaiClient(kaiClientCfg)
 	if err != nil {
 		cfg.Logger.Debug("cannot create db client", zap.Error(err))
 		return nil, err
