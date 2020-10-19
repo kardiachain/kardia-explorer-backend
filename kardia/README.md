@@ -19,42 +19,62 @@ func SetupKAIClient() (*Client, context.Context, error) {
 ## Endpoints
 **LatestBlockNumber**
 ```go
-func (ec *Client) LatestBlockNumber(ctx context.Context) (uint64, error)
+LatestBlockNumber(ctx context.Context) (uint64, error)
 ```
 **BlockByHash**
 ```go
-func (ec *Client) BlockByHash(ctx context.Context, hash common.Hash) (*types.Block, error)
+BlockByHash(ctx context.Context, hash common.Hash) (*types.Block, error)
 ```
 **BlockByNumber**
 ```go
-func (ec *Client) BlockByNumber(ctx context.Context, number uint64) (*types.Block, error)
+BlockByNumber(ctx context.Context, number uint64) (*types.Block, error)
 ```
 **BlockHeaderByNumber**
 ```go
-func (ec *Client) BlockHeaderByNumber(ctx context.Context, number uint64) (*types.Header, error)
+BlockHeaderByNumber(ctx context.Context, number uint64) (*types.Header, error)
 ```
 **BlockHeaderByHash**
 ```go
-func (ec *Client) BlockHeaderByHash(ctx context.Context, hash common.Hash) (*types.Header, error)
+BlockHeaderByHash(ctx context.Context, hash common.Hash) (*types.Header, error)
 ```
 **GetTransaction**
 ```go
-func (ec *Client) GetTransaction(ctx context.Context, hash common.Hash) (tx *types.Transaction, isPending bool, err error)
+GetTransaction(ctx context.Context, hash common.Hash) (tx *types.Transaction, isPending bool, err error)
 ```
 **GetTransactionReceipt**
 ```go
-func (ec *Client) GetTransactionReceipt(ctx context.Context, txHash common.Hash) (*kai.PublicReceipt, error)
+GetTransactionReceipt(ctx context.Context, txHash common.Hash) (*kai.PublicReceipt, error)
 ```
 **BalanceAt**
 ```go
-func (ec *Client) BalanceAt(ctx context.Context, account common.Address, args interface{}) (string, error)
+BalanceAt(ctx context.Context, account common.Address, blockHeightOrHash interface{}) (string, error)
 ```
 **NonceAt**
 ```go
-func (ec *Client) NonceAt(ctx context.Context, account common.Address) (uint64, error)
+NonceAt(ctx context.Context, account common.Address) (uint64, error)
 ```
 **SendRawTransaction**
 ```go
-func (ec *Client) SendRawTransaction(ctx context.Context, tx *coreTypes.Transaction) error
+SendRawTransaction(ctx context.Context, tx *types.Transaction) error
+```
+**Peers**
+```go
+Peers(ctx context.Context) ([]*types.PeerInfo, error)
+```
+**NodesInfo**
+```go
+NodesInfo(ctx context.Context) ([]*types.NodeInfo, error)
+```
+**Datadir**
+```go
+Datadir(ctx context.Context) (string, error)
+```
+**Validator**
+```go
+Validator(ctx context.Context, rpcURL string) (*types.Validator, error)
+```
+**Validators**
+```go
+Validators(ctx context.Context) ([]*types.Validator, error)
 ```
 ## Benchmark result

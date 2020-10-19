@@ -41,6 +41,9 @@ type Client interface {
 
 	BlocksSize(ctx context.Context) (int64, error)
 	PopReceipt(ctx context.Context) (*types.Receipt, error)
+
+	LatestBlocks(ctx context.Context, pagination *types.Pagination) ([]*types.Block, error)
+	LatestTransactions(ctx context.Context, pagination *types.Pagination) ([]*types.Transaction, error)
 }
 
 func New(cfg Config) (Client, error) {

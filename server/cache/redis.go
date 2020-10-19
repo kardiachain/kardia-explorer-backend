@@ -106,7 +106,7 @@ func (c *Redis) InsertBlock(ctx context.Context, block *types.Block) error {
 	}
 
 	// Size over buffer then
-	c.logger.Debug("size of list", zap.Int64("Size", size), zap.Int64("buffer", c.cfg.BlockBuffer))
+	c.logger.Debug("size: ", zap.Int64("size", size), zap.Int64("c.cfg.BlockBuffer", c.cfg.BlockBuffer))
 	if size >= c.cfg.BlockBuffer && size != 0 {
 		// Delete block at last index
 		if err := c.deleteKeysOfBlockIndex(ctx, size); err != nil {
@@ -160,6 +160,59 @@ func (c *Redis) BlockByHeight(ctx context.Context, blockHeight uint64) (*types.B
 		return nil, err
 	}
 	return c.getBlockIndex(ctx, index)
+}
+
+func (c *Redis) LatestBlocks(ctx context.Context, pagination *types.Pagination) ([]*types.Block, error) {
+	var (
+		blockList        []*types.Block
+		marshalledBlocks []string
+		startIndex       int64 = 1 + int64(pagination.Skip)
+		endIndex         int64 = startIndex + int64(pagination.Limit) - 1
+	)
+	c.logger.Debug("Getting blocks from cache: ", zap.Int("pagination.Skip", pagination.Skip), zap.Int("pagination.Limit", pagination.Limit))
+	marshalledBlocks, err := c.client.LRange(ctx, KeyBlocks, startIndex, endIndex).Result()
+	c.logger.Debug("Getting blocks from cache: ", zap.Int64("startIndex", startIndex), zap.Int64("endIndex", endIndex))
+	c.logger.Debug("Blocks from cache: ", zap.Any("marshalledBlocks", marshalledBlocks))
+	if err != nil {
+		return nil, err
+	}
+	for _, bStr := range marshalledBlocks {
+		var b types.Block
+		err := json.Unmarshal([]byte(bStr), &b)
+		if err != nil {
+			return nil, err
+		}
+		blockList = append(blockList, &b)
+	}
+	c.logger.Debug("Blocks from cache: ", zap.Any("blocks", blockList))
+	return blockList, nil
+}
+
+func (c *Redis) LatestTransactions(ctx context.Context, pagination *types.Pagination) ([]*types.Transaction, error) {
+	var (
+		txList        []*types.Transaction
+		marshalledTxs []string
+		startIndex    int64 = 0 - int64(pagination.Skip)
+		endIndex      int64 = startIndex + int64(pagination.Limit) - 1
+	)
+	if endIndex > 0 {
+		endIndex = 0
+	}
+	marshalledTxs, err := c.client.LRange(ctx, KeyBlocks, startIndex, endIndex).Result()
+	c.logger.Debug("Getting Txs from cache: ", zap.Int64("startIndex", startIndex), zap.Int64("endIndex", endIndex))
+	if err != nil {
+		return nil, err
+	}
+	for _, txStr := range marshalledTxs {
+		var tx types.Transaction
+		err := json.Unmarshal([]byte(txStr), &tx)
+		if err != nil {
+			return nil, err
+		}
+		txList = append(txList, &tx)
+	}
+	c.logger.Debug("Txs from cache: ", zap.Any("blocks", txList))
+	return txList, nil
 }
 
 func (c *Redis) getBlockIndex(ctx context.Context, index int64) (*types.Block, error) {

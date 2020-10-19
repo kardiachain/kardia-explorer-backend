@@ -104,7 +104,7 @@ func New() (ExplorerConfig, error) {
 		storageMinConn = 8
 	}
 
-	storageMaxConnStr := os.Getenv("STORAGE_MIN_CONN")
+	storageMaxConnStr := os.Getenv("STORAGE_MAX_CONN")
 	storageMaxConn, err := strconv.Atoi(storageMaxConnStr)
 	if err != nil {
 		storageMaxConn = 32
