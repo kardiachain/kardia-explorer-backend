@@ -21,6 +21,8 @@ package api
 import (
 	"github.com/labstack/echo"
 	"github.com/labstack/echo/middleware"
+
+	"github.com/kardiachain/explorer-backend/cfg"
 )
 
 // EchoServer define all API expose
@@ -159,7 +161,7 @@ func bind(gr *echo.Group, srv EchoServer) {
 
 }
 
-func Start(srv EchoServer) {
+func Start(srv EchoServer, cfg cfg.ExplorerConfig) {
 	e := echo.New()
 
 	e.Use(middleware.CORS())
