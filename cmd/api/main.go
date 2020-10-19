@@ -1,6 +1,8 @@
 package main
 
 import (
+	"log"
+
 	"github.com/joho/godotenv"
 
 	"github.com/kardiachain/explorer-backend/api"
@@ -57,7 +59,8 @@ func main() {
 	}
 	srv, err := server.New(srvConfig)
 	if err != nil {
-		panic("cannot create server instance")
+
+		log.Panicf("cannot create server instance %s", err.Error())
 	}
 
 	api.Start(srv, serviceCfg)
