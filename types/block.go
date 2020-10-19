@@ -2,6 +2,7 @@ package types
 
 import (
 	"encoding/json"
+	"time"
 
 	"github.com/kardiachain/go-kardiamain/types"
 )
@@ -10,12 +11,12 @@ type Header struct {
 	Hash   string `json:"hash" bson:"blockHash"`
 	Height uint64 `json:"height" bson:"height"`
 
-	CommitHash string `json:"commitHash" bson:"commitHash"`
-	GasLimit   uint64 `json:"gasLimit" bson:"gasLimit"`
-	GasUsed    uint64 `json:"gasUsed" bson:"gasUsed"`
-	NumTxs     uint64 `json:"numTxs" bson:"numTxs"`
-	Time       uint64 `json:"time" bson:"time"`
-	Validator  string `json:"validator" bson:"validator"`
+	CommitHash string    `json:"commitHash" bson:"commitHash"`
+	GasLimit   uint64    `json:"gasLimit" bson:"gasLimit"`
+	GasUsed    uint64    `json:"gasUsed" bson:"gasUsed"`
+	NumTxs     uint64    `json:"numTxs" bson:"numTxs"`
+	Time       time.Time `json:"time" bson:"time"`
+	Validator  string    `json:"validator" bson:"validator"`
 
 	LastBlock string `json:"lastBlock" bson:"lastBlock"`
 
@@ -37,12 +38,12 @@ type Block struct {
 	Hash   string `json:"hash,omitempty" bson:"hash"`
 	Height uint64 `json:"height,omitempty" bson:"height"`
 
-	CommitHash string `json:"commitHash,omitempty" bson:"commitHash"`
-	GasLimit   uint64 `json:"gasLimit,omitempty" bson:"gasLimit"`
-	GasUsed    uint64 `json:"gasUsed,omitempty" bson:"gasUsed"`
-	NumTxs     uint64 `json:"numTxs,omitempty" bson:"numTxs"`
-	Time       uint64 `json:"time,omitempty" bson:"time"`
-	Validator  string `json:"validator,omitempty" bson:"validator"`
+	CommitHash string    `json:"commitHash,omitempty" bson:"commitHash"`
+	GasLimit   uint64    `json:"gasLimit,omitempty" bson:"gasLimit"`
+	GasUsed    uint64    `json:"gasUsed,omitempty" bson:"gasUsed"`
+	NumTxs     uint64    `json:"numTxs,omitempty" bson:"numTxs"`
+	Time       time.Time `json:"time,omitempty" bson:"time"`
+	Validator  string    `json:"validator,omitempty" bson:"validator"`
 
 	LastBlock string `json:"lastBlock,omitempty" bson:"lastBlock"`
 

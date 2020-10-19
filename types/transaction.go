@@ -1,6 +1,8 @@
 package types
 
 import (
+	"time"
+
 	"github.com/kardiachain/go-kardiamain/types"
 )
 
@@ -8,20 +10,20 @@ type Transaction struct {
 	BlockHash   string `json:"blockHash" bson:"blockHash"`
 	BlockNumber uint64 `json:"blockNumber" bson:"blockNumber"`
 
-	Hash             string `json:"hash" bson:"hash"`
-	From             string `json:"from" bson:"from"`
-	To               string `json:"to" bson:"to"`
-	Status           bool   `json:"status" bson:"status"`
-	ContractAddress  string `json:"contract_address" bson:"contractAddress"`
-	Value            string `json:"value" bson:"value"`
-	GasPrice         uint64 `json:"gasPrice" bson:"gasPrice"`
-	GasFee           uint64 `json:"gas" bson:"gas"`
-	GasLimit         uint64 `json:"gasLimit" bson:"gasLimit"`
-	Nonce            uint64 `json:"nonce" bson:"nonce"`
-	Time             int64  `json:"time" bson:"time"`
-	InputData        string `json:"input" bson:"input"`
-	Logs             string `json:"logs" bson:"logs"`
-	TransactionIndex uint   `json:"transactionIndex"`
+	Hash             string    `json:"hash" bson:"hash"`
+	From             string    `json:"from" bson:"from"`
+	To               string    `json:"to" bson:"to"`
+	Status           bool      `json:"status" bson:"status"`
+	ContractAddress  string    `json:"contract_address" bson:"contractAddress"`
+	Value            string    `json:"value" bson:"value"`
+	GasPrice         uint64    `json:"gasPrice" bson:"gasPrice"`
+	GasFee           uint64    `json:"gas" bson:"gas"`
+	GasLimit         uint64    `json:"gasLimit" bson:"gasLimit"`
+	Nonce            uint64    `json:"nonce" bson:"nonce"`
+	Time             time.Time `json:"time" bson:"time"`
+	InputData        string    `json:"input" bson:"input"`
+	Logs             string    `json:"logs" bson:"logs"`
+	TransactionIndex uint      `json:"transactionIndex"`
 
 	ReceiptReceived bool `json:"-" bson:"receiptReceived"`
 }
@@ -57,7 +59,7 @@ type Receipt struct {
 }
 
 type TransactionByAddress struct {
-	Address string `json:"address" bson:"address"`
-	TxHash  string `json:"txHash" bson:"txHash"`
-	Time    int64  `json:"time" bson:"time"`
+	Address string    `json:"address" bson:"address"`
+	TxHash  string    `json:"txHash" bson:"txHash"`
+	Time    time.Time `json:"time" bson:"time"`
 }

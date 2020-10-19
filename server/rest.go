@@ -35,8 +35,8 @@ func (s *Server) Stats(c echo.Context) error {
 	}
 
 	type Stat struct {
-		NumTxs uint64 `json:"numTxs"`
-		Time   uint64 `json:"time"`
+		NumTxs uint64    `json:"numTxs"`
+		Time   time.Time `json:"time"`
 	}
 
 	var stats []*Stat
@@ -111,6 +111,11 @@ func (s *Server) Blocks(c echo.Context) error {
 	}
 
 	// todo @londnd: implement read from cache,
+	// blocks, err := s.cacheClient.LatestBlocks(ctx, &types.Pagination{
+	// 	Skip:  page*limit - limit,
+	// 	Limit: limit,
+	// })
+	// if err != nil || blocks == nil {
 	blocks, err := s.dbClient.Blocks(ctx, &types.Pagination{
 		Skip:  page*limit - limit,
 		Limit: limit,
@@ -118,7 +123,7 @@ func (s *Server) Blocks(c echo.Context) error {
 	if err != nil {
 		return api.InternalServer.Build(c)
 	}
-
+	// }
 	return api.OK.SetData(struct {
 		Page  int         `json:"page"`
 		Limit int         `json:"limit"`

@@ -156,7 +156,15 @@ func (m *mongoDB) BlockByHash(ctx context.Context, blockHash string) (*types.Blo
 }
 
 func (m *mongoDB) IsBlockExist(ctx context.Context, block *types.Block) (bool, error) {
-	panic("implement me")
+	var dbBlock types.Block
+	err := m.wrapper.C(cBlocks).FindOne(bson.M{"height": block.Height}, options.FindOne().SetProjection(bson.M{"txs": 0, "receipts": 0})).Decode(&dbBlock)
+	if err != nil {
+		if err == mongo.ErrNoDocuments {
+			return false, nil
+		}
+		return false, err
+	}
+	return true, nil
 }
 
 func (m *mongoDB) InsertBlock(ctx context.Context, block *types.Block) error {
