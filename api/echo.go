@@ -20,8 +20,7 @@ package api
 
 import (
 	"github.com/labstack/echo"
-
-	"github.com/kardiachain/explorer-backend/cfg"
+	"github.com/labstack/echo/middleware"
 )
 
 // EchoServer define all API expose
@@ -50,6 +49,7 @@ type EchoServer interface {
 
 	// Addresses
 	Addresses(c echo.Context) error
+	Balance(c echo.Context) error
 	AddressTxs(c echo.Context) error
 	AddressHolders(c echo.Context) error
 	AddressOwnedTokens(c echo.Context) error
@@ -121,6 +121,11 @@ func bind(gr *echo.Group, srv EchoServer) {
 			path:   "/addresses",
 			fn:     srv.Addresses,
 		},
+		{
+			method: echo.GET,
+			path:   "/addresses/:address/balance",
+			fn:     srv.Balance,
+		},
 		// Tokens
 		{
 			method:      echo.GET,
@@ -142,7 +147,7 @@ func bind(gr *echo.Group, srv EchoServer) {
 		},
 		{
 			method:      echo.GET,
-			path:        "/validators/info",
+			path:        "/validators/:rpcURL/info",
 			fn:          srv.ValidatorStats,
 			middlewares: nil,
 		},
@@ -154,8 +159,14 @@ func bind(gr *echo.Group, srv EchoServer) {
 
 }
 
-func Start(srv EchoServer, cfg cfg.ExplorerConfig) {
+func Start(srv EchoServer) {
 	e := echo.New()
+
+	e.Use(middleware.CORS())
+	e.Use(middleware.Logger())
+	e.Use(middleware.CSRF())
+	e.Use(middleware.Gzip())
+
 	v1Gr := e.Group("/api/v1")
 	bind(v1Gr, srv)
 	if err := e.Start(cfg.Port); err != nil {
