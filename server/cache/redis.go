@@ -106,7 +106,7 @@ func (c *Redis) InsertBlock(ctx context.Context, block *types.Block) error {
 	}
 
 	// Size over buffer then
-	c.logger.Debug("size: ", zap.Int64("size", size), zap.Int64("c.cfg.BlockBuffer", c.cfg.BlockBuffer))
+	c.logger.Debug("redis block buffer size: ", zap.Int64("size", size), zap.Int64("c.cfg.BlockBuffer", c.cfg.BlockBuffer))
 	if size >= c.cfg.BlockBuffer && size != 0 {
 		// Delete block at last index
 		if err := c.deleteKeysOfBlockIndex(ctx, size); err != nil {
@@ -166,7 +166,7 @@ func (c *Redis) LatestBlocks(ctx context.Context, pagination *types.Pagination) 
 	var (
 		blockList        []*types.Block
 		marshalledBlocks []string
-		startIndex       int64 = 1 + int64(pagination.Skip)
+		startIndex       int64 = 0 + int64(pagination.Skip)
 		endIndex         int64 = startIndex + int64(pagination.Limit) - 1
 	)
 	c.logger.Debug("Getting blocks from cache: ", zap.Int("pagination.Skip", pagination.Skip), zap.Int("pagination.Limit", pagination.Limit))

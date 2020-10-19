@@ -35,8 +35,8 @@ func (s *Server) Stats(c echo.Context) error {
 	}
 
 	type Stat struct {
-		NumTxs uint64 `json:"numTxs"`
-		Time   uint64 `json:"time"`
+		NumTxs uint64    `json:"numTxs"`
+		Time   time.Time `json:"time"`
 	}
 
 	var stats []*Stat

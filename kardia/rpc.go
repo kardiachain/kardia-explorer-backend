@@ -51,7 +51,7 @@ type Client struct {
 
 // NewKaiClient creates a client that uses the given RPC client.
 func NewKaiClient(cfg *Config) (ClientInterface, error) {
-	if len(cfg.rpcURL) == 0 {
+	if len(cfg.rpcURL) == 0 && len(cfg.trustedNodeRPCURL) == 0 {
 		return nil, errors.New("empty RPC URL")
 	}
 	var clientList = []*RPCClient{}
@@ -227,6 +227,7 @@ func (ec *Client) NodesInfo(ctx context.Context) (nodes []*types.NodeInfo, err e
 		err = client.c.CallContext(ctx, &node, "node_nodeInfo")
 		nodes = append(nodes, node)
 	}
+	ec.lgr.Debug("NodesInfo:", zap.Any("nodes", nodes))
 	return nodes, err
 }
 
@@ -240,7 +241,7 @@ func (ec *Client) Validator(ctx context.Context, rpcURL string) (*types.Validato
 	var result map[string]interface{}
 	if rpcURL != "" {
 		for _, client := range ec.clientList {
-			if strings.Contains(client.ip, rpcURL) {
+			if client.ip == rpcURL {
 				err := client.c.CallContext(ctx, &result, "kai_validator")
 				if err != nil {
 					return nil, err
@@ -249,7 +250,7 @@ func (ec *Client) Validator(ctx context.Context, rpcURL string) (*types.Validato
 			}
 		}
 		for _, client := range ec.trustedClientList {
-			if strings.Contains(client.ip, rpcURL) {
+			if client.ip == rpcURL {
 				err := client.c.CallContext(ctx, &result, "kai_validator")
 				if err != nil {
 					return nil, err
@@ -310,6 +311,7 @@ func (ec *Client) Validators(ctx context.Context) ([]*types.Validator, error) {
 			Address:     val["address"].(string),
 			VotingPower: val["votingPower"].(float64),
 		}
+		ec.lgr.Debug("Validators:", zap.Any("nodes", nodes))
 		for _, node := range nodes {
 			if node.Address == tmp.Address {
 				tmp.Name = node.Name
@@ -320,7 +322,17 @@ func (ec *Client) Validators(ctx context.Context) ([]*types.Validator, error) {
 				for key := range node.Protocols {
 					tmp.Protocols = append(tmp.Protocols, key)
 				}
-				ret = append(ret, tmp)
+				var existed bool = false
+				for _, currValidator := range ret {
+					if currValidator.Address == tmp.Address {
+						currValidator.VotingPower += tmp.VotingPower
+						existed = true
+						break
+					}
+				}
+				if !existed {
+					ret = append(ret, tmp)
+				}
 				break
 			}
 		}
