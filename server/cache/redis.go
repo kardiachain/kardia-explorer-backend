@@ -37,6 +37,10 @@ type Redis struct {
 	logger *zap.Logger
 }
 
+func (c *Redis) PopReceipt(ctx context.Context) (*types.Receipt, error) {
+	panic("implement me")
+}
+
 func (c *Redis) BlocksSize(ctx context.Context) (int64, error) {
 	size, err := c.client.LLen(ctx, KeyBlocks).Result()
 	if err != nil {

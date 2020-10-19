@@ -19,7 +19,10 @@
 package api
 
 import (
+	"fmt"
+
 	"github.com/labstack/echo"
+	"github.com/labstack/echo/middleware"
 
 	"github.com/kardiachain/explorer-backend/cfg"
 )
@@ -50,6 +53,7 @@ type EchoServer interface {
 
 	// Addresses
 	Addresses(c echo.Context) error
+	Balance(c echo.Context) error
 	AddressTxs(c echo.Context) error
 	AddressHolders(c echo.Context) error
 	AddressOwnedTokens(c echo.Context) error
@@ -121,6 +125,11 @@ func bind(gr *echo.Group, srv EchoServer) {
 			path:   "/addresses",
 			fn:     srv.Addresses,
 		},
+		{
+			method: echo.GET,
+			path:   "/addresses/:address/balance",
+			fn:     srv.Balance,
+		},
 		// Tokens
 		{
 			method:      echo.GET,
@@ -142,7 +151,7 @@ func bind(gr *echo.Group, srv EchoServer) {
 		},
 		{
 			method:      echo.GET,
-			path:        "/validators/info",
+			path:        "/validators/:rpcURL/info",
 			fn:          srv.ValidatorStats,
 			middlewares: nil,
 		},
@@ -156,7 +165,16 @@ func bind(gr *echo.Group, srv EchoServer) {
 
 func Start(srv EchoServer, cfg cfg.ExplorerConfig) {
 	e := echo.New()
+
+	e.Use(middleware.CORS())
+	e.Use(middleware.Logger())
+	e.Use(middleware.CSRF())
+	e.Use(middleware.Gzip())
+
 	v1Gr := e.Group("/api/v1")
+
+	fmt.Println("API server", cfg.Port)
+
 	bind(v1Gr, srv)
 	if err := e.Start(cfg.Port); err != nil {
 		panic("cannot start echo server")

@@ -12,7 +12,7 @@ import (
 	"github.com/kardiachain/explorer-backend/types"
 )
 
-func backfill(ctx context.Context, srv server.Server, blockHeight uint64) {
+func backfill(ctx context.Context, srv *server.Server, blockHeight uint64) {
 	var minBlockNum uint64 = 0
 	var err error
 
@@ -43,5 +43,13 @@ func backfill(ctx context.Context, srv server.Server, blockHeight uint64) {
 			continue
 		}
 		blockHeight--
+	}
+}
+
+func filler(ctx context.Context, srv *server.Server, blockHeight uint64, isBackward bool) {
+	logger := srv.Logger.With(zap.String("service", "filler"))
+	logger.Info("Start filler with config", zap.Uint64("Height", blockHeight), zap.Bool("isBackward", isBackward))
+	for {
+
 	}
 }

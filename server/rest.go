@@ -57,7 +57,7 @@ func (s *Server) Stats(c echo.Context) error {
 
 func (s *Server) Nodes(c echo.Context) error {
 	ctx := context.Background()
-	nodes, err := s.kaiClient.NodeInfo(ctx)
+	nodes, err := s.kaiClient.NodesInfo(ctx)
 	if err != nil {
 		return api.Invalid.Build(c)
 	}
@@ -73,12 +73,23 @@ func (s *Server) TPS(c echo.Context) error {
 }
 
 func (s *Server) ValidatorStats(c echo.Context) error {
-	return api.OK.Build(c)
+	s.logger.Debug("ValidatorInfo", zap.Any("URL", c.Param("rpcURL")))
+	ctx := context.Background()
+	rpcURL := c.Param("rpcURL")
+	validator, err := s.kaiClient.Validator(ctx, rpcURL)
+	if err != nil {
+		return api.Invalid.Build(c)
+	}
+	s.logger.Debug("ValidatorInfo", zap.Any("ValidatorInfo", validator))
+	return api.OK.SetData(validator).Build(c)
 }
 
 func (s *Server) Validators(c echo.Context) error {
 	ctx := context.Background()
-	validators := s.kaiClient.Validators(ctx)
+	validators, err := s.kaiClient.Validators(ctx)
+	if err != nil {
+		return api.Invalid.Build(c)
+	}
 	s.logger.Debug("Validators", zap.Any("validators", validators))
 	return api.OK.SetData(validators).Build(c)
 }
@@ -251,6 +262,18 @@ func (s *Server) Addresses(c echo.Context) error {
 		Total: limit * 10,
 		Data:  addresses,
 	}).Build(c)
+}
+
+func (s *Server) Balance(c echo.Context) error {
+	ctx := context.Background()
+	address := c.Param("address")
+	balance, err := s.kaiClient.BalanceAt(ctx, address, nil)
+	if err != nil {
+		return err
+	}
+	s.logger.Debug("Balance", zap.String("address", address), zap.String("balance", balance))
+
+	return api.OK.SetData(balance).Build(c)
 }
 
 func (s *Server) AddressTxs(c echo.Context) error {
