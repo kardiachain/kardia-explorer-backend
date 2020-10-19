@@ -126,7 +126,7 @@ func BenchmarkValidators(b *testing.B) {
 	client, ctx, _, err := SetupKAIClient()
 	assert.Nil(b, err)
 	for i := 0; i < b.N; i++ {
-		_ = client.Validators(ctx)
+		_, _ = client.Validators(ctx)
 	}
 }
 
@@ -134,7 +134,7 @@ func BenchmarkValidator(b *testing.B) {
 	client, ctx, _, err := SetupKAIClient()
 	assert.Nil(b, err)
 	for i := 0; i < b.N; i++ {
-		_ = client.Validator(ctx)
+		_, _ = client.Validator(ctx)
 	}
 }
 

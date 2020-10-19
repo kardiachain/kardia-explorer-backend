@@ -147,7 +147,7 @@ func bind(gr *echo.Group, srv EchoServer) {
 		},
 		{
 			method:      echo.GET,
-			path:        "/validators/info",
+			path:        "/validators/:rpcURL/info",
 			fn:          srv.ValidatorStats,
 			middlewares: nil,
 		},
