@@ -20,6 +20,7 @@ package api
 
 import (
 	"github.com/labstack/echo"
+	"github.com/labstack/echo/middleware"
 )
 
 // EchoServer define all API expose
@@ -160,6 +161,12 @@ func bind(gr *echo.Group, srv EchoServer) {
 
 func Start(srv EchoServer) {
 	e := echo.New()
+
+	e.Use(middleware.CORS())
+	e.Use(middleware.Logger())
+	e.Use(middleware.CSRF())
+	e.Use(middleware.Gzip())
+
 	v1Gr := e.Group("/api/v1")
 	bind(v1Gr, srv)
 	if err := e.Start(":3000"); err != nil {

@@ -45,3 +45,11 @@ func backfill(ctx context.Context, srv *server.Server, blockHeight uint64) {
 		blockHeight--
 	}
 }
+
+func filler(ctx context.Context, srv *server.Server, blockHeight uint64, isBackward bool) {
+	logger := srv.Logger.With(zap.String("service", "filler"))
+	logger.Info("Start filler with config", zap.Uint64("Height", blockHeight), zap.Bool("isBackward", isBackward))
+	for {
+
+	}
+}

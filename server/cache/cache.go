@@ -40,6 +40,7 @@ type Client interface {
 	TxByHash(ctx context.Context, txHash string) (*types.Transaction, error)
 
 	BlocksSize(ctx context.Context) (int64, error)
+	PopReceipt(ctx context.Context) (*types.Receipt, error)
 }
 
 func New(cfg Config) (Client, error) {
