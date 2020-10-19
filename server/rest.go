@@ -111,19 +111,19 @@ func (s *Server) Blocks(c echo.Context) error {
 	}
 
 	// todo @londnd: implement read from cache,
-	blocks, err := s.cacheClient.LatestBlocks(ctx, &types.Pagination{
+	// blocks, err := s.cacheClient.LatestBlocks(ctx, &types.Pagination{
+	// 	Skip:  page*limit - limit,
+	// 	Limit: limit,
+	// })
+	// if err != nil || blocks == nil {
+	blocks, err := s.dbClient.Blocks(ctx, &types.Pagination{
 		Skip:  page*limit - limit,
 		Limit: limit,
 	})
-	if err != nil || blocks == nil {
-		blocks, err = s.dbClient.Blocks(ctx, &types.Pagination{
-			Skip:  page*limit - limit,
-			Limit: limit,
-		})
-		if err != nil {
-			return api.InternalServer.Build(c)
-		}
+	if err != nil {
+		return api.InternalServer.Build(c)
 	}
+	// }
 	return api.OK.SetData(struct {
 		Page  int         `json:"page"`
 		Limit int         `json:"limit"`
