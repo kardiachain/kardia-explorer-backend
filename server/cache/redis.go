@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"strconv"
 
 	"github.com/go-redis/redis/v8"
 	"go.uber.org/zap"
@@ -28,6 +29,8 @@ const (
 	KeyLatestStats = "#stats#latest"
 
 	PatternGetAllKeyOfBlockIndex = "#block#index#%d*"
+
+	ErrorBlocks = "#errorBlocks" // List
 )
 
 type Redis struct {
@@ -213,6 +216,16 @@ func (c *Redis) LatestTransactions(ctx context.Context, pagination *types.Pagina
 	}
 	c.logger.Debug("Txs from cache: ", zap.Any("blocks", txList))
 	return txList, nil
+}
+
+func (c *Redis) InsertErrorBlocks(ctx context.Context, start uint64, end uint64) error {
+	for i := start + 1; i < end; i++ {
+		_, err := c.client.LPush(ctx, ErrorBlocks, strconv.FormatUint(i, 10)).Result()
+		if err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func (c *Redis) getBlockIndex(ctx context.Context, index int64) (*types.Block, error) {

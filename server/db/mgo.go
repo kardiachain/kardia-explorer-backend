@@ -138,7 +138,7 @@ func (m *mongoDB) Blocks(ctx context.Context, pagination *types.Pagination) ([]*
 func (m *mongoDB) BlockByHeight(ctx context.Context, blockNumber uint64) (*types.Block, error) {
 	var c types.Block
 	if err := m.wrapper.C(cBlocks).FindOne(bson.M{"height": blockNumber}, options.FindOne().SetProjection(bson.M{"txs": 0, "receipts": 0})).Decode(&c); err != nil {
-		return nil, fmt.Errorf("failed to get block: %v", err)
+		return nil, err
 	}
 	return &c, nil
 }
@@ -345,6 +345,31 @@ func (m *mongoDB) InsertListTxByAddress(ctx context.Context, list []*types.Trans
 		return err
 	}
 	return nil
+}
+
+func (m *mongoDB) LatestTxs(ctx context.Context, pagination *types.Pagination) ([]*types.Transaction, error) {
+	opts := []*options.FindOptions{
+		m.wrapper.FindSetSort("-time"),
+		options.Find().SetProjection(bson.M{"ReceiptReceived": 0}),
+		options.Find().SetSkip(int64(pagination.Skip)),
+		options.Find().SetLimit(int64(pagination.Limit)),
+	}
+
+	var txs []*types.Transaction
+	cursor, err := m.wrapper.C(cTxs).Find(bson.D{}, opts...)
+	if err != nil {
+		return nil, err
+	}
+	for cursor.Next(ctx) {
+		tx := &types.Transaction{}
+		if err := cursor.Decode(&tx); err != nil {
+			return nil, err
+		}
+		m.logger.Debug("Get latest txs success", zap.Any("tx", tx))
+		txs = append(txs, tx)
+	}
+
+	return txs, nil
 }
 
 //endregion Txs

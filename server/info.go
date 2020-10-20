@@ -135,7 +135,7 @@ func (s *infoServer) ImportReceipts(ctx context.Context, block *types.Block) err
 				//s.logger.Debug("Start worker", zap.Any("TX", tx))
 				receipt, err := s.kaiClient.GetTransactionReceipt(ctx, tx.Hash)
 				if err != nil {
-					s.logger.Warn("get receipt err", zap.Error(err))
+					s.logger.Warn("get receipt err", zap.String("tx hash", tx.Hash), zap.Error(err))
 					//todo: consider how we handle this err, just skip it now
 					results <- response{
 						err: err,
