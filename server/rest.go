@@ -117,7 +117,7 @@ func (s *Server) Blocks(c echo.Context) error {
 	// })
 	// if err != nil || blocks == nil {
 	blocks, err := s.dbClient.Blocks(ctx, &types.Pagination{
-		Skip:  page*limit - limit,
+		Skip:  page * limit,
 		Limit: limit,
 	})
 	if err != nil {
