@@ -47,6 +47,9 @@ func listener(ctx context.Context, srv *server.Server) {
 					lgr.Error("Listener: Failed to import block", zap.Error(err))
 					continue
 				}
+				if latest-prevHeader > 1 {
+
+				}
 				prevHeader = latest
 			}
 		}

@@ -44,6 +44,8 @@ type Client interface {
 
 	LatestBlocks(ctx context.Context, pagination *types.Pagination) ([]*types.Block, error)
 	LatestTransactions(ctx context.Context, pagination *types.Pagination) ([]*types.Transaction, error)
+
+	InsertErrorBlocks(ctx context.Context, start uint64, end uint64) error
 }
 
 func New(cfg Config) (Client, error) {

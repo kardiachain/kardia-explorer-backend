@@ -137,28 +137,23 @@ func (s *Server) Blocks(c echo.Context) error {
 
 func (s *Server) Block(c echo.Context) error {
 	ctx := context.Background()
-	blockHash := c.QueryParam("hash")
-
-	var blockHeight uint64
-	blockHeightStr := c.QueryParam("height")
-	if blockHeightStr != "" {
-		height, err := strconv.Atoi(blockHeightStr)
-		if err != nil || height <= 0 {
-			return api.Invalid.Build(c)
-		}
-		blockHeight = uint64(height)
-	}
-
-	var block *types.Block
-	var err error
-	if blockHash != "" {
-		block, err = s.dbClient.BlockByHash(ctx, blockHash)
+	blockHashOrHeightStr := c.Param("block")
+	var (
+		block *types.Block
+		err   error
+	)
+	if strings.HasPrefix(blockHashOrHeightStr, "0x") {
+		s.Logger.Info("get block by hash:", zap.String("blockHash", blockHashOrHeightStr))
+		block, err = s.dbClient.BlockByHash(ctx, blockHashOrHeightStr)
 		if err != nil {
 			return api.Invalid.Build(c)
 		}
-	}
-
-	if blockHeight > 0 {
+	} else {
+		blockHeight, err := strconv.ParseUint(blockHashOrHeightStr, 10, 64)
+		s.Logger.Info("get block by height:", zap.Uint64("blockHeight", blockHeight))
+		if err != nil || blockHeight <= 0 {
+			return api.Invalid.Build(c)
+		}
 		block, err = s.dbClient.BlockByHeight(ctx, blockHeight)
 		if err != nil {
 			return api.Invalid.Build(c)
@@ -217,6 +212,45 @@ func (s *Server) BlockTxs(c echo.Context) error {
 		if err != nil {
 			return api.Invalid.Build(c)
 		}
+	}
+
+	return api.OK.SetData(struct {
+		Page  int         `json:"page"`
+		Limit int         `json:"limit"`
+		Total int         `json:"total"`
+		Data  interface{} `json:"data"`
+	}{
+		Page:  page,
+		Limit: limit,
+		Total: limit * 15,
+		Data:  txs,
+	}).Build(c)
+}
+
+func (s *Server) Txs(c echo.Context) error {
+	ctx := context.Background()
+	var page, limit int
+	var err error
+	pageParams := c.QueryParam("page")
+	limitParams := c.QueryParam("limit")
+	page, err = strconv.Atoi(pageParams)
+	if err != nil {
+		page = 1
+	}
+	limit, err = strconv.Atoi(limitParams)
+	if err != nil {
+		limit = 20
+	}
+
+	var txs []*types.Transaction
+	pagination := &types.Pagination{
+		Skip:  page * limit,
+		Limit: limit,
+	}
+
+	txs, err = s.dbClient.LatestTxs(ctx, pagination)
+	if err != nil {
+		return api.Invalid.Build(c)
 	}
 
 	return api.OK.SetData(struct {
