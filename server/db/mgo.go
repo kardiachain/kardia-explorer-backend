@@ -37,7 +37,6 @@ const (
 	cAddresses       = "Addresses"
 	cTxsByAddress    = "TransactionsByAddress"
 	cActiveAddresses = "ActiveAddresses"
-	//cActiveAddresses = "ActiveAddresses"
 )
 
 type mongoDB struct {

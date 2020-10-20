@@ -35,15 +35,15 @@ func (s *Server) Stats(c echo.Context) error {
 	}
 
 	type Stat struct {
-		NumTxs uint64    `json:"numTxs"`
-		Time   time.Time `json:"time"`
+		NumTxs uint64 `json:"numTxs"`
+		Time   uint64 `json:"time"`
 	}
 
 	var stats []*Stat
 	for _, b := range blocks {
 		stat := &Stat{
 			NumTxs: b.NumTxs,
-			Time:   b.Time,
+			Time:   uint64(b.Time.Unix()),
 		}
 		stats = append(stats, stat)
 	}
