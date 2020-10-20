@@ -265,7 +265,23 @@ func (m *mongoDB) TxsByAddress(ctx context.Context, address string, pagination *
 		if err == mgo.ErrNotFound {
 			return nil, nil
 		}
-		return nil, fmt.Errorf("failed to get txs for block: %v", err)
+		return nil, err
+	}
+	for cursor.Next(ctx) {
+		tx := &types.Transaction{}
+		if err := cursor.Decode(tx); err != nil {
+			return nil, err
+		}
+		txs = append(txs, tx)
+	}
+
+	cursor, err = m.wrapper.C(cTxs).
+		Find(bson.M{"to": address}, opts...)
+	if err != nil {
+		if err == mgo.ErrNotFound {
+			return nil, nil
+		}
+		return nil, err
 	}
 	for cursor.Next(ctx) {
 		tx := &types.Transaction{}

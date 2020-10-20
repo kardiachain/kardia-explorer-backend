@@ -145,7 +145,7 @@ func bind(gr *echo.Group, srv EchoServer) {
 		// Tokens
 		{
 			method:      echo.GET,
-			path:        "/tokens/:address/txs",
+			path:        "/addresses/:address/txs",
 			fn:          srv.AddressTxs,
 			middlewares: nil,
 		},
