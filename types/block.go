@@ -40,8 +40,8 @@ type Block struct {
 
 	CommitHash string    `json:"commitHash,omitempty" bson:"commitHash"`
 	GasLimit   uint64    `json:"gasLimit,omitempty" bson:"gasLimit"`
-	GasUsed    uint64    `json:"gasUsed,omitempty" bson:"gasUsed"`
-	NumTxs     uint64    `json:"numTxs,omitempty" bson:"numTxs"`
+	GasUsed    uint64    `json:"gasUsed" bson:"gasUsed"`
+	NumTxs     uint64    `json:"numTxs" bson:"numTxs"`
 	Time       time.Time `json:"time,omitempty" bson:"time"`
 	Validator  string    `json:"validator,omitempty" bson:"validator"`
 
