@@ -49,7 +49,11 @@ func listener(ctx context.Context, srv *server.Server) {
 				}
 				if latest-prevHeader > 1 {
 					lgr.Info("Listener: Insert error blocks", zap.Uint64("from", prevHeader), zap.Uint64("to", latest))
-					go srv.InsertErrorBlocks(ctx, prevHeader, latest)
+					err := srv.InsertErrorBlocks(ctx, prevHeader, latest)
+					if err != nil {
+						lgr.Error("Listener: Failed to insert error block height", zap.Error(err))
+						continue
+					}
 				}
 				prevHeader = latest
 			}

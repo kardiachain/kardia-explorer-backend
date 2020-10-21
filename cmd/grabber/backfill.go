@@ -21,8 +21,11 @@ func backfill(ctx context.Context, srv *server.Server) {
 			lgr.Debug("Refilling: blocks")
 			if err != nil {
 				lgr.Error("Refilling: Failed to pop error block number", zap.Error(err))
-				go srv.InsertErrorBlocks(ctx, blockHeight-1, blockHeight+1)
-				continue
+				err := srv.InsertErrorBlocks(ctx, blockHeight-1, blockHeight+1)
+				if err != nil {
+					lgr.Error("Listener: Failed to insert error block height", zap.Error(err))
+					continue
+				}
 			}
 			// TODO(trinhdn): remove hardcode
 			if blockHeight == 0 {
@@ -31,18 +34,27 @@ func backfill(ctx context.Context, srv *server.Server) {
 			block, err := srv.BlockByHeight(ctx, blockHeight)
 			if err != nil {
 				lgr.Error("Refilling: Failed to get block", zap.Error(err))
-				go srv.InsertErrorBlocks(ctx, blockHeight-1, blockHeight+1)
-				continue
+				err := srv.InsertErrorBlocks(ctx, blockHeight-1, blockHeight+1)
+				if err != nil {
+					lgr.Error("Listener: Failed to insert error block height", zap.Error(err))
+					continue
+				}
 			}
 			if block == nil {
 				lgr.Error("Refilling: Block not found")
-				go srv.InsertErrorBlocks(ctx, blockHeight-1, blockHeight+1)
-				continue
+				err := srv.InsertErrorBlocks(ctx, blockHeight-1, blockHeight+1)
+				if err != nil {
+					lgr.Error("Listener: Failed to insert error block height", zap.Error(err))
+					continue
+				}
 			}
 			if err := srv.ImportBlock(ctx, block, false); err != nil {
 				lgr.Error("Refilling: Failed to import block", zap.Error(err))
-				go srv.InsertErrorBlocks(ctx, blockHeight-1, blockHeight+1)
-				continue
+				err := srv.InsertErrorBlocks(ctx, blockHeight-1, blockHeight+1)
+				if err != nil {
+					lgr.Error("Listener: Failed to insert error block height", zap.Error(err))
+					continue
+				}
 			}
 		}
 	}
