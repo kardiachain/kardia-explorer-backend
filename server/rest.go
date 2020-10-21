@@ -186,7 +186,7 @@ func (s *Server) BlockTxs(c echo.Context) error {
 
 	var (
 		txs   []*types.Transaction
-		total int64
+		total uint64
 	)
 	pagination := &types.Pagination{
 		Skip:  page * limit,
@@ -220,7 +220,7 @@ func (s *Server) BlockTxs(c echo.Context) error {
 	return api.OK.SetData(struct {
 		Page  int         `json:"page"`
 		Limit int         `json:"limit"`
-		Total int64       `json:"total"`
+		Total uint64      `json:"total"`
 		Data  interface{} `json:"data"`
 	}{
 		Page:  page,
@@ -348,7 +348,7 @@ func (s *Server) AddressTxs(c echo.Context) error {
 	return api.OK.SetData(struct {
 		Page  int         `json:"page"`
 		Limit int         `json:"limit"`
-		Total int64       `json:"total"`
+		Total uint64      `json:"total"`
 		Data  interface{} `json:"data"`
 	}{
 		Page:  page,

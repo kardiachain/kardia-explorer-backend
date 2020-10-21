@@ -201,7 +201,7 @@ func (m *mongoDB) BlockTxCount(ctx context.Context, hash string) (int64, error) 
 	return 0, nil
 }
 
-func (m *mongoDB) TxsByBlockHash(ctx context.Context, blockHash string, pagination *types.Pagination) ([]*types.Transaction, int64, error) {
+func (m *mongoDB) TxsByBlockHash(ctx context.Context, blockHash string, pagination *types.Pagination) ([]*types.Transaction, uint64, error) {
 	var txs []*types.Transaction
 	opts := []*options.FindOptions{
 		options.Find().SetSkip(int64(pagination.Skip)),
@@ -222,15 +222,18 @@ func (m *mongoDB) TxsByBlockHash(ctx context.Context, blockHash string, paginati
 		}
 		txs = append(txs, tx)
 	}
-	total, err := m.wrapper.C(cTxs).Count(bson.M{"blockHash": blockHash}, nil)
+	findOneOpts := []*options.FindOneOptions{
+		options.FindOne().SetProjection(bson.M{"numTxs": 1}),
+	}
+	var block types.Block
+	err = m.wrapper.C(cBlocks).FindOne(bson.M{"hash": blockHash}, findOneOpts...).Decode(&block)
 	if err != nil {
 		return nil, 0, err
 	}
-
-	return txs, total, nil
+	return txs, block.NumTxs, nil
 }
 
-func (m *mongoDB) TxsByBlockHeight(ctx context.Context, blockHeight uint64, pagination *types.Pagination) ([]*types.Transaction, int64, error) {
+func (m *mongoDB) TxsByBlockHeight(ctx context.Context, blockHeight uint64, pagination *types.Pagination) ([]*types.Transaction, uint64, error) {
 	var txs []*types.Transaction
 	opts := []*options.FindOptions{
 		options.Find().SetSkip(int64(pagination.Skip)),
@@ -252,15 +255,19 @@ func (m *mongoDB) TxsByBlockHeight(ctx context.Context, blockHeight uint64, pagi
 		}
 		txs = append(txs, tx)
 	}
-	total, err := m.wrapper.C(cTxs).Count(bson.M{"blockNumber": blockHeight}, nil)
+	findOneOpts := []*options.FindOneOptions{
+		options.FindOne().SetProjection(bson.M{"numTxs": 1}),
+	}
+	var block types.Block
+	err = m.wrapper.C(cBlocks).FindOne(bson.M{"height": blockHeight}, findOneOpts...).Decode(&block)
 	if err != nil {
 		return nil, 0, err
 	}
-	return txs, total, nil
+	return txs, block.NumTxs, nil
 }
 
 // TxsByAddress return txs match input address in FROM/TO field
-func (m *mongoDB) TxsByAddress(ctx context.Context, address string, pagination *types.Pagination) ([]*types.Transaction, int64, error) {
+func (m *mongoDB) TxsByAddress(ctx context.Context, address string, pagination *types.Pagination) ([]*types.Transaction, uint64, error) {
 	var txs []*types.Transaction
 	opts := []*options.FindOptions{
 		options.Find().SetSkip(int64(pagination.Skip)),
@@ -286,7 +293,7 @@ func (m *mongoDB) TxsByAddress(ctx context.Context, address string, pagination *
 		return nil, 0, err
 	}
 
-	return txs, total, nil
+	return txs, uint64(total), nil
 }
 
 func (m *mongoDB) TxByHash(ctx context.Context, txHash string) (*types.Transaction, error) {
@@ -397,7 +404,7 @@ func (m *mongoDB) UpsertReceipts(ctx context.Context, block *types.Block) error 
 //endregion Receipts
 
 //region Token
-func (m *mongoDB) TokenHolders(ctx context.Context, tokenAddress string, pagination *types.Pagination) ([]*types.TokenHolder, int64, error) {
+func (m *mongoDB) TokenHolders(ctx context.Context, tokenAddress string, pagination *types.Pagination) ([]*types.TokenHolder, uint64, error) {
 	panic("implement me")
 }
 
@@ -416,7 +423,7 @@ func (m *mongoDB) AddressByHash(ctx context.Context, addressHash string) (*types
 	}
 	return &c, nil
 }
-func (m *mongoDB) OwnedTokensOfAddress(ctx context.Context, walletAddress string, pagination *types.Pagination) ([]*types.TokenHolder, int64, error) {
+func (m *mongoDB) OwnedTokensOfAddress(ctx context.Context, walletAddress string, pagination *types.Pagination) ([]*types.TokenHolder, uint64, error) {
 	panic("implement me")
 }
 
