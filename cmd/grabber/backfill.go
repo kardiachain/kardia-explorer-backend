@@ -24,6 +24,10 @@ func backfill(ctx context.Context, srv *server.Server) {
 				go srv.InsertErrorBlocks(ctx, blockHeight-1, blockHeight+1)
 				continue
 			}
+			// TODO(trinhdn): remove hardcode
+			if blockHeight == 0 {
+				continue
+			}
 			block, err := srv.BlockByHeight(ctx, blockHeight)
 			if err != nil {
 				lgr.Error("Refilling: Failed to get block", zap.Error(err))
