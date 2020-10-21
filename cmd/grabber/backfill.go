@@ -5,51 +5,41 @@ import (
 	"context"
 	"time"
 
-	"github.com/kardiachain/network-explorer/server/utils"
-	"go.uber.org/zap"
-
 	"github.com/kardiachain/explorer-backend/server"
-	"github.com/kardiachain/explorer-backend/types"
+	"go.uber.org/zap"
 )
 
-func backfill(ctx context.Context, srv *server.Server, blockHeight uint64) {
-	var minBlockNum uint64 = 0
-	var err error
-
-	var validateBlockStrategy = func(db, network *types.Block) bool {
-		return db.Hash != network.Hash
-	}
-
+func backfill(ctx context.Context, srv *server.Server) {
+	srv.Logger.Info("Start refilling...")
+	t := time.NewTicker(time.Second * 1)
+	defer t.Stop()
 	for {
-		logger := srv.Logger.With(zap.Uint64("block", blockHeight))
-		logger.Info("Backfilling...")
-		if blockHeight == minBlockNum {
-			blockHeight, err = srv.LatestBlockHeight(ctx)
+		select {
+		case <-t.C:
+			blockHeight, err := srv.PopErrorBlockHeight(ctx)
+			lgr := srv.Logger.With(zap.Uint64("block", blockHeight))
+			lgr.Debug("Refilling: blocks")
 			if err != nil {
-				srv.Logger.Debug("cannot get latest block height", zap.Error(err))
+				lgr.Error("Refilling: Failed to pop error block number", zap.Error(err))
+				go srv.InsertErrorBlocks(ctx, blockHeight-1, blockHeight+1)
+				continue
+			}
+			block, err := srv.BlockByHeight(ctx, blockHeight)
+			if err != nil {
+				lgr.Error("Refilling: Failed to get block", zap.Error(err))
+				go srv.InsertErrorBlocks(ctx, blockHeight-1, blockHeight+1)
+				continue
+			}
+			if block == nil {
+				lgr.Error("Refilling: Block not found")
+				go srv.InsertErrorBlocks(ctx, blockHeight-1, blockHeight+1)
+				continue
+			}
+			if err := srv.ImportBlock(ctx, block); err != nil {
+				lgr.Error("Refilling: Failed to import block", zap.Error(err))
+				go srv.InsertErrorBlocks(ctx, blockHeight-1, blockHeight+1)
 				continue
 			}
 		}
-		block := &types.Block{Height: blockHeight}
-		if err := srv.ValidateBlock(ctx, block, validateBlockStrategy); err != nil {
-			logger.Error("failed to validate block", zap.Error(err))
-			return
-		}
-		if err != nil {
-			logger.Error("Backfill: Failed to get block", zap.Error(err))
-			if utils.SleepCtx(ctx, 5*time.Second) != nil {
-				return
-			}
-			continue
-		}
-		blockHeight--
-	}
-}
-
-func filler(ctx context.Context, srv *server.Server, blockHeight uint64, isBackward bool) {
-	logger := srv.Logger.With(zap.String("service", "filler"))
-	logger.Info("Start filler with config", zap.Uint64("Height", blockHeight), zap.Bool("isBackward", isBackward))
-	for {
-
 	}
 }

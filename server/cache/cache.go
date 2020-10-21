@@ -46,6 +46,7 @@ type Client interface {
 	LatestTransactions(ctx context.Context, pagination *types.Pagination) ([]*types.Transaction, error)
 
 	InsertErrorBlocks(ctx context.Context, start uint64, end uint64) error
+	PopErrorBlockHeight(ctx context.Context) (uint64, error)
 }
 
 func New(cfg Config) (Client, error) {

@@ -27,6 +27,9 @@ type InfoServer interface {
 	BlockByHash(ctx context.Context, blockHash string) (*types.Block, error)
 
 	ImportBlock(ctx context.Context, block *types.Block) (*types.Block, error)
+
+	InsertErrorBlocks(ctx context.Context, start uint64, end uint64) error
+	PopErrorBlockHeight(ctx context.Context) (uint64, error)
 }
 
 // infoServer handle how data was retrieved, stored without interact with other network excluded dbClient
@@ -115,6 +118,22 @@ func (s *infoServer) ImportBlock(ctx context.Context, block *types.Block) error 
 	s.logger.Debug("Total time for import receipt", zap.Any("TimeConsumed", insertReceiptsConsume))
 
 	return nil
+}
+
+func (s *infoServer) InsertErrorBlocks(ctx context.Context, start uint64, end uint64) error {
+	err := s.cacheClient.InsertErrorBlocks(ctx, start, end)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (s *infoServer) PopErrorBlockHeight(ctx context.Context) (uint64, error) {
+	height, err := s.cacheClient.PopErrorBlockHeight(ctx)
+	if err != nil {
+		return 0, err
+	}
+	return height, nil
 }
 
 func (s *infoServer) ImportReceipts(ctx context.Context, block *types.Block) error {

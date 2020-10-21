@@ -15,7 +15,7 @@ import (
 // todo: implement pipeline with worker for dispatch InsertBlock task
 func listener(ctx context.Context, srv *server.Server) {
 	srv.Logger.Info("Start listening...")
-	var prevHeader uint64
+	var prevHeader uint64 = 0
 	t := time.NewTicker(time.Second * 1)
 	defer t.Stop()
 	for {
@@ -48,7 +48,9 @@ func listener(ctx context.Context, srv *server.Server) {
 					continue
 				}
 				if latest-prevHeader > 1 {
-
+					lgr.Info("Listener: Insert error blocks", zap.Uint64("from", prevHeader), zap.Uint64("to", latest))
+					go srv.InsertErrorBlocks(ctx, prevHeader, latest)
+					continue
 				}
 				prevHeader = latest
 			}

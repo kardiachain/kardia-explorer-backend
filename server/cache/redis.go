@@ -228,6 +228,18 @@ func (c *Redis) InsertErrorBlocks(ctx context.Context, start uint64, end uint64)
 	return nil
 }
 
+func (c *Redis) PopErrorBlockHeight(ctx context.Context) (uint64, error) {
+	heightStr, err := c.client.LPop(ctx, ErrorBlocks).Result()
+	if err != nil {
+		return 0, err
+	}
+	height, err := strconv.ParseUint(heightStr, 10, 64)
+	if err != nil {
+		return 0, err
+	}
+	return height, nil
+}
+
 func (c *Redis) getBlockIndex(ctx context.Context, index int64) (*types.Block, error) {
 	block := &types.Block{}
 	lIndexResult := c.client.LIndex(ctx, KeyBlocks, index)

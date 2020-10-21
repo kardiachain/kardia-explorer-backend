@@ -231,7 +231,6 @@ func (ec *Client) NodesInfo(ctx context.Context) (nodes []*types.NodeInfo, err e
 		err = client.c.CallContext(ctx, &node, "node_nodeInfo")
 		nodes = append(nodes, node)
 	}
-	ec.lgr.Debug("NodesInfo:", zap.Any("nodes", nodes))
 	return nodes, err
 }
 
@@ -310,7 +309,6 @@ func (ec *Client) Validators(ctx context.Context) ([]*types.Validator, error) {
 			Address:     val["address"].(string),
 			VotingPower: val["votingPower"].(float64),
 		}
-		ec.lgr.Debug("Validators:", zap.Any("nodes", nodes))
 		for _, node := range nodes {
 			if strings.Contains(strings.ToLower(tmp.Address), node.ID) {
 				tmp.Name = node.Moniker
