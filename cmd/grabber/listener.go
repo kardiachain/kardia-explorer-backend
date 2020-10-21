@@ -29,6 +29,7 @@ func listener(ctx context.Context, srv *server.Server) {
 				continue
 			}
 			lgr := srv.Logger.With(zap.Uint64("block", latest))
+			lgr.Info("Listener: Insert error blocks", zap.Uint64("from", prevHeader), zap.Uint64("to", latest), zap.Uint64("aaaaaaa", latest-prevHeader))
 			// todo @longnd: this check quite bad, since its require us to keep backfill running
 			// for example, if our
 			if prevHeader != latest {
@@ -47,10 +48,10 @@ func listener(ctx context.Context, srv *server.Server) {
 					lgr.Error("Listener: Failed to import block", zap.Error(err))
 					continue
 				}
+				lgr.Info("Listener: Insert error blocks", zap.Uint64("from", prevHeader), zap.Uint64("to", latest), zap.Uint64("aaaaaaa", latest-prevHeader))
 				if latest-prevHeader > 1 {
 					lgr.Info("Listener: Insert error blocks", zap.Uint64("from", prevHeader), zap.Uint64("to", latest))
 					go srv.InsertErrorBlocks(ctx, prevHeader, latest)
-					continue
 				}
 				prevHeader = latest
 			}
