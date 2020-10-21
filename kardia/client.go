@@ -38,7 +38,7 @@ type ClientInterface interface {
 	CodeAt(ctx context.Context, account string, blockNumber uint64) ([]byte, error)
 	NonceAt(ctx context.Context, account string) (uint64, error)
 	SendRawTransaction(ctx context.Context, tx *types.Transaction) error
-	Peers(ctx context.Context) ([]*types.PeerInfo, error)
+	Peers(ctx context.Context) (*types.PeerInfo, error)
 	NodesInfo(ctx context.Context) ([]*types.NodeInfo, error)
 	Datadir(ctx context.Context) (string, error)
 	Validator(ctx context.Context, rpcURL string) (*types.Validator, error)

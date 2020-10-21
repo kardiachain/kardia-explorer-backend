@@ -35,15 +35,15 @@ func (s *Server) Stats(c echo.Context) error {
 	}
 
 	type Stat struct {
-		NumTxs uint64    `json:"numTxs"`
-		Time   time.Time `json:"time"`
+		NumTxs uint64 `json:"numTxs"`
+		Time   uint64 `json:"time"`
 	}
 
 	var stats []*Stat
 	for _, b := range blocks {
 		stat := &Stat{
 			NumTxs: b.NumTxs,
-			Time:   b.Time,
+			Time:   uint64(b.Time.Unix()),
 		}
 		stats = append(stats, stat)
 	}
@@ -117,7 +117,7 @@ func (s *Server) Blocks(c echo.Context) error {
 	// })
 	// if err != nil || blocks == nil {
 	blocks, err := s.dbClient.Blocks(ctx, &types.Pagination{
-		Skip:  page*limit - limit,
+		Skip:  page * limit,
 		Limit: limit,
 	})
 	if err != nil {
@@ -316,9 +316,10 @@ func (s *Server) Balance(c echo.Context) error {
 }
 
 func (s *Server) AddressTxs(c echo.Context) error {
+	ctx := context.Background()
 	var page, limit int
 	var err error
-	//blockHash := c.Param("blockHash")
+	address := c.Param("address")
 	pageParams := c.QueryParam("page")
 	limitParams := c.QueryParam("limit")
 	page, err = strconv.Atoi(pageParams)
@@ -329,16 +330,18 @@ func (s *Server) AddressTxs(c echo.Context) error {
 	if err != nil {
 		limit = 20
 	}
-
-	var txs []*types.Transaction
-	for i := 0; i < limit; i++ {
-		tx := &types.Transaction{}
-		if err := faker.FakeData(&tx); err != nil {
-			return err
-		}
-		txs = append(txs, tx)
+	pagination := &types.Pagination{
+		Skip:  page * limit,
+		Limit: limit,
 	}
 
+	txs, err := s.dbClient.TxsByAddress(ctx, address, pagination)
+	if err != nil {
+		s.logger.Debug("error while get address txs:", zap.Error(err))
+		return err
+	}
+
+	s.logger.Debug("address txs:", zap.String("address", address), zap.Any("txs", txs))
 	return api.OK.SetData(struct {
 		Page  int         `json:"page"`
 		Limit int         `json:"limit"`

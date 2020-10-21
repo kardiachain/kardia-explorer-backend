@@ -21,8 +21,6 @@ package utils
 import (
 	"errors"
 	"strings"
-
-	"github.com/kardiachain/go-kardiamain/lib/crypto"
 )
 
 func CleanUpHex(s string) string {
@@ -49,13 +47,4 @@ func AppendNotEmpty(slice []string, str string) []string {
 
 func IsNilAddress(address string) bool {
 	return address == "0x0000000000000000000000000000000000000000"
-}
-
-func EnodeToAddress(enode string) string {
-	bytePubKey := []byte(enode)[8:136]
-	pubKey, err := crypto.StringToPublicKey(string(bytePubKey))
-	if err != nil {
-		return ""
-	}
-	return crypto.PubkeyToAddress(*pubKey).Hex()
 }

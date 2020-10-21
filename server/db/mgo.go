@@ -37,7 +37,6 @@ const (
 	cAddresses       = "Addresses"
 	cTxsByAddress    = "TransactionsByAddress"
 	cActiveAddresses = "ActiveAddresses"
-	//cActiveAddresses = "ActiveAddresses"
 )
 
 type mongoDB struct {
@@ -113,7 +112,7 @@ func (m *mongoDB) Blocks(ctx context.Context, pagination *types.Pagination) ([]*
 	var blocks []*types.Block
 	opts := []*options.FindOptions{
 		m.wrapper.FindSetSort("-height"),
-		options.Find().SetProjection(bson.M{"hash": 1, "height": 1, "time": 1, "validator": 1, "numTxs": 1}),
+		options.Find().SetProjection(bson.M{"hash": 1, "height": 1, "time": 1, "validator": 1, "numTxs": 1, "gasLimit": 1}),
 		options.Find().SetSkip(int64(pagination.Skip)),
 		options.Find().SetLimit(int64(pagination.Limit)),
 	}
@@ -266,7 +265,23 @@ func (m *mongoDB) TxsByAddress(ctx context.Context, address string, pagination *
 		if err == mgo.ErrNotFound {
 			return nil, nil
 		}
-		return nil, fmt.Errorf("failed to get txs for block: %v", err)
+		return nil, err
+	}
+	for cursor.Next(ctx) {
+		tx := &types.Transaction{}
+		if err := cursor.Decode(tx); err != nil {
+			return nil, err
+		}
+		txs = append(txs, tx)
+	}
+
+	cursor, err = m.wrapper.C(cTxs).
+		Find(bson.M{"to": address}, opts...)
+	if err != nil {
+		if err == mgo.ErrNotFound {
+			return nil, nil
+		}
+		return nil, err
 	}
 	for cursor.Next(ctx) {
 		tx := &types.Transaction{}
