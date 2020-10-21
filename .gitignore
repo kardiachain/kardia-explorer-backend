@@ -119,3 +119,6 @@ Temporary Items
 
 .gitignore
 .idea/
+
+# Current .env files
+.env

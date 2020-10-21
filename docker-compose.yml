@@ -1,0 +1,60 @@
+version: '3.4'
+
+services:
+  redis:
+    image: redis:latest
+    container_name: "explorer-redis"
+    ports:
+      - 6379:6379
+    #volumes:
+    #  - ./redis.conf:/usr/local/etc/redis/redis.conf # Where is redis.conf ?
+    restart: always
+  mongodb:
+    image: mongo:latest
+    container_name: "explorer-mongodb"
+    volumes:
+      - ../mongo/data/db:/data/db
+    restart: always
+    ports:
+      - 27017:27017
+  postgres:
+    image: postgres:11.9
+    container_name: "explorer-postgres"
+    restart: always
+    ports:
+      - 5433:5432
+    environment:
+      POSTGRES_DB: explorer
+      POSTGRES_PASSWORD: DUHtvINJ+MUl8e
+    volumes:
+      - ../postgres-explorer:/var/lib/postgresql/data
+  backend:
+    build:
+      context: .
+      args:
+        GITHUB_TOKEN: ${GITHUB_TOKEN}
+    image: kardiachain/backend-explorer
+    container_name: "explorer-backend"
+    ports:
+      - 8000:3000
+    environment:
+      GITHUB_TOKEN: ${GITHUB_TOKEN}
+    command: "api"
+    volumes:
+      - .env.sample:/go/bin/.env
+    depends_on:
+      - grabber
+      - mongodb
+      - postgres
+  grabber:
+    build:
+      context: .
+      args:
+        GITHUB_TOKEN: ${GITHUB_TOKEN}
+    image: kardiachain/backend-explorer
+    container_name: "explorer-grabber"
+    environment:
+      GITHUB_TOKEN: ${GITHUB_TOKEN}
+    volumes:
+      - .env.sample:/go/bin/.env
+    command: "grabber -m mongodb:27017 -u http://10.10.0.251:8551 --log-level info -f true"
