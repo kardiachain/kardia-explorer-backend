@@ -201,7 +201,7 @@ func (m *mongoDB) BlockTxCount(ctx context.Context, hash string) (int64, error) 
 	return 0, nil
 }
 
-func (m *mongoDB) TxsByBlockHash(ctx context.Context, blockHash string, pagination *types.Pagination) ([]*types.Transaction, error) {
+func (m *mongoDB) TxsByBlockHash(ctx context.Context, blockHash string, pagination *types.Pagination) ([]*types.Transaction, int64, error) {
 	var txs []*types.Transaction
 	opts := []*options.FindOptions{
 		options.Find().SetSkip(int64(pagination.Skip)),
@@ -211,22 +211,26 @@ func (m *mongoDB) TxsByBlockHash(ctx context.Context, blockHash string, paginati
 		Find(bson.M{"blockHash": blockHash}, opts...)
 	if err != nil {
 		if err == mgo.ErrNotFound {
-			return nil, nil
+			return nil, 0, nil
 		}
-		return nil, fmt.Errorf("failed to get txs for block: %v", err)
+		return nil, 0, fmt.Errorf("failed to get txs for block: %v", err)
 	}
 	for cursor.Next(ctx) {
 		tx := &types.Transaction{}
 		if err := cursor.Decode(tx); err != nil {
-			return nil, err
+			return nil, 0, err
 		}
 		txs = append(txs, tx)
 	}
+	total, err := m.wrapper.C(cTxs).Count(bson.M{"blockHash": blockHash}, nil)
+	if err != nil {
+		return nil, 0, err
+	}
 
-	return txs, nil
+	return txs, total, nil
 }
 
-func (m *mongoDB) TxsByBlockHeight(ctx context.Context, blockHeight uint64, pagination *types.Pagination) ([]*types.Transaction, error) {
+func (m *mongoDB) TxsByBlockHeight(ctx context.Context, blockHeight uint64, pagination *types.Pagination) ([]*types.Transaction, int64, error) {
 	var txs []*types.Transaction
 	opts := []*options.FindOptions{
 		options.Find().SetSkip(int64(pagination.Skip)),
@@ -237,61 +241,52 @@ func (m *mongoDB) TxsByBlockHeight(ctx context.Context, blockHeight uint64, pagi
 		Find(bson.M{"blockNumber": blockHeight}, opts...)
 	if err != nil {
 		if err == mgo.ErrNotFound {
-			return nil, nil
+			return nil, 0, nil
 		}
-		return nil, fmt.Errorf("failed to get txs for block: %v", err)
+		return nil, 0, fmt.Errorf("failed to get txs for block: %v", err)
 	}
 	for cursor.Next(ctx) {
 		tx := &types.Transaction{}
 		if err := cursor.Decode(tx); err != nil {
-			return nil, err
+			return nil, 0, err
 		}
 		txs = append(txs, tx)
 	}
-
-	return txs, nil
+	total, err := m.wrapper.C(cTxs).Count(bson.M{"blockNumber": blockHeight}, nil)
+	if err != nil {
+		return nil, 0, err
+	}
+	return txs, total, nil
 }
 
 // TxsByAddress return txs match input address in FROM/TO field
-func (m *mongoDB) TxsByAddress(ctx context.Context, address string, pagination *types.Pagination) ([]*types.Transaction, error) {
+func (m *mongoDB) TxsByAddress(ctx context.Context, address string, pagination *types.Pagination) ([]*types.Transaction, int64, error) {
 	var txs []*types.Transaction
 	opts := []*options.FindOptions{
 		options.Find().SetSkip(int64(pagination.Skip)),
 		options.Find().SetLimit(int64(pagination.Limit)),
 	}
 	cursor, err := m.wrapper.C(cTxs).
-		Find(bson.M{"from": address}, opts...)
+		Find(bson.M{"$or": []bson.M{bson.M{"from": address}, bson.M{"to": address}}}, opts...)
 	if err != nil {
 		if err == mgo.ErrNotFound {
-			return nil, nil
+			return nil, 0, nil
 		}
-		return nil, err
+		return nil, 0, err
 	}
 	for cursor.Next(ctx) {
 		tx := &types.Transaction{}
 		if err := cursor.Decode(tx); err != nil {
-			return nil, err
+			return nil, 0, err
 		}
 		txs = append(txs, tx)
 	}
-
-	cursor, err = m.wrapper.C(cTxs).
-		Find(bson.M{"to": address}, opts...)
+	total, err := m.wrapper.C(cTxs).Count(bson.M{"$or": []bson.M{bson.M{"from": address}, bson.M{"to": address}}}, nil)
 	if err != nil {
-		if err == mgo.ErrNotFound {
-			return nil, nil
-		}
-		return nil, err
-	}
-	for cursor.Next(ctx) {
-		tx := &types.Transaction{}
-		if err := cursor.Decode(tx); err != nil {
-			return nil, err
-		}
-		txs = append(txs, tx)
+		return nil, 0, err
 	}
 
-	return txs, nil
+	return txs, total, nil
 }
 
 func (m *mongoDB) TxByHash(ctx context.Context, txHash string) (*types.Transaction, error) {
@@ -402,7 +397,7 @@ func (m *mongoDB) UpsertReceipts(ctx context.Context, block *types.Block) error 
 //endregion Receipts
 
 //region Token
-func (m *mongoDB) TokenHolders(ctx context.Context, tokenAddress string, pagination *types.Pagination) ([]*types.TokenHolder, error) {
+func (m *mongoDB) TokenHolders(ctx context.Context, tokenAddress string, pagination *types.Pagination) ([]*types.TokenHolder, int64, error) {
 	panic("implement me")
 }
 
@@ -421,7 +416,7 @@ func (m *mongoDB) AddressByHash(ctx context.Context, addressHash string) (*types
 	}
 	return &c, nil
 }
-func (m *mongoDB) OwnedTokensOfAddress(ctx context.Context, walletAddress string, pagination *types.Pagination) ([]*types.TokenHolder, error) {
+func (m *mongoDB) OwnedTokensOfAddress(ctx context.Context, walletAddress string, pagination *types.Pagination) ([]*types.TokenHolder, int64, error) {
 	panic("implement me")
 }
 

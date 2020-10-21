@@ -48,9 +48,9 @@ type Client interface {
 
 	// Txs
 	Txs(ctx context.Context, pagination *types.Pagination) ([]*types.Transaction, error)
-	TxsByBlockHash(ctx context.Context, blockHash string, pagination *types.Pagination) ([]*types.Transaction, error)
-	TxsByBlockHeight(ctx context.Context, blockNumber uint64, pagination *types.Pagination) ([]*types.Transaction, error)
-	TxsByAddress(ctx context.Context, address string, pagination *types.Pagination) ([]*types.Transaction, error)
+	TxsByBlockHash(ctx context.Context, blockHash string, pagination *types.Pagination) ([]*types.Transaction, int64, error)
+	TxsByBlockHeight(ctx context.Context, blockNumber uint64, pagination *types.Pagination) ([]*types.Transaction, int64, error)
+	TxsByAddress(ctx context.Context, address string, pagination *types.Pagination) ([]*types.Transaction, int64, error)
 
 	// Tx detail
 	TxByHash(ctx context.Context, txHash string) (*types.Transaction, error)
@@ -67,12 +67,12 @@ type Client interface {
 	UpsertReceipts(ctx context.Context, block *types.Block) error
 
 	// Token
-	TokenHolders(ctx context.Context, tokenAddress string, pagination *types.Pagination) ([]*types.TokenHolder, error)
+	TokenHolders(ctx context.Context, tokenAddress string, pagination *types.Pagination) ([]*types.TokenHolder, int64, error)
 	//InternalTxs(ctx context.Context)
 
 	// Address
 	AddressByHash(ctx context.Context, addressHash string) (*types.Address, error)
-	OwnedTokensOfAddress(ctx context.Context, address string, pagination *types.Pagination) ([]*types.TokenHolder, error)
+	OwnedTokensOfAddress(ctx context.Context, address string, pagination *types.Pagination) ([]*types.TokenHolder, int64, error)
 
 	UpdateActiveAddresses(ctx context.Context, addresses []string) error
 }

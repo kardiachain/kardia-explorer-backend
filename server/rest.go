@@ -184,7 +184,10 @@ func (s *Server) BlockTxs(c echo.Context) error {
 	}
 	// Random number of txs of block hash
 
-	var txs []*types.Transaction
+	var (
+		txs   []*types.Transaction
+		total int64
+	)
 	pagination := &types.Pagination{
 		Skip:  page * limit,
 		Limit: limit,
@@ -192,7 +195,7 @@ func (s *Server) BlockTxs(c echo.Context) error {
 	if strings.HasPrefix(block, "0x") {
 		s.logger.Debug("fetch block txs by hash", zap.String("hash", block))
 
-		txs, err = s.dbClient.TxsByBlockHash(ctx, block, pagination)
+		txs, total, err = s.dbClient.TxsByBlockHash(ctx, block, pagination)
 		if err != nil {
 			s.logger.Debug("cannot get txs by block hash", zap.String("blockHash", block))
 			return api.InternalServer.Build(c)
@@ -208,7 +211,7 @@ func (s *Server) BlockTxs(c echo.Context) error {
 			return api.Invalid.Build(c)
 		}
 		// Convert to height
-		txs, err = s.dbClient.TxsByBlockHeight(ctx, uint64(height), pagination)
+		txs, total, err = s.dbClient.TxsByBlockHeight(ctx, uint64(height), pagination)
 		if err != nil {
 			return api.Invalid.Build(c)
 		}
@@ -217,12 +220,12 @@ func (s *Server) BlockTxs(c echo.Context) error {
 	return api.OK.SetData(struct {
 		Page  int         `json:"page"`
 		Limit int         `json:"limit"`
-		Total int         `json:"total"`
+		Total int64       `json:"total"`
 		Data  interface{} `json:"data"`
 	}{
 		Page:  page,
 		Limit: limit,
-		Total: limit * 15,
+		Total: total,
 		Data:  txs,
 	}).Build(c)
 }
@@ -335,7 +338,7 @@ func (s *Server) AddressTxs(c echo.Context) error {
 		Limit: limit,
 	}
 
-	txs, err := s.dbClient.TxsByAddress(ctx, address, pagination)
+	txs, total, err := s.dbClient.TxsByAddress(ctx, address, pagination)
 	if err != nil {
 		s.logger.Debug("error while get address txs:", zap.Error(err))
 		return err
@@ -345,12 +348,12 @@ func (s *Server) AddressTxs(c echo.Context) error {
 	return api.OK.SetData(struct {
 		Page  int         `json:"page"`
 		Limit int         `json:"limit"`
-		Total int         `json:"total"`
+		Total int64       `json:"total"`
 		Data  interface{} `json:"data"`
 	}{
 		Page:  page,
 		Limit: limit,
-		Total: limit * 25,
+		Total: total,
 		Data:  txs,
 	}).Build(c)
 }
