@@ -81,7 +81,7 @@ func main() {
 	// Start listener in new go routine
 	// todo @longnd: Running multi goroutine same time
 	go listener(ctx, srv)
-	// go backfill(ctx, srv, 0)
+	go backfill(ctx, srv)
 	//updateAddresses(ctx, true, 0, srv)
 	<-waitExit
 	logger.Info("Grabber stopping")

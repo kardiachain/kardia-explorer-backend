@@ -341,7 +341,7 @@ func (s *Server) AddressTxs(c echo.Context) error {
 		return err
 	}
 
-	s.logger.Debug("address txs:", zap.String("address", address), zap.Any("txs", txs))
+	s.logger.Info("address txs:", zap.String("address", address))
 	return api.OK.SetData(struct {
 		Page  int         `json:"page"`
 		Limit int         `json:"limit"`
