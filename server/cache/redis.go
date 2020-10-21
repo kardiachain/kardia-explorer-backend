@@ -101,7 +101,6 @@ func (c *Redis) TxByHash(ctx context.Context, txHash string) (*types.Transaction
 // Keep recent N blocks in memory as cache and temp write DB
 // Maintain SetByHash and SetByNumber return blockIndex
 func (c *Redis) InsertBlock(ctx context.Context, block *types.Block) error {
-	c.logger.Debug("Start insert block")
 	size, err := c.client.LLen(ctx, KeyBlocks).Result()
 	if err != nil {
 		c.logger.Debug("cannot get size of #blocks", zap.Error(err))
@@ -272,7 +271,7 @@ func (c *Redis) deleteKeysOfBlockIndex(ctx context.Context, blockIndex int64) er
 		return err
 	}
 
-	c.logger.Debug("Block info", zap.Any("block", block))
+	c.logger.Debug("deleting block info in cache", zap.Any("block", block))
 
 	keys = append(keys, []string{
 		fmt.Sprintf(KeyBlockByNumber, block.Height),

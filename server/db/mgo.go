@@ -112,7 +112,7 @@ func (m *mongoDB) Blocks(ctx context.Context, pagination *types.Pagination) ([]*
 	var blocks []*types.Block
 	opts := []*options.FindOptions{
 		m.wrapper.FindSetSort("-height"),
-		options.Find().SetProjection(bson.M{"hash": 1, "height": 1, "time": 1, "validator": 1, "numTxs": 1, "gasLimit": 1}),
+		options.Find().SetProjection(bson.M{"hash": 1, "height": 1, "time": 1, "proposerAddress": 1, "numTxs": 1, "gasLimit": 1}),
 		options.Find().SetSkip(int64(pagination.Skip)),
 		options.Find().SetLimit(int64(pagination.Limit)),
 	}
