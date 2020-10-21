@@ -43,7 +43,7 @@ func listener(ctx context.Context, srv *server.Server) {
 					lgr.Error("Listener: Block not found")
 					continue
 				}
-				if err := srv.ImportBlock(ctx, block); err != nil {
+				if err := srv.ImportBlock(ctx, block, true); err != nil {
 					lgr.Error("Listener: Failed to import block", zap.Error(err))
 					continue
 				}

@@ -26,7 +26,7 @@ type InfoServer interface {
 	BlockByHeight(ctx context.Context, blockHeight uint64) (*types.Block, error)
 	BlockByHash(ctx context.Context, blockHash string) (*types.Block, error)
 
-	ImportBlock(ctx context.Context, block *types.Block) (*types.Block, error)
+	ImportBlock(ctx context.Context, block *types.Block, writeToCache bool) (*types.Block, error)
 
 	InsertErrorBlocks(ctx context.Context, start uint64, end uint64) error
 	PopErrorBlockHeight(ctx context.Context) (uint64, error)
@@ -82,10 +82,12 @@ func (s *infoServer) BlockByHeight(ctx context.Context, blockHeight uint64) (*ty
 }
 
 // ImportBlock handle workflow of import block into system
-func (s *infoServer) ImportBlock(ctx context.Context, block *types.Block) error {
+func (s *infoServer) ImportBlock(ctx context.Context, block *types.Block, writeToCache bool) error {
 	// Update cacheClient with simple struct for tracking
-	if err := s.cacheClient.InsertBlock(ctx, block); err != nil {
-		s.logger.Debug("cannot import block to cache", zap.Error(err))
+	if writeToCache {
+		if err := s.cacheClient.InsertBlock(ctx, block); err != nil {
+			s.logger.Debug("cannot import block to cache", zap.Error(err))
+		}
 	}
 
 	// Start import block
@@ -97,9 +99,11 @@ func (s *infoServer) ImportBlock(ctx context.Context, block *types.Block) error 
 		return err
 	}
 
-	if err := s.cacheClient.InsertTxs(ctx, block.Txs); err != nil {
-		s.logger.Debug("cannot import txs to cache", zap.Error(err))
-		return err
+	if writeToCache {
+		if err := s.cacheClient.InsertTxs(ctx, block.Txs); err != nil {
+			s.logger.Debug("cannot import txs to cache", zap.Error(err))
+			return err
+		}
 	}
 
 	insertTxTime := time.Now()

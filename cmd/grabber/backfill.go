@@ -39,7 +39,7 @@ func backfill(ctx context.Context, srv *server.Server) {
 				go srv.InsertErrorBlocks(ctx, blockHeight-1, blockHeight+1)
 				continue
 			}
-			if err := srv.ImportBlock(ctx, block); err != nil {
+			if err := srv.ImportBlock(ctx, block, false); err != nil {
 				lgr.Error("Refilling: Failed to import block", zap.Error(err))
 				go srv.InsertErrorBlocks(ctx, blockHeight-1, blockHeight+1)
 				continue
