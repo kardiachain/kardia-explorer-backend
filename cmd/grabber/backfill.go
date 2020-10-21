@@ -18,7 +18,6 @@ func backfill(ctx context.Context, srv *server.Server) {
 		case <-t.C:
 			blockHeight, err := srv.PopErrorBlockHeight(ctx)
 			lgr := srv.Logger.With(zap.Uint64("block", blockHeight))
-			lgr.Debug("Refilling: blocks")
 			if err != nil {
 				lgr.Error("Refilling: Failed to pop error block number", zap.Error(err))
 				err := srv.InsertErrorBlocks(ctx, blockHeight-1, blockHeight+1)
@@ -27,6 +26,7 @@ func backfill(ctx context.Context, srv *server.Server) {
 					continue
 				}
 			}
+			lgr.Info("Refilling: ")
 			// TODO(trinhdn): remove hardcode
 			if blockHeight == 0 {
 				continue
