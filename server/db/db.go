@@ -60,7 +60,7 @@ type Client interface {
 	InsertTxs(ctx context.Context, txs []*types.Transaction) error
 	UpsertTxs(ctx context.Context, txs []*types.Transaction) error
 	InsertListTxByAddress(ctx context.Context, list []*types.TransactionByAddress) error
-	LatestTxs(ctx context.Context, pagination *types.Pagination) ([]*types.Transaction, error)
+	LatestTxs(ctx context.Context, pagination *types.Pagination) ([]*types.Transaction, uint64, error)
 
 	// Interact with receipts
 	InsertReceipts(ctx context.Context, block *types.Block) error

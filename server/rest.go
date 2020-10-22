@@ -251,7 +251,7 @@ func (s *Server) Txs(c echo.Context) error {
 		Limit: limit,
 	}
 
-	txs, err = s.dbClient.LatestTxs(ctx, pagination)
+	txs, total, err := s.dbClient.LatestTxs(ctx, pagination)
 	if err != nil {
 		return api.Invalid.Build(c)
 	}
@@ -259,12 +259,12 @@ func (s *Server) Txs(c echo.Context) error {
 	return api.OK.SetData(struct {
 		Page  int         `json:"page"`
 		Limit int         `json:"limit"`
-		Total int         `json:"total"`
+		Total uint64      `json:"total"`
 		Data  interface{} `json:"data"`
 	}{
 		Page:  page,
 		Limit: limit,
-		Total: limit * 15,
+		Total: total,
 		Data:  txs,
 	}).Build(c)
 }
