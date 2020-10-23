@@ -83,6 +83,7 @@ func (s *infoServer) BlockByHeight(ctx context.Context, blockHeight uint64) (*ty
 
 // ImportBlock handle workflow of import block into system
 func (s *infoServer) ImportBlock(ctx context.Context, block *types.Block, writeToCache bool) error {
+	s.logger.Info("Importing block:", zap.Uint64("Height", block.Height), zap.Int("Txs length", len(block.Txs)), zap.Int("Receipts length", len(block.Receipts)))
 	// Update cacheClient with simple struct for tracking
 	if writeToCache {
 		if err := s.cacheClient.InsertBlock(ctx, block); err != nil {
@@ -113,13 +114,6 @@ func (s *infoServer) ImportBlock(ctx context.Context, block *types.Block, writeT
 	}
 	insertTxConsume := time.Since(insertTxTime)
 	s.logger.Debug("Total time for import tx", zap.Any("TimeConsumed", insertTxConsume))
-
-	insertReceiptsTime := time.Now()
-	if err := s.ImportReceipts(ctx, block); err != nil {
-		return err
-	}
-	insertReceiptsConsume := time.Since(insertReceiptsTime)
-	s.logger.Debug("Total time for import receipt", zap.Any("TimeConsumed", insertReceiptsConsume))
 
 	return nil
 }

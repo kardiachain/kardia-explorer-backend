@@ -232,10 +232,18 @@ func (s *Server) BlockTxs(c echo.Context) error {
 
 func (s *Server) Txs(c echo.Context) error {
 	ctx := context.Background()
-	var page, limit int
-	var err error
+	var (
+		page, limit int
+		err         error
+		getTotal    bool
+	)
 	pageParams := c.QueryParam("page")
 	limitParams := c.QueryParam("limit")
+	if c.QueryParam("total") == "1" {
+		getTotal = true
+	} else {
+		getTotal = false
+	}
 	page, err = strconv.Atoi(pageParams)
 	if err != nil {
 		page = 1
@@ -251,7 +259,7 @@ func (s *Server) Txs(c echo.Context) error {
 		Limit: limit,
 	}
 
-	txs, total, err := s.dbClient.LatestTxs(ctx, pagination)
+	txs, total, err := s.dbClient.LatestTxs(ctx, pagination, getTotal)
 	if err != nil {
 		return api.Invalid.Build(c)
 	}

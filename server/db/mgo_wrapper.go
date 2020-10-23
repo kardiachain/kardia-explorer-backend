@@ -44,8 +44,9 @@ func (w *KaiMgo) Ping() error {
 	return nil
 }
 
-func (w *KaiMgo) EnsureIndex() {
-
+func (w *KaiMgo) EnsureIndex(model mongo.IndexModel) error {
+	_, err := w.col.Indexes().CreateOne(context.TODO(), model)
+	return err
 }
 
 func (w *KaiMgo) Update(filter interface{}, update interface{},

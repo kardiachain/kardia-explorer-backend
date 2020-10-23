@@ -6,12 +6,14 @@ import (
 	"fmt"
 	"reflect"
 	"testing"
+	"time"
 
 	"github.com/bxcodec/faker/v3"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.uber.org/zap"
 	"gotest.tools/assert"
 
+	"github.com/kardiachain/explorer-backend/metrics"
 	"github.com/kardiachain/explorer-backend/types"
 )
 
@@ -381,7 +383,7 @@ func Test_mongoDB_OwnedTokensOfAddress(t *testing.T) {
 				wrapper: tt.fields.wrapper,
 				db:      tt.fields.db,
 			}
-			got, err := m.OwnedTokensOfAddress(tt.args.ctx, tt.args.walletAddress, tt.args.pagination)
+			got, _, err := m.OwnedTokensOfAddress(tt.args.ctx, tt.args.walletAddress, tt.args.pagination)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("OwnedTokensOfAddress() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -420,7 +422,7 @@ func Test_mongoDB_TokenHolders(t *testing.T) {
 				wrapper: tt.fields.wrapper,
 				db:      tt.fields.db,
 			}
-			got, err := m.TokenHolders(tt.args.ctx, tt.args.tokenAddress, tt.args.pagination)
+			got, _, err := m.TokenHolders(tt.args.ctx, tt.args.tokenAddress, tt.args.pagination)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("TokenHolders() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -559,7 +561,7 @@ func Test_mongoDB_TxsByAddress(t *testing.T) {
 				wrapper: tt.fields.wrapper,
 				db:      tt.fields.db,
 			}
-			got, err := m.TxsByAddress(tt.args.ctx, tt.args.address, tt.args.pagination)
+			got, _, err := m.TxsByAddress(tt.args.ctx, tt.args.address, tt.args.pagination)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("TxsByAddress() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -598,7 +600,7 @@ func Test_mongoDB_TxsByBlockHash(t *testing.T) {
 				wrapper: tt.fields.wrapper,
 				db:      tt.fields.db,
 			}
-			got, err := m.TxsByBlockHash(tt.args.ctx, tt.args.blockHash, tt.args.pagination)
+			got, _, err := m.TxsByBlockHash(tt.args.ctx, tt.args.blockHash, tt.args.pagination)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("TxsByBlockHash() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -637,7 +639,7 @@ func Test_mongoDB_TxsByBlockHeight(t *testing.T) {
 				wrapper: tt.fields.wrapper,
 				db:      tt.fields.db,
 			}
-			got, err := m.TxsByBlockHeight(tt.args.ctx, tt.args.blockHeight, tt.args.pagination)
+			got, _, err := m.TxsByBlockHeight(tt.args.ctx, tt.args.blockHeight, tt.args.pagination)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("TxsByBlockHeight() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -856,4 +858,86 @@ func Test_newMongoDB(t *testing.T) {
 			}
 		})
 	}
+}
+
+// =================================================================================================
+
+const (
+	host   string = "mongodb://127.0.0.1:27017"
+	dbName string = "explorer_benchmark"
+)
+
+func SetupMongoClient() (Client, *metrics.Provider, error) {
+	logCfg := zap.NewProductionConfig()
+	logger, err := logCfg.Build()
+	if err != nil {
+		return nil, nil, err
+	}
+	dbConfig := Config{
+		DbAdapter: MGO,
+		DbName:    dbName,
+		URL:       host,
+		Logger:    logger,
+		MinConn:   8,
+		MaxConn:   32,
+
+		FlushDB: true,
+	}
+	c, err := NewClient(dbConfig)
+	if err != nil {
+		return nil, nil, err
+	}
+	metrics := metrics.New()
+	return c, metrics, nil
+}
+
+func Test_mongoDB_InsertWithMassRecord(t *testing.T) {
+	numberOfBlock := []int{1000, 5000, 10000, 15000, 20000, 25000, 30000, 35000}
+	numberOfTxs := []int{1000, 3000, 5000, 10000}
+	for _, blockSize := range numberOfBlock {
+		for _, txSize := range numberOfTxs {
+			generateRecordSet(blockSize, txSize, t)
+		}
+	}
+}
+
+func generateRecordSet(blockSize int, txSize int, t *testing.T) {
+	db, m, err := SetupMongoClient()
+	if err != nil {
+		t.Error("error SetupMongoClient: ", err)
+		return
+	}
+
+	type BlockPrototype struct {
+		Height uint64
+		Hash   string
+	}
+	blockList := []*BlockPrototype{}
+	// measure insert time
+	startTime := time.Now()
+	for i := 0; i < blockSize; i++ {
+		var block types.Block
+		_ = faker.FakeData(&block)
+		var txs []*types.Transaction
+		for j := 0; j < txSize; j++ {
+			var tx types.Transaction
+			_ = faker.FakeData(&tx)
+			txs = append(txs, &tx)
+		}
+		blockList = append(blockList, &BlockPrototype{
+			Height: block.Height,
+			Hash:   block.Hash,
+		})
+		insertBlockTime := time.Now()
+		_ = db.InsertBlock(context.Background(), &block)
+		_ = db.InsertTxs(context.Background(), txs)
+		m.RecordProcessingTime(time.Since(insertBlockTime))
+	}
+	t.Log("\nblockSize: ", blockSize, "\ntxSize: ", txSize, "\nElasped time: ", time.Since(startTime).String(), "\nAverage time: ", m.GetProcessingTime())
+
+	// measure query latestTxs time
+	m.Reset()
+	startTime = time.Now()
+
+	t.Log("\nblockSize: ", blockSize, "\ntxSize: ", txSize, "\nElasped time: ", time.Since(startTime).String(), "\nAverage time: ", m.GetProcessingTime())
 }

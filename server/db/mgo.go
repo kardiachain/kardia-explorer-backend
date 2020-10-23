@@ -88,6 +88,22 @@ func newMongoDB(cfg Config) (*mongoDB, error) {
 		}
 	}
 
+	type CIndex struct {
+		c     string
+		model mongo.IndexModel
+	}
+
+	for _, cIdx := range []CIndex{
+		{c: "Transactions", model: mongo.IndexModel{Keys: bson.M{"hash": 1}, Options: options.Index().SetUnique(true).SetBackground(true).SetSparse(true)}},
+		{c: "Transactions", model: mongo.IndexModel{Keys: bson.M{"blockNumber": -1}, Options: options.Index().SetBackground(true).SetSparse(true)}},
+		{c: "Transactions", model: mongo.IndexModel{Keys: bson.M{"time": -1}, Options: options.Index().SetBackground(true).SetSparse(true)}},
+		{c: "Transactions", model: mongo.IndexModel{Keys: bson.M{"contractAddress": 1}, Options: options.Index().SetBackground(true).SetSparse(true)}},
+	} {
+		if err := dbClient.wrapper.C(cIdx.c).EnsureIndex(cIdx.model); err != nil {
+			return nil, err
+		}
+	}
+
 	return dbClient, nil
 }
 
@@ -101,6 +117,10 @@ func (m *mongoDB) dropCollection(collectionName string) {
 	if _, err := m.wrapper.C(collectionName).RemoveAll(nil); err != nil {
 		return
 	}
+}
+
+func (m *mongoDB) dropDatabase(ctx context.Context) error {
+	return m.wrapper.DropDatabase(ctx)
 }
 
 //endregion General
@@ -364,7 +384,7 @@ func (m *mongoDB) InsertListTxByAddress(ctx context.Context, list []*types.Trans
 	return nil
 }
 
-func (m *mongoDB) LatestTxs(ctx context.Context, pagination *types.Pagination) ([]*types.Transaction, uint64, error) {
+func (m *mongoDB) LatestTxs(ctx context.Context, pagination *types.Pagination, getTotal bool) ([]*types.Transaction, uint64, error) {
 	opts := []*options.FindOptions{
 		m.wrapper.FindSetSort("-time"),
 		options.Find().SetProjection(bson.M{"ReceiptReceived": 0}),
@@ -384,6 +404,9 @@ func (m *mongoDB) LatestTxs(ctx context.Context, pagination *types.Pagination) (
 		}
 		m.logger.Debug("Get latest txs success", zap.Any("tx", tx))
 		txs = append(txs, tx)
+	}
+	if !getTotal {
+		return txs, uint64(len(txs)), nil
 	}
 	total, err := m.wrapper.C(cTxs).Count(bson.M{}, nil)
 	if err != nil {
