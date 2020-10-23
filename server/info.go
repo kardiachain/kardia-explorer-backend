@@ -105,6 +105,7 @@ func (s *infoServer) ImportBlock(ctx context.Context, block *types.Block, writeT
 	}
 
 	if writeToCache {
+		s.logger.Debug("Insert block txs to cached")
 		if err := s.cacheClient.InsertTxs(ctx, block.Txs); err != nil {
 			s.logger.Debug("cannot import txs to cache", zap.Error(err))
 			return err
