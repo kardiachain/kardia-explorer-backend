@@ -880,8 +880,7 @@ func SetupMongoClient() (Client, *metrics.Provider, error) {
 		Logger:    logger,
 		MinConn:   8,
 		MaxConn:   32,
-
-		FlushDB: true,
+		FlushDB:   true,
 	}
 	c, err := NewClient(dbConfig)
 	if err != nil {
@@ -913,6 +912,11 @@ func generateRecordSet(blockSize int, txSize int, t *testing.T) {
 		Hash   string
 	}
 	blockList := []*BlockPrototype{}
+	ctx := context.Background()
+	pagination := &types.Pagination{
+		Skip:  0,
+		Limit: 20,
+	}
 	// measure insert time
 	startTime := time.Now()
 	for i := 0; i < blockSize; i++ {
@@ -929,15 +933,49 @@ func generateRecordSet(blockSize int, txSize int, t *testing.T) {
 			Hash:   block.Hash,
 		})
 		insertBlockTime := time.Now()
-		_ = db.InsertBlock(context.Background(), &block)
-		_ = db.InsertTxs(context.Background(), txs)
+		_ = db.InsertBlock(ctx, &block)
+		_ = db.InsertTxs(ctx, txs)
 		m.RecordProcessingTime(time.Since(insertBlockTime))
 	}
 	t.Log("\nblockSize: ", blockSize, "\ntxSize: ", txSize, "\nElasped time: ", time.Since(startTime).String(), "\nAverage time: ", m.GetProcessingTime())
 
-	// measure query latestTxs time
+	// measure query TxsByBlockHash time
 	m.Reset()
 	startTime = time.Now()
+	for _, bInfo := range blockList {
+		queryTxsTime := time.Now()
+		_, _, _ = db.TxsByBlockHash(ctx, bInfo.Hash, pagination)
+		m.RecordProcessingTime(time.Since(queryTxsTime))
+	}
+	t.Log("\nblockSize: ", blockSize, "\nTxsByBlockHash time: ", time.Since(startTime).String(), "\nAverage time: ", m.GetProcessingTime())
 
-	t.Log("\nblockSize: ", blockSize, "\ntxSize: ", txSize, "\nElasped time: ", time.Since(startTime).String(), "\nAverage time: ", m.GetProcessingTime())
+	// measure query TxsByBlockHeight time
+	m.Reset()
+	startTime = time.Now()
+	for _, bInfo := range blockList {
+		queryTxsTime := time.Now()
+		_, _, _ = db.TxsByBlockHeight(ctx, bInfo.Height, pagination)
+		m.RecordProcessingTime(time.Since(queryTxsTime))
+	}
+	t.Log("\nblockSize: ", blockSize, "\nTxsByBlockHeight time: ", time.Since(startTime).String(), "\nAverage time: ", m.GetProcessingTime())
+
+	// measure query LatestTxs with count time
+	m.Reset()
+	startTime = time.Now()
+	for i := 0; i < blockSize; i++ {
+		queryTxsTime := time.Now()
+		_, _, _ = db.LatestTxs(ctx, pagination, true)
+		m.RecordProcessingTime(time.Since(queryTxsTime))
+	}
+	t.Log("\nblockSize: ", blockSize, "\nLatestTxs with count time: ", time.Since(startTime).String(), "\nAverage time: ", m.GetProcessingTime())
+
+	// measure query LatestTxs without count time
+	m.Reset()
+	startTime = time.Now()
+	for i := 0; i < blockSize; i++ {
+		queryTxsTime := time.Now()
+		_, _, _ = db.LatestTxs(ctx, pagination, false)
+		m.RecordProcessingTime(time.Since(queryTxsTime))
+	}
+	t.Log("\nblockSize: ", blockSize, "\nLatestTxs without count time: ", time.Since(startTime).String(), "\nAverage time: ", m.GetProcessingTime())
 }

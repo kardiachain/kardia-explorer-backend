@@ -90,14 +90,23 @@ func newMongoDB(cfg Config) (*mongoDB, error) {
 
 	type CIndex struct {
 		c     string
-		model mongo.IndexModel
+		model []mongo.IndexModel
 	}
 
 	for _, cIdx := range []CIndex{
-		{c: "Transactions", model: mongo.IndexModel{Keys: bson.M{"hash": 1}, Options: options.Index().SetUnique(true).SetBackground(true).SetSparse(true)}},
-		{c: "Transactions", model: mongo.IndexModel{Keys: bson.M{"blockNumber": -1}, Options: options.Index().SetBackground(true).SetSparse(true)}},
-		{c: "Transactions", model: mongo.IndexModel{Keys: bson.M{"time": -1}, Options: options.Index().SetBackground(true).SetSparse(true)}},
-		{c: "Transactions", model: mongo.IndexModel{Keys: bson.M{"contractAddress": 1}, Options: options.Index().SetBackground(true).SetSparse(true)}},
+		{c: cTxs, model: []mongo.IndexModel{{Keys: bson.M{"hash": 1}, Options: options.Index().SetUnique(true).SetBackground(true).SetSparse(true)}}},
+		{c: cTxs, model: []mongo.IndexModel{{Keys: bson.M{"blockNumber": -1}, Options: options.Index().SetBackground(true).SetSparse(true)}}},
+		{c: cTxs, model: []mongo.IndexModel{{Keys: bson.M{"blockHash": -1}, Options: options.Index().SetBackground(true).SetSparse(true)}}},
+		{c: cTxs, model: []mongo.IndexModel{{Keys: bson.M{"time": -1}, Options: options.Index().SetBackground(true).SetSparse(true)}}},
+		{c: cTxs, model: []mongo.IndexModel{{Keys: bson.M{"contractAddress": 1}, Options: options.Index().SetBackground(true).SetSparse(true)}}},
+		{c: cTxs, model: []mongo.IndexModel{
+			{Keys: bson.D{{Key: "from", Value: 1}, {Key: "time", Value: -1}}, Options: options.Index().SetBackground(true).SetSparse(true)},
+			{Keys: bson.D{{Key: "to", Value: 1}, {Key: "time", Value: -1}}, Options: options.Index().SetBackground(true).SetSparse(true)},
+		}},
+		{c: cBlocks, model: []mongo.IndexModel{{Keys: bson.M{"number": -1}, Options: options.Index().SetUnique(true).SetBackground(true).SetSparse(true)}}},
+		{c: cBlocks, model: []mongo.IndexModel{{Keys: bson.M{"proposerAddress": 1}, Options: options.Index().SetBackground(true).SetSparse(true)}}},
+		{c: cBlocks, model: []mongo.IndexModel{{Keys: bson.M{"hash": 1}, Options: options.Index().SetBackground(true).SetSparse(true)}}},
+		{c: cBlocks, model: []mongo.IndexModel{{Keys: bson.D{{Key: "time", Value: -1}, {Key: "proposerAddress", Value: 1}}, Options: options.Index().SetBackground(true).SetSparse(true)}}},
 	} {
 		if err := dbClient.wrapper.C(cIdx.c).EnsureIndex(cIdx.model); err != nil {
 			return nil, err
