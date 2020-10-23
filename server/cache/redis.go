@@ -226,9 +226,6 @@ func (c *Redis) LatestTransactions(ctx context.Context, pagination *types.Pagina
 		startIndex    = 0 + int64(pagination.Skip)
 		endIndex      = startIndex + int64(pagination.Limit) - 1
 	)
-	if endIndex > 0 {
-		endIndex = 0
-	}
 
 	KeyTxsOfLatestBlock := fmt.Sprintf(KeyTxsOfBlockIndex, 0)
 	c.logger.Debug("Get latest txs from block", zap.String("Key", KeyTxsOfLatestBlock))
