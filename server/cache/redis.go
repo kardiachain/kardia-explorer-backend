@@ -12,6 +12,7 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/kardiachain/explorer-backend/types"
+	"github.com/kardiachain/explorer-backend/utils"
 )
 
 const (
@@ -31,6 +32,8 @@ const (
 	PatternGetAllKeyOfBlockIndex = "#block#index#%d*"
 
 	ErrorBlocks = "#errorBlocks" // List
+
+	KeyTotalTxs = "#txs#total"
 )
 
 type Redis struct {
@@ -38,6 +41,28 @@ type Redis struct {
 	client *redis.Client
 
 	logger *zap.Logger
+}
+
+func (c *Redis) TotalTxs(ctx context.Context) uint64 {
+	result, err := c.client.Get(ctx, KeyTotalTxs).Result()
+	if err != nil {
+		// Handle error here
+		c.logger.Warn("cannot get total txs values")
+	}
+	// Convert to int
+	totalTxs := utils.StrToUint64(result)
+	return totalTxs
+}
+
+func (c *Redis) UpdateTotalTxs(ctx context.Context, blockTxs uint64) (uint64, error) {
+	totalTxs := c.TotalTxs(ctx)
+	totalTxs += blockTxs
+
+	if err := c.client.Set(ctx, KeyTotalTxs, totalTxs, 0).Err(); err != nil {
+		// Handle error here
+		c.logger.Warn("cannot set total txs values")
+	}
+	return totalTxs, nil
 }
 
 func (c *Redis) PopReceipt(ctx context.Context) (*types.Receipt, error) {
@@ -143,6 +168,11 @@ func (c *Redis) InsertBlock(ctx context.Context, block *types.Block) error {
 	if err := c.client.Set(ctx, blockByNumberKey, blockIndex, 0).Err(); err != nil {
 		return err
 	}
+
+	if _, err := c.UpdateTotalTxs(ctx, block.NumTxs); err != nil {
+		return err
+	}
+
 	return nil
 }
 
@@ -168,8 +198,8 @@ func (c *Redis) LatestBlocks(ctx context.Context, pagination *types.Pagination) 
 	var (
 		blockList        []*types.Block
 		marshalledBlocks []string
-		startIndex       int64 = 0 + int64(pagination.Skip)
-		endIndex         int64 = startIndex + int64(pagination.Limit) - 1
+		startIndex       = 0 + int64(pagination.Skip)
+		endIndex         = startIndex + int64(pagination.Limit) - 1
 	)
 	c.logger.Debug("Getting blocks from cache: ", zap.Int("pagination.Skip", pagination.Skip), zap.Int("pagination.Limit", pagination.Limit))
 	marshalledBlocks, err := c.client.LRange(ctx, KeyBlocks, startIndex, endIndex).Result()
@@ -194,8 +224,8 @@ func (c *Redis) LatestTransactions(ctx context.Context, pagination *types.Pagina
 	var (
 		txList        []*types.Transaction
 		marshalledTxs []string
-		startIndex    int64 = 0 - int64(pagination.Skip)
-		endIndex      int64 = startIndex + int64(pagination.Limit) - 1
+		startIndex    = 0 - int64(pagination.Skip)
+		endIndex      = startIndex + int64(pagination.Limit) - 1
 	)
 	if endIndex > 0 {
 		endIndex = 0

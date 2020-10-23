@@ -235,15 +235,9 @@ func (s *Server) Txs(c echo.Context) error {
 	var (
 		page, limit int
 		err         error
-		getTotal    bool
 	)
 	pageParams := c.QueryParam("page")
 	limitParams := c.QueryParam("limit")
-	if c.QueryParam("total") == "1" {
-		getTotal = true
-	} else {
-		getTotal = false
-	}
 	page, err = strconv.Atoi(pageParams)
 	if err != nil {
 		page = 1
@@ -259,7 +253,7 @@ func (s *Server) Txs(c echo.Context) error {
 		Limit: limit,
 	}
 
-	txs, total, err := s.dbClient.LatestTxs(ctx, pagination, getTotal)
+	txs, err = s.dbClient.LatestTxs(ctx, pagination)
 	if err != nil {
 		return api.Invalid.Build(c)
 	}
@@ -272,7 +266,7 @@ func (s *Server) Txs(c echo.Context) error {
 	}{
 		Page:  page,
 		Limit: limit,
-		Total: total,
+		Total: s.cacheClient.TotalTxs(ctx),
 		Data:  txs,
 	}).Build(c)
 }

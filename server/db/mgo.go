@@ -20,7 +20,6 @@ package db
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"time"
 
@@ -379,7 +378,7 @@ func (m *mongoDB) InsertListTxByAddress(ctx context.Context, list []*types.Trans
 	return nil
 }
 
-func (m *mongoDB) LatestTxs(ctx context.Context, pagination *types.Pagination, getTotal bool) ([]*types.Transaction, uint64, error) {
+func (m *mongoDB) LatestTxs(ctx context.Context, pagination *types.Pagination) ([]*types.Transaction, error) {
 	start := time.Now()
 
 	opts := []*options.FindOptions{
@@ -392,7 +391,7 @@ func (m *mongoDB) LatestTxs(ctx context.Context, pagination *types.Pagination, g
 	var txs []*types.Transaction
 	cursor, err := m.wrapper.C(cTxs).Find(bson.D{}, opts...)
 	if err != nil {
-		return nil, 0, err
+		return nil, err
 	}
 	queryTime := time.Since(start)
 	start = time.Now()
@@ -400,7 +399,7 @@ func (m *mongoDB) LatestTxs(ctx context.Context, pagination *types.Pagination, g
 	for cursor.Next(ctx) {
 		tx := &types.Transaction{}
 		if err := cursor.Decode(&tx); err != nil {
-			return nil, 0, err
+			return nil, err
 		}
 		//m.logger.Debug("Get latest txs success", zap.Any("tx", tx))
 		txs = append(txs, tx)
@@ -408,20 +407,7 @@ func (m *mongoDB) LatestTxs(ctx context.Context, pagination *types.Pagination, g
 	processTime := time.Since(start)
 	start = time.Now()
 	m.logger.Debug("Total time for process tx", zap.Any("TimeConsumed", processTime))
-
-	if len(txs) == 0 {
-		return nil, 0, errors.New("Somethings wrong")
-	}
-
-	blockNumber := txs[0].BlockNumber
-	block, err := m.BlockByHeight(ctx, blockNumber)
-	if err != nil {
-		return nil, 0, err
-	}
-
-	countTx := time.Since(start)
-	m.logger.Debug("Total time for count tx", zap.Any("TimeConsumed", countTx))
-	return txs, block.NumTxs, nil
+	return txs, nil
 }
 
 //endregion Txs
