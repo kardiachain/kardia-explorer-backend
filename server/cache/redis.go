@@ -116,6 +116,8 @@ func (c *Redis) InsertTxs(ctx context.Context, txs []*types.Transaction) error {
 		}
 	}
 
+	c.logger.Debug("Done insert txs to cached")
+
 	return nil
 }
 
@@ -221,7 +223,7 @@ func (c *Redis) LatestTransactions(ctx context.Context, pagination *types.Pagina
 	var (
 		txList        []*types.Transaction
 		marshalledTxs []string
-		startIndex    = 0 - int64(pagination.Skip)
+		startIndex    = 0 + int64(pagination.Skip)
 		endIndex      = startIndex + int64(pagination.Limit) - 1
 	)
 	if endIndex > 0 {
@@ -229,11 +231,13 @@ func (c *Redis) LatestTransactions(ctx context.Context, pagination *types.Pagina
 	}
 
 	KeyTxsOfLatestBlock := fmt.Sprintf(KeyTxsOfBlockIndex, 0)
+	c.logger.Debug("Get latest txs from block", zap.String("Key", KeyTxsOfLatestBlock))
 	marshalledTxs, err := c.client.LRange(ctx, KeyTxsOfLatestBlock, startIndex, endIndex).Result()
 	c.logger.Debug("Getting Txs from cache: ", zap.Int64("startIndex", startIndex), zap.Int64("endIndex", endIndex))
 	if err != nil {
 		return nil, err
 	}
+
 	for _, txStr := range marshalledTxs {
 		var tx types.Transaction
 		err := json.Unmarshal([]byte(txStr), &tx)
