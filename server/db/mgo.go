@@ -20,6 +20,7 @@ package db
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"time"
 
@@ -406,14 +407,19 @@ func (m *mongoDB) LatestTxs(ctx context.Context, pagination *types.Pagination, g
 	processTime := time.Since(start)
 	m.logger.Debug("Total time for process tx", zap.Any("TimeConsumed", processTime))
 
-	total, err := m.wrapper.C(cTxs).Count(bson.M{}, nil)
+	if len(txs) == 0 {
+		return nil, 0, errors.New("Somethings wrong")
+	}
+
+	blockNumber := txs[0].BlockNumber
+	block, err := m.BlockByHeight(ctx, blockNumber)
 	if err != nil {
 		return nil, 0, err
 	}
 
 	countTx := time.Since(start)
 	m.logger.Debug("Total time for count tx", zap.Any("TimeConsumed", countTx))
-	return txs, uint64(total), nil
+	return txs, block.NumTxs, nil
 }
 
 //endregion Txs
