@@ -170,10 +170,6 @@ func (c *Redis) InsertBlock(ctx context.Context, block *types.Block) error {
 		return err
 	}
 
-	if _, err := c.UpdateTotalTxs(ctx, block.NumTxs); err != nil {
-		return err
-	}
-
 	return nil
 }
 
