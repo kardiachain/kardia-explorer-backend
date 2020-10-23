@@ -31,6 +31,7 @@ type Config struct {
 type Client interface {
 	ping() error
 	dropCollection(collectionName string)
+	dropDatabase(ctx context.Context) error
 
 	// Blocks
 	Blocks(ctx context.Context, pagination *types.Pagination) ([]*types.Block, error)
@@ -51,6 +52,7 @@ type Client interface {
 	TxsByBlockHash(ctx context.Context, blockHash string, pagination *types.Pagination) ([]*types.Transaction, uint64, error)
 	TxsByBlockHeight(ctx context.Context, blockNumber uint64, pagination *types.Pagination) ([]*types.Transaction, uint64, error)
 	TxsByAddress(ctx context.Context, address string, pagination *types.Pagination) ([]*types.Transaction, uint64, error)
+	LatestTxs(ctx context.Context, pagination *types.Pagination, getTotal bool) ([]*types.Transaction, uint64, error)
 
 	// Tx detail
 	TxByHash(ctx context.Context, txHash string) (*types.Transaction, error)
@@ -60,7 +62,6 @@ type Client interface {
 	InsertTxs(ctx context.Context, txs []*types.Transaction) error
 	UpsertTxs(ctx context.Context, txs []*types.Transaction) error
 	InsertListTxByAddress(ctx context.Context, list []*types.TransactionByAddress) error
-	LatestTxs(ctx context.Context, pagination *types.Pagination, getTotal bool) ([]*types.Transaction, uint64, error)
 
 	// Interact with receipts
 	InsertReceipts(ctx context.Context, block *types.Block) error
