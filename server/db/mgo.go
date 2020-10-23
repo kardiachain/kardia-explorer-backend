@@ -20,6 +20,7 @@ package db
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"time"
 
@@ -53,6 +54,8 @@ func (m *mongoDB) UpdateActiveAddresses(ctx context.Context, addresses []string)
 }
 
 func newMongoDB(cfg Config) (*mongoDB, error) {
+	cfg.Logger.Debug("Create mgo with config", zap.Any("config", cfg))
+
 	ctx := context.Background()
 	dbClient := &mongoDB{
 		logger:  cfg.Logger,
@@ -74,16 +77,7 @@ func newMongoDB(cfg Config) (*mongoDB, error) {
 	dbClient.wrapper.Database(mgoClient.Database(cfg.DbName))
 
 	if cfg.FlushDB {
-		//colNames, err := mgoClient.Database(cfg.DbName).ListCollectionNames(ctx, bson.M{})
-		//if err != nil {
-		//	return nil, err
-		//}
-		//for _, c := range colNames {
-		//	if _, err := dbClient.wrapper.C(c).RemoveAll(bson.M{}); err != nil {
-		//		return nil, err
-		//	}
-		//}
-
+		cfg.Logger.Debug("Start flush database")
 		if err := mgoClient.Database(cfg.DbName).Drop(ctx); err != nil {
 			return nil, err
 		}
@@ -157,7 +151,7 @@ func (m *mongoDB) Blocks(ctx context.Context, pagination *types.Pagination) ([]*
 		if err := cursor.Decode(&block); err != nil {
 			return nil, err
 		}
-		m.logger.Debug("Get block success", zap.Any("block", block))
+		//m.logger.Debug("Get block success", zap.Any("block", block))
 		blocks = append(blocks, block)
 	}
 
@@ -416,20 +410,25 @@ func (m *mongoDB) LatestTxs(ctx context.Context, pagination *types.Pagination, g
 		if err := cursor.Decode(&tx); err != nil {
 			return nil, 0, err
 		}
-		m.logger.Debug("Get latest txs success", zap.Any("tx", tx))
+		//m.logger.Debug("Get latest txs success", zap.Any("tx", tx))
 		txs = append(txs, tx)
 	}
 	processTime := time.Since(start)
 	m.logger.Debug("Total time for process tx", zap.Any("TimeConsumed", processTime))
 
-	total, err := m.wrapper.C(cTxs).Count(bson.M{}, nil)
+	if len(txs) == 0 {
+		return nil, 0, errors.New("Somethings wrong")
+	}
+
+	blockNumber := txs[0].BlockNumber
+	block, err := m.BlockByHeight(ctx, blockNumber)
 	if err != nil {
 		return nil, 0, err
 	}
 
 	countTx := time.Since(start)
 	m.logger.Debug("Total time for count tx", zap.Any("TimeConsumed", countTx))
-	return txs, uint64(total), nil
+	return txs, block.NumTxs, nil
 }
 
 //endregion Txs
