@@ -21,6 +21,7 @@ package db
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
@@ -303,7 +304,7 @@ func (m *mongoDB) TxsByAddress(ctx context.Context, address string, pagination *
 		options.Find().SetLimit(int64(pagination.Limit)),
 	}
 	cursor, err := m.wrapper.C(cTxs).
-		Find(bson.M{"$or": []bson.M{bson.M{"from": address}, bson.M{"to": address}}}, opts...)
+		Find(bson.M{"$or": []bson.M{{"from": address}, {"to": address}}}, opts...)
 	if err != nil {
 		if err == mgo.ErrNotFound {
 			return nil, 0, nil
@@ -317,7 +318,7 @@ func (m *mongoDB) TxsByAddress(ctx context.Context, address string, pagination *
 		}
 		txs = append(txs, tx)
 	}
-	total, err := m.wrapper.C(cTxs).Count(bson.M{"$or": []bson.M{bson.M{"from": address}, bson.M{"to": address}}}, nil)
+	total, err := m.wrapper.C(cTxs).Count(bson.M{"$or": []bson.M{{"from": address}, {"to": address}}}, nil)
 	if err != nil {
 		return nil, 0, err
 	}
@@ -394,6 +395,8 @@ func (m *mongoDB) InsertListTxByAddress(ctx context.Context, list []*types.Trans
 }
 
 func (m *mongoDB) LatestTxs(ctx context.Context, pagination *types.Pagination, getTotal bool) ([]*types.Transaction, uint64, error) {
+	start := time.Now()
+
 	opts := []*options.FindOptions{
 		m.wrapper.FindSetSort("-time"),
 		options.Find().SetProjection(bson.M{"ReceiptReceived": 0}),
@@ -406,6 +409,8 @@ func (m *mongoDB) LatestTxs(ctx context.Context, pagination *types.Pagination, g
 	if err != nil {
 		return nil, 0, err
 	}
+	queryTime := time.Since(start)
+	m.logger.Debug("Total time for query tx", zap.Any("TimeConsumed", queryTime))
 	for cursor.Next(ctx) {
 		tx := &types.Transaction{}
 		if err := cursor.Decode(&tx); err != nil {
@@ -414,14 +419,16 @@ func (m *mongoDB) LatestTxs(ctx context.Context, pagination *types.Pagination, g
 		m.logger.Debug("Get latest txs success", zap.Any("tx", tx))
 		txs = append(txs, tx)
 	}
-	if !getTotal {
-		return txs, uint64(len(txs)), nil
-	}
+	processTime := time.Since(start)
+	m.logger.Debug("Total time for process tx", zap.Any("TimeConsumed", processTime))
+
 	total, err := m.wrapper.C(cTxs).Count(bson.M{}, nil)
 	if err != nil {
 		return nil, 0, err
 	}
 
+	countTx := time.Since(start)
+	m.logger.Debug("Total time for count tx", zap.Any("TimeConsumed", countTx))
 	return txs, uint64(total), nil
 }
 
