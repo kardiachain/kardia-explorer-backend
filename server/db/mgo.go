@@ -141,7 +141,7 @@ func (m *mongoDB) Blocks(ctx context.Context, pagination *types.Pagination) ([]*
 		if err := cursor.Decode(&block); err != nil {
 			return nil, err
 		}
-		m.logger.Debug("Get block success", zap.Any("block", block))
+		//m.logger.Debug("Get block success", zap.Any("block", block))
 		blocks = append(blocks, block)
 	}
 
