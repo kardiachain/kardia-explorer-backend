@@ -66,6 +66,16 @@ func (c *Redis) UpdateTotalTxs(ctx context.Context, blockTxs uint64) (uint64, er
 	return totalTxs, nil
 }
 
+func (c *Redis) LatestBlockHeight(ctx context.Context) uint64 {
+	result, err := c.client.Get(ctx, KeyLatestBlockHeight).Uint64()
+	c.logger.Debug("LatestBlockHeight", zap.Uint64("Height", result))
+	if err != nil {
+		// Handle error here
+		c.logger.Warn("cannot get latest block height value from cache")
+	}
+	return result
+}
+
 func (c *Redis) PopReceipt(ctx context.Context) (*types.Receipt, error) {
 	panic("implement me")
 }
@@ -95,15 +105,17 @@ func (c *Redis) InsertTxs(ctx context.Context, txs []*types.Transaction) error {
 	// todo: benchmark with different size of txs
 	// todo: this way look quite stupid
 
+	KeyTxsOfThisBlock := fmt.Sprintf(KeyTxsOfBlockIndex, 0)
+	c.logger.Debug("Pushing txs to cache:", zap.String("KeyTxsOfThisBlock", KeyTxsOfThisBlock))
 	for _, tx := range txs {
-		c.logger.Debug("Tx to cache", zap.Any("Tx", tx))
+		// c.logger.Debug("Tx to cache", zap.Any("Tx", tx))
 		txStr, err := json.Marshal(tx)
 		if err != nil {
 			c.logger.Debug("cannot marshal txs arr to string")
 			return err
 		}
 
-		txIndex, err := c.client.LPush(ctx, KeyTxsOfBlockIndex, txStr).Result()
+		txIndex, err := c.client.LPush(ctx, KeyTxsOfThisBlock, txStr).Result()
 		if err != nil {
 			c.logger.Debug("cannot insert txs")
 			return err
@@ -161,6 +173,7 @@ func (c *Redis) InsertBlock(ctx context.Context, block *types.Block) error {
 	lPushResult := c.client.LPush(ctx, KeyBlocks, blockCache.String())
 	blockIndex, err := lPushResult.Result()
 	if err != nil {
+		c.logger.Debug("Error pushing new block", zap.Error(err))
 		return err
 	}
 
@@ -171,6 +184,9 @@ func (c *Redis) InsertBlock(ctx context.Context, block *types.Block) error {
 		return err
 	}
 	if err := c.client.Set(ctx, blockByNumberKey, blockIndex, 0).Err(); err != nil {
+		return err
+	}
+	if err := c.client.Set(ctx, KeyLatestBlockHeight, block.Height, 0).Err(); err != nil {
 		return err
 	}
 
@@ -202,10 +218,8 @@ func (c *Redis) LatestBlocks(ctx context.Context, pagination *types.Pagination) 
 		startIndex       = 0 + int64(pagination.Skip)
 		endIndex         = startIndex + int64(pagination.Limit) - 1
 	)
-	c.logger.Debug("Getting blocks from cache: ", zap.Int("pagination.Skip", pagination.Skip), zap.Int("pagination.Limit", pagination.Limit))
 	marshalledBlocks, err := c.client.LRange(ctx, KeyBlocks, startIndex, endIndex).Result()
-	c.logger.Debug("Getting blocks from cache: ", zap.Int64("startIndex", startIndex), zap.Int64("endIndex", endIndex))
-	c.logger.Debug("Blocks from cache: ", zap.Any("marshalledBlocks", marshalledBlocks))
+	c.logger.Debug("Getting blocks from cache: ", zap.Int64("startIndex", startIndex), zap.Int64("endIndex", endIndex), zap.Uint64("Current latest block height", c.LatestBlockHeight(ctx)))
 	if err != nil {
 		return nil, err
 	}
@@ -217,7 +231,7 @@ func (c *Redis) LatestBlocks(ctx context.Context, pagination *types.Pagination) 
 		}
 		blockList = append(blockList, &b)
 	}
-	c.logger.Debug("Blocks from cache: ", zap.Any("blocks", blockList))
+	c.logger.Debug("Latest blocks from cache: ", zap.Any("blocks", blockList))
 	return blockList, nil
 }
 
@@ -232,7 +246,7 @@ func (c *Redis) LatestTransactions(ctx context.Context, pagination *types.Pagina
 	KeyTxsOfLatestBlock := fmt.Sprintf(KeyTxsOfBlockIndex, 0)
 	c.logger.Debug("Get latest txs from block", zap.String("Key", KeyTxsOfLatestBlock))
 	marshalledTxs, err := c.client.LRange(ctx, KeyTxsOfLatestBlock, startIndex, endIndex).Result()
-	c.logger.Debug("Getting Txs from cache: ", zap.Int64("startIndex", startIndex), zap.Int64("endIndex", endIndex))
+	c.logger.Debug("Getting txs from cache: ", zap.Int64("startIndex", startIndex), zap.Int64("endIndex", endIndex))
 	if err != nil {
 		return nil, err
 	}
@@ -245,7 +259,7 @@ func (c *Redis) LatestTransactions(ctx context.Context, pagination *types.Pagina
 		}
 		txList = append(txList, &tx)
 	}
-	c.logger.Debug("Txs from cache: ", zap.Any("blocks", txList))
+	c.logger.Debug("Latest txs from cache: ", zap.Any("txs", txList))
 	return txList, nil
 }
 
