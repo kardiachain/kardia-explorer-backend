@@ -19,10 +19,10 @@ func backfill(ctx context.Context, srv *server.Server) {
 			blockHeight, err := srv.PopErrorBlockHeight(ctx)
 			lgr := srv.Logger.With(zap.Uint64("block", blockHeight))
 			if err != nil {
-				lgr.Info("Refilling: Failed to pop error block number", zap.Error(err))
+				lgr.Debug("Refilling: Failed to pop error block number", zap.Error(err))
 				err := srv.InsertErrorBlocks(ctx, blockHeight-1, blockHeight+1)
 				if err != nil {
-					lgr.Error("Listener: Failed to insert error block height", zap.Error(err))
+					lgr.Error("Refilling: Failed to insert error block height", zap.Error(err))
 					continue
 				}
 			}
@@ -36,7 +36,7 @@ func backfill(ctx context.Context, srv *server.Server) {
 				lgr.Error("Refilling: Failed to get block", zap.Error(err))
 				err := srv.InsertErrorBlocks(ctx, blockHeight-1, blockHeight+1)
 				if err != nil {
-					lgr.Error("Listener: Failed to insert error block height", zap.Error(err))
+					lgr.Error("Refilling: Failed to insert error block height", zap.Error(err))
 					continue
 				}
 			}
@@ -44,7 +44,7 @@ func backfill(ctx context.Context, srv *server.Server) {
 				lgr.Error("Refilling: Block not found")
 				err := srv.InsertErrorBlocks(ctx, blockHeight-1, blockHeight+1)
 				if err != nil {
-					lgr.Error("Listener: Failed to insert error block height", zap.Error(err))
+					lgr.Error("Refilling: Failed to insert error block height", zap.Error(err))
 					continue
 				}
 			}
@@ -52,7 +52,7 @@ func backfill(ctx context.Context, srv *server.Server) {
 				lgr.Error("Refilling: Failed to import block", zap.Error(err))
 				err := srv.InsertErrorBlocks(ctx, blockHeight-1, blockHeight+1)
 				if err != nil {
-					lgr.Error("Listener: Failed to insert error block height", zap.Error(err))
+					lgr.Error("Refilling: Failed to insert error block height", zap.Error(err))
 					continue
 				}
 			}
