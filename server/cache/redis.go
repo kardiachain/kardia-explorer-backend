@@ -45,6 +45,7 @@ type Redis struct {
 
 func (c *Redis) TotalTxs(ctx context.Context) uint64 {
 	result, err := c.client.Get(ctx, KeyTotalTxs).Result()
+	c.logger.Debug("TotalTxs", zap.String("Total", result))
 	if err != nil {
 		// Handle error here
 		c.logger.Warn("cannot get total txs values")

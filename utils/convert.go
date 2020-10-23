@@ -11,5 +11,6 @@ func StrToInt64(data string) int64 {
 }
 
 func StrToUint64(data string) uint64 {
-	return uint64(StrToInt64(data))
+	i, _ := strconv.ParseUint(data, 10, 64)
+	return i
 }
