@@ -53,6 +53,8 @@ func (m *mongoDB) UpdateActiveAddresses(ctx context.Context, addresses []string)
 }
 
 func newMongoDB(cfg Config) (*mongoDB, error) {
+	cfg.Logger.Debug("Create mgo with config", zap.Any("config", cfg))
+
 	ctx := context.Background()
 	dbClient := &mongoDB{
 		logger:  cfg.Logger,
