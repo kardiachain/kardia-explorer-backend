@@ -227,7 +227,9 @@ func (c *Redis) LatestTransactions(ctx context.Context, pagination *types.Pagina
 	if endIndex > 0 {
 		endIndex = 0
 	}
-	marshalledTxs, err := c.client.LRange(ctx, KeyBlocks, startIndex, endIndex).Result()
+
+	KeyTxsOfLatestBlock := fmt.Sprintf(KeyTxsOfBlockIndex, 0)
+	marshalledTxs, err := c.client.LRange(ctx, KeyTxsOfLatestBlock, startIndex, endIndex).Result()
 	c.logger.Debug("Getting Txs from cache: ", zap.Int64("startIndex", startIndex), zap.Int64("endIndex", endIndex))
 	if err != nil {
 		return nil, err

@@ -253,6 +253,13 @@ func (s *Server) Txs(c echo.Context) error {
 		Limit: limit,
 	}
 
+	cachedTxs, err := s.cacheClient.LatestTransactions(ctx, pagination)
+	if err != nil {
+		s.logger.Debug("Cannot get latest txs from cache", zap.Error(err))
+	}
+
+	s.logger.Debug("Get txs from cached", zap.Any("CachedTxs", cachedTxs))
+
 	txs, err = s.dbClient.LatestTxs(ctx, pagination)
 	if err != nil {
 		return api.Invalid.Build(c)
