@@ -74,16 +74,7 @@ func newMongoDB(cfg Config) (*mongoDB, error) {
 	dbClient.wrapper.Database(mgoClient.Database(cfg.DbName))
 
 	if cfg.FlushDB {
-		//colNames, err := mgoClient.Database(cfg.DbName).ListCollectionNames(ctx, bson.M{})
-		//if err != nil {
-		//	return nil, err
-		//}
-		//for _, c := range colNames {
-		//	if _, err := dbClient.wrapper.C(c).RemoveAll(bson.M{}); err != nil {
-		//		return nil, err
-		//	}
-		//}
-
+		cfg.Logger.Debug("Start flush database")
 		if err := mgoClient.Database(cfg.DbName).Drop(ctx); err != nil {
 			return nil, err
 		}
@@ -407,7 +398,7 @@ func (m *mongoDB) LatestTxs(ctx context.Context, pagination *types.Pagination, g
 		if err := cursor.Decode(&tx); err != nil {
 			return nil, 0, err
 		}
-		m.logger.Debug("Get latest txs success", zap.Any("tx", tx))
+		//m.logger.Debug("Get latest txs success", zap.Any("tx", tx))
 		txs = append(txs, tx)
 	}
 	processTime := time.Since(start)
