@@ -364,7 +364,7 @@ func (m *mongoDB) InsertListTxByAddress(ctx context.Context, list []*types.Trans
 	return nil
 }
 
-func (m *mongoDB) LatestTxs(ctx context.Context, pagination *types.Pagination) ([]*types.Transaction, uint64, error) {
+func (m *mongoDB) LatestTxs(ctx context.Context, pagination *types.Pagination, getTotal bool) ([]*types.Transaction, uint64, error) {
 	opts := []*options.FindOptions{
 		m.wrapper.FindSetSort("-time"),
 		options.Find().SetProjection(bson.M{"ReceiptReceived": 0}),
@@ -384,6 +384,9 @@ func (m *mongoDB) LatestTxs(ctx context.Context, pagination *types.Pagination) (
 		}
 		m.logger.Debug("Get latest txs success", zap.Any("tx", tx))
 		txs = append(txs, tx)
+	}
+	if !getTotal {
+		return txs, 0, nil
 	}
 	total, err := m.wrapper.C(cTxs).Count(bson.M{}, nil)
 	if err != nil {
