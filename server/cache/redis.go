@@ -94,7 +94,9 @@ func (c *Redis) InsertTxs(ctx context.Context, txs []*types.Transaction) error {
 	}
 	// todo: benchmark with different size of txs
 	// todo: this way look quite stupid
+
 	for _, tx := range txs {
+		c.logger.Debug("Tx to cache", zap.Any("Tx", tx))
 		txStr, err := json.Marshal(tx)
 		if err != nil {
 			c.logger.Debug("cannot marshal txs arr to string")
