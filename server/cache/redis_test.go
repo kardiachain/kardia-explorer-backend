@@ -149,8 +149,8 @@ func TestRedis_InsertTxs(t *testing.T) {
 		logger *zap.Logger
 	}
 	type args struct {
-		ctx context.Context
-		txs []*types.Transaction
+		ctx   context.Context
+		block *types.Block
 	}
 	tests := []struct {
 		name    string
@@ -166,8 +166,8 @@ func TestRedis_InsertTxs(t *testing.T) {
 				client: tt.fields.client,
 				logger: tt.fields.logger,
 			}
-			if err := c.InsertTxs(tt.args.ctx, tt.args.txs); (err != nil) != tt.wantErr {
-				t.Errorf("InsertTxs() error = %v, wantErr %v", err, tt.wantErr)
+			if err := c.InsertTxsOfBlock(tt.args.ctx, tt.args.block); (err != nil) != tt.wantErr {
+				t.Errorf("InsertTxsOfBlock() error = %v, wantErr %v", err, tt.wantErr)
 			}
 		})
 	}

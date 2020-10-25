@@ -312,7 +312,7 @@ func Test_mongoDB_InsertTxs(t *testing.T) {
 				db:      tt.fields.db,
 			}
 			if err := m.InsertTxs(tt.args.ctx, tt.args.txs); (err != nil) != tt.wantErr {
-				t.Errorf("InsertTxs() error = %v, wantErr %v", err, tt.wantErr)
+				t.Errorf("InsertTxsOfBlock() error = %v, wantErr %v", err, tt.wantErr)
 			}
 		})
 	}

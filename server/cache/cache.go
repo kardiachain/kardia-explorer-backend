@@ -36,7 +36,7 @@ type Client interface {
 	BlockByHeight(ctx context.Context, blockHeight uint64) (*types.Block, error)
 	BlockByHash(ctx context.Context, blockHash string) (*types.Block, error)
 
-	InsertTxs(ctx context.Context, txs []*types.Transaction) error
+	InsertTxsOfBlock(ctx context.Context, block *types.Block) error
 	TxByHash(ctx context.Context, txHash string) (*types.Transaction, error)
 
 	BlocksSize(ctx context.Context) (int64, error)
