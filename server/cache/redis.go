@@ -243,8 +243,8 @@ func (c *Redis) LatestTransactions(ctx context.Context, pagination *types.Pagina
 		startIndex    = 0 + int64(pagination.Skip)
 		endIndex      = startIndex + int64(pagination.Limit) - 1
 	)
-
-	KeyTxsOfLatestBlock := fmt.Sprintf(KeyTxsOfBlockHeight, 0)
+	latestBlockHeight := c.LatestBlockHeight(ctx)
+	KeyTxsOfLatestBlock := fmt.Sprintf(KeyTxsOfBlockHeight, latestBlockHeight)
 	c.logger.Debug("Get latest txs from block", zap.String("Key", KeyTxsOfLatestBlock))
 	marshalledTxs, err := c.client.LRange(ctx, KeyTxsOfLatestBlock, startIndex, endIndex).Result()
 	c.logger.Debug("Getting txs from cache: ", zap.Int64("startIndex", startIndex), zap.Int64("endIndex", endIndex))
