@@ -9,6 +9,7 @@ import (
 	"syscall"
 
 	"github.com/joho/godotenv"
+	"go.uber.org/zap"
 
 	"github.com/kardiachain/explorer-backend/cfg"
 	"github.com/kardiachain/explorer-backend/kardia"
@@ -71,9 +72,34 @@ func main() {
 		BlockBuffer:  serviceCfg.BufferedBlocks,
 
 		Metrics: nil,
-		Logger:  logger,
+		Logger:  logger.With(zap.String("service", "listener")),
 	}
 	srv, err := server.New(srvConfig)
+	if err != nil {
+		logger.Panic(err.Error())
+	}
+
+	// Try to setup new srv instance since if we use same instance, maybe we will meet pool limit conn for mgo
+	srvConfigForBackfill := server.Config{
+		StorageAdapter: db.Adapter(serviceCfg.StorageDriver),
+		StorageURI:     serviceCfg.StorageURI,
+		StorageDB:      serviceCfg.StorageDB,
+		StorageIsFlush: serviceCfg.StorageIsFlush,
+
+		KardiaProtocol:     kardia.Protocol(serviceCfg.KardiaProtocol),
+		KardiaURLs:         serviceCfg.KardiaURLs,
+		KardiaTrustedNodes: serviceCfg.KardiaTrustedNodes,
+
+		CacheAdapter: cache.Adapter(serviceCfg.CacheEngine),
+		CacheURL:     serviceCfg.CacheURL,
+		CacheDB:      serviceCfg.CacheDB,
+		CacheIsFlush: serviceCfg.CacheIsFlush,
+		BlockBuffer:  serviceCfg.BufferedBlocks,
+
+		Metrics: nil,
+		Logger:  logger.With(zap.String("service", "backfill")),
+	}
+	backfillSrv, err := server.New(srvConfigForBackfill)
 	if err != nil {
 		logger.Panic(err.Error())
 	}
@@ -81,7 +107,8 @@ func main() {
 	// Start listener in new go routine
 	// todo @longnd: Running multi goroutine same time
 	go listener(ctx, srv)
-	go backfill(ctx, srv)
+	backfillCtx, _ := context.WithCancel(context.Background())
+	go backfill(backfillCtx, backfillSrv)
 	//updateAddresses(ctx, true, 0, srv)
 	<-waitExit
 	logger.Info("Grabber stopping")
