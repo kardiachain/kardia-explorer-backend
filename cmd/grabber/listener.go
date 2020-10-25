@@ -24,12 +24,13 @@ func listener(ctx context.Context, srv *server.Server) {
 			return
 		case <-t.C:
 			latest, err := srv.LatestBlockHeight(ctx)
-			srv.Logger.Debug("Get block height from network", zap.Uint64("BlockHeight", latest))
+			srv.Logger.Debug("Get block height from network", zap.Uint64("BlockHeight", latest), zap.Uint64("PrevHeader", prevHeader))
 			if err != nil {
 				srv.Logger.Error("Listener: Failed to get latest block number", zap.Error(err))
 				continue
 			}
 			lgr := srv.Logger.With(zap.Uint64("block", latest))
+
 			// todo @longnd: this check quite bad, since its require us to keep backfill running
 			// for example, if our
 			if prevHeader != latest {
