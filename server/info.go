@@ -91,6 +91,10 @@ func (s *infoServer) ImportBlock(ctx context.Context, block *types.Block, writeT
 		}
 	}
 
+	if _, err := s.cacheClient.UpdateTotalTxs(ctx, block.NumTxs); err != nil {
+		return err
+	}
+
 	// Start import block
 	// consider new routine here
 	// todo: add metrics
@@ -101,7 +105,8 @@ func (s *infoServer) ImportBlock(ctx context.Context, block *types.Block, writeT
 	}
 
 	if writeToCache {
-		if err := s.cacheClient.InsertTxs(ctx, block.Txs); err != nil {
+		s.logger.Debug("Insert block txs to cached")
+		if err := s.cacheClient.InsertTxsOfBlock(ctx, block); err != nil {
 			s.logger.Debug("cannot import txs to cache", zap.Error(err))
 			return err
 		}

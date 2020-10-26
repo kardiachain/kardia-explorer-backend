@@ -97,8 +97,11 @@ func (s *Server) Validators(c echo.Context) error {
 func (s *Server) Blocks(c echo.Context) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancel()
-	var page, limit int
-	var err error
+	var (
+		page, limit int
+		err         error
+		blocks      []*types.Block
+	)
 	pageParams := c.QueryParam("page")
 	limitParams := c.QueryParam("limit")
 	page, err = strconv.Atoi(pageParams)
@@ -109,21 +112,24 @@ func (s *Server) Blocks(c echo.Context) error {
 	if err != nil {
 		limit = 20
 	}
-
-	// todo @londnd: implement read from cache,
-	// blocks, err := s.cacheClient.LatestBlocks(ctx, &types.Pagination{
-	// 	Skip:  page*limit - limit,
-	// 	Limit: limit,
-	// })
-	// if err != nil || blocks == nil {
-	blocks, err := s.dbClient.Blocks(ctx, &types.Pagination{
+	pagination := &types.Pagination{
 		Skip:  page * limit,
 		Limit: limit,
-	})
-	if err != nil {
-		return api.InternalServer.Build(c)
 	}
-	// }
+
+	// todo @londnd: implement read from cache,
+	blocks, err = s.cacheClient.LatestBlocks(ctx, pagination)
+	if err != nil || blocks == nil {
+		s.logger.Debug("Cannot get latest blocks from cache", zap.Error(err))
+		blocks, err = s.dbClient.Blocks(ctx, pagination)
+		if err != nil {
+			s.logger.Debug("Cannot get latest blocks from db", zap.Error(err))
+			return api.InternalServer.Build(c)
+		}
+		s.logger.Debug("Got latest blocks from db")
+	}
+	s.logger.Debug("Got latest blocks from cache")
+
 	return api.OK.SetData(struct {
 		Page  int         `json:"page"`
 		Limit int         `json:"limit"`
@@ -235,15 +241,9 @@ func (s *Server) Txs(c echo.Context) error {
 	var (
 		page, limit int
 		err         error
-		getTotal    bool
 	)
 	pageParams := c.QueryParam("page")
 	limitParams := c.QueryParam("limit")
-	if c.QueryParam("total") == "1" {
-		getTotal = true
-	} else {
-		getTotal = false
-	}
 	page, err = strconv.Atoi(pageParams)
 	if err != nil {
 		page = 1
@@ -259,9 +259,17 @@ func (s *Server) Txs(c echo.Context) error {
 		Limit: limit,
 	}
 
-	txs, total, err := s.dbClient.LatestTxs(ctx, pagination, getTotal)
+	txs, err = s.cacheClient.LatestTransactions(ctx, pagination)
 	if err != nil {
-		return api.Invalid.Build(c)
+		s.logger.Debug("Cannot get latest txs from cache", zap.Error(err))
+		txs, err = s.dbClient.LatestTxs(ctx, pagination)
+		if err != nil {
+			s.logger.Debug("Cannot get latest txs from db", zap.Error(err))
+			return api.Invalid.Build(c)
+		}
+		s.logger.Debug("Got latest txs from db")
+	} else {
+		s.logger.Debug("Got latest txs from cached")
 	}
 
 	return api.OK.SetData(struct {
@@ -272,7 +280,7 @@ func (s *Server) Txs(c echo.Context) error {
 	}{
 		Page:  page,
 		Limit: limit,
-		Total: total,
+		Total: s.cacheClient.TotalTxs(ctx),
 		Data:  txs,
 	}).Build(c)
 }
