@@ -88,8 +88,10 @@ func newMongoDB(cfg Config) (*mongoDB, error) {
 	}
 
 	for _, cIdx := range []CIndex{
+		// Add blockNumber to improve deleteAllTx by blockNumber
+		{c: cTxs, model: mongo.IndexModel{Keys: bson.M{"blockNumber": -1}, Options: options.Index().SetBackground(true).SetSparse(true)}},
 		//{c: cTxs, model: mongo.IndexModel{Keys: bson.M{"hash": 1}, Options: options.Index().SetUnique(true).SetBackground(true).SetSparse(true)}},
-		//{c: cTxs, model: mongo.IndexModel{Keys: bson.M{"blockNumber": -1}, Options: options.Index().SetBackground(true).SetSparse(true)}},
+
 		//{c: cTxs, model: mongo.IndexModel{Keys: bson.M{"time": -1}, Options: options.Index().SetBackground(true).SetSparse(true)}},
 		//{c: cTxs, model: mongo.IndexModel{Keys: bson.M{"contractAddress": 1}, Options: options.Index().SetBackground(true).SetSparse(true)}},
 	} {
