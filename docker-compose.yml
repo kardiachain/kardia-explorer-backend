@@ -17,10 +17,7 @@ services:
     restart: always
     ports:
       - 27017:27017
-    command:
-      - [ "--wiredTigerCacheSizeGB","4" ]
-      - [ "--wiredTigerCollectionBlockCompressor","zstd" ]
-      - [ "--wiredTigerJournalCompressor","zstd" ]
+    command: "--wiredTigerCacheSizeGB 4 --wiredTigerCollectionBlockCompressor zstd --wiredTigerJournalCompressor zstd"
   postgres:
     image: postgres:11.9
     container_name: "explorer-postgres"
