@@ -35,15 +35,15 @@ func (s *Server) Stats(c echo.Context) error {
 	}
 
 	type Stat struct {
-		NumTxs uint64    `json:"numTxs"`
-		Time   time.Time `json:"time"`
+		NumTxs uint64 `json:"numTxs"`
+		Time   uint64 `json:"time"`
 	}
 
 	var stats []*Stat
 	for _, b := range blocks {
 		stat := &Stat{
 			NumTxs: b.NumTxs,
-			Time:   b.Time,
+			Time:   uint64(b.Time.Unix()),
 		}
 		stats = append(stats, stat)
 	}
@@ -97,8 +97,11 @@ func (s *Server) Validators(c echo.Context) error {
 func (s *Server) Blocks(c echo.Context) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancel()
-	var page, limit int
-	var err error
+	var (
+		page, limit int
+		err         error
+		blocks      []*types.Block
+	)
 	pageParams := c.QueryParam("page")
 	limitParams := c.QueryParam("limit")
 	page, err = strconv.Atoi(pageParams)
@@ -109,21 +112,24 @@ func (s *Server) Blocks(c echo.Context) error {
 	if err != nil {
 		limit = 20
 	}
+	pagination := &types.Pagination{
+		Skip:  page * limit,
+		Limit: limit,
+	}
 
 	// todo @londnd: implement read from cache,
-	// blocks, err := s.cacheClient.LatestBlocks(ctx, &types.Pagination{
-	// 	Skip:  page*limit - limit,
-	// 	Limit: limit,
-	// })
-	// if err != nil || blocks == nil {
-	blocks, err := s.dbClient.Blocks(ctx, &types.Pagination{
-		Skip:  page*limit - limit,
-		Limit: limit,
-	})
-	if err != nil {
-		return api.InternalServer.Build(c)
+	blocks, err = s.cacheClient.LatestBlocks(ctx, pagination)
+	if err != nil || blocks == nil {
+		s.logger.Debug("Cannot get latest blocks from cache", zap.Error(err))
+		blocks, err = s.dbClient.Blocks(ctx, pagination)
+		if err != nil {
+			s.logger.Debug("Cannot get latest blocks from db", zap.Error(err))
+			return api.InternalServer.Build(c)
+		}
+		s.logger.Debug("Got latest blocks from db")
 	}
-	// }
+	s.logger.Debug("Got latest blocks from cache")
+
 	return api.OK.SetData(struct {
 		Page  int         `json:"page"`
 		Limit int         `json:"limit"`
@@ -137,28 +143,23 @@ func (s *Server) Blocks(c echo.Context) error {
 
 func (s *Server) Block(c echo.Context) error {
 	ctx := context.Background()
-	blockHash := c.QueryParam("hash")
-
-	var blockHeight uint64
-	blockHeightStr := c.QueryParam("height")
-	if blockHeightStr != "" {
-		height, err := strconv.Atoi(blockHeightStr)
-		if err != nil || height <= 0 {
-			return api.Invalid.Build(c)
-		}
-		blockHeight = uint64(height)
-	}
-
-	var block *types.Block
-	var err error
-	if blockHash != "" {
-		block, err = s.dbClient.BlockByHash(ctx, blockHash)
+	blockHashOrHeightStr := c.Param("block")
+	var (
+		block *types.Block
+		err   error
+	)
+	if strings.HasPrefix(blockHashOrHeightStr, "0x") {
+		s.Logger.Info("get block by hash:", zap.String("blockHash", blockHashOrHeightStr))
+		block, err = s.dbClient.BlockByHash(ctx, blockHashOrHeightStr)
 		if err != nil {
 			return api.Invalid.Build(c)
 		}
-	}
-
-	if blockHeight > 0 {
+	} else {
+		blockHeight, err := strconv.ParseUint(blockHashOrHeightStr, 10, 64)
+		s.Logger.Info("get block by height:", zap.Uint64("blockHeight", blockHeight))
+		if err != nil || blockHeight <= 0 {
+			return api.Invalid.Build(c)
+		}
 		block, err = s.dbClient.BlockByHeight(ctx, blockHeight)
 		if err != nil {
 			return api.Invalid.Build(c)
@@ -189,7 +190,10 @@ func (s *Server) BlockTxs(c echo.Context) error {
 	}
 	// Random number of txs of block hash
 
-	var txs []*types.Transaction
+	var (
+		txs   []*types.Transaction
+		total uint64
+	)
 	pagination := &types.Pagination{
 		Skip:  page * limit,
 		Limit: limit,
@@ -197,7 +201,7 @@ func (s *Server) BlockTxs(c echo.Context) error {
 	if strings.HasPrefix(block, "0x") {
 		s.logger.Debug("fetch block txs by hash", zap.String("hash", block))
 
-		txs, err = s.dbClient.TxsByBlockHash(ctx, block, pagination)
+		txs, total, err = s.dbClient.TxsByBlockHash(ctx, block, pagination)
 		if err != nil {
 			s.logger.Debug("cannot get txs by block hash", zap.String("blockHash", block))
 			return api.InternalServer.Build(c)
@@ -213,7 +217,7 @@ func (s *Server) BlockTxs(c echo.Context) error {
 			return api.Invalid.Build(c)
 		}
 		// Convert to height
-		txs, err = s.dbClient.TxsByBlockHeight(ctx, uint64(height), pagination)
+		txs, total, err = s.dbClient.TxsByBlockHeight(ctx, uint64(height), pagination)
 		if err != nil {
 			return api.Invalid.Build(c)
 		}
@@ -222,12 +226,61 @@ func (s *Server) BlockTxs(c echo.Context) error {
 	return api.OK.SetData(struct {
 		Page  int         `json:"page"`
 		Limit int         `json:"limit"`
-		Total int         `json:"total"`
+		Total uint64      `json:"total"`
 		Data  interface{} `json:"data"`
 	}{
 		Page:  page,
 		Limit: limit,
-		Total: limit * 15,
+		Total: total,
+		Data:  txs,
+	}).Build(c)
+}
+
+func (s *Server) Txs(c echo.Context) error {
+	ctx := context.Background()
+	var (
+		page, limit int
+		err         error
+	)
+	pageParams := c.QueryParam("page")
+	limitParams := c.QueryParam("limit")
+	page, err = strconv.Atoi(pageParams)
+	if err != nil {
+		page = 1
+	}
+	limit, err = strconv.Atoi(limitParams)
+	if err != nil {
+		limit = 20
+	}
+
+	var txs []*types.Transaction
+	pagination := &types.Pagination{
+		Skip:  page * limit,
+		Limit: limit,
+	}
+
+	txs, err = s.cacheClient.LatestTransactions(ctx, pagination)
+	if err != nil {
+		s.logger.Debug("Cannot get latest txs from cache", zap.Error(err))
+		txs, err = s.dbClient.LatestTxs(ctx, pagination)
+		if err != nil {
+			s.logger.Debug("Cannot get latest txs from db", zap.Error(err))
+			return api.Invalid.Build(c)
+		}
+		s.logger.Debug("Got latest txs from db")
+	} else {
+		s.logger.Debug("Got latest txs from cached")
+	}
+
+	return api.OK.SetData(struct {
+		Page  int         `json:"page"`
+		Limit int         `json:"limit"`
+		Total uint64      `json:"total"`
+		Data  interface{} `json:"data"`
+	}{
+		Page:  page,
+		Limit: limit,
+		Total: s.cacheClient.TotalTxs(ctx),
 		Data:  txs,
 	}).Build(c)
 }
@@ -282,9 +335,10 @@ func (s *Server) Balance(c echo.Context) error {
 }
 
 func (s *Server) AddressTxs(c echo.Context) error {
+	ctx := context.Background()
 	var page, limit int
 	var err error
-	//blockHash := c.Param("blockHash")
+	address := c.Param("address")
 	pageParams := c.QueryParam("page")
 	limitParams := c.QueryParam("limit")
 	page, err = strconv.Atoi(pageParams)
@@ -295,25 +349,27 @@ func (s *Server) AddressTxs(c echo.Context) error {
 	if err != nil {
 		limit = 20
 	}
-
-	var txs []*types.Transaction
-	for i := 0; i < limit; i++ {
-		tx := &types.Transaction{}
-		if err := faker.FakeData(&tx); err != nil {
-			return err
-		}
-		txs = append(txs, tx)
+	pagination := &types.Pagination{
+		Skip:  page * limit,
+		Limit: limit,
 	}
 
+	txs, total, err := s.dbClient.TxsByAddress(ctx, address, pagination)
+	if err != nil {
+		s.logger.Debug("error while get address txs:", zap.Error(err))
+		return err
+	}
+
+	s.logger.Info("address txs:", zap.String("address", address))
 	return api.OK.SetData(struct {
 		Page  int         `json:"page"`
 		Limit int         `json:"limit"`
-		Total int         `json:"total"`
+		Total uint64      `json:"total"`
 		Data  interface{} `json:"data"`
 	}{
 		Page:  page,
 		Limit: limit,
-		Total: limit * 25,
+		Total: total,
 		Data:  txs,
 	}).Build(c)
 }

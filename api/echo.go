@@ -63,6 +63,7 @@ type EchoServer interface {
 	AddressTxHashByNonce(c echo.Context) error
 
 	// Tx
+	Txs(c echo.Context) error
 	TxByHash(c echo.Context) error
 	TxExist(c echo.Context) error
 
@@ -109,6 +110,11 @@ func bind(gr *echo.Group, srv EchoServer) {
 		},
 		{
 			method: echo.GET,
+			path:   "/blocks/:block",
+			fn:     srv.Block,
+		},
+		{
+			method: echo.GET,
 			// Params: block's hash
 			// Query params: ?page=1&limit=10
 			path: "/block/:block/txs",
@@ -118,6 +124,12 @@ func bind(gr *echo.Group, srv EchoServer) {
 			method: echo.GET,
 			path:   "/txs/:txHash",
 			fn:     srv.TxByHash,
+		},
+		{
+			method: echo.GET,
+			// Query params: ?page=1&limit=10
+			path: "/txs",
+			fn:   srv.Txs,
 		},
 		// Address
 		{
@@ -133,7 +145,7 @@ func bind(gr *echo.Group, srv EchoServer) {
 		// Tokens
 		{
 			method:      echo.GET,
-			path:        "/tokens/:address/txs",
+			path:        "/addresses/:address/txs",
 			fn:          srv.AddressTxs,
 			middlewares: nil,
 		},

@@ -14,7 +14,7 @@ type Transaction struct {
 	From             string    `json:"from" bson:"from"`
 	To               string    `json:"to" bson:"to"`
 	Status           bool      `json:"status" bson:"status"`
-	ContractAddress  string    `json:"contract_address" bson:"contractAddress"`
+	ContractAddress  string    `json:"contractAddress" bson:"contractAddress"`
 	Value            string    `json:"value" bson:"value"`
 	GasPrice         uint64    `json:"gasPrice" bson:"gasPrice"`
 	GasFee           uint64    `json:"gas" bson:"gas"`

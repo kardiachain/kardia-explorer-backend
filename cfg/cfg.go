@@ -95,7 +95,7 @@ func New() (ExplorerConfig, error) {
 	cacheIsFlushStr := os.Getenv("CACHE_IS_FLUSH")
 	cacheIsFlush, err := strconv.ParseBool(cacheIsFlushStr)
 	if err != nil {
-		cacheIsFlush = false
+		cacheIsFlush = true
 	}
 
 	storageMinConnStr := os.Getenv("STORAGE_MIN_CONN")

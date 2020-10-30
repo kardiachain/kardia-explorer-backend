@@ -31,7 +31,6 @@ import (
 	"github.com/kardiachain/go-kardiamain/rpc"
 
 	"github.com/kardiachain/explorer-backend/types"
-	"github.com/kardiachain/explorer-backend/utils"
 )
 
 type RPCClient struct {
@@ -204,13 +203,18 @@ func (ec *Client) SendRawTransaction(ctx context.Context, tx *types.Transaction)
 	return ec.defaultClient.c.CallContext(ctx, nil, "tx_sendRawTransaction", common.ToHex(data))
 }
 
-func (ec *Client) Peers(ctx context.Context) (peers []*types.PeerInfo, err error) {
-	var tempPeers []*types.PeerInfo
+func (ec *Client) Peers(ctx context.Context) (peers *types.PeerInfo, err error) {
+	var tempPeers *types.PeerInfo
 	for _, client := range ec.clientList {
 		err = client.c.CallContext(ctx, &tempPeers, "node_peers")
-		for _, tempPeer := range tempPeers {
-			tempPeer.Address = utils.EnodeToAddress(tempPeer.Enode)
-			appendPeersList(tempPeer, peers)
+		for _, tempPeer := range tempPeers.NodesInfo {
+			appendPeersList(tempPeer, tempPeers.NodesInfo)
+		}
+	}
+	for _, client := range ec.trustedClientList {
+		err = client.c.CallContext(ctx, &tempPeers, "node_peers")
+		for _, tempPeer := range tempPeers.NodesInfo {
+			appendPeersList(tempPeer, tempPeers.NodesInfo)
 		}
 	}
 	return peers, err
@@ -227,7 +231,6 @@ func (ec *Client) NodesInfo(ctx context.Context) (nodes []*types.NodeInfo, err e
 		err = client.c.CallContext(ctx, &node, "node_nodeInfo")
 		nodes = append(nodes, node)
 	}
-	ec.lgr.Debug("NodesInfo:", zap.Any("nodes", nodes))
 	return nodes, err
 }
 
@@ -276,15 +279,10 @@ func (ec *Client) Validator(ctx context.Context, rpcURL string) (*types.Validato
 		return nil, err
 	}
 	for _, node := range nodes {
-		if node.Address == ret.Address {
-			ret.Name = node.Name
-			arr := strings.Split(node.Enode, "@")
-			ret.PeerCount = node.PeerCount
-			ret.RpcUrl = arr[len(arr)-1]
-			ret.Protocols = []string{}
-			for key := range node.Protocols {
-				ret.Protocols = append(ret.Protocols, key)
-			}
+		if strings.Contains(strings.ToLower(ret.Address), node.ID) {
+			ret.Name = node.Moniker
+			ret.RpcUrl = node.Other.RPCAddress
+			ret.Protocols = node.ProtocolVersion
 			return ret, nil
 		}
 	}
@@ -311,17 +309,11 @@ func (ec *Client) Validators(ctx context.Context) ([]*types.Validator, error) {
 			Address:     val["address"].(string),
 			VotingPower: val["votingPower"].(float64),
 		}
-		ec.lgr.Debug("Validators:", zap.Any("nodes", nodes))
 		for _, node := range nodes {
-			if node.Address == tmp.Address {
-				tmp.Name = node.Name
-				arr := strings.Split(node.Enode, "@")
-				tmp.PeerCount = node.PeerCount
-				tmp.RpcUrl = arr[len(arr)-1]
-				tmp.Protocols = []string{}
-				for key := range node.Protocols {
-					tmp.Protocols = append(tmp.Protocols, key)
-				}
+			if strings.Contains(strings.ToLower(tmp.Address), node.ID) {
+				tmp.Name = node.Moniker
+				tmp.RpcUrl = node.Other.RPCAddress
+				tmp.Protocols = node.ProtocolVersion
 				var existed bool = false
 				for _, currValidator := range ret {
 					if currValidator.Address == tmp.Address {
@@ -358,9 +350,9 @@ func (ec *Client) getBlockHeader(ctx context.Context, method string, args ...int
 	return &raw, nil
 }
 
-func appendPeersList(peer *types.PeerInfo, peersList []*types.PeerInfo) {
+func appendPeersList(peer *types.NodeInfo, peersList []*types.NodeInfo) {
 	for _, tmp := range peersList {
-		if tmp.Enode == peer.Enode {
+		if tmp.ID == peer.ID {
 			return
 		}
 	}

@@ -44,77 +44,78 @@ func (w *KaiMgo) Ping() error {
 	return nil
 }
 
-func (w *KaiMgo) EnsureIndex() {
-
+func (w *KaiMgo) EnsureIndex(model mongo.IndexModel) error {
+	_, err := w.col.Indexes().CreateOne(context.Background(), model)
+	return err
 }
 
 func (w *KaiMgo) Update(filter interface{}, update interface{},
 	opts ...*options.UpdateOptions) (*mongo.UpdateResult, error) {
-	return w.col.UpdateOne(context.TODO(), filter, update, opts...)
+	return w.col.UpdateOne(context.Background(), filter, update, opts...)
 }
 
 func (w *KaiMgo) Upsert(filter interface{}, update interface{},
 	opts ...*options.UpdateOptions) (*mongo.UpdateResult, error) {
 	opts = append(opts, options.Update().SetUpsert(true))
-	return w.col.UpdateOne(context.TODO(), filter, bson.M{"$set": update}, opts...)
+	return w.col.UpdateOne(context.Background(), filter, bson.M{"$set": update}, opts...)
 }
 
 func (w *KaiMgo) RemoveAll(filter interface{},
 	opts ...*options.DeleteOptions) (*mongo.DeleteResult, error) {
-	return w.col.DeleteMany(context.TODO(), filter, opts...)
+	return w.col.DeleteMany(context.Background(), filter, opts...)
 }
 
 func (w *KaiMgo) Find(filter interface{},
 	opts ...*options.FindOptions) (*mongo.Cursor, error) {
-	return w.col.Find(context.TODO(), filter, opts...)
+	return w.col.Find(context.Background(), filter, opts...)
 }
 
 func (w *KaiMgo) FindOne(filter interface{},
 	opts ...*options.FindOneOptions) *mongo.SingleResult {
-	return w.col.FindOne(context.TODO(), filter, opts...)
+	return w.col.FindOne(context.Background(), filter, opts...)
 }
 
 func (w *KaiMgo) Select(filter interface{},
 	opts ...*options.DeleteOptions) (*mongo.DeleteResult, error) {
-	return w.col.DeleteMany(context.TODO(), filter, opts...)
+	return w.col.DeleteMany(context.Background(), filter, opts...)
 }
 
 func (w *KaiMgo) Sort(filter interface{},
 	opts ...*options.DeleteOptions) (*mongo.DeleteResult, error) {
-	return w.col.DeleteMany(context.TODO(), filter, opts...)
+	return w.col.DeleteMany(context.Background(), filter, opts...)
 }
 
 func (w *KaiMgo) One(filter interface{},
 	opts ...*options.DeleteOptions) (*mongo.DeleteResult, error) {
-	return w.col.DeleteMany(context.TODO(), filter, opts...)
+	return w.col.DeleteMany(context.Background(), filter, opts...)
 }
 
 func (w *KaiMgo) BulkWrite(models []mongo.WriteModel,
 	opts ...*options.BulkWriteOptions) (*mongo.BulkWriteResult, error) {
 	opts = append(opts, options.BulkWrite().SetOrdered(false), options.BulkWrite().SetBypassDocumentValidation(true))
-	return w.col.BulkWrite(context.TODO(), models, opts...)
+	return w.col.BulkWrite(context.Background(), models, opts...)
 }
 
 func (w *KaiMgo) BulkInsert(models []mongo.WriteModel,
 	opts ...*options.BulkWriteOptions) (*mongo.BulkWriteResult, error) {
 	opts = append(opts, options.BulkWrite().SetOrdered(false), options.BulkWrite().SetBypassDocumentValidation(true))
-	return w.col.BulkWrite(context.TODO(), models, opts...)
+	return w.col.BulkWrite(context.Background(), models, opts...)
 }
 
 func (w *KaiMgo) BulkUpsert(models []mongo.WriteModel,
 	opts ...*options.BulkWriteOptions) (*mongo.BulkWriteResult, error) {
 	opts = append(opts, options.BulkWrite().SetOrdered(false), options.BulkWrite().SetBypassDocumentValidation(true))
-	return w.col.BulkWrite(context.TODO(), models, opts...)
+	return w.col.BulkWrite(context.Background(), models, opts...)
 }
 
 func (w *KaiMgo) Count(filter interface{},
 	opts ...*options.CountOptions) (int64, error) {
-	return w.col.CountDocuments(context.TODO(), filter, opts...)
+	return w.col.CountDocuments(context.Background(), filter, opts...)
 }
 
 func (w *KaiMgo) Insert(document interface{},
 	opts ...*options.InsertOneOptions) (*mongo.InsertOneResult, error) {
-	return w.col.InsertOne(context.TODO(), document, opts...)
+	return w.col.InsertOne(context.Background(), document, opts...)
 }
 
 func (w *KaiMgo) FindSetSort(data string) *options.FindOptions {

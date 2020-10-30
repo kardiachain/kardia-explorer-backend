@@ -26,7 +26,10 @@ type InfoServer interface {
 	BlockByHeight(ctx context.Context, blockHeight uint64) (*types.Block, error)
 	BlockByHash(ctx context.Context, blockHash string) (*types.Block, error)
 
-	ImportBlock(ctx context.Context, block *types.Block) (*types.Block, error)
+	ImportBlock(ctx context.Context, block *types.Block, writeToCache bool) (*types.Block, error)
+
+	InsertErrorBlocks(ctx context.Context, start uint64, end uint64) error
+	PopErrorBlockHeight(ctx context.Context) (uint64, error)
 }
 
 // infoServer handle how data was retrieved, stored without interact with other network excluded dbClient
@@ -79,10 +82,17 @@ func (s *infoServer) BlockByHeight(ctx context.Context, blockHeight uint64) (*ty
 }
 
 // ImportBlock handle workflow of import block into system
-func (s *infoServer) ImportBlock(ctx context.Context, block *types.Block) error {
+func (s *infoServer) ImportBlock(ctx context.Context, block *types.Block, writeToCache bool) error {
+	s.logger.Info("Importing block:", zap.Uint64("Height", block.Height), zap.Int("Txs length", len(block.Txs)), zap.Int("Receipts length", len(block.Receipts)))
 	// Update cacheClient with simple struct for tracking
-	if err := s.cacheClient.InsertBlock(ctx, block); err != nil {
-		s.logger.Debug("cannot import block to cache", zap.Error(err))
+	if writeToCache {
+		if err := s.cacheClient.InsertBlock(ctx, block); err != nil {
+			s.logger.Debug("cannot import block to cache", zap.Error(err))
+		}
+	}
+
+	if _, err := s.cacheClient.UpdateTotalTxs(ctx, block.NumTxs); err != nil {
+		return err
 	}
 
 	// Start import block
@@ -94,9 +104,12 @@ func (s *infoServer) ImportBlock(ctx context.Context, block *types.Block) error 
 		return err
 	}
 
-	if err := s.cacheClient.InsertTxs(ctx, block.Txs); err != nil {
-		s.logger.Debug("cannot import txs to cache", zap.Error(err))
-		return err
+	if writeToCache {
+		s.logger.Debug("Insert block txs to cached")
+		if err := s.cacheClient.InsertTxsOfBlock(ctx, block); err != nil {
+			s.logger.Debug("cannot import txs to cache", zap.Error(err))
+			return err
+		}
 	}
 
 	insertTxTime := time.Now()
@@ -107,14 +120,23 @@ func (s *infoServer) ImportBlock(ctx context.Context, block *types.Block) error 
 	insertTxConsume := time.Since(insertTxTime)
 	s.logger.Debug("Total time for import tx", zap.Any("TimeConsumed", insertTxConsume))
 
-	insertReceiptsTime := time.Now()
-	if err := s.ImportReceipts(ctx, block); err != nil {
+	return nil
+}
+
+func (s *infoServer) InsertErrorBlocks(ctx context.Context, start uint64, end uint64) error {
+	err := s.cacheClient.InsertErrorBlocks(ctx, start, end)
+	if err != nil {
 		return err
 	}
-	insertReceiptsConsume := time.Since(insertReceiptsTime)
-	s.logger.Debug("Total time for import receipt", zap.Any("TimeConsumed", insertReceiptsConsume))
-
 	return nil
+}
+
+func (s *infoServer) PopErrorBlockHeight(ctx context.Context) (uint64, error) {
+	height, err := s.cacheClient.PopErrorBlockHeight(ctx)
+	if err != nil {
+		return 0, err
+	}
+	return height, nil
 }
 
 func (s *infoServer) ImportReceipts(ctx context.Context, block *types.Block) error {
@@ -135,7 +157,7 @@ func (s *infoServer) ImportReceipts(ctx context.Context, block *types.Block) err
 				//s.logger.Debug("Start worker", zap.Any("TX", tx))
 				receipt, err := s.kaiClient.GetTransactionReceipt(ctx, tx.Hash)
 				if err != nil {
-					s.logger.Warn("get receipt err", zap.Error(err))
+					s.logger.Warn("get receipt err", zap.String("tx hash", tx.Hash), zap.Error(err))
 					//todo: consider how we handle this err, just skip it now
 					results <- response{
 						err: err,
