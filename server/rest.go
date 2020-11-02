@@ -54,11 +54,22 @@ func (s *Server) Search(c echo.Context) error {
 			}
 			txs, total, err := s.dbClient.TxsByAddress(ctx, paramValue[0], pagination)
 			s.Logger.Info("search tx by hash:", zap.String("address", paramValue[0]))
-			return api.OK.SetData(PagingResponse{
-				Page:  page,
-				Limit: limit,
-				Total: total,
-				Data:  txs,
+			balance, err := s.kaiClient.BalanceAt(ctx, paramValue[0], nil)
+			if err != nil {
+				return err
+			}
+			s.logger.Debug("Balance", zap.String("address", paramValue[0]), zap.String("balance", balance))
+			return api.OK.SetData(struct {
+				Balance string         `json:"balance"`
+				Txs     PagingResponse `json:"txs"`
+			}{
+				Balance: balance,
+				Txs: PagingResponse{
+					Page:  page,
+					Limit: limit,
+					Total: total,
+					Data:  txs,
+				},
 			}).Build(c)
 		case "txHash":
 			s.Logger.Info("search tx by hash:", zap.String("txHash", paramValue[0]))
