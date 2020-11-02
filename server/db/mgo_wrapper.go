@@ -20,6 +20,7 @@ package db
 
 import (
 	"context"
+	"time"
 
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
@@ -44,8 +45,14 @@ func (w *KaiMgo) Ping() error {
 	return nil
 }
 
-func (w *KaiMgo) EnsureIndex(model mongo.IndexModel) error {
-	_, err := w.col.Indexes().CreateOne(context.Background(), model)
+func (w *KaiMgo) EnsureIndex(model []mongo.IndexModel) error {
+	var err error
+	opts := options.CreateIndexes().SetMaxTime(5 * time.Second)
+	if len(model) == 1 {
+		_, err = w.col.Indexes().CreateOne(context.Background(), model[0], opts)
+	} else if len(model) > 1 {
+		_, err = w.col.Indexes().CreateMany(context.Background(), model, opts)
+	}
 	return err
 }
 

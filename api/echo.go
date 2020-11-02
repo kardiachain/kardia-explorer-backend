@@ -33,6 +33,7 @@ type EchoServer interface {
 	Ping(c echo.Context) error
 	Info(c echo.Context) error
 	Stats(c echo.Context) error
+	Search(c echo.Context) error
 
 	// Info
 	TokenInfo(c echo.Context) error
@@ -95,7 +96,13 @@ func bind(gr *echo.Group, srv EchoServer) {
 			fn:          srv.Info,
 			middlewares: nil,
 		},
-		// Dashboarad
+		{
+			method:      echo.GET,
+			path:        "/search",
+			fn:          srv.Search,
+			middlewares: nil,
+		},
+		// Dashboard
 		{
 			method: echo.GET,
 			path:   "/dashboard/stats",
