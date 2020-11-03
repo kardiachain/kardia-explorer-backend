@@ -6,7 +6,7 @@ import (
 
 const (
 	defaultLimit = 50
-	maximumLimit = 500
+	MaximumLimit = 100
 )
 
 type Pagination struct {
@@ -20,8 +20,8 @@ func (f *Pagination) Sanitize() {
 	}
 	if f.Limit <= 0 {
 		f.Limit = defaultLimit
-	} else if f.Limit > maximumLimit {
-		f.Limit = maximumLimit
+	} else if f.Limit > MaximumLimit {
+		f.Limit = MaximumLimit
 	}
 }
 
