@@ -337,7 +337,7 @@ func (s *Server) Txs(c echo.Context) error {
 	}
 
 	txs, err = s.cacheClient.LatestTransactions(ctx, pagination)
-	if err != nil {
+	if err != nil || txs == nil {
 		s.logger.Debug("Cannot get latest txs from cache", zap.Error(err))
 		txs, err = s.dbClient.LatestTxs(ctx, pagination)
 		if err != nil {
