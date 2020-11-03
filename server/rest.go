@@ -15,12 +15,94 @@ import (
 	"github.com/kardiachain/explorer-backend/types"
 )
 
+type PagingResponse struct {
+	Page  int         `json:"page"`
+	Limit int         `json:"limit"`
+	Total uint64      `json:"total"`
+	Data  interface{} `json:"data"`
+}
+
 func (s *Server) Ping(c echo.Context) error {
 	return api.OK.Build(c)
 }
 
 func (s *Server) Info(c echo.Context) error {
 	return api.OK.Build(c)
+}
+
+func (s *Server) Search(c echo.Context) error {
+	var (
+		ctx = context.Background()
+		err error
+	)
+	for paramName, paramValue := range c.QueryParams() {
+		switch paramName {
+		case "address":
+			pageParams := c.QueryParam("page")
+			limitParams := c.QueryParam("limit")
+			page, err := strconv.Atoi(pageParams)
+			if err != nil {
+				page = 1
+			}
+			limit, err := strconv.Atoi(limitParams)
+			if err != nil {
+				limit = 20
+			}
+			pagination := &types.Pagination{
+				Skip:  page * limit,
+				Limit: limit,
+			}
+			txs, total, err := s.dbClient.TxsByAddress(ctx, paramValue[0], pagination)
+			s.Logger.Info("search tx by hash:", zap.String("address", paramValue[0]))
+			balance, err := s.kaiClient.BalanceAt(ctx, paramValue[0], nil)
+			if err != nil {
+				return err
+			}
+			s.logger.Debug("Balance", zap.String("address", paramValue[0]), zap.String("balance", balance))
+			return api.OK.SetData(struct {
+				Balance string         `json:"balance"`
+				Txs     PagingResponse `json:"txs"`
+			}{
+				Balance: balance,
+				Txs: PagingResponse{
+					Page:  page,
+					Limit: limit,
+					Total: total,
+					Data:  txs,
+				},
+			}).Build(c)
+		case "txHash":
+			s.Logger.Info("search tx by hash:", zap.String("txHash", paramValue[0]))
+			tx, err := s.dbClient.TxByHash(ctx, paramValue[0])
+			if err != nil {
+				return api.Invalid.Build(c)
+			}
+			return api.OK.SetData(tx).Build(c)
+		case "blockHash":
+			s.Logger.Info("search block by height:", zap.String("blockHash", paramValue[0]))
+			block, err := s.dbClient.BlockByHash(ctx, paramValue[0])
+			if err != nil {
+				return api.Invalid.Build(c)
+			}
+			return api.OK.SetData(block).Build(c)
+		case "blockHeight":
+			blockHeight, err := strconv.ParseUint(paramValue[0], 10, 64)
+			s.Logger.Info("search block by height:", zap.Uint64("blockHeight", blockHeight))
+			if err != nil || blockHeight < 0 {
+				return api.Invalid.Build(c)
+			}
+			block, err := s.dbClient.BlockByHeight(ctx, blockHeight)
+			if err != nil {
+				return api.Invalid.Build(c)
+			}
+			return api.OK.SetData(block).Build(c)
+		default:
+			if err != nil {
+				return api.Invalid.Build(c)
+			}
+		}
+	}
+	return api.Invalid.Build(c)
 }
 
 func (s *Server) Stats(c echo.Context) error {
@@ -223,12 +305,7 @@ func (s *Server) BlockTxs(c echo.Context) error {
 		}
 	}
 
-	return api.OK.SetData(struct {
-		Page  int         `json:"page"`
-		Limit int         `json:"limit"`
-		Total uint64      `json:"total"`
-		Data  interface{} `json:"data"`
-	}{
+	return api.OK.SetData(PagingResponse{
 		Page:  page,
 		Limit: limit,
 		Total: total,
@@ -260,7 +337,7 @@ func (s *Server) Txs(c echo.Context) error {
 	}
 
 	txs, err = s.cacheClient.LatestTransactions(ctx, pagination)
-	if err != nil {
+	if err != nil || txs == nil {
 		s.logger.Debug("Cannot get latest txs from cache", zap.Error(err))
 		txs, err = s.dbClient.LatestTxs(ctx, pagination)
 		if err != nil {
@@ -272,12 +349,7 @@ func (s *Server) Txs(c echo.Context) error {
 		s.logger.Debug("Got latest txs from cached")
 	}
 
-	return api.OK.SetData(struct {
-		Page  int         `json:"page"`
-		Limit int         `json:"limit"`
-		Total uint64      `json:"total"`
-		Data  interface{} `json:"data"`
-	}{
+	return api.OK.SetData(PagingResponse{
 		Page:  page,
 		Limit: limit,
 		Total: s.cacheClient.TotalTxs(ctx),
@@ -309,15 +381,10 @@ func (s *Server) Addresses(c echo.Context) error {
 		addresses = append(addresses, address)
 	}
 
-	return api.OK.SetData(struct {
-		Page  int         `json:"page"`
-		Limit int         `json:"limit"`
-		Total int         `json:"total"`
-		Data  interface{} `json:"data"`
-	}{
+	return api.OK.SetData(PagingResponse{
 		Page:  page,
 		Limit: limit,
-		Total: limit * 10,
+		Total: uint64(limit * 10),
 		Data:  addresses,
 	}).Build(c)
 }
@@ -361,12 +428,7 @@ func (s *Server) AddressTxs(c echo.Context) error {
 	}
 
 	s.logger.Info("address txs:", zap.String("address", address))
-	return api.OK.SetData(struct {
-		Page  int         `json:"page"`
-		Limit int         `json:"limit"`
-		Total uint64      `json:"total"`
-		Data  interface{} `json:"data"`
-	}{
+	return api.OK.SetData(PagingResponse{
 		Page:  page,
 		Limit: limit,
 		Total: total,
@@ -398,15 +460,10 @@ func (s *Server) AddressHolders(c echo.Context) error {
 		holders = append(holders, holder)
 	}
 
-	return api.OK.SetData(struct {
-		Page  int         `json:"page"`
-		Limit int         `json:"limit"`
-		Total int         `json:"total"`
-		Data  interface{} `json:"data"`
-	}{
+	return api.OK.SetData(PagingResponse{
 		Page:  page,
 		Limit: limit,
-		Total: limit * 15,
+		Total: uint64(limit * 15),
 		Data:  holders,
 	}).Build(c)
 }
