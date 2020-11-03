@@ -414,10 +414,6 @@ func (m *mongoDB) LatestTxs(ctx context.Context, pagination *types.Pagination) (
 	processTime := time.Since(start)
 	m.logger.Debug("Total time for process tx", zap.Any("TimeConsumed", processTime))
 
-	if len(txs) == 0 {
-		return nil, errors.New("Somethings wrong")
-	}
-
 	return txs, nil
 }
 

@@ -79,7 +79,7 @@ func (s *Server) Search(c echo.Context) error {
 			}
 			return api.OK.SetData(tx).Build(c)
 		case "blockHash":
-			s.Logger.Info("search block by height:", zap.String("blockHash", paramValue[0]))
+			s.Logger.Info("search block by hash:", zap.String("blockHash", paramValue[0]))
 			block, err := s.dbClient.BlockByHash(ctx, paramValue[0])
 			if err != nil {
 				return api.Invalid.Build(c)
