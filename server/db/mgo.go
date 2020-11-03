@@ -20,7 +20,6 @@ package db
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"time"
 
