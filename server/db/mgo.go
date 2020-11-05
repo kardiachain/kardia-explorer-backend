@@ -46,12 +46,6 @@ type mongoDB struct {
 	db      *mongo.Database
 }
 
-// UpdateActiveAddresses update last time those addresses active
-// Just skip for now
-func (m *mongoDB) UpdateActiveAddresses(ctx context.Context, addresses []string) error {
-	return nil
-}
-
 func newMongoDB(cfg Config) (*mongoDB, error) {
 	cfg.Logger.Debug("Create mgo with config", zap.Any("config", cfg))
 
@@ -230,6 +224,7 @@ func (m *mongoDB) TxsByBlockHash(ctx context.Context, blockHash string, paginati
 	}
 	cursor, err := m.wrapper.C(cTxs).
 		Find(bson.M{"blockHash": blockHash}, opts...)
+	defer cursor.Close(ctx)
 	if err != nil {
 		if err == mgo.ErrNotFound {
 			return nil, 0, nil
@@ -263,6 +258,7 @@ func (m *mongoDB) TxsByBlockHeight(ctx context.Context, blockHeight uint64, pagi
 
 	cursor, err := m.wrapper.C(cTxs).
 		Find(bson.M{"blockNumber": blockHeight}, opts...)
+	defer cursor.Close(ctx)
 	if err != nil {
 		if err == mgo.ErrNotFound {
 			return nil, 0, nil
@@ -296,6 +292,7 @@ func (m *mongoDB) TxsByAddress(ctx context.Context, address string, pagination *
 	}
 	cursor, err := m.wrapper.C(cTxs).
 		Find(bson.M{"$or": []bson.M{{"from": address}, {"to": address}}}, opts...)
+	defer cursor.Close(ctx)
 	if err != nil {
 		if err == mgo.ErrNotFound {
 			return nil, 0, nil
@@ -400,6 +397,7 @@ func (m *mongoDB) LatestTxs(ctx context.Context, pagination *types.Pagination) (
 	if err != nil {
 		return nil, err
 	}
+	defer cursor.Close(ctx)
 	queryTime := time.Since(start)
 	m.logger.Debug("Total time for query tx", zap.Any("TimeConsumed", queryTime))
 	for cursor.Next(ctx) {
@@ -455,3 +453,52 @@ func (m *mongoDB) OwnedTokensOfAddress(ctx context.Context, walletAddress string
 }
 
 //endregion Address
+
+// UpdateActiveAddresses update last time those addresses active
+// Just skip for now
+func (m *mongoDB) UpdateActiveAddresses(ctx context.Context, addressesMap map[string]bool) error {
+	var addrListFromDB []*types.ActiveAddress
+	cursor, err := m.wrapper.C(cActiveAddresses).Find(bson.D{})
+	if err != nil {
+		return fmt.Errorf("failed to get active addresses: %v", err)
+	}
+	defer cursor.Close(ctx)
+	for cursor.Next(ctx) {
+		addr := &types.ActiveAddress{}
+		if err := cursor.Decode(&addr); err != nil {
+			return err
+		}
+		addrListFromDB = append(addrListFromDB, addr)
+	}
+
+	for _, addr := range addrListFromDB {
+		if addressesMap[addr.Address] {
+			delete(addressesMap, addr.Address)
+		}
+	}
+
+	var addrBulkWriter []mongo.WriteModel
+	for addr, existed := range addressesMap {
+		if existed {
+			addrModel := mongo.NewInsertOneModel().SetDocument(types.ActiveAddress{
+				Address: addr,
+				Balance: "0",
+			})
+			addrBulkWriter = append(addrBulkWriter, addrModel)
+		}
+	}
+	if len(addrBulkWriter) > 0 {
+		if _, err := m.wrapper.C(cActiveAddresses).BulkUpsert(addrBulkWriter); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (m *mongoDB) GetTotalActiveAddresses(ctx context.Context) (uint64, error) {
+	total, err := m.wrapper.C(cActiveAddresses).Count(bson.M{})
+	if err != nil {
+		return 0, err
+	}
+	return uint64(total), nil
+}

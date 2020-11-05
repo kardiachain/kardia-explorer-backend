@@ -51,6 +51,10 @@ type Client interface {
 	UpdateTotalTxs(ctx context.Context, blockTxs uint64) (uint64, error)
 	TotalTxs(ctx context.Context) uint64
 	LatestBlockHeight(ctx context.Context) uint64
+
+	// Holders summary
+	UpdateTotalHolders(ctx context.Context, holders uint64) error
+	TotalHolders(ctx context.Context) uint64
 }
 
 func New(cfg Config) (Client, error) {
