@@ -122,13 +122,17 @@ func bind(gr *echo.Group, srv EchoServer) {
 			path:   "/dashboard/totalHolders",
 			fn:     srv.TotalHolders,
 		},
+		{
+			method: echo.GET,
+			path:   "/dashboard/token",
+			fn:     srv.TokenInfo,
+		},
 		// Blocks
 		{
 			method: echo.GET,
 			// Query params: ?page=1&limit=10
-			path:        "/blocks",
-			fn:          srv.Blocks,
-			middlewares: []echo.MiddlewareFunc{checkPagination()},
+			path: "/blocks",
+			fn:   srv.Blocks,
 		},
 		{
 			method: echo.GET,

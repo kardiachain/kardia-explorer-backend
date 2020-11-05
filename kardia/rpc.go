@@ -314,7 +314,7 @@ func (ec *Client) Validators(ctx context.Context) ([]*types.Validator, error) {
 				tmp.Name = node.Moniker
 				tmp.RpcUrl = node.Other.RPCAddress
 				tmp.Protocols = node.ProtocolVersion
-				var existed bool = false
+				var existed = false
 				for _, currValidator := range ret {
 					if currValidator.Address == tmp.Address {
 						currValidator.VotingPower += tmp.VotingPower

@@ -153,7 +153,32 @@ func (s *Server) Nodes(c echo.Context) error {
 }
 
 func (s *Server) TokenInfo(c echo.Context) error {
-	return api.OK.Build(c)
+	response := struct {
+		Name              string  `json:"name"`
+		Symbol            string  `json:"symbol"`
+		Decimal           int     `json:"decimal"`
+		TotalSupply       int     `json:"total_supply"`
+		CirculatingSupply int     `json:"circulating_supply"`
+		Price             float64 `json:"price"`
+		Volume24h         float64 `json:"volume_24h"`
+		Change1h          float64 `json:"change_1h"`
+		Change24h         float64 `json:"change_24h"`
+		Change7d          float64 `json:"change_7d"`
+		MarketCap         float64 `json:"market_cap"`
+	}{
+		Name:              "KardiaChain",
+		Symbol:            "KAI",
+		TotalSupply:       5000000000,
+		Decimal:           18,
+		CirculatingSupply: 1750000000,
+		Price:             0.01139740551919,
+		Volume24h:         837963.72645577,
+		Change1h:          -0.72400038,
+		Change24h:         1.50528657,
+		Change7d:          20.12043067,
+		MarketCap:         9945459.658582497,
+	}
+	return api.OK.SetData(response).Build(c)
 }
 
 func (s *Server) TPS(c echo.Context) error {
@@ -199,6 +224,9 @@ func (s *Server) Blocks(c echo.Context) error {
 	limit, err = strconv.Atoi(limitParams)
 	if err != nil {
 		limit = 20
+	}
+	if limit > 100 {
+		return api.Invalid.Build(c)
 	}
 	pagination := &types.Pagination{
 		Skip:  page * limit,
