@@ -51,6 +51,10 @@ type Client interface {
 	UpdateTotalTxs(ctx context.Context, blockTxs uint64) (uint64, error)
 	TotalTxs(ctx context.Context) uint64
 	LatestBlockHeight(ctx context.Context) uint64
+
+	IsRequestToCoinMarket(ctx context.Context) bool
+	TokenInfo(ctx context.Context) (*types.TokenInfo, error)
+	UpdateTokenInfo(ctx context.Context, tokenInfo *types.TokenInfo) error
 }
 
 func New(cfg Config) (Client, error) {

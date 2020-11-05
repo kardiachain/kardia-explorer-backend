@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"strconv"
+	"time"
 
 	"github.com/go-redis/redis/v8"
 	"go.uber.org/zap"
@@ -34,6 +35,8 @@ const (
 	ErrorBlocks = "#errorBlocks" // List
 
 	KeyTotalTxs = "#txs#total"
+
+	KeyTokenInfo = "#token#info"
 )
 
 type Redis struct {
@@ -41,6 +44,39 @@ type Redis struct {
 	client *redis.Client
 
 	logger *zap.Logger
+}
+
+func (c *Redis) UpdateTokenInfo(ctx context.Context, tokenInfo *types.TokenInfo) error {
+	data, err := json.Marshal(tokenInfo)
+	if err != nil {
+		return err
+	}
+
+	if _, err := c.client.Set(ctx, KeyTokenInfo, string(data), 60*time.Minute).Result(); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (c *Redis) TokenInfo(ctx context.Context) (*types.TokenInfo, error) {
+	result, err := c.client.Get(ctx, KeyTokenInfo).Result()
+	if err != nil {
+		return nil, err
+	}
+	var tokenInfo *types.TokenInfo
+	if err := json.Unmarshal([]byte(result), &tokenInfo); err != nil {
+		return nil, err
+	}
+	return tokenInfo, nil
+}
+
+func (c *Redis) IsRequestToCoinMarket(ctx context.Context) bool {
+	tokenInfo, err := c.TokenInfo(ctx)
+	if err != nil {
+		return false
+	}
+
+	return tokenInfo != nil
 }
 
 func (c *Redis) TotalTxs(ctx context.Context) uint64 {
