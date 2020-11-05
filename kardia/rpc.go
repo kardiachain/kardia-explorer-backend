@@ -129,7 +129,7 @@ func (ec *Client) BlockHeaderByHash(ctx context.Context, hash string) (*types.He
 // GetTransaction returns the transaction with the given hash.
 func (ec *Client) GetTransaction(ctx context.Context, hash string) (*types.Transaction, bool, error) {
 	var raw *types.Transaction
-	err := ec.defaultClient.c.CallContext(ctx, &raw, "tx_getTransaction", common.HexToHash(hash))
+	err := ec.chooseClient().c.CallContext(ctx, &raw, "tx_getTransaction", common.HexToHash(hash))
 	if err != nil {
 		return nil, false, err
 	} else if raw == nil {
@@ -158,11 +158,11 @@ func (ec *Client) BalanceAt(ctx context.Context, account string, blockHeightOrHa
 	var result string
 	var err error
 	if blockHeightOrHash == nil {
-		err = ec.defaultClient.c.CallContext(ctx, &result, "account_balance", common.HexToAddress(account), nil, nil)
+		err = ec.chooseClient().c.CallContext(ctx, &result, "account_balance", common.HexToAddress(account), nil, nil)
 	} else if blockHeight, ok := blockHeightOrHash.(uint64); ok {
-		err = ec.defaultClient.c.CallContext(ctx, &result, "account_balance", common.HexToAddress(account), nil, blockHeight)
+		err = ec.chooseClient().c.CallContext(ctx, &result, "account_balance", common.HexToAddress(account), nil, blockHeight)
 	} else if blockHash, ok := blockHeightOrHash.(string); ok {
-		err = ec.defaultClient.c.CallContext(ctx, &result, "account_balance", common.HexToAddress(account), blockHash, nil)
+		err = ec.chooseClient().c.CallContext(ctx, &result, "account_balance", common.HexToAddress(account), blockHash, nil)
 	}
 	return result, err
 }
@@ -171,7 +171,7 @@ func (ec *Client) BalanceAt(ctx context.Context, account string, blockHeightOrHa
 // The block number can be nil, in which case the value is taken from the latest known block.
 func (ec *Client) StorageAt(ctx context.Context, account string, key string, blockNumber uint64) ([]byte, error) {
 	var result common.Bytes
-	err := ec.defaultClient.c.CallContext(ctx, &result, "kai_getStorageAt", common.HexToAddress(account), key, blockNumber)
+	err := ec.chooseClient().c.CallContext(ctx, &result, "kai_getStorageAt", common.HexToAddress(account), key, blockNumber)
 	return result, err
 }
 
@@ -179,14 +179,14 @@ func (ec *Client) StorageAt(ctx context.Context, account string, key string, blo
 // The block number can be nil, in which case the code is taken from the latest known block.
 func (ec *Client) CodeAt(ctx context.Context, account string, blockNumber uint64) ([]byte, error) {
 	var result common.Bytes
-	err := ec.defaultClient.c.CallContext(ctx, &result, "kai_getCode", common.HexToAddress(account), blockNumber)
+	err := ec.chooseClient().c.CallContext(ctx, &result, "kai_getCode", common.HexToAddress(account), blockNumber)
 	return result, err
 }
 
 // NonceAt returns the account nonce of the given account.
 func (ec *Client) NonceAt(ctx context.Context, account string) (uint64, error) {
 	var result uint64
-	err := ec.defaultClient.c.CallContext(ctx, &result, "account_nonce", common.HexToAddress(account))
+	err := ec.chooseClient().c.CallContext(ctx, &result, "account_nonce", common.HexToAddress(account))
 	return result, err
 }
 
@@ -200,7 +200,7 @@ func (ec *Client) SendRawTransaction(ctx context.Context, tx *types.Transaction)
 	if err != nil {
 		return err
 	}
-	return ec.defaultClient.c.CallContext(ctx, nil, "tx_sendRawTransaction", common.ToHex(data))
+	return ec.chooseClient().c.CallContext(ctx, nil, "tx_sendRawTransaction", common.ToHex(data))
 }
 
 func (ec *Client) Peers(ctx context.Context) (peers *types.PeerInfo, err error) {
@@ -236,7 +236,7 @@ func (ec *Client) NodesInfo(ctx context.Context) (nodes []*types.NodeInfo, err e
 
 func (ec *Client) Datadir(ctx context.Context) (string, error) {
 	var result string
-	err := ec.defaultClient.c.CallContext(ctx, &result, "node_datadir")
+	err := ec.chooseClient().c.CallContext(ctx, &result, "node_datadir")
 	return result, err
 }
 
@@ -262,7 +262,7 @@ func (ec *Client) Validator(ctx context.Context, rpcURL string) (*types.Validato
 			}
 		}
 	} else {
-		err := ec.defaultClient.c.CallContext(ctx, &result, "kai_validator")
+		err := ec.chooseClient().c.CallContext(ctx, &result, "kai_validator")
 		if err != nil {
 			return nil, err
 		}
@@ -292,7 +292,7 @@ func (ec *Client) Validator(ctx context.Context, rpcURL string) (*types.Validato
 
 func (ec *Client) Validators(ctx context.Context) ([]*types.Validator, error) {
 	var result []map[string]interface{}
-	err := ec.defaultClient.c.CallContext(ctx, &result, "kai_validators")
+	err := ec.chooseClient().c.CallContext(ctx, &result, "kai_validators")
 	if err != nil {
 		return nil, err
 	}
@@ -334,7 +334,7 @@ func (ec *Client) Validators(ctx context.Context) ([]*types.Validator, error) {
 
 func (ec *Client) getBlock(ctx context.Context, method string, args ...interface{}) (*types.Block, error) {
 	var raw types.Block
-	err := ec.defaultClient.c.CallContext(ctx, &raw, method, args...)
+	err := ec.chooseClient().c.CallContext(ctx, &raw, method, args...)
 	if err != nil {
 		return nil, err
 	}
@@ -343,7 +343,7 @@ func (ec *Client) getBlock(ctx context.Context, method string, args ...interface
 
 func (ec *Client) getBlockHeader(ctx context.Context, method string, args ...interface{}) (*types.Header, error) {
 	var raw types.Header
-	err := ec.defaultClient.c.CallContext(ctx, &raw, method, args...)
+	err := ec.chooseClient().c.CallContext(ctx, &raw, method, args...)
 	if err != nil {
 		return nil, err
 	}

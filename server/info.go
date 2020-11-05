@@ -7,6 +7,7 @@ import (
 
 	"go.uber.org/zap"
 
+	"github.com/kardiachain/explorer-backend/cfg"
 	"github.com/kardiachain/explorer-backend/kardia"
 	"github.com/kardiachain/explorer-backend/metrics"
 	"github.com/kardiachain/explorer-backend/server/cache"
@@ -120,6 +121,24 @@ func (s *infoServer) ImportBlock(ctx context.Context, block *types.Block, writeT
 	insertTxConsume := time.Since(insertTxTime)
 	s.logger.Debug("Total time for import tx", zap.Any("TimeConsumed", insertTxConsume))
 
+	// temporary update active addresses after an interval of blocks
+	if block.Height%cfg.UpdateActiveAddressInterval == 0 {
+		insertActiveAddrTime := time.Now()
+		if err := s.dbClient.UpdateActiveAddresses(ctx, filterAddrSet(block.Txs)); err != nil {
+			return err
+		}
+		insertActiveAddrConsumed := time.Since(insertActiveAddrTime)
+		s.logger.Debug("Total time for update active addresses", zap.Any("TimeConsumed", insertActiveAddrConsumed))
+		totalHolders, err := s.dbClient.GetTotalActiveAddresses(ctx)
+		if err != nil {
+			return err
+		}
+		err = s.cacheClient.UpdateTotalHolders(ctx, totalHolders)
+		if err != nil {
+			return err
+		}
+	}
+
 	return nil
 }
 
@@ -149,6 +168,7 @@ func (s *infoServer) ImportReceipts(ctx context.Context, block *types.Block) err
 		txByToAdd   *types.TransactionByAddress
 	}
 	results := make(chan response, block.NumTxs)
+	addresses := make(map[string]bool)
 
 	//todo @longnd: Move this workers to config or dynamic settings
 	for w := 0; w <= 10; w++ {
@@ -184,11 +204,10 @@ func (s *infoServer) ImportReceipts(ctx context.Context, block *types.Block) err
 				}
 
 				if address == nil || address.IsContract {
-					var addresses []string
-					for _, l := range receipt.Logs {
-						addresses = append(addresses, l.Address)
-					}
 
+					for _, l := range receipt.Logs {
+						addresses[l.Address] = true
+					}
 					if err := s.dbClient.UpdateActiveAddresses(ctx, addresses); err != nil {
 						//todo: consider how we handle this err, just skip it now
 						s.logger.Warn("cannot update active address")
@@ -298,4 +317,17 @@ func (s *infoServer) getAddressByHash(address string) (*types.Address, error) {
 
 func (s *infoServer) getTxsByBlockNumber(blockNumber int64, filter *types.Pagination) ([]*types.Transaction, error) {
 	return nil, nil
+}
+
+func filterAddrSet(txs []*types.Transaction) (result map[string]bool) {
+	result = make(map[string]bool)
+	for _, tx := range txs {
+		if !result[tx.From] {
+			result[tx.From] = true
+		}
+		if !result[tx.To] {
+			result[tx.To] = true
+		}
+	}
+	return result
 }

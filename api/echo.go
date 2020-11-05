@@ -34,6 +34,7 @@ type EchoServer interface {
 	Info(c echo.Context) error
 	Stats(c echo.Context) error
 	Search(c echo.Context) error
+	TotalHolders(c echo.Context) error
 
 	// Info
 	TokenInfo(c echo.Context) error
@@ -111,11 +112,15 @@ func bind(gr *echo.Group, srv EchoServer) {
 			fn:          srv.Search,
 			middlewares: []echo.MiddlewareFunc{checkPagination()},
 		},
-		// Dashboard
 		{
 			method: echo.GET,
 			path:   "/dashboard/stats",
 			fn:     srv.Stats,
+		},
+		{
+			method: echo.GET,
+			path:   "/dashboard/totalHolders",
+			fn:     srv.TotalHolders,
 		},
 		// Blocks
 		{
