@@ -81,26 +81,31 @@ func newMongoDB(cfg Config) (*mongoDB, error) {
 			return nil, err
 		}
 	}
+	createIndexes(dbClient)
 
+	return dbClient, nil
+}
+
+func createIndexes(dbClient *mongoDB) error {
 	type CIndex struct {
 		c     string
-		model mongo.IndexModel
+		model []mongo.IndexModel
 	}
 
 	for _, cIdx := range []CIndex{
 		// Add blockNumber to improve deleteAllTx by blockNumber
-		{c: cTxs, model: mongo.IndexModel{Keys: bson.M{"blockNumber": -1}, Options: options.Index().SetBackground(true).SetSparse(true)}},
-		//{c: cTxs, model: mongo.IndexModel{Keys: bson.M{"hash": 1}, Options: options.Index().SetUnique(true).SetBackground(true).SetSparse(true)}},
-
-		//{c: cTxs, model: mongo.IndexModel{Keys: bson.M{"time": -1}, Options: options.Index().SetBackground(true).SetSparse(true)}},
-		//{c: cTxs, model: mongo.IndexModel{Keys: bson.M{"contractAddress": 1}, Options: options.Index().SetBackground(true).SetSparse(true)}},
+		{c: cTxs, model: []mongo.IndexModel{{Keys: bson.M{"blockNumber": -1}, Options: options.Index().SetBackground(true).SetSparse(true)}}},
+		// Add index in `from` and `to` fields to improve get txs of address, considering if memory is increasing rapidly
+		{c: cTxs, model: []mongo.IndexModel{{Keys: bson.D{{Key: "from", Value: 1}, {Key: "time", Value: -1}}, Options: options.Index().SetBackground(true).SetSparse(true)}}},
+		{c: cTxs, model: []mongo.IndexModel{{Keys: bson.D{{Key: "to", Value: 1}, {Key: "time", Value: -1}}, Options: options.Index().SetBackground(true).SetSparse(true)}}},
+		// Add index to improve querying blocks by proposer
+		{c: cBlocks, model: []mongo.IndexModel{{Keys: bson.D{{Key: "proposerAddress", Value: 1}, {Key: "time", Value: -1}}, Options: options.Index().SetBackground(true).SetSparse(true)}}},
 	} {
 		if err := dbClient.wrapper.C(cIdx.c).EnsureIndex(cIdx.model); err != nil {
-			return nil, err
+			return err
 		}
 	}
-
-	return dbClient, nil
+	return nil
 }
 
 //region General
@@ -396,7 +401,6 @@ func (m *mongoDB) LatestTxs(ctx context.Context, pagination *types.Pagination) (
 		return nil, err
 	}
 	queryTime := time.Since(start)
-	start = time.Now()
 	m.logger.Debug("Total time for query tx", zap.Any("TimeConsumed", queryTime))
 	for cursor.Next(ctx) {
 		tx := &types.Transaction{}
@@ -407,8 +411,8 @@ func (m *mongoDB) LatestTxs(ctx context.Context, pagination *types.Pagination) (
 		txs = append(txs, tx)
 	}
 	processTime := time.Since(start)
-	start = time.Now()
 	m.logger.Debug("Total time for process tx", zap.Any("TimeConsumed", processTime))
+
 	return txs, nil
 }
 
