@@ -3,9 +3,12 @@ package main
 
 import (
 	"context"
+	"errors"
 	"time"
 
 	"github.com/kardiachain/explorer-backend/server"
+	"github.com/kardiachain/explorer-backend/types"
+
 	"go.uber.org/zap"
 )
 
@@ -49,12 +52,16 @@ func backfill(ctx context.Context, srv *server.Server) {
 				}
 			}
 			if err := srv.ImportBlock(ctx, block, false); err != nil {
+				if !errors.Is(err, types.ErrRecordExist) {
+					continue
+				}
 				lgr.Error("Refilling: Failed to import block", zap.Error(err))
 				err := srv.InsertErrorBlocks(ctx, blockHeight-1, blockHeight+1)
 				if err != nil {
 					lgr.Error("Listener: Failed to insert error block height", zap.Error(err))
 					continue
 				}
+
 			}
 		}
 	}
