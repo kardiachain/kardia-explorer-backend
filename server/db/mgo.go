@@ -224,6 +224,7 @@ func (m *mongoDB) TxsByBlockHash(ctx context.Context, blockHash string, paginati
 	}
 	cursor, err := m.wrapper.C(cTxs).
 		Find(bson.M{"blockHash": blockHash}, opts...)
+	defer cursor.Close(ctx)
 	if err != nil {
 		if err == mgo.ErrNotFound {
 			return nil, 0, nil
@@ -257,6 +258,7 @@ func (m *mongoDB) TxsByBlockHeight(ctx context.Context, blockHeight uint64, pagi
 
 	cursor, err := m.wrapper.C(cTxs).
 		Find(bson.M{"blockNumber": blockHeight}, opts...)
+	defer cursor.Close(ctx)
 	if err != nil {
 		if err == mgo.ErrNotFound {
 			return nil, 0, nil
@@ -290,6 +292,7 @@ func (m *mongoDB) TxsByAddress(ctx context.Context, address string, pagination *
 	}
 	cursor, err := m.wrapper.C(cTxs).
 		Find(bson.M{"$or": []bson.M{{"from": address}, {"to": address}}}, opts...)
+	defer cursor.Close(ctx)
 	if err != nil {
 		if err == mgo.ErrNotFound {
 			return nil, 0, nil
@@ -394,6 +397,7 @@ func (m *mongoDB) LatestTxs(ctx context.Context, pagination *types.Pagination) (
 	if err != nil {
 		return nil, err
 	}
+	defer cursor.Close(ctx)
 	queryTime := time.Since(start)
 	m.logger.Debug("Total time for query tx", zap.Any("TimeConsumed", queryTime))
 	for cursor.Next(ctx) {
@@ -458,6 +462,7 @@ func (m *mongoDB) UpdateActiveAddresses(ctx context.Context, addressesMap map[st
 	if err != nil {
 		return fmt.Errorf("failed to get active addresses: %v", err)
 	}
+	defer cursor.Close(ctx)
 	for cursor.Next(ctx) {
 		addr := &types.ActiveAddress{}
 		if err := cursor.Decode(&addr); err != nil {

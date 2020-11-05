@@ -119,7 +119,7 @@ func bind(gr *echo.Group, srv EchoServer) {
 		},
 		{
 			method: echo.GET,
-			path:   "/dashboard/totalHolders",
+			path:   "/dashboard/holders/total",
 			fn:     srv.TotalHolders,
 		},
 		{

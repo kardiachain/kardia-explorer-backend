@@ -20,5 +20,5 @@
 package cfg
 
 const (
-	UpdateActiveAddressInterval = 20
+	UpdateActiveAddressInterval = 1
 )
