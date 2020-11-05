@@ -96,7 +96,7 @@ func (ec *Client) chooseClient() *RPCClient {
 // LatestBlockNumber gets latest block number
 func (ec *Client) LatestBlockNumber(ctx context.Context) (uint64, error) {
 	var result uint64
-	err := ec.chooseClient().c.CallContext(ctx, &result, "kai_blockNumber")
+	err := ec.defaultClient.c.CallContext(ctx, &result, "kai_blockNumber")
 	return result, err
 }
 
@@ -314,7 +314,7 @@ func (ec *Client) Validators(ctx context.Context) ([]*types.Validator, error) {
 				tmp.Name = node.Moniker
 				tmp.RpcUrl = node.Other.RPCAddress
 				tmp.Protocols = node.ProtocolVersion
-				var existed bool = false
+				var existed = false
 				for _, currValidator := range ret {
 					if currValidator.Address == tmp.Address {
 						currValidator.VotingPower += tmp.VotingPower
