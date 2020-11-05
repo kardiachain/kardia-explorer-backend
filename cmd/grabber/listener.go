@@ -49,7 +49,7 @@ func listener(ctx context.Context, srv *server.Server) {
 					lgr.Error("Listener: Failed to import block", zap.Error(err))
 					continue
 				}
-				if latest-prevHeader > 1 {
+				if latest-1 > prevHeader {
 					lgr.Info("Listener: Insert error blocks", zap.Uint64("from", prevHeader), zap.Uint64("to", latest))
 					err := srv.InsertErrorBlocks(ctx, prevHeader, latest)
 					if err != nil {
