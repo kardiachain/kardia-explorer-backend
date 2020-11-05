@@ -219,6 +219,9 @@ func (s *Server) Blocks(c echo.Context) error {
 	if err != nil {
 		limit = 20
 	}
+	if limit > 100 {
+		return api.Invalid.Build(c)
+	}
 	pagination := &types.Pagination{
 		Skip:  page * limit,
 		Limit: limit,
