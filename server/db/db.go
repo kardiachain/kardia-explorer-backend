@@ -75,7 +75,9 @@ type Client interface {
 	AddressByHash(ctx context.Context, addressHash string) (*types.Address, error)
 	OwnedTokensOfAddress(ctx context.Context, address string, pagination *types.Pagination) ([]*types.TokenHolder, uint64, error)
 
-	UpdateActiveAddresses(ctx context.Context, addresses []string) error
+	// ActiveAddress
+	UpdateActiveAddresses(ctx context.Context, addressesMap map[string]bool) error
+	GetTotalActiveAddresses(ctx context.Context) (uint64, error)
 }
 
 func NewClient(cfg Config) (Client, error) {

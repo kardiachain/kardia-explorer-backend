@@ -34,9 +34,10 @@ const (
 
 	ErrorBlocks = "#errorBlocks" // List
 
-	KeyTotalTxs = "#txs#total"
-
 	KeyTokenInfo = "#token#info"
+
+	KeyTotalTxs     = "#txs#total"
+	KeyTotalHolders = "#holders#total"
 )
 
 type Redis struct {
@@ -320,6 +321,27 @@ func (c *Redis) PopErrorBlockHeight(ctx context.Context) (uint64, error) {
 		return 0, err
 	}
 	return height, nil
+}
+
+// Holders summary
+func (c *Redis) UpdateTotalHolders(ctx context.Context, holders uint64) error {
+	if err := c.client.Set(ctx, KeyTotalHolders, holders, 0).Err(); err != nil {
+		// Handle error here
+		c.logger.Warn("cannot set total holders values")
+	}
+	return nil
+}
+
+func (c *Redis) TotalHolders(ctx context.Context) uint64 {
+	result, err := c.client.Get(ctx, KeyTotalHolders).Result()
+	c.logger.Debug("TotalHolders", zap.String("Total", result))
+	if err != nil {
+		// Handle error here
+		c.logger.Warn("cannot get total holders values")
+	}
+	// Convert to int
+	totalHolders := utils.StrToUint64(result)
+	return totalHolders
 }
 
 func (c *Redis) getBlockIndex(ctx context.Context, index int64) (*types.Block, error) {

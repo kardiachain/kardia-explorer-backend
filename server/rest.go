@@ -137,6 +137,12 @@ func (s *Server) Stats(c echo.Context) error {
 	}).Build(c)
 }
 
+func (s *Server) TotalHolders(c echo.Context) error {
+	ctx := context.Background()
+	totalHolders := s.cacheClient.TotalHolders(ctx)
+	return api.OK.SetData(totalHolders).Build(c)
+}
+
 func (s *Server) Nodes(c echo.Context) error {
 	ctx := context.Background()
 	nodes, err := s.kaiClient.NodesInfo(ctx)
