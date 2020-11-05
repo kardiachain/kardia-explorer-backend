@@ -77,7 +77,7 @@ func (c *Redis) IsRequestToCoinMarket(ctx context.Context) bool {
 		return false
 	}
 
-	return tokenInfo != nil
+	return tokenInfo == nil
 }
 
 func (c *Redis) TotalTxs(ctx context.Context) uint64 {
