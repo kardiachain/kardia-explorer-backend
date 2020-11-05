@@ -86,6 +86,10 @@ func (s *infoServer) BlockByHeight(ctx context.Context, blockHeight uint64) (*ty
 func (s *infoServer) ImportBlock(ctx context.Context, block *types.Block, writeToCache bool) error {
 	s.logger.Info("Importing block:", zap.Uint64("Height", block.Height), zap.Int("Txs length", len(block.Txs)), zap.Int("Receipts length", len(block.Receipts)))
 	// Update cacheClient with simple struct for tracking
+	if isExist, err := s.dbClient.IsBlockExist(ctx, block); err != nil || isExist {
+		return types.ErrRecordExist
+	}
+
 	if writeToCache {
 		if err := s.cacheClient.InsertBlock(ctx, block); err != nil {
 			s.logger.Debug("cannot import block to cache", zap.Error(err))
