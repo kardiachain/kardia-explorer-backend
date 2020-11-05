@@ -55,6 +55,10 @@ type Client interface {
 	// Holders summary
 	UpdateTotalHolders(ctx context.Context, holders uint64) error
 	TotalHolders(ctx context.Context) uint64
+
+	IsRequestToCoinMarket(ctx context.Context) bool
+	TokenInfo(ctx context.Context) (*types.TokenInfo, error)
+	UpdateTokenInfo(ctx context.Context, tokenInfo *types.TokenInfo) error
 }
 
 func New(cfg Config) (Client, error) {
