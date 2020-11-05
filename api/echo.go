@@ -33,6 +33,8 @@ type EchoServer interface {
 	Ping(c echo.Context) error
 	Info(c echo.Context) error
 	Stats(c echo.Context) error
+	Search(c echo.Context) error
+	TotalHolders(c echo.Context) error
 
 	// Info
 	TokenInfo(c echo.Context) error
@@ -95,11 +97,35 @@ func bind(gr *echo.Group, srv EchoServer) {
 			fn:          srv.Info,
 			middlewares: nil,
 		},
-		// Dashboarad
+		{
+			method:      echo.GET,
+			path:        "/search",
+			fn:          srv.Search,
+			middlewares: nil,
+		},
+		// Dashboard
+		{
+			method: echo.GET,
+			// Params: block hash or block height or transaction hash or address (with paging option for address txs list)
+			// Query params: ?address=0x0page=1&limit=10&txHash=0x0?blockHash=0x0?blockHeight=5
+			path:        "/search",
+			fn:          srv.Search,
+			middlewares: []echo.MiddlewareFunc{checkPagination()},
+		},
 		{
 			method: echo.GET,
 			path:   "/dashboard/stats",
 			fn:     srv.Stats,
+		},
+		{
+			method: echo.GET,
+			path:   "/dashboard/holders/total",
+			fn:     srv.TotalHolders,
+		},
+		{
+			method: echo.GET,
+			path:   "/dashboard/token",
+			fn:     srv.TokenInfo,
 		},
 		// Blocks
 		{
@@ -117,8 +143,9 @@ func bind(gr *echo.Group, srv EchoServer) {
 			method: echo.GET,
 			// Params: block's hash
 			// Query params: ?page=1&limit=10
-			path: "/block/:block/txs",
-			fn:   srv.BlockTxs,
+			path:        "/block/:block/txs",
+			fn:          srv.BlockTxs,
+			middlewares: []echo.MiddlewareFunc{checkPagination()},
 		},
 		{
 			method: echo.GET,
@@ -128,8 +155,9 @@ func bind(gr *echo.Group, srv EchoServer) {
 		{
 			method: echo.GET,
 			// Query params: ?page=1&limit=10
-			path: "/txs",
-			fn:   srv.Txs,
+			path:        "/txs",
+			fn:          srv.Txs,
+			middlewares: []echo.MiddlewareFunc{checkPagination()},
 		},
 		// Address
 		{

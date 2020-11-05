@@ -42,6 +42,8 @@ type ExplorerConfig struct {
 
 	BufferedBlocks int64
 
+	CoinMarketAPIKey string
+
 	CacheEngine      string
 	CacheURL         string
 	CacheDB          int
@@ -95,7 +97,7 @@ func New() (ExplorerConfig, error) {
 	cacheIsFlushStr := os.Getenv("CACHE_IS_FLUSH")
 	cacheIsFlush, err := strconv.ParseBool(cacheIsFlushStr)
 	if err != nil {
-		cacheIsFlush = false
+		cacheIsFlush = true
 	}
 
 	storageMinConnStr := os.Getenv("STORAGE_MIN_CONN")
@@ -123,6 +125,7 @@ func New() (ExplorerConfig, error) {
 		DefaultAPITimeout:     time.Duration(apiDefaultTimeout) * time.Second,
 		DefaultBlockFetchTime: time.Duration(apiDefaultBlockFetchTime) * time.Millisecond,
 		BufferedBlocks:        int64(bufferBlocks),
+		CoinMarketAPIKey:      os.Getenv("COIN_MARKET_API_KEY"),
 		CacheEngine:           os.Getenv("CACHE_ENGINE"),
 		CacheURL:              os.Getenv("CACHE_URI"),
 		CacheDB:               cacheDB,

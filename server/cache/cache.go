@@ -36,7 +36,7 @@ type Client interface {
 	BlockByHeight(ctx context.Context, blockHeight uint64) (*types.Block, error)
 	BlockByHash(ctx context.Context, blockHash string) (*types.Block, error)
 
-	InsertTxs(ctx context.Context, txs []*types.Transaction) error
+	InsertTxsOfBlock(ctx context.Context, block *types.Block) error
 	TxByHash(ctx context.Context, txHash string) (*types.Transaction, error)
 
 	BlocksSize(ctx context.Context) (int64, error)
@@ -46,6 +46,19 @@ type Client interface {
 	LatestTransactions(ctx context.Context, pagination *types.Pagination) ([]*types.Transaction, error)
 
 	InsertErrorBlocks(ctx context.Context, start uint64, end uint64) error
+	PopErrorBlockHeight(ctx context.Context) (uint64, error)
+
+	UpdateTotalTxs(ctx context.Context, blockTxs uint64) (uint64, error)
+	TotalTxs(ctx context.Context) uint64
+	LatestBlockHeight(ctx context.Context) uint64
+
+	// Holders summary
+	UpdateTotalHolders(ctx context.Context, holders uint64) error
+	TotalHolders(ctx context.Context) uint64
+
+	IsRequestToCoinMarket(ctx context.Context) bool
+	TokenInfo(ctx context.Context) (*types.TokenInfo, error)
+	UpdateTokenInfo(ctx context.Context, tokenInfo *types.TokenInfo) error
 }
 
 func New(cfg Config) (Client, error) {

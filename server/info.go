@@ -3,10 +3,17 @@ package server
 
 import (
 	"context"
+	"encoding/json"
+	"errors"
+	"fmt"
+	"io/ioutil"
+	"net"
+	"net/http"
 	"time"
 
 	"go.uber.org/zap"
 
+	"github.com/kardiachain/explorer-backend/cfg"
 	"github.com/kardiachain/explorer-backend/kardia"
 	"github.com/kardiachain/explorer-backend/metrics"
 	"github.com/kardiachain/explorer-backend/server/cache"
@@ -26,7 +33,10 @@ type InfoServer interface {
 	BlockByHeight(ctx context.Context, blockHeight uint64) (*types.Block, error)
 	BlockByHash(ctx context.Context, blockHash string) (*types.Block, error)
 
-	ImportBlock(ctx context.Context, block *types.Block) (*types.Block, error)
+	ImportBlock(ctx context.Context, block *types.Block, writeToCache bool) (*types.Block, error)
+
+	InsertErrorBlocks(ctx context.Context, start uint64, end uint64) error
+	PopErrorBlockHeight(ctx context.Context) (uint64, error)
 }
 
 // infoServer handle how data was retrieved, stored without interact with other network excluded dbClient
@@ -38,6 +48,107 @@ type infoServer struct {
 	metrics *metrics.Provider
 
 	logger *zap.Logger
+}
+
+func (s *infoServer) TokenInfo(ctx context.Context) (*types.TokenInfo, error) {
+
+	type CMQuote struct {
+		Price            float64 `json:"price"`
+		Volume24h        float64 `json:"volume_24h"`
+		PercentChange1h  float64 `json:"percent_change_1h"`
+		PercentChange24h float64 `json:"percent_change_24h"`
+		PercentChange7d  float64 `json:"percent_change_7d"`
+		MarketCap        float64 `json:"market_cap"`
+		LastUpdated      string  `json:"last_updated"`
+	}
+	type CMTokenInfo struct {
+		ID                int                `json:"id"`
+		Name              string             `json:"name"`
+		Symbol            string             `json:"symbol"`
+		Slug              string             `json:"slug"`
+		NumMarketPairs    int                `json:"num_market_pairs"`
+		DateAdded         string             `json:"date_added"`
+		Tags              []string           `json:"tags"`
+		MaxSupply         int                `json:"max_supply"`
+		CirculatingSupply int                `json:"circulating_supply"`
+		TotalSupply       int                `json:"total_supply"`
+		IsActive          int                `json:"is_active"`
+		Platform          string             `json:"platform"`
+		CmcRank           int                `json:"cmc_rank"`
+		IsFiat            int                `json:"is_fiat"`
+		LastUpdated       string             `json:"last_updated"`
+		Quote             map[string]CMQuote `json:"quote"`
+	}
+
+	type CMResponseStatus struct {
+		Timestamp    string `json:"timestamp"`
+		ErrorCode    int    `json:"error_code"`
+		ErrorMessage string `json:"error_message"`
+		Elapsed      int    `json:"elapsed"`
+		CreditCount  int    `json:"credit_count"`
+		Notice       string `json:"notice"`
+	}
+
+	type CMResponse struct {
+		Status CMResponseStatus       `json:"status"`
+		Data   map[string]CMTokenInfo `json:"data"`
+	}
+
+	coinMarketUrl := "https://pro-api.coinmarketcap.com/v1/cryptocurrency/quotes/latest?id=5453"
+	var netTransport = &http.Transport{
+		Dial: (&net.Dialer{
+			Timeout: 5 * time.Second,
+		}).Dial,
+		TLSHandshakeTimeout: 5 * time.Second,
+	}
+	var netClient = &http.Client{
+		Timeout:   time.Second * 10,
+		Transport: netTransport,
+	}
+
+	req, _ := http.NewRequest(http.MethodGet, coinMarketUrl, nil)
+	req.Header.Set("X-CMC_PRO_API_KEY", "a9aaf65c-1d6f-4daf-8e2e-df30bd405b66")
+
+	response, _ := netClient.Do(req)
+	defer response.Body.Close()
+	body, err := ioutil.ReadAll(response.Body)
+	if err != nil {
+		return nil, err
+	}
+
+	var cmResponse CMResponse
+
+	if err := json.Unmarshal(body, &cmResponse); err != nil {
+		return nil, err
+	}
+
+	fmt.Println("CoinMarket Response", cmResponse)
+
+	if cmResponse.Status.ErrorCode != 0 {
+		return nil, errors.New("api failed")
+	}
+	cmData := cmResponse.Data["5453"]
+	cmQuote := cmData.Quote["USD"]
+
+	// Cast to internal
+	tokenInfo := &types.TokenInfo{
+		Name:              cmData.Name,
+		Symbol:            cmData.Name,
+		Decimal:           18,
+		TotalSupply:       cmData.TotalSupply,
+		CirculatingSupply: cmData.CirculatingSupply,
+		Price:             cmQuote.Price,
+		Volume24h:         cmQuote.Volume24h,
+		Change1h:          cmQuote.PercentChange1h,
+		Change24h:         cmQuote.PercentChange24h,
+		Change7d:          cmQuote.PercentChange7d,
+		MarketCap:         cmQuote.MarketCap,
+	}
+	if err := s.cacheClient.UpdateTokenInfo(ctx, tokenInfo); err != nil {
+		return nil, err
+	}
+
+	return tokenInfo, nil
 }
 
 // BlockByHash return block by its hash
@@ -79,10 +190,21 @@ func (s *infoServer) BlockByHeight(ctx context.Context, blockHeight uint64) (*ty
 }
 
 // ImportBlock handle workflow of import block into system
-func (s *infoServer) ImportBlock(ctx context.Context, block *types.Block) error {
+func (s *infoServer) ImportBlock(ctx context.Context, block *types.Block, writeToCache bool) error {
+	s.logger.Info("Importing block:", zap.Uint64("Height", block.Height), zap.Int("Txs length", len(block.Txs)), zap.Int("Receipts length", len(block.Receipts)))
 	// Update cacheClient with simple struct for tracking
-	if err := s.cacheClient.InsertBlock(ctx, block); err != nil {
-		s.logger.Debug("cannot import block to cache", zap.Error(err))
+	if isExist, err := s.dbClient.IsBlockExist(ctx, block); err != nil || isExist {
+		return types.ErrRecordExist
+	}
+
+	if writeToCache {
+		if err := s.cacheClient.InsertBlock(ctx, block); err != nil {
+			s.logger.Debug("cannot import block to cache", zap.Error(err))
+		}
+	}
+
+	if _, err := s.cacheClient.UpdateTotalTxs(ctx, block.NumTxs); err != nil {
+		return err
 	}
 
 	// Start import block
@@ -94,9 +216,12 @@ func (s *infoServer) ImportBlock(ctx context.Context, block *types.Block) error 
 		return err
 	}
 
-	if err := s.cacheClient.InsertTxs(ctx, block.Txs); err != nil {
-		s.logger.Debug("cannot import txs to cache", zap.Error(err))
-		return err
+	if writeToCache {
+		s.logger.Debug("Insert block txs to cached")
+		if err := s.cacheClient.InsertTxsOfBlock(ctx, block); err != nil {
+			s.logger.Debug("cannot import txs to cache", zap.Error(err))
+			return err
+		}
 	}
 
 	insertTxTime := time.Now()
@@ -107,14 +232,41 @@ func (s *infoServer) ImportBlock(ctx context.Context, block *types.Block) error 
 	insertTxConsume := time.Since(insertTxTime)
 	s.logger.Debug("Total time for import tx", zap.Any("TimeConsumed", insertTxConsume))
 
-	insertReceiptsTime := time.Now()
-	if err := s.ImportReceipts(ctx, block); err != nil {
-		return err
+	// temporary update active addresses after an interval of blocks
+	if block.Height%cfg.UpdateActiveAddressInterval == 0 {
+		insertActiveAddrTime := time.Now()
+		if err := s.dbClient.UpdateActiveAddresses(ctx, filterAddrSet(block.Txs)); err != nil {
+			return err
+		}
+		insertActiveAddrConsumed := time.Since(insertActiveAddrTime)
+		s.logger.Debug("Total time for update active addresses", zap.Any("TimeConsumed", insertActiveAddrConsumed))
+		totalHolders, err := s.dbClient.GetTotalActiveAddresses(ctx)
+		if err != nil {
+			return err
+		}
+		err = s.cacheClient.UpdateTotalHolders(ctx, totalHolders)
+		if err != nil {
+			return err
+		}
 	}
-	insertReceiptsConsume := time.Since(insertReceiptsTime)
-	s.logger.Debug("Total time for import receipt", zap.Any("TimeConsumed", insertReceiptsConsume))
 
 	return nil
+}
+
+func (s *infoServer) InsertErrorBlocks(ctx context.Context, start uint64, end uint64) error {
+	err := s.cacheClient.InsertErrorBlocks(ctx, start, end)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (s *infoServer) PopErrorBlockHeight(ctx context.Context) (uint64, error) {
+	height, err := s.cacheClient.PopErrorBlockHeight(ctx)
+	if err != nil {
+		return 0, err
+	}
+	return height, nil
 }
 
 func (s *infoServer) ImportReceipts(ctx context.Context, block *types.Block) error {
@@ -127,6 +279,7 @@ func (s *infoServer) ImportReceipts(ctx context.Context, block *types.Block) err
 		txByToAdd   *types.TransactionByAddress
 	}
 	results := make(chan response, block.NumTxs)
+	addresses := make(map[string]bool)
 
 	//todo @longnd: Move this workers to config or dynamic settings
 	for w := 0; w <= 10; w++ {
@@ -162,11 +315,10 @@ func (s *infoServer) ImportReceipts(ctx context.Context, block *types.Block) err
 				}
 
 				if address == nil || address.IsContract {
-					var addresses []string
-					for _, l := range receipt.Logs {
-						addresses = append(addresses, l.Address)
-					}
 
+					for _, l := range receipt.Logs {
+						addresses[l.Address] = true
+					}
 					if err := s.dbClient.UpdateActiveAddresses(ctx, addresses); err != nil {
 						//todo: consider how we handle this err, just skip it now
 						s.logger.Warn("cannot update active address")
@@ -276,4 +428,17 @@ func (s *infoServer) getAddressByHash(address string) (*types.Address, error) {
 
 func (s *infoServer) getTxsByBlockNumber(blockNumber int64, filter *types.Pagination) ([]*types.Transaction, error) {
 	return nil, nil
+}
+
+func filterAddrSet(txs []*types.Transaction) (result map[string]bool) {
+	result = make(map[string]bool)
+	for _, tx := range txs {
+		if !result[tx.From] {
+			result[tx.From] = true
+		}
+		if !result[tx.To] {
+			result[tx.To] = true
+		}
+	}
+	return result
 }

@@ -15,7 +15,7 @@ import (
 // todo: implement pipeline with worker for dispatch InsertBlock task
 func listener(ctx context.Context, srv *server.Server) {
 	srv.Logger.Info("Start listening...")
-	var prevHeader uint64
+	var prevHeader uint64 = 0
 	t := time.NewTicker(time.Second * 1)
 	defer t.Stop()
 	for {
@@ -24,11 +24,13 @@ func listener(ctx context.Context, srv *server.Server) {
 			return
 		case <-t.C:
 			latest, err := srv.LatestBlockHeight(ctx)
+			srv.Logger.Debug("Get block height from network", zap.Uint64("BlockHeight", latest), zap.Uint64("PrevHeader", prevHeader))
 			if err != nil {
 				srv.Logger.Error("Listener: Failed to get latest block number", zap.Error(err))
 				continue
 			}
 			lgr := srv.Logger.With(zap.Uint64("block", latest))
+
 			// todo @longnd: this check quite bad, since its require us to keep backfill running
 			// for example, if our
 			if prevHeader != latest {
@@ -43,12 +45,17 @@ func listener(ctx context.Context, srv *server.Server) {
 					lgr.Error("Listener: Block not found")
 					continue
 				}
-				if err := srv.ImportBlock(ctx, block); err != nil {
+				if err := srv.ImportBlock(ctx, block, true); err != nil {
 					lgr.Error("Listener: Failed to import block", zap.Error(err))
 					continue
 				}
-				if latest-prevHeader > 1 {
-
+				if latest-1 > prevHeader {
+					lgr.Info("Listener: Insert error blocks", zap.Uint64("from", prevHeader), zap.Uint64("to", latest))
+					err := srv.InsertErrorBlocks(ctx, prevHeader, latest)
+					if err != nil {
+						lgr.Error("Listener: Failed to insert error block height", zap.Error(err))
+						continue
+					}
 				}
 				prevHeader = latest
 			}
