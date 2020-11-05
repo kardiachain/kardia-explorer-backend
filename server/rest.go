@@ -157,8 +157,12 @@ func (s *Server) TokenInfo(c echo.Context) error {
 	if !s.cacheClient.IsRequestToCoinMarket(ctx) {
 		tokenInfo, err := s.cacheClient.TokenInfo(ctx)
 		if err != nil {
-			return api.InternalServer.Build(c)
+			tokenInfo, err = s.infoServer.TokenInfo(ctx)
+			if err != nil {
+				return api.Invalid.Build(c)
+			}
 		}
+
 		return api.OK.SetData(tokenInfo).Build(c)
 	}
 
