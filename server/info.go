@@ -73,7 +73,7 @@ func (s *infoServer) TokenInfo(ctx context.Context) (*types.TokenInfo, error) {
 		CirculatingSupply int                `json:"circulating_supply"`
 		TotalSupply       int                `json:"total_supply"`
 		IsActive          int                `json:"is_active"`
-		Platform          string             `json:"platform"`
+		Platform          interface{}        `json:"platform"`
 		CmcRank           int                `json:"cmc_rank"`
 		IsFiat            int                `json:"is_fiat"`
 		LastUpdated       string             `json:"last_updated"`
@@ -133,7 +133,7 @@ func (s *infoServer) TokenInfo(ctx context.Context) (*types.TokenInfo, error) {
 	// Cast to internal
 	tokenInfo := &types.TokenInfo{
 		Name:              cmData.Name,
-		Symbol:            cmData.Name,
+		Symbol:            cmData.Symbol,
 		Decimal:           18,
 		TotalSupply:       cmData.TotalSupply,
 		CirculatingSupply: cmData.CirculatingSupply,

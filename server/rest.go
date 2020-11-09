@@ -3,6 +3,7 @@ package server
 
 import (
 	"context"
+	"fmt"
 	"strconv"
 	"strings"
 	"time"
@@ -159,6 +160,7 @@ func (s *Server) TokenInfo(c echo.Context) error {
 		if err != nil {
 			tokenInfo, err = s.infoServer.TokenInfo(ctx)
 			if err != nil {
+				fmt.Println("Error ", err)
 				return api.Invalid.Build(c)
 			}
 		}
