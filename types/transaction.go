@@ -17,8 +17,8 @@ type Transaction struct {
 	ContractAddress  string      `json:"contractAddress" bson:"contractAddress"`
 	Value            string      `json:"value" bson:"value"`
 	GasPrice         uint64      `json:"gasPrice" bson:"gasPrice"`
-	GasFee           uint64      `json:"gas" bson:"gas"`
-	GasLimit         uint64      `json:"gasLimit" bson:"gasLimit"`
+	GasLimit         uint64      `json:"gas" bson:"gas"`
+	GasUsed          uint64      `json:"gasUsed"`
 	Nonce            uint64      `json:"nonce" bson:"nonce"`
 	Time             time.Time   `json:"time" bson:"time"`
 	InputData        string      `json:"input" bson:"input"`
