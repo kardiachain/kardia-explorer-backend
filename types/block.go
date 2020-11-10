@@ -41,6 +41,7 @@ type Block struct {
 	CommitHash      string    `json:"commitHash,omitempty" bson:"commitHash"`
 	GasLimit        uint64    `json:"gasLimit,omitempty" bson:"gasLimit"`
 	GasUsed         uint64    `json:"gasUsed" bson:"gasUsed"`
+	Rewards         string    `json:"rewards" bson:"rewards"`
 	NumTxs          uint64    `json:"numTxs" bson:"numTxs"`
 	Time            time.Time `json:"time,omitempty" bson:"time"`
 	ProposerAddress string    `json:"proposerAddress,omitempty" bson:"proposerAddress"`
