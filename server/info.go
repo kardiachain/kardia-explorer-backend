@@ -300,7 +300,7 @@ func (s *infoServer) ImportReceipts(ctx context.Context, block *types.Block) err
 					if !utils.IsNilAddress(receipt.ContractAddress) {
 						tx.ContractAddress = receipt.ContractAddress
 					}
-					tx.Status = receipt.Status == 1
+					tx.Status = receipt.Status
 					toAddress = tx.ContractAddress
 				}
 
