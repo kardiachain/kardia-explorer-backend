@@ -12,6 +12,7 @@ type Header struct {
 	CommitHash      string    `json:"commitHash" bson:"commitHash"`
 	GasLimit        uint64    `json:"gasLimit" bson:"gasLimit"`
 	GasUsed         uint64    `json:"gasUsed" bson:"gasUsed"`
+	Rewards         string    `json:"rewards" bson:"rewards"`
 	NumTxs          uint64    `json:"numTxs" bson:"numTxs"`
 	Time            time.Time `json:"time" bson:"time"`
 	ProposerAddress string    `json:"proposerAddress" bson:"proposerAddress"`
