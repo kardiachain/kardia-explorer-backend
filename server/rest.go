@@ -54,7 +54,7 @@ func (s *Server) Search(c echo.Context) error {
 			}
 			txs, total, err := s.dbClient.TxsByAddress(ctx, paramValue[0], pagination)
 			s.Logger.Info("search tx by hash:", zap.String("address", paramValue[0]))
-			balance, err := s.kaiClient.BalanceAt(ctx, paramValue[0], nil)
+			balance, err := s.kaiClient.BalanceAt(ctx, paramValue[0])
 			if err != nil {
 				return err
 			}
@@ -419,7 +419,7 @@ func (s *Server) Addresses(c echo.Context) error {
 func (s *Server) Balance(c echo.Context) error {
 	ctx := context.Background()
 	address := c.Param("address")
-	balance, err := s.kaiClient.BalanceAt(ctx, address, nil)
+	balance, err := s.kaiClient.BalanceAt(ctx, address)
 	if err != nil {
 		return err
 	}

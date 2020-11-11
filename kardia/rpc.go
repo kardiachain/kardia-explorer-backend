@@ -154,16 +154,12 @@ func (ec *Client) GetTransactionReceipt(ctx context.Context, txHash string) (*ty
 
 // BalanceAt returns the wei balance of the given account.
 // The block number can be nil, in which case the balance is taken from the latest known block.
-func (ec *Client) BalanceAt(ctx context.Context, account string, blockHeightOrHash interface{}) (string, error) {
-	var result string
-	var err error
-	if blockHeightOrHash == nil {
-		err = ec.chooseClient().c.CallContext(ctx, &result, "account_balance", common.HexToAddress(account), nil, nil)
-	} else if blockHeight, ok := blockHeightOrHash.(uint64); ok {
-		err = ec.chooseClient().c.CallContext(ctx, &result, "account_balance", common.HexToAddress(account), nil, blockHeight)
-	} else if blockHash, ok := blockHeightOrHash.(string); ok {
-		err = ec.chooseClient().c.CallContext(ctx, &result, "account_balance", common.HexToAddress(account), blockHash, nil)
-	}
+func (ec *Client) BalanceAt(ctx context.Context, account string) (string, error) {
+	var (
+		result string
+		err    error
+	)
+	err = ec.chooseClient().c.CallContext(ctx, &result, "account_balance", common.HexToAddress(account), "latest")
 	return result, err
 }
 
