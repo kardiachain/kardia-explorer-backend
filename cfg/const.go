@@ -18,7 +18,3 @@
 
 // Package cfg
 package cfg
-
-const (
-	UpdateActiveAddressInterval = 1
-)

@@ -33,9 +33,9 @@ type ClientInterface interface {
 	BlockHeaderByNumber(ctx context.Context, number uint64) (*types.Header, error)
 	GetTransaction(ctx context.Context, hash string) (*types.Transaction, bool, error)
 	GetTransactionReceipt(ctx context.Context, txHash string) (*types.Receipt, error)
-	BalanceAt(ctx context.Context, account string) (string, error)
-	StorageAt(ctx context.Context, account string, key string, blockNumber uint64) ([]byte, error)
-	CodeAt(ctx context.Context, account string, blockNumber uint64) ([]byte, error)
+	GetBalance(ctx context.Context, account string) (string, error)
+	GetStorageAt(ctx context.Context, account string, key string) (string, error)
+	GetCode(ctx context.Context, account string) (string, error)
 	NonceAt(ctx context.Context, account string) (uint64, error)
 	SendRawTransaction(ctx context.Context, tx *types.Transaction) error
 	Peers(ctx context.Context) (*types.PeerInfo, error)

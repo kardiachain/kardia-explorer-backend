@@ -3,6 +3,7 @@ package types
 type Address struct {
 	Address string `json:"address" bson:"address"`
 	Balance string `json:"balance" bson:"balance"`
+	Name    string `json:"name" bson:"name"` // alias of an address
 
 	// Token
 	TokenName   string `json:"tokenName" bson:"tokenName"`

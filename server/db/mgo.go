@@ -341,10 +341,16 @@ func (m *mongoDB) TxByNonce(ctx context.Context, nonce int64) (*types.Transactio
 // InsertTxs create bulk writer
 func (m *mongoDB) InsertTxs(ctx context.Context, txs []*types.Transaction) error {
 	m.logger.Debug("Start insert txs", zap.Int("TxSize", len(txs)))
-	var txsBulkWriter []mongo.WriteModel
+	var (
+		txsBulkWriter []mongo.WriteModel
+		// contractBulkWriter []mongo.WriteModel
+	)
 	for _, tx := range txs {
 		txModel := mongo.NewInsertOneModel().SetDocument(tx)
 		txsBulkWriter = append(txsBulkWriter, txModel)
+		if tx.ContractAddress != "" {
+			// TODO(trinhdn): insert created contract info to database with model `address`
+		}
 	}
 	if len(txsBulkWriter) > 0 {
 		if _, err := m.wrapper.C(cTxs).BulkWrite(txsBulkWriter); err != nil {
