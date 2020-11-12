@@ -343,14 +343,11 @@ func (m *mongoDB) InsertTxs(ctx context.Context, txs []*types.Transaction) error
 	m.logger.Debug("Start insert txs", zap.Int("TxSize", len(txs)))
 	var (
 		txsBulkWriter []mongo.WriteModel
-		// contractBulkWriter []mongo.WriteModel
 	)
 	for _, tx := range txs {
 		txModel := mongo.NewInsertOneModel().SetDocument(tx)
 		txsBulkWriter = append(txsBulkWriter, txModel)
-		if tx.ContractAddress != "" {
-			// TODO(trinhdn): insert created contract info to database with model `address`
-		}
+		// TODO(trinhdn): insert created contract info to database with model `address`
 	}
 	if len(txsBulkWriter) > 0 {
 		if _, err := m.wrapper.C(cTxs).BulkWrite(txsBulkWriter); err != nil {
@@ -463,35 +460,13 @@ func (m *mongoDB) OwnedTokensOfAddress(ctx context.Context, walletAddress string
 // UpdateActiveAddresses update last time those addresses active
 // Just skip for now
 func (m *mongoDB) UpdateActiveAddresses(ctx context.Context, addressesMap map[string]bool) error {
-	var addrListFromDB []*types.ActiveAddress
-	cursor, err := m.wrapper.C(cActiveAddresses).Find(bson.D{})
-	if err != nil {
-		return fmt.Errorf("failed to get active addresses: %v", err)
-	}
-	defer cursor.Close(ctx)
-	for cursor.Next(ctx) {
-		addr := &types.ActiveAddress{}
-		if err := cursor.Decode(&addr); err != nil {
-			return err
-		}
-		addrListFromDB = append(addrListFromDB, addr)
-	}
-
-	for _, addr := range addrListFromDB {
-		if addressesMap[addr.Address] {
-			delete(addressesMap, addr.Address)
-		}
-	}
-
 	var addrBulkWriter []mongo.WriteModel
-	for addr, existed := range addressesMap {
-		if existed {
-			addrModel := mongo.NewInsertOneModel().SetDocument(types.ActiveAddress{
-				Address: addr,
-				Balance: "0",
-			})
-			addrBulkWriter = append(addrBulkWriter, addrModel)
-		}
+	for addr := range addressesMap {
+		addrModel := mongo.NewInsertOneModel().SetDocument(types.ActiveAddress{
+			Address: addr,
+			Balance: "0",
+		})
+		addrBulkWriter = append(addrBulkWriter, addrModel)
 	}
 	if len(addrBulkWriter) > 0 {
 		if _, err := m.wrapper.C(cActiveAddresses).BulkUpsert(addrBulkWriter); err != nil {
