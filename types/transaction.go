@@ -22,7 +22,7 @@ type Transaction struct {
 	Nonce            uint64      `json:"nonce" bson:"nonce"`
 	Time             time.Time   `json:"time" bson:"time"`
 	InputData        string      `json:"input" bson:"input"`
-	Logs             string      `json:"logs" bson:"logs"`
+	Logs             []Log       `json:"logs" bson:"logs"`
 	TransactionIndex uint        `json:"transactionIndex"`
 	LogsBloom        types.Bloom `json:"logsBloom"`
 	Root             string      `json:"root"`

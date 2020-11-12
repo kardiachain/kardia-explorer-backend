@@ -13,7 +13,6 @@ import (
 
 	"go.uber.org/zap"
 
-	"github.com/kardiachain/explorer-backend/cfg"
 	"github.com/kardiachain/explorer-backend/kardia"
 	"github.com/kardiachain/explorer-backend/metrics"
 	"github.com/kardiachain/explorer-backend/server/cache"
@@ -232,22 +231,20 @@ func (s *infoServer) ImportBlock(ctx context.Context, block *types.Block, writeT
 	insertTxConsume := time.Since(insertTxTime)
 	s.logger.Debug("Total time for import tx", zap.Any("TimeConsumed", insertTxConsume))
 
-	// temporary update active addresses after an interval of blocks
-	if block.Height%cfg.UpdateActiveAddressInterval == 0 {
-		insertActiveAddrTime := time.Now()
-		if err := s.dbClient.UpdateActiveAddresses(ctx, filterAddrSet(block.Txs)); err != nil {
-			return err
-		}
-		insertActiveAddrConsumed := time.Since(insertActiveAddrTime)
-		s.logger.Debug("Total time for update active addresses", zap.Any("TimeConsumed", insertActiveAddrConsumed))
-		totalHolders, err := s.dbClient.GetTotalActiveAddresses(ctx)
-		if err != nil {
-			return err
-		}
-		err = s.cacheClient.UpdateTotalHolders(ctx, totalHolders)
-		if err != nil {
-			return err
-		}
+	// update active addresses
+	insertActiveAddrTime := time.Now()
+	if err := s.dbClient.UpdateActiveAddresses(ctx, filterAddrSet(block.Txs)); err != nil {
+		return err
+	}
+	insertActiveAddrConsumed := time.Since(insertActiveAddrTime)
+	s.logger.Debug("Total time for update active addresses", zap.Any("TimeConsumed", insertActiveAddrConsumed))
+	totalHolders, err := s.dbClient.GetTotalActiveAddresses(ctx)
+	if err != nil {
+		return err
+	}
+	err = s.cacheClient.UpdateTotalHolders(ctx, totalHolders)
+	if err != nil {
+		return err
 	}
 
 	return nil
