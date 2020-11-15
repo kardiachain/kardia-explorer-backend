@@ -139,8 +139,14 @@ func (s *Server) Stats(c echo.Context) error {
 
 func (s *Server) TotalHolders(c echo.Context) error {
 	ctx := context.Background()
-	totalHolders := s.cacheClient.TotalHolders(ctx)
-	return api.OK.SetData(totalHolders).Build(c)
+	totalHolders, totalContracts := s.cacheClient.TotalHolders(ctx)
+	return api.OK.SetData(struct {
+		TotalHolders   uint64 `json:"totalHolders"`
+		TotalContracts uint64 `json:"totalContracts"`
+	}{
+		TotalHolders:   totalHolders,
+		TotalContracts: totalContracts,
+	}).Build(c)
 }
 
 func (s *Server) Nodes(c echo.Context) error {

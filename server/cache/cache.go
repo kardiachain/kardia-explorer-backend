@@ -53,8 +53,8 @@ type Client interface {
 	LatestBlockHeight(ctx context.Context) uint64
 
 	// Holders summary
-	UpdateTotalHolders(ctx context.Context, holders uint64) error
-	TotalHolders(ctx context.Context) uint64
+	UpdateTotalHolders(ctx context.Context, holders uint64, contracts uint64) error
+	TotalHolders(ctx context.Context) (uint64, uint64)
 
 	IsRequestToCoinMarket(ctx context.Context) bool
 	TokenInfo(ctx context.Context) (*types.TokenInfo, error)
