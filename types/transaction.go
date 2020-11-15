@@ -13,16 +13,16 @@ type Transaction struct {
 	Hash             string      `json:"hash" bson:"hash"`
 	From             string      `json:"from" bson:"from"`
 	To               string      `json:"to" bson:"to"`
-	Status           bool        `json:"status" bson:"status"`
+	Status           uint        `json:"status" bson:"status"`
 	ContractAddress  string      `json:"contractAddress" bson:"contractAddress"`
 	Value            string      `json:"value" bson:"value"`
 	GasPrice         uint64      `json:"gasPrice" bson:"gasPrice"`
-	GasFee           uint64      `json:"gas" bson:"gas"`
-	GasLimit         uint64      `json:"gasLimit" bson:"gasLimit"`
+	GasLimit         uint64      `json:"gas" bson:"gas"`
+	GasUsed          uint64      `json:"gasUsed"`
 	Nonce            uint64      `json:"nonce" bson:"nonce"`
 	Time             time.Time   `json:"time" bson:"time"`
 	InputData        string      `json:"input" bson:"input"`
-	Logs             string      `json:"logs" bson:"logs"`
+	Logs             []Log       `json:"logs" bson:"logs"`
 	TransactionIndex uint        `json:"transactionIndex"`
 	LogsBloom        types.Bloom `json:"logsBloom"`
 	Root             string      `json:"root"`

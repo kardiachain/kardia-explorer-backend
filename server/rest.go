@@ -54,7 +54,7 @@ func (s *Server) Search(c echo.Context) error {
 			}
 			txs, total, err := s.dbClient.TxsByAddress(ctx, paramValue[0], pagination)
 			s.Logger.Info("search tx by hash:", zap.String("address", paramValue[0]))
-			balance, err := s.kaiClient.BalanceAt(ctx, paramValue[0], nil)
+			balance, err := s.kaiClient.GetBalance(ctx, paramValue[0])
 			if err != nil {
 				return err
 			}
@@ -139,8 +139,14 @@ func (s *Server) Stats(c echo.Context) error {
 
 func (s *Server) TotalHolders(c echo.Context) error {
 	ctx := context.Background()
-	totalHolders := s.cacheClient.TotalHolders(ctx)
-	return api.OK.SetData(totalHolders).Build(c)
+	totalHolders, totalContracts := s.cacheClient.TotalHolders(ctx)
+	return api.OK.SetData(struct {
+		TotalHolders   uint64 `json:"totalHolders"`
+		TotalContracts uint64 `json:"totalContracts"`
+	}{
+		TotalHolders:   totalHolders,
+		TotalContracts: totalContracts,
+	}).Build(c)
 }
 
 func (s *Server) Nodes(c echo.Context) error {
@@ -157,8 +163,12 @@ func (s *Server) TokenInfo(c echo.Context) error {
 	if !s.cacheClient.IsRequestToCoinMarket(ctx) {
 		tokenInfo, err := s.cacheClient.TokenInfo(ctx)
 		if err != nil {
-			return api.InternalServer.Build(c)
+			tokenInfo, err = s.infoServer.TokenInfo(ctx)
+			if err != nil {
+				return api.Invalid.Build(c)
+			}
 		}
+
 		return api.OK.SetData(tokenInfo).Build(c)
 	}
 
@@ -415,7 +425,7 @@ func (s *Server) Addresses(c echo.Context) error {
 func (s *Server) Balance(c echo.Context) error {
 	ctx := context.Background()
 	address := c.Param("address")
-	balance, err := s.kaiClient.BalanceAt(ctx, address, nil)
+	balance, err := s.kaiClient.GetBalance(ctx, address)
 	if err != nil {
 		return err
 	}

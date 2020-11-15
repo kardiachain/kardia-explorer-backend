@@ -341,10 +341,13 @@ func (m *mongoDB) TxByNonce(ctx context.Context, nonce int64) (*types.Transactio
 // InsertTxs create bulk writer
 func (m *mongoDB) InsertTxs(ctx context.Context, txs []*types.Transaction) error {
 	m.logger.Debug("Start insert txs", zap.Int("TxSize", len(txs)))
-	var txsBulkWriter []mongo.WriteModel
+	var (
+		txsBulkWriter []mongo.WriteModel
+	)
 	for _, tx := range txs {
 		txModel := mongo.NewInsertOneModel().SetDocument(tx)
 		txsBulkWriter = append(txsBulkWriter, txModel)
+		// TODO(trinhdn): insert created contract info to database with model `address`
 	}
 	if len(txsBulkWriter) > 0 {
 		if _, err := m.wrapper.C(cTxs).BulkWrite(txsBulkWriter); err != nil {
@@ -456,7 +459,7 @@ func (m *mongoDB) OwnedTokensOfAddress(ctx context.Context, walletAddress string
 
 // UpdateActiveAddresses update last time those addresses active
 // Just skip for now
-func (m *mongoDB) UpdateActiveAddresses(ctx context.Context, addressesMap map[string]bool) error {
+func (m *mongoDB) UpdateActiveAddresses(ctx context.Context, addressesMap map[string]bool, contractAddrMap map[string]bool) error {
 	var addrListFromDB []*types.ActiveAddress
 	cursor, err := m.wrapper.C(cActiveAddresses).Find(bson.D{})
 	if err != nil {
@@ -475,30 +478,44 @@ func (m *mongoDB) UpdateActiveAddresses(ctx context.Context, addressesMap map[st
 		if addressesMap[addr.Address] {
 			delete(addressesMap, addr.Address)
 		}
+		if contractAddrMap[addr.Address] {
+			delete(contractAddrMap, addr.Address)
+		}
 	}
 
 	var addrBulkWriter []mongo.WriteModel
-	for addr, existed := range addressesMap {
-		if existed {
-			addrModel := mongo.NewInsertOneModel().SetDocument(types.ActiveAddress{
-				Address: addr,
-				Balance: "0",
-			})
-			addrBulkWriter = append(addrBulkWriter, addrModel)
-		}
+	for addr := range addressesMap {
+		addrModel := mongo.NewInsertOneModel().SetDocument(types.ActiveAddress{
+			Address:    addr,
+			Balance:    "0",
+			IsContract: false,
+		})
+		addrBulkWriter = append(addrBulkWriter, addrModel)
+	}
+	for contractAddr := range contractAddrMap {
+		addrModel := mongo.NewInsertOneModel().SetDocument(types.ActiveAddress{
+			Address:    contractAddr,
+			Balance:    "0",
+			IsContract: true,
+		})
+		addrBulkWriter = append(addrBulkWriter, addrModel)
 	}
 	if len(addrBulkWriter) > 0 {
-		if _, err := m.wrapper.C(cActiveAddresses).BulkUpsert(addrBulkWriter); err != nil {
+		if _, err := m.wrapper.C(cActiveAddresses).BulkWrite(addrBulkWriter); err != nil {
 			return err
 		}
 	}
 	return nil
 }
 
-func (m *mongoDB) GetTotalActiveAddresses(ctx context.Context) (uint64, error) {
-	total, err := m.wrapper.C(cActiveAddresses).Count(bson.M{})
+func (m *mongoDB) GetTotalActiveAddresses(ctx context.Context) (uint64, uint64, error) {
+	totalAddr, err := m.wrapper.C(cActiveAddresses).Count(bson.M{"isContract": false})
 	if err != nil {
-		return 0, err
+		return 0, 0, err
 	}
-	return uint64(total), nil
+	totalContractAddr, err := m.wrapper.C(cActiveAddresses).Count(bson.M{"isContract": true})
+	if err != nil {
+		return 0, 0, err
+	}
+	return uint64(totalAddr), uint64(totalContractAddr), nil
 }

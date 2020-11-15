@@ -141,9 +141,8 @@ func (ec *Client) GetTransaction(ctx context.Context, hash string) (*types.Trans
 // GetTransactionReceipt returns the receipt of a transaction by transaction hash.
 // Note that the receipt is not available for pending transactions.
 func (ec *Client) GetTransactionReceipt(ctx context.Context, txHash string) (*types.Receipt, error) {
-	RPCClient := ec.chooseClient()
 	var r *types.Receipt
-	err := RPCClient.c.CallContext(ctx, &r, "tx_getTransactionReceipt", common.HexToHash(txHash))
+	err := ec.chooseClient().c.CallContext(ctx, &r, "tx_getTransactionReceipt", common.HexToHash(txHash))
 	if err == nil {
 		if r == nil {
 			return nil, kardia.NotFound
@@ -154,32 +153,28 @@ func (ec *Client) GetTransactionReceipt(ctx context.Context, txHash string) (*ty
 
 // BalanceAt returns the wei balance of the given account.
 // The block number can be nil, in which case the balance is taken from the latest known block.
-func (ec *Client) BalanceAt(ctx context.Context, account string, blockHeightOrHash interface{}) (string, error) {
-	var result string
-	var err error
-	if blockHeightOrHash == nil {
-		err = ec.chooseClient().c.CallContext(ctx, &result, "account_balance", common.HexToAddress(account), nil, nil)
-	} else if blockHeight, ok := blockHeightOrHash.(uint64); ok {
-		err = ec.chooseClient().c.CallContext(ctx, &result, "account_balance", common.HexToAddress(account), nil, blockHeight)
-	} else if blockHash, ok := blockHeightOrHash.(string); ok {
-		err = ec.chooseClient().c.CallContext(ctx, &result, "account_balance", common.HexToAddress(account), blockHash, nil)
-	}
+func (ec *Client) GetBalance(ctx context.Context, account string) (string, error) {
+	var (
+		result string
+		err    error
+	)
+	err = ec.chooseClient().c.CallContext(ctx, &result, "account_balance", common.HexToAddress(account), "latest")
 	return result, err
 }
 
 // StorageAt returns the value of key in the contract storage of the given account.
 // The block number can be nil, in which case the value is taken from the latest known block.
-func (ec *Client) StorageAt(ctx context.Context, account string, key string, blockNumber uint64) ([]byte, error) {
+func (ec *Client) GetStorageAt(ctx context.Context, account string, key string) (common.Bytes, error) {
 	var result common.Bytes
-	err := ec.chooseClient().c.CallContext(ctx, &result, "kai_getStorageAt", common.HexToAddress(account), key, blockNumber)
+	err := ec.chooseClient().c.CallContext(ctx, &result, "kai_getStorageAt", common.HexToAddress(account), key, "latest")
 	return result, err
 }
 
 // CodeAt returns the contract code of the given account.
 // The block number can be nil, in which case the code is taken from the latest known block.
-func (ec *Client) CodeAt(ctx context.Context, account string, blockNumber uint64) ([]byte, error) {
+func (ec *Client) GetCode(ctx context.Context, account string) (common.Bytes, error) {
 	var result common.Bytes
-	err := ec.chooseClient().c.CallContext(ctx, &result, "kai_getCode", common.HexToAddress(account), blockNumber)
+	err := ec.chooseClient().c.CallContext(ctx, &result, "kai_getCode", common.HexToAddress(account), "latest")
 	return result, err
 }
 

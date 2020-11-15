@@ -36,8 +36,9 @@ const (
 
 	KeyTokenInfo = "#token#info"
 
-	KeyTotalTxs     = "#txs#total"
-	KeyTotalHolders = "#holders#total"
+	KeyTotalTxs       = "#txs#total"
+	KeyTotalHolders   = "#holders#total"
+	KeyTotalContracts = "#contracts#total"
 )
 
 type Redis struct {
@@ -77,7 +78,7 @@ func (c *Redis) IsRequestToCoinMarket(ctx context.Context) bool {
 		return false
 	}
 
-	return tokenInfo != nil
+	return tokenInfo == nil
 }
 
 func (c *Redis) TotalTxs(ctx context.Context) uint64 {
@@ -324,15 +325,19 @@ func (c *Redis) PopErrorBlockHeight(ctx context.Context) (uint64, error) {
 }
 
 // Holders summary
-func (c *Redis) UpdateTotalHolders(ctx context.Context, holders uint64) error {
+func (c *Redis) UpdateTotalHolders(ctx context.Context, holders uint64, contracts uint64) error {
 	if err := c.client.Set(ctx, KeyTotalHolders, holders, 0).Err(); err != nil {
 		// Handle error here
 		c.logger.Warn("cannot set total holders values")
 	}
+	if err := c.client.Set(ctx, KeyTotalContracts, contracts, 0).Err(); err != nil {
+		// Handle error here
+		c.logger.Warn("cannot set total contracts values")
+	}
 	return nil
 }
 
-func (c *Redis) TotalHolders(ctx context.Context) uint64 {
+func (c *Redis) TotalHolders(ctx context.Context) (uint64, uint64) {
 	result, err := c.client.Get(ctx, KeyTotalHolders).Result()
 	c.logger.Debug("TotalHolders", zap.String("Total", result))
 	if err != nil {
@@ -341,7 +346,17 @@ func (c *Redis) TotalHolders(ctx context.Context) uint64 {
 	}
 	// Convert to int
 	totalHolders := utils.StrToUint64(result)
-	return totalHolders
+
+	result, err = c.client.Get(ctx, KeyTotalContracts).Result()
+	c.logger.Debug("TotalContracts", zap.String("Total", result))
+	if err != nil {
+		// Handle error here
+		c.logger.Warn("cannot get total holders values")
+	}
+	// Convert to int
+	totalContracts := utils.StrToUint64(result)
+
+	return totalHolders, totalContracts
 }
 
 func (c *Redis) getBlockIndex(ctx context.Context, index int64) (*types.Block, error) {

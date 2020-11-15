@@ -13,7 +13,6 @@ import (
 
 	"go.uber.org/zap"
 
-	"github.com/kardiachain/explorer-backend/cfg"
 	"github.com/kardiachain/explorer-backend/kardia"
 	"github.com/kardiachain/explorer-backend/metrics"
 	"github.com/kardiachain/explorer-backend/server/cache"
@@ -73,7 +72,7 @@ func (s *infoServer) TokenInfo(ctx context.Context) (*types.TokenInfo, error) {
 		CirculatingSupply int                `json:"circulating_supply"`
 		TotalSupply       int                `json:"total_supply"`
 		IsActive          int                `json:"is_active"`
-		Platform          string             `json:"platform"`
+		Platform          interface{}        `json:"platform"`
 		CmcRank           int                `json:"cmc_rank"`
 		IsFiat            int                `json:"is_fiat"`
 		LastUpdated       string             `json:"last_updated"`
@@ -133,7 +132,7 @@ func (s *infoServer) TokenInfo(ctx context.Context) (*types.TokenInfo, error) {
 	// Cast to internal
 	tokenInfo := &types.TokenInfo{
 		Name:              cmData.Name,
-		Symbol:            cmData.Name,
+		Symbol:            cmData.Symbol,
 		Decimal:           18,
 		TotalSupply:       cmData.TotalSupply,
 		CirculatingSupply: cmData.CirculatingSupply,
@@ -232,22 +231,21 @@ func (s *infoServer) ImportBlock(ctx context.Context, block *types.Block, writeT
 	insertTxConsume := time.Since(insertTxTime)
 	s.logger.Debug("Total time for import tx", zap.Any("TimeConsumed", insertTxConsume))
 
-	// temporary update active addresses after an interval of blocks
-	if block.Height%cfg.UpdateActiveAddressInterval == 0 {
-		insertActiveAddrTime := time.Now()
-		if err := s.dbClient.UpdateActiveAddresses(ctx, filterAddrSet(block.Txs)); err != nil {
-			return err
-		}
-		insertActiveAddrConsumed := time.Since(insertActiveAddrTime)
-		s.logger.Debug("Total time for update active addresses", zap.Any("TimeConsumed", insertActiveAddrConsumed))
-		totalHolders, err := s.dbClient.GetTotalActiveAddresses(ctx)
-		if err != nil {
-			return err
-		}
-		err = s.cacheClient.UpdateTotalHolders(ctx, totalHolders)
-		if err != nil {
-			return err
-		}
+	// update active addresses
+	insertActiveAddrTime := time.Now()
+	addrList, contractList := filterAddrSet(block.Txs)
+	if err := s.dbClient.UpdateActiveAddresses(ctx, addrList, contractList); err != nil {
+		return err
+	}
+	insertActiveAddrConsumed := time.Since(insertActiveAddrTime)
+	s.logger.Debug("Total time for update active addresses", zap.Any("TimeConsumed", insertActiveAddrConsumed))
+	totalAddr, totalContractAddr, err := s.dbClient.GetTotalActiveAddresses(ctx)
+	if err != nil {
+		return err
+	}
+	err = s.cacheClient.UpdateTotalHolders(ctx, totalAddr, totalContractAddr)
+	if err != nil {
+		return err
 	}
 
 	return nil
@@ -300,7 +298,7 @@ func (s *infoServer) ImportReceipts(ctx context.Context, block *types.Block) err
 					if !utils.IsNilAddress(receipt.ContractAddress) {
 						tx.ContractAddress = receipt.ContractAddress
 					}
-					tx.Status = receipt.Status == 1
+					tx.Status = receipt.Status
 					toAddress = tx.ContractAddress
 				}
 
@@ -319,7 +317,7 @@ func (s *infoServer) ImportReceipts(ctx context.Context, block *types.Block) err
 					for _, l := range receipt.Logs {
 						addresses[l.Address] = true
 					}
-					if err := s.dbClient.UpdateActiveAddresses(ctx, addresses); err != nil {
+					if err := s.dbClient.UpdateActiveAddresses(ctx, addresses, nil); err != nil {
 						//todo: consider how we handle this err, just skip it now
 						s.logger.Warn("cannot update active address")
 						results <- response{
@@ -430,15 +428,19 @@ func (s *infoServer) getTxsByBlockNumber(blockNumber int64, filter *types.Pagina
 	return nil, nil
 }
 
-func filterAddrSet(txs []*types.Transaction) (result map[string]bool) {
-	result = make(map[string]bool)
+func filterAddrSet(txs []*types.Transaction) (addr map[string]bool, contractAddr map[string]bool) {
+	addr = make(map[string]bool)
+	contractAddr = make(map[string]bool)
 	for _, tx := range txs {
-		if !result[tx.From] {
-			result[tx.From] = true
+		if !addr[tx.From] {
+			addr[tx.From] = true
 		}
-		if !result[tx.To] {
-			result[tx.To] = true
+		if !addr[tx.To] {
+			addr[tx.To] = true
+		}
+		if !contractAddr[tx.ContractAddress] {
+			contractAddr[tx.ContractAddress] = true
 		}
 	}
-	return result
+	return addr, contractAddr
 }
