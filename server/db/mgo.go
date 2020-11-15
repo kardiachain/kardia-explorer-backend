@@ -460,6 +460,29 @@ func (m *mongoDB) OwnedTokensOfAddress(ctx context.Context, walletAddress string
 // UpdateActiveAddresses update last time those addresses active
 // Just skip for now
 func (m *mongoDB) UpdateActiveAddresses(ctx context.Context, addressesMap map[string]bool, contractAddrMap map[string]bool) error {
+	var addrListFromDB []*types.ActiveAddress
+	cursor, err := m.wrapper.C(cActiveAddresses).Find(bson.D{})
+	if err != nil {
+		return fmt.Errorf("failed to get active addresses: %v", err)
+	}
+	defer cursor.Close(ctx)
+	for cursor.Next(ctx) {
+		addr := &types.ActiveAddress{}
+		if err := cursor.Decode(&addr); err != nil {
+			return err
+		}
+		addrListFromDB = append(addrListFromDB, addr)
+	}
+
+	for _, addr := range addrListFromDB {
+		if addressesMap[addr.Address] {
+			delete(addressesMap, addr.Address)
+		}
+		if contractAddrMap[addr.Address] {
+			delete(contractAddrMap, addr.Address)
+		}
+	}
+
 	var addrBulkWriter []mongo.WriteModel
 	for addr := range addressesMap {
 		addrModel := mongo.NewInsertOneModel().SetDocument(types.ActiveAddress{
@@ -478,7 +501,7 @@ func (m *mongoDB) UpdateActiveAddresses(ctx context.Context, addressesMap map[st
 		addrBulkWriter = append(addrBulkWriter, addrModel)
 	}
 	if len(addrBulkWriter) > 0 {
-		if _, err := m.wrapper.C(cActiveAddresses).BulkUpsert(addrBulkWriter); err != nil {
+		if _, err := m.wrapper.C(cActiveAddresses).BulkWrite(addrBulkWriter); err != nil {
 			return err
 		}
 	}
