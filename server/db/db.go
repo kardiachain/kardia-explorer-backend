@@ -76,8 +76,8 @@ type Client interface {
 	OwnedTokensOfAddress(ctx context.Context, address string, pagination *types.Pagination) ([]*types.TokenHolder, uint64, error)
 
 	// ActiveAddress
-	UpdateActiveAddresses(ctx context.Context, addressesMap map[string]bool) error
-	GetTotalActiveAddresses(ctx context.Context) (uint64, error)
+	UpdateActiveAddresses(ctx context.Context, addressesMap map[string]bool, contractAddrMap map[string]bool) error
+	GetTotalActiveAddresses(ctx context.Context) (uint64, uint64, error)
 }
 
 func NewClient(cfg Config) (Client, error) {

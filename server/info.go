@@ -233,16 +233,17 @@ func (s *infoServer) ImportBlock(ctx context.Context, block *types.Block, writeT
 
 	// update active addresses
 	insertActiveAddrTime := time.Now()
-	if err := s.dbClient.UpdateActiveAddresses(ctx, filterAddrSet(block.Txs)); err != nil {
+	addrList, contractList := filterAddrSet(block.Txs)
+	if err := s.dbClient.UpdateActiveAddresses(ctx, addrList, contractList); err != nil {
 		return err
 	}
 	insertActiveAddrConsumed := time.Since(insertActiveAddrTime)
 	s.logger.Debug("Total time for update active addresses", zap.Any("TimeConsumed", insertActiveAddrConsumed))
-	totalHolders, err := s.dbClient.GetTotalActiveAddresses(ctx)
+	totalAddr, totalContractAddr, err := s.dbClient.GetTotalActiveAddresses(ctx)
 	if err != nil {
 		return err
 	}
-	err = s.cacheClient.UpdateTotalHolders(ctx, totalHolders)
+	err = s.cacheClient.UpdateTotalHolders(ctx, totalAddr, totalContractAddr)
 	if err != nil {
 		return err
 	}
@@ -316,7 +317,7 @@ func (s *infoServer) ImportReceipts(ctx context.Context, block *types.Block) err
 					for _, l := range receipt.Logs {
 						addresses[l.Address] = true
 					}
-					if err := s.dbClient.UpdateActiveAddresses(ctx, addresses); err != nil {
+					if err := s.dbClient.UpdateActiveAddresses(ctx, addresses, nil); err != nil {
 						//todo: consider how we handle this err, just skip it now
 						s.logger.Warn("cannot update active address")
 						results <- response{
@@ -427,15 +428,19 @@ func (s *infoServer) getTxsByBlockNumber(blockNumber int64, filter *types.Pagina
 	return nil, nil
 }
 
-func filterAddrSet(txs []*types.Transaction) (result map[string]bool) {
-	result = make(map[string]bool)
+func filterAddrSet(txs []*types.Transaction) (addr map[string]bool, contractAddr map[string]bool) {
+	addr = make(map[string]bool)
+	contractAddr = make(map[string]bool)
 	for _, tx := range txs {
-		if !result[tx.From] {
-			result[tx.From] = true
+		if !addr[tx.From] {
+			addr[tx.From] = true
 		}
-		if !result[tx.To] {
-			result[tx.To] = true
+		if !addr[tx.To] {
+			addr[tx.To] = true
+		}
+		if !contractAddr[tx.ContractAddress] {
+			contractAddr[tx.ContractAddress] = true
 		}
 	}
-	return result
+	return addr, contractAddr
 }
