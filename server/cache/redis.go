@@ -73,25 +73,24 @@ func (c *Redis) TokenInfo(ctx context.Context) (*types.TokenInfo, error) {
 	// get current circulating suppply that we updated manually, if exists
 	cirSup, err := c.CirculatingSupply(ctx)
 	if err != nil {
-		tokenInfo.CirculatingSupply = 0
+		tokenInfo.CirculatingSupply = cirSup
 	}
-	tokenInfo.CirculatingSupply = cirSup
 	return tokenInfo, nil
 }
 
-func (c *Redis) UpdateCirculatingSupply(ctx context.Context, cirSup int) error {
-	if _, err := c.client.Set(ctx, KeyCirculatingSupply, strconv.Itoa(cirSup), 60*time.Minute).Result(); err != nil {
+func (c *Redis) UpdateCirculatingSupply(ctx context.Context, cirSup int64) error {
+	if _, err := c.client.Set(ctx, KeyCirculatingSupply, strconv.FormatInt(cirSup, 10), 60*time.Minute).Result(); err != nil {
 		return err
 	}
 	return nil
 }
 
-func (c *Redis) CirculatingSupply(ctx context.Context) (int, error) {
+func (c *Redis) CirculatingSupply(ctx context.Context) (int64, error) {
 	result, err := c.client.Get(ctx, KeyCirculatingSupply).Result()
 	if err != nil {
 		return 0, err
 	}
-	cirSup, err := strconv.Atoi(result)
+	cirSup, err := strconv.ParseInt(result, 10, 64)
 	if err != nil {
 		return 0, err
 	}

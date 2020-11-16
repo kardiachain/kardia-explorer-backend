@@ -129,8 +129,8 @@ func bind(gr *echo.Group, srv EchoServer) {
 			fn:     srv.TokenInfo,
 		},
 		{
-			method: echo.GET,
-			path:   "/dashboard/token/circulating/:supply",
+			method: echo.PUT,
+			path:   "/dashboard/token/circulating",
 			fn:     srv.UpdateCirculatingSupply,
 		},
 		// Blocks
@@ -214,7 +214,6 @@ func Start(srv EchoServer, cfg cfg.ExplorerConfig) {
 
 	e.Use(middleware.CORS())
 	e.Use(middleware.Logger())
-	e.Use(middleware.CSRF())
 	e.Use(middleware.Gzip())
 
 	v1Gr := e.Group("/api/v1")

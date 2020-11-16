@@ -185,11 +185,11 @@ func (s *Server) UpdateCirculatingSupply(c echo.Context) error {
 	if !strings.Contains(c.Request().Header.Get("Authorization"), s.infoServer.HttpRequestSecret) {
 		return api.Unauthorized.Build(c)
 	}
-	cirSup, err := strconv.Atoi(c.Param("supply"))
-	if err != nil {
+	m := make(map[string]int64)
+	if err := c.Bind(&m); err != nil {
 		return api.Invalid.Build(c)
 	}
-	if err := s.cacheClient.UpdateCirculatingSupply(ctx, cirSup); err != nil {
+	if err := s.cacheClient.UpdateCirculatingSupply(ctx, m["circulatingSupply"]); err != nil {
 		return api.Invalid.Build(c)
 	}
 	return api.OK.Build(c)
