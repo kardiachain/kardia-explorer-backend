@@ -46,6 +46,8 @@ type infoServer struct {
 
 	metrics *metrics.Provider
 
+	HttpRequestSecret string
+
 	logger *zap.Logger
 }
 

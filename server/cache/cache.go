@@ -59,6 +59,8 @@ type Client interface {
 	IsRequestToCoinMarket(ctx context.Context) bool
 	TokenInfo(ctx context.Context) (*types.TokenInfo, error)
 	UpdateTokenInfo(ctx context.Context, tokenInfo *types.TokenInfo) error
+	CirculatingSupply(ctx context.Context) (int, error)
+	UpdateCirculatingSupply(ctx context.Context, cirSup int) error
 }
 
 func New(cfg Config) (Client, error) {

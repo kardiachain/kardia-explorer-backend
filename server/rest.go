@@ -180,6 +180,21 @@ func (s *Server) TokenInfo(c echo.Context) error {
 	return api.OK.SetData(tokenInfo).Build(c)
 }
 
+func (s *Server) UpdateCirculatingSupply(c echo.Context) error {
+	ctx := context.Background()
+	if !strings.Contains(c.Request().Header.Get("Authorization"), s.infoServer.HttpRequestSecret) {
+		return api.Unauthorized.Build(c)
+	}
+	cirSup, err := strconv.Atoi(c.Param("supply"))
+	if err != nil {
+		return api.Invalid.Build(c)
+	}
+	if err := s.cacheClient.UpdateCirculatingSupply(ctx, cirSup); err != nil {
+		return api.Invalid.Build(c)
+	}
+	return api.OK.Build(c)
+}
+
 func (s *Server) TPS(c echo.Context) error {
 	return api.OK.Build(c)
 }

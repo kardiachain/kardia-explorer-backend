@@ -46,6 +46,8 @@ type Config struct {
 
 	BlockBuffer int64
 
+	HttpRequestSecret string
+
 	Metrics *metrics.Provider
 	Logger  *zap.Logger
 }
@@ -99,10 +101,11 @@ func New(cfg Config) (*Server, error) {
 	}
 
 	infoServer := infoServer{
-		dbClient:    dbClient,
-		cacheClient: cacheClient,
-		kaiClient:   kaiClient,
-		logger:      cfg.Logger,
+		dbClient:          dbClient,
+		cacheClient:       cacheClient,
+		kaiClient:         kaiClient,
+		HttpRequestSecret: cfg.HttpRequestSecret,
+		logger:            cfg.Logger,
 	}
 
 	return &Server{

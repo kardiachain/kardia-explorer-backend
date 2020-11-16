@@ -38,6 +38,7 @@ type EchoServer interface {
 
 	// Info
 	TokenInfo(c echo.Context) error
+	UpdateCirculatingSupply(c echo.Context) error
 
 	// Chart
 	TPS(c echo.Context) error
@@ -126,6 +127,11 @@ func bind(gr *echo.Group, srv EchoServer) {
 			method: echo.GET,
 			path:   "/dashboard/token",
 			fn:     srv.TokenInfo,
+		},
+		{
+			method: echo.GET,
+			path:   "/dashboard/token/circulating/:supply",
+			fn:     srv.UpdateCirculatingSupply,
 		},
 		// Blocks
 		{

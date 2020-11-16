@@ -23,5 +23,5 @@ type Address struct {
 	InternalTxCount int `json:"internalTxCount" bson:"internalTxCount"`
 	TokenTxCount    int `json:"tokenTxCount" bson:"tokenTxCount"`
 
-	UpdatedAt int64 `json:"updatedAt" bson:"updatedAt"`
+	AttachedContract Contract `json:"attachedContract,omitempty" bson:"attachedContract,omitempty"`
 }

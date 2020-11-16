@@ -34,7 +34,8 @@ const (
 
 	ErrorBlocks = "#errorBlocks" // List
 
-	KeyTokenInfo = "#token#info"
+	KeyTokenInfo         = "#token#info"
+	KeyCirculatingSupply = "#token#circulating"
 
 	KeyTotalTxs       = "#txs#total"
 	KeyTotalHolders   = "#holders#total"
@@ -69,7 +70,32 @@ func (c *Redis) TokenInfo(ctx context.Context) (*types.TokenInfo, error) {
 	if err := json.Unmarshal([]byte(result), &tokenInfo); err != nil {
 		return nil, err
 	}
+	// get current circulating suppply that we updated manually, if exists
+	cirSup, err := c.CirculatingSupply(ctx)
+	if err != nil {
+		tokenInfo.CirculatingSupply = 0
+	}
+	tokenInfo.CirculatingSupply = cirSup
 	return tokenInfo, nil
+}
+
+func (c *Redis) UpdateCirculatingSupply(ctx context.Context, cirSup int) error {
+	if _, err := c.client.Set(ctx, KeyCirculatingSupply, strconv.Itoa(cirSup), 60*time.Minute).Result(); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (c *Redis) CirculatingSupply(ctx context.Context) (int, error) {
+	result, err := c.client.Get(ctx, KeyCirculatingSupply).Result()
+	if err != nil {
+		return 0, err
+	}
+	cirSup, err := strconv.Atoi(result)
+	if err != nil {
+		return 0, err
+	}
+	return cirSup, nil
 }
 
 func (c *Redis) IsRequestToCoinMarket(ctx context.Context) bool {

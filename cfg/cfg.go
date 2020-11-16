@@ -32,8 +32,9 @@ const (
 )
 
 type ExplorerConfig struct {
-	ServerMode string
-	Port       string
+	ServerMode        string
+	Port              string
+	HttpRequestSecret string
 
 	LogLevel string
 
@@ -121,6 +122,7 @@ func New() (ExplorerConfig, error) {
 	cfg := ExplorerConfig{
 		ServerMode:            os.Getenv("SERVER_MODE"),
 		Port:                  os.Getenv("PORT"),
+		HttpRequestSecret:     os.Getenv("HTTP_REQUEST_SECRET"),
 		LogLevel:              os.Getenv("LOG_LEVEL"),
 		DefaultAPITimeout:     time.Duration(apiDefaultTimeout) * time.Second,
 		DefaultBlockFetchTime: time.Duration(apiDefaultBlockFetchTime) * time.Millisecond,
