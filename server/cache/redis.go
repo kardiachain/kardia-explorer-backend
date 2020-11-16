@@ -72,7 +72,7 @@ func (c *Redis) TokenInfo(ctx context.Context) (*types.TokenInfo, error) {
 	}
 	// get current circulating suppply that we updated manually, if exists
 	cirSup, err := c.CirculatingSupply(ctx)
-	if err != nil {
+	if err == nil {
 		tokenInfo.CirculatingSupply = cirSup
 	}
 	return tokenInfo, nil

@@ -168,7 +168,7 @@ func (s *Server) TokenInfo(c echo.Context) error {
 				return api.Invalid.Build(c)
 			}
 		}
-
+		tokenInfo.MarketCap = tokenInfo.Price * float64(tokenInfo.CirculatingSupply)
 		return api.OK.SetData(tokenInfo).Build(c)
 	}
 
@@ -177,6 +177,7 @@ func (s *Server) TokenInfo(c echo.Context) error {
 		return api.Invalid.Build(c)
 	}
 
+	tokenInfo.MarketCap = tokenInfo.Price * float64(tokenInfo.CirculatingSupply)
 	return api.OK.SetData(tokenInfo).Build(c)
 }
 
