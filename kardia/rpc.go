@@ -200,42 +200,48 @@ func (ec *Client) NonceAt(ctx context.Context, account string) (uint64, error) {
 //
 // If the transaction was a contract creation use the GetTransactionReceipt method to get the
 // contract address after the transaction has been mined.
-// TODO(trinhdn): verify which types of tx is suitable for this API
-func (ec *Client) SendRawTransaction(ctx context.Context, tx *types.Transaction) error {
-	data, err := rlp.EncodeToBytes(tx)
-	if err != nil {
-		return err
-	}
-	return ec.chooseClient().c.CallContext(ctx, nil, "tx_sendRawTransaction", common.ToHex(data))
+func (ec *Client) SendRawTransaction(ctx context.Context, tx string) error {
+	return ec.chooseClient().c.CallContext(ctx, nil, "tx_sendRawTransaction", tx)
 }
 
-func (ec *Client) Peers(ctx context.Context) (peers *types.PeerInfo, err error) {
-	var tempPeers *types.PeerInfo
+func (ec *Client) Peers(ctx context.Context) (*types.PeerInfo, error) {
+	var (
+		peers = &types.PeerInfo{
+			NodesInfo: []*types.NodeInfo{},
+		}
+		err error
+	)
 	for _, client := range ec.clientList {
+		var tempPeers *types.PeerInfo
 		err = client.c.CallContext(ctx, &tempPeers, "node_peers")
-		for _, tempPeer := range tempPeers.NodesInfo {
-			appendPeersList(tempPeer, tempPeers.NodesInfo)
+		for _, tempPeer := range peers.NodesInfo {
+			peers.NodesInfo = appendNodesList(peers.NodesInfo, tempPeer)
 		}
 	}
 	for _, client := range ec.trustedClientList {
+		var tempPeers *types.PeerInfo
 		err = client.c.CallContext(ctx, &tempPeers, "node_peers")
-		for _, tempPeer := range tempPeers.NodesInfo {
-			appendPeersList(tempPeer, tempPeers.NodesInfo)
+		for _, tempPeer := range peers.NodesInfo {
+			peers.NodesInfo = appendNodesList(peers.NodesInfo, tempPeer)
 		}
 	}
 	return peers, err
 }
 
-func (ec *Client) NodesInfo(ctx context.Context) (nodes []*types.NodeInfo, err error) {
+func (ec *Client) NodesInfo(ctx context.Context) ([]*types.NodeInfo, error) {
+	var (
+		nodes = []*types.NodeInfo(nil)
+		err   error
+	)
 	for _, client := range ec.clientList {
 		var node *types.NodeInfo
 		err = client.c.CallContext(ctx, &node, "node_nodeInfo")
-		nodes = append(nodes, node)
+		nodes = appendNodesList(nodes, node)
 	}
 	for _, client := range ec.trustedClientList {
 		var node *types.NodeInfo
 		err = client.c.CallContext(ctx, &node, "node_nodeInfo")
-		nodes = append(nodes, node)
+		nodes = appendNodesList(nodes, node)
 	}
 	return nodes, err
 }
@@ -356,11 +362,12 @@ func (ec *Client) getBlockHeader(ctx context.Context, method string, args ...int
 	return &raw, nil
 }
 
-func appendPeersList(peer *types.NodeInfo, peersList []*types.NodeInfo) {
-	for _, tmp := range peersList {
-		if tmp.ID == peer.ID {
-			return
+func appendNodesList(nodesList []*types.NodeInfo, node *types.NodeInfo) []*types.NodeInfo {
+	for _, tmpNode := range nodesList {
+		if tmpNode.ID == node.ID {
+			return nodesList
 		}
 	}
-	peersList = append(peersList, peer)
+	nodesList = append(nodesList, node)
+	return nodesList
 }

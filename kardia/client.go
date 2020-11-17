@@ -38,7 +38,7 @@ type ClientInterface interface {
 	GetStorageAt(ctx context.Context, account string, key string) (common.Bytes, error)
 	GetCode(ctx context.Context, account string) (common.Bytes, error)
 	NonceAt(ctx context.Context, account string) (uint64, error)
-	SendRawTransaction(ctx context.Context, tx *types.Transaction) error
+	SendRawTransaction(ctx context.Context, tx string) error
 	Peers(ctx context.Context) (*types.PeerInfo, error)
 	NodesInfo(ctx context.Context) ([]*types.NodeInfo, error)
 	Datadir(ctx context.Context) (string, error)
