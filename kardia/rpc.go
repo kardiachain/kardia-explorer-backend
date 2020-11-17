@@ -27,7 +27,6 @@ import (
 
 	kardia "github.com/kardiachain/go-kardiamain"
 	"github.com/kardiachain/go-kardiamain/lib/common"
-	"github.com/kardiachain/go-kardiamain/lib/rlp"
 	"github.com/kardiachain/go-kardiamain/rpc"
 
 	"github.com/kardiachain/explorer-backend/types"
@@ -53,17 +52,25 @@ func NewKaiClient(cfg *Config) (ClientInterface, error) {
 	if len(cfg.rpcURL) == 0 && len(cfg.trustedNodeRPCURL) == 0 {
 		return nil, errors.New("empty RPC URL")
 	}
-	var clientList = []*RPCClient{}
+
+	var (
+		defaultClient *RPCClient = nil
+		clientList               = []*RPCClient{}
+	)
 	for _, u := range cfg.rpcURL {
 		rpcClient, err := rpc.Dial(u)
 		if err != nil {
 			return nil, err
 		}
-		clientList = append(clientList, &RPCClient{
+		newClient := &RPCClient{
 			c:      rpcClient,
 			isDead: false,
 			ip:     u,
-		})
+		}
+		clientList = append(clientList, newClient)
+		if defaultClient == nil {
+			defaultClient = newClient
+		}
 	}
 	var trustedClientList = []*RPCClient{}
 	for _, u := range cfg.trustedNodeRPCURL {
@@ -71,19 +78,23 @@ func NewKaiClient(cfg *Config) (ClientInterface, error) {
 		if err != nil {
 			return nil, err
 		}
-		trustedClientList = append(trustedClientList, &RPCClient{
+		newClient := &RPCClient{
 			c:      rpcClient,
 			isDead: false,
 			ip:     u,
-		})
+		}
+		trustedClientList = append(trustedClientList, newClient)
+		if defaultClient == nil {
+			defaultClient = newClient
+		}
 	}
 
-	return &Client{clientList, trustedClientList, clientList[len(clientList)-1], 0, cfg.lgr}, nil
+	return &Client{clientList, trustedClientList, defaultClient, 0, cfg.lgr}, nil
 }
 
 func (ec *Client) chooseClient() *RPCClient {
 	if len(ec.clientList) > 1 {
-		if ec.numRequest == len(ec.clientList)-2 {
+		if ec.numRequest == len(ec.clientList)-1 {
 			ec.numRequest = 0
 		} else {
 			ec.numRequest++
