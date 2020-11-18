@@ -329,7 +329,7 @@ func (ec *Client) Validators(ctx context.Context) ([]*types.Validator, error) {
 
 func (ec *Client) getBlock(ctx context.Context, method string, args ...interface{}) (*types.Block, error) {
 	var raw types.Block
-	err := ec.chooseClient().c.CallContext(ctx, &raw, method, args...)
+	err := ec.defaultClient.c.CallContext(ctx, &raw, method, args...)
 	if err != nil {
 		return nil, err
 	}
@@ -338,7 +338,7 @@ func (ec *Client) getBlock(ctx context.Context, method string, args ...interface
 
 func (ec *Client) getBlockHeader(ctx context.Context, method string, args ...interface{}) (*types.Header, error) {
 	var raw types.Header
-	err := ec.chooseClient().c.CallContext(ctx, &raw, method, args...)
+	err := ec.defaultClient.c.CallContext(ctx, &raw, method, args...)
 	if err != nil {
 		return nil, err
 	}
