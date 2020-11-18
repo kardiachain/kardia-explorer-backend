@@ -33,7 +33,7 @@ func backfill(ctx context.Context, srv *server.Server) {
 		select {
 		case <-t.C:
 			blockHeight, err := srv.PopErrorBlockHeight(ctx)
-			if blockHeight == currentProcessBlock && blockHeight != 0 && processCounter != 0 {
+			if blockHeight == currentProcessBlock && blockHeight != 0 {
 				processCounter++
 				if IsSkip() {
 					srv.Logger.Warn("Skip block since expected error", zap.Uint64("BlockHeight", blockHeight))
