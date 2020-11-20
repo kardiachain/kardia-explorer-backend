@@ -1,13 +1,26 @@
 // Package types
 package types
 
+import (
+	"github.com/kardiachain/go-kardiamain/lib/common"
+)
+
 type Validator struct {
-	Address     string          `json:"address"`
-	VotingPower float64         `json:"votingPower"`
-	Name        string          `json:"name"`
-	Protocols   ProtocolVersion `json:"protocol"`
-	PeerCount   int             `json:"peerCount"`
-	RpcUrl      string          `json:"rpcUrl"`
+	Address         common.Address `json:"address"`
+	VotingPower     int64          `json:"votingPower"`
+	StakedAmount    string         `json:"stakedAmount"`
+	Commission      string         `json:"commission"`
+	CommissionRate  string         `json:"commissionRate"`
+	TotalDelegators int            `json:"totalDelegators"`
+	MaxRate         string         `json:"maxRate"`
+	MaxChangeRate   string         `json:"maxChangeRate"`
+	Delegators      []*Delegator   `json:"delegators,omitempty"`
+}
+
+type Delegator struct {
+	Address      common.Address `json:"address"`
+	StakedAmount string         `json:"stakedAmount"`
+	Reward       string         `json:"reward"`
 }
 
 type PeerInfo struct {

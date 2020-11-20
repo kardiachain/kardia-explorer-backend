@@ -21,7 +21,6 @@ package kardia
 import (
 	"context"
 	"errors"
-	"strings"
 
 	"go.uber.org/zap"
 
@@ -252,96 +251,16 @@ func (ec *Client) Datadir(ctx context.Context) (string, error) {
 	return result, err
 }
 
-func (ec *Client) Validator(ctx context.Context, rpcURL string) (*types.Validator, error) {
-	var result map[string]interface{}
-	if rpcURL != "" {
-		for _, client := range ec.clientList {
-			if client.ip == rpcURL {
-				err := client.c.CallContext(ctx, &result, "kai_validator")
-				if err != nil {
-					return nil, err
-				}
-				break
-			}
-		}
-		for _, client := range ec.trustedClientList {
-			if client.ip == rpcURL {
-				err := client.c.CallContext(ctx, &result, "kai_validator")
-				if err != nil {
-					return nil, err
-				}
-				break
-			}
-		}
-	} else {
-		err := ec.chooseClient().c.CallContext(ctx, &result, "kai_validator")
-		if err != nil {
-			return nil, err
-		}
-	}
-	if result == nil {
-		return &types.Validator{}, nil
-	}
-	ret := &types.Validator{
-		Address:     result["address"].(string),
-		VotingPower: result["votingPower"].(float64),
-	}
-	nodes, err := ec.NodesInfo(ctx)
-	if err != nil {
-		return nil, err
-	}
-	for _, node := range nodes {
-		if strings.Contains(strings.ToLower(ret.Address), node.ID) {
-			ret.Name = node.Moniker
-			ret.RpcUrl = node.Other.RPCAddress
-			ret.Protocols = node.ProtocolVersion
-			return ret, nil
-		}
-	}
-
-	return ret, nil
+func (ec *Client) Validator(ctx context.Context, address string, isGetDelegator bool) (*types.Validator, error) {
+	var result *types.Validator
+	err := ec.chooseClient().c.CallContext(ctx, &result, "kai_validator", address, isGetDelegator)
+	return result, err
 }
 
-func (ec *Client) Validators(ctx context.Context) ([]*types.Validator, error) {
-	var result []map[string]interface{}
-	err := ec.chooseClient().c.CallContext(ctx, &result, "kai_validators")
-	if err != nil {
-		return nil, err
-	}
-	var ret []*types.Validator
-	nodes, err := ec.NodesInfo(ctx)
-	if err != nil {
-		return nil, err
-	}
-	for _, val := range result {
-		if result == nil {
-			continue
-		}
-		tmp := &types.Validator{
-			Address:     val["address"].(string),
-			VotingPower: val["votingPower"].(float64),
-		}
-		for _, node := range nodes {
-			if strings.Contains(strings.ToLower(tmp.Address), node.ID) {
-				tmp.Name = node.Moniker
-				tmp.RpcUrl = node.Other.RPCAddress
-				tmp.Protocols = node.ProtocolVersion
-				var existed = false
-				for _, currValidator := range ret {
-					if currValidator.Address == tmp.Address {
-						currValidator.VotingPower += tmp.VotingPower
-						existed = true
-						break
-					}
-				}
-				if !existed {
-					ret = append(ret, tmp)
-				}
-				break
-			}
-		}
-	}
-	return ret, nil
+func (ec *Client) Validators(ctx context.Context, isGetDelegator bool) ([]*types.Validator, error) {
+	var result []*types.Validator
+	err := ec.chooseClient().c.CallContext(ctx, &result, "kai_validators", isGetDelegator)
+	return result, err
 }
 
 func (ec *Client) getBlock(ctx context.Context, method string, args ...interface{}) (*types.Block, error) {

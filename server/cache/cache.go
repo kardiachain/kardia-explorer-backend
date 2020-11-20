@@ -59,6 +59,9 @@ type Client interface {
 	IsRequestToCoinMarket(ctx context.Context) bool
 	TokenInfo(ctx context.Context) (*types.TokenInfo, error)
 	UpdateTokenInfo(ctx context.Context, tokenInfo *types.TokenInfo) error
+
+	Validators(ctx context.Context) ([]*types.Validator, error)
+	UpdateValidators(ctx context.Context, vals []*types.Validator) error
 }
 
 func New(cfg Config) (Client, error) {

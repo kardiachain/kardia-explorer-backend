@@ -42,8 +42,8 @@ type ClientInterface interface {
 	Peers(ctx context.Context) (*types.PeerInfo, error)
 	NodesInfo(ctx context.Context) ([]*types.NodeInfo, error)
 	Datadir(ctx context.Context) (string, error)
-	Validator(ctx context.Context, rpcURL string) (*types.Validator, error)
-	Validators(ctx context.Context) ([]*types.Validator, error)
+	Validator(ctx context.Context, address string, isGetDelegator bool) (*types.Validator, error)
+	Validators(ctx context.Context, isGetDelegator bool) ([]*types.Validator, error)
 }
 
 type Config struct {

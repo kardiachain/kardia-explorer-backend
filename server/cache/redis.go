@@ -12,6 +12,7 @@ import (
 	"github.com/go-redis/redis/v8"
 	"go.uber.org/zap"
 
+	"github.com/kardiachain/explorer-backend/cfg"
 	"github.com/kardiachain/explorer-backend/types"
 	"github.com/kardiachain/explorer-backend/utils"
 )
@@ -39,6 +40,8 @@ const (
 	KeyTotalTxs       = "#txs#total"
 	KeyTotalHolders   = "#holders#total"
 	KeyTotalContracts = "#contracts#total"
+
+	KeyValidatorsList = "#validators" // List
 )
 
 type Redis struct {
@@ -357,6 +360,50 @@ func (c *Redis) TotalHolders(ctx context.Context) (uint64, uint64) {
 	totalContracts := utils.StrToUint64(result)
 
 	return totalHolders, totalContracts
+}
+
+func (c *Redis) Validators(ctx context.Context) ([]*types.Validator, error) {
+	valsListLen, err := c.client.LLen(ctx, KeyValidatorsList).Result()
+	if err != nil {
+		c.logger.Warn("cannot get validators list length from cache")
+		return nil, err
+	}
+	if valsListLen == 0 {
+		return nil, nil
+	}
+	valStrList, err := c.client.LRange(ctx, KeyValidatorsList, 0, valsListLen-1).Result()
+	if err != nil {
+		c.logger.Warn("cannot get validators list from cache", zap.Int("from", 0), zap.Int64("to", valsListLen-1))
+		return nil, err
+	}
+	var valsList []*types.Validator
+	for _, valStr := range valStrList {
+		var val *types.Validator
+		if err := json.Unmarshal([]byte(valStr), &val); err != nil {
+			return nil, err
+		}
+		valsList = append(valsList, val)
+	}
+	return valsList, nil
+}
+
+func (c *Redis) UpdateValidators(ctx context.Context, vals []*types.Validator) error {
+	for _, val := range vals {
+		valJSON, err := json.Marshal(val)
+		if err != nil {
+			return err
+		}
+		if err := c.client.LPush(ctx, KeyValidatorsList, string(valJSON)).Err(); err != nil {
+			c.logger.Warn("cannot push validators to cache")
+			return err
+		}
+	}
+	result, err := c.client.Expire(ctx, KeyValidatorsList, cfg.ValidatorsListExpTime).Result()
+	if err != nil || !result {
+		c.logger.Warn("cannot set validators expiration time in cache", zap.Bool("result", result), zap.Error(err))
+		return err
+	}
+	return nil
 }
 
 func (c *Redis) getBlockIndex(ctx context.Context, index int64) (*types.Block, error) {
