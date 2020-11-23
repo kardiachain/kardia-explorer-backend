@@ -151,10 +151,22 @@ func (s *Server) TotalHolders(c echo.Context) error {
 
 func (s *Server) Nodes(c echo.Context) error {
 	ctx := context.Background()
-	nodes, err := s.kaiClient.NodesInfo(ctx)
+	nodes, err := s.cacheClient.NodesInfo(ctx)
+	if err == nil && nodes != nil {
+		s.logger.Debug("Got nodes info from cache", zap.Any("nodes info", nodes))
+		return api.OK.SetData(nodes).Build(c)
+	}
+	s.logger.Debug("Cannot get nodes info from cache, getting from RPC", zap.Any("nodes info", nodes), zap.Error(err))
+	nodes, err = s.kaiClient.NodesInfo(ctx)
 	if err != nil {
+		s.logger.Warn("cannot get nodes info from RPC", zap.Error(err))
 		return api.Invalid.Build(c)
 	}
+	err = s.cacheClient.UpdateNodesInfo(ctx, nodes)
+	if err != nil {
+		s.logger.Warn("cannot set nodes info to cache", zap.Error(err))
+	}
+	s.logger.Debug("Got nodes info from RPC", zap.Any("nodes info", nodes))
 	return api.OK.SetData(nodes).Build(c)
 }
 

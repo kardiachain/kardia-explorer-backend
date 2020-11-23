@@ -62,6 +62,9 @@ type Client interface {
 
 	Validators(ctx context.Context) ([]*types.Validator, error)
 	UpdateValidators(ctx context.Context, vals []*types.Validator) error
+
+	NodesInfo(ctx context.Context) ([]*types.NodeInfo, error)
+	UpdateNodesInfo(ctx context.Context, nodes []*types.NodeInfo) error
 }
 
 func New(cfg Config) (Client, error) {

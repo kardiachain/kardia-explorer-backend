@@ -23,5 +23,6 @@ import "time"
 
 const (
 	// redis keys expiration time
-	ValidatorsListExpTime = 15 * time.Second
+	ValidatorsListExpTime = 5 * time.Second
+	NodesInfoListExpTime  = 5 * time.Minute
 )
