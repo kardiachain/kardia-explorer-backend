@@ -350,7 +350,6 @@ func (c *Redis) LatestTransactions(ctx context.Context, pagination *types.Pagina
 		}
 		txList = append(txList, &tx)
 	}
-	c.logger.Debug("Latest txs from cache: ", zap.Any("txs", txList))
 	return txList, nil
 }
 

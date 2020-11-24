@@ -161,9 +161,6 @@ func (m *mongoDB) BlockByHash(ctx context.Context, blockHash string) (*types.Blo
 	var block types.Block
 	err := m.wrapper.C(cBlocks).FindOne(bson.M{"hash": blockHash}, options.FindOne().SetProjection(bson.M{"txs": 0, "receipts": 0})).Decode(&block)
 	if err != nil {
-		if err == mongo.ErrNoDocuments {
-			return nil, nil
-		}
 		return nil, err
 	}
 	return &block, nil
