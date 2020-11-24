@@ -264,8 +264,9 @@ func (s *Server) Blocks(c echo.Context) error {
 			return api.InternalServer.Build(c)
 		}
 		s.logger.Debug("Got latest blocks from db")
+	} else {
+		s.logger.Debug("Got latest blocks from cache")
 	}
-	s.logger.Debug("Got latest blocks from cache")
 
 	return api.OK.SetData(struct {
 		Page  int         `json:"page"`
@@ -286,20 +287,38 @@ func (s *Server) Block(c echo.Context) error {
 		err   error
 	)
 	if strings.HasPrefix(blockHashOrHeightStr, "0x") {
-		s.Logger.Info("get block by hash:", zap.String("blockHash", blockHashOrHeightStr))
-		block, err = s.dbClient.BlockByHash(ctx, blockHashOrHeightStr)
+		// TODO(trinhdn): get block txs in block if exist
+		block, err = s.cacheClient.BlockByHash(ctx, blockHashOrHeightStr)
 		if err != nil {
-			return api.Invalid.Build(c)
+			s.logger.Debug("got block by hash from cache error", zap.Any("blocks", block), zap.Error(err))
+			// otherwise, get from db
+			block, err = s.dbClient.BlockByHash(ctx, blockHashOrHeightStr)
+			s.Logger.Debug("got block by hash from db:", zap.String("blockHash", blockHashOrHeightStr))
+			if err != nil {
+				s.logger.Debug("got block by hash from db error", zap.Any("blocks", block), zap.Error(err))
+				return api.Invalid.Build(c)
+			}
+		} else {
+			s.Logger.Debug("got block by hash from cache:", zap.String("blockHash", blockHashOrHeightStr))
 		}
 	} else {
 		blockHeight, err := strconv.ParseUint(blockHashOrHeightStr, 10, 64)
-		s.Logger.Info("get block by height:", zap.Uint64("blockHeight", blockHeight))
 		if err != nil || blockHeight <= 0 {
 			return api.Invalid.Build(c)
 		}
-		block, err = s.dbClient.BlockByHeight(ctx, blockHeight)
+		// TODO(trinhdn): get block txs in block if exist
+		block, err = s.cacheClient.BlockByHeight(ctx, blockHeight)
 		if err != nil {
-			return api.Invalid.Build(c)
+			s.logger.Debug("got block by height from cache error", zap.Any("blocks", block), zap.Error(err))
+			// otherwise, get from db
+			block, err = s.dbClient.BlockByHeight(ctx, blockHeight)
+			if err != nil {
+				s.logger.Debug("got block by height from db error", zap.Any("blocks", block), zap.Error(err))
+				return api.Invalid.Build(c)
+			}
+			s.Logger.Info("got block by height from db:", zap.Uint64("blockHeight", blockHeight))
+		} else {
+			s.Logger.Info("got block by height from cache:", zap.Uint64("blockHeight", blockHeight))
 		}
 	}
 
@@ -325,7 +344,6 @@ func (s *Server) BlockTxs(c echo.Context) error {
 	if err != nil {
 		limit = 20
 	}
-	// Random number of txs of block hash
 
 	var (
 		txs   []*types.Transaction
@@ -336,27 +354,41 @@ func (s *Server) BlockTxs(c echo.Context) error {
 		Limit: limit,
 	}
 	if strings.HasPrefix(block, "0x") {
-		s.logger.Debug("fetch block txs by hash", zap.String("hash", block))
-
-		txs, total, err = s.dbClient.TxsByBlockHash(ctx, block, pagination)
+		// get block txs in block if exist
+		txs, total, err = s.cacheClient.TxsByBlockHash(ctx, block, pagination)
 		if err != nil {
-			s.logger.Debug("cannot get txs by block hash", zap.String("blockHash", block))
-			return api.InternalServer.Build(c)
+			s.logger.Debug("cannot get block txs by hash from cache", zap.String("blockHash", block), zap.Error(err))
+			// otherwise, get from db
+			txs, total, err = s.dbClient.TxsByBlockHash(ctx, block, pagination)
+			if err != nil {
+				s.logger.Debug("cannot get block txs by hash from db", zap.String("blockHash", block), zap.Error(err))
+				return api.InternalServer.Build(c)
+			}
+			s.Logger.Debug("got block txs by hash from db:", zap.String("blockHash", block))
+		} else {
+			s.Logger.Debug("got block txs by hash from cache:", zap.String("blockHash", block))
 		}
 	} else {
-		s.logger.Debug("fetch block txs by height", zap.String("height", block))
-		height, err := strconv.Atoi(block)
+		height, err := strconv.ParseUint(block, 10, 64)
 		if err != nil {
 			return api.Invalid.Build(c)
 		}
-
 		if height <= 0 {
 			return api.Invalid.Build(c)
 		}
-		// Convert to height
-		txs, total, err = s.dbClient.TxsByBlockHeight(ctx, uint64(height), pagination)
+		// get block txs in block if exist
+		txs, total, err = s.cacheClient.TxsByBlockHeight(ctx, height, pagination)
 		if err != nil {
-			return api.Invalid.Build(c)
+			s.logger.Debug("cannot get block txs by height from cache", zap.String("blockHeight", block), zap.Error(err))
+			// otherwise, get from db
+			txs, total, err = s.dbClient.TxsByBlockHeight(ctx, height, pagination)
+			if err != nil {
+				s.logger.Debug("cannot get block txs by height from db", zap.String("blockHeight", block), zap.Error(err))
+				return api.Invalid.Build(c)
+			}
+			s.Logger.Debug("got block txs by height from db:", zap.String("blockHeight", block))
+		} else {
+			s.Logger.Debug("got block txs by height from cache:", zap.String("blockHeight", block))
 		}
 	}
 
@@ -392,7 +424,7 @@ func (s *Server) Txs(c echo.Context) error {
 	}
 
 	txs, err = s.cacheClient.LatestTransactions(ctx, pagination)
-	if err != nil || txs == nil {
+	if err != nil || txs == nil || len(txs) < limit {
 		s.logger.Debug("Cannot get latest txs from cache", zap.Error(err))
 		txs, err = s.dbClient.LatestTxs(ctx, pagination)
 		if err != nil {
