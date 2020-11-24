@@ -52,6 +52,7 @@ func (s *Server) Search(c echo.Context) error {
 				Skip:  page * limit,
 				Limit: limit,
 			}
+			pagination.Sanitize()
 			txs, total, err := s.dbClient.TxsByAddress(ctx, paramValue[0], pagination)
 			s.Logger.Info("search tx by hash:", zap.String("address", paramValue[0]))
 			balance, err := s.kaiClient.GetBalance(ctx, paramValue[0])
@@ -243,6 +244,7 @@ func (s *Server) Blocks(c echo.Context) error {
 		Skip:  page * limit,
 		Limit: limit,
 	}
+	pagination.Sanitize()
 
 	// todo @londnd: implement read from cache,
 	blocks, err = s.cacheClient.LatestBlocks(ctx, pagination)
@@ -343,6 +345,7 @@ func (s *Server) BlockTxs(c echo.Context) error {
 		Skip:  page * limit,
 		Limit: limit,
 	}
+	pagination.Sanitize()
 	if strings.HasPrefix(block, "0x") {
 		// get block txs in block if exist
 		txs, total, err = s.cacheClient.TxsByBlockHash(ctx, block, pagination)
@@ -412,6 +415,7 @@ func (s *Server) Txs(c echo.Context) error {
 		Skip:  page * limit,
 		Limit: limit,
 	}
+	pagination.Sanitize()
 
 	txs, err = s.cacheClient.LatestTransactions(ctx, pagination)
 	if err != nil || txs == nil || len(txs) < limit {
@@ -497,6 +501,7 @@ func (s *Server) AddressTxs(c echo.Context) error {
 		Skip:  page * limit,
 		Limit: limit,
 	}
+	pagination.Sanitize()
 
 	txs, total, err := s.dbClient.TxsByAddress(ctx, address, pagination)
 	if err != nil {
