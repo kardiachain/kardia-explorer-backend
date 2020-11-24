@@ -41,7 +41,7 @@ type Client interface {
 
 	TxByHash(ctx context.Context, txHash string) (*types.Transaction, error)
 
-	BlocksSize(ctx context.Context) (int64, error)
+	ListSize(ctx context.Context, key string) (int64, error)
 	PopReceipt(ctx context.Context) (*types.Receipt, error)
 
 	LatestBlocks(ctx context.Context, pagination *types.Pagination) ([]*types.Block, error)

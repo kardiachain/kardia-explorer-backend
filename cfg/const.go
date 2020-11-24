@@ -22,9 +22,11 @@ package cfg
 import "time"
 
 const (
+	// redis list length
+	LatestTxsLength = 1000
+
 	// redis keys expiration time
-	ValidatorsListExpTime    = 5 * time.Second
-	NodesInfoListExpTime     = 5 * time.Minute
-	BlockTxsExpTime          = 30 * time.Minute
-	BlockHeightByHashExpTime = 30 * time.Minute
+	ValidatorsListExpTime = 10 * time.Second
+	NodesInfoListExpTime  = 1 * time.Hour
+	BlockInfoExpTime      = 30 * time.Minute
 )

@@ -117,13 +117,13 @@ func (c *Redis) PopReceipt(ctx context.Context) (*types.Receipt, error) {
 	panic("implement me")
 }
 
-func (c *Redis) BlocksSize(ctx context.Context) (int64, error) {
-	size, err := c.client.LLen(ctx, KeyBlocks).Result()
+func (c *Redis) ListSize(ctx context.Context, key string) (int64, error) {
+	size, err := c.client.LLen(ctx, key).Result()
 	if err != nil {
 		return -1, err
 	}
 	if size == 0 {
-		return 0, errors.New("blocks has no cache")
+		return 0, errors.New("cache has no block/transaction")
 	}
 
 	return size, nil
@@ -133,7 +133,10 @@ func (c *Redis) InsertTxsOfBlock(ctx context.Context, block *types.Block) error 
 	if len(block.Txs) == 0 {
 		return nil
 	}
-
+	latestTxsLen, err := c.ListSize(ctx, KeyLatestTxs)
+	if latestTxsLen < 0 {
+		return err
+	}
 	blockHeight := block.Height
 	keyTxsOfThisBlock := fmt.Sprintf(KeyTxsOfBlockHeight, blockHeight)
 	c.logger.Debug("Pushing txs to cache:", zap.String("KeyTxsOfThisBlock", keyTxsOfThisBlock))
@@ -143,16 +146,26 @@ func (c *Redis) InsertTxsOfBlock(ctx context.Context, block *types.Block) error 
 			c.logger.Debug("cannot marshal txs arr to string")
 			return err
 		}
-
 		_, err = c.client.LPush(ctx, keyTxsOfThisBlock, txStr).Result()
 		if err != nil {
 			c.logger.Debug("cannot insert txs")
 			return err
 		}
+		// check if we need to pop old tx from latest transaction list due to max size exceeded
+		if latestTxsLen+1 > cfg.LatestTxsLength {
+			if err := c.client.LPop(ctx, KeyLatestTxs).Err(); err != nil {
+				return err
+			}
+		}
+		// also push to latest transaction list
+		if err := c.client.RPush(ctx, KeyLatestTxs, txStr).Err(); err != nil {
+			return err
+		}
+		latestTxsLen++
 	}
 
 	// set expiration time for list transaction of this block
-	result, err := c.client.Expire(ctx, keyTxsOfThisBlock, cfg.BlockTxsExpTime).Result()
+	result, err := c.client.Expire(ctx, keyTxsOfThisBlock, cfg.BlockInfoExpTime).Result()
 	if err != nil || !result {
 		c.logger.Warn("cannot set txs of block expiration time in cache", zap.Bool("result", result), zap.Error(err))
 		return err
@@ -215,12 +228,13 @@ func (c *Redis) InsertBlock(ctx context.Context, block *types.Block) error {
 		return err
 	}
 	keyBlockHashByHeight := fmt.Sprintf(KeyBlockHashByHeight, block.Hash)
-	if err := c.client.Set(ctx, keyBlockHashByHeight, block.Height, cfg.BlockHeightByHashExpTime).Err(); err != nil {
+	if err := c.client.Set(ctx, keyBlockHashByHeight, block.Height, cfg.BlockInfoExpTime).Err(); err != nil {
+		c.logger.Debug("Error set block height by hash", zap.Error(err))
 		return err
 	}
-
 	c.logger.Debug("Push new block success", zap.Uint64("height", block.Height))
 	if err := c.client.Set(ctx, KeyLatestBlockHeight, block.Height, 0).Err(); err != nil {
+		c.logger.Debug("Error set latest block height", zap.Error(err))
 		return err
 	}
 
@@ -262,13 +276,7 @@ func (c *Redis) TxsByBlockHeight(ctx context.Context, blockHeight uint64, pagina
 	if err != nil {
 		return nil, 0, err
 	}
-	for i := range txsStrList {
-		if i < pagination.Skip {
-			continue
-		}
-		if i >= pagination.Skip+pagination.Limit {
-			break
-		}
+	for i := pagination.Skip; i < pagination.Skip+pagination.Limit && i < int(len); i++ {
 		var tx *types.Transaction
 		err = json.Unmarshal([]byte(txsStrList[i]), &tx)
 		if err != nil {
@@ -286,21 +294,24 @@ func (c *Redis) LatestBlocks(ctx context.Context, pagination *types.Pagination) 
 		startIndex       = 0 + int64(pagination.Skip)
 		endIndex         = startIndex + int64(pagination.Limit) - 1
 	)
-	len, err := c.BlocksSize(ctx)
+	len, err := c.ListSize(ctx, KeyBlocks)
 	if err != nil {
 		return nil, err
 	}
-	if endIndex >= len {
+	// return error if startIndex or endIndex is out of cache range, require querying in database instead
+	if startIndex >= len || endIndex >= len {
 		return nil, errors.New("indexes of latest blocks out of range in cache")
 	}
-	marshalledBlocks, err = c.client.LRange(ctx, KeyBlocks, startIndex, endIndex).Result()
+
 	c.logger.Debug("Getting blocks from cache: ", zap.Int64("startIndex", startIndex), zap.Int64("endIndex", endIndex), zap.Uint64("Current latest block height", c.LatestBlockHeight(ctx)))
+	marshalledBlocks, err = c.client.LRange(ctx, KeyBlocks, startIndex, endIndex).Result()
 	if err != nil {
 		return nil, err
 	}
-	for _, bStr := range marshalledBlocks {
+
+	for i := startIndex; i <= endIndex; i++ {
 		var b types.Block
-		err := json.Unmarshal([]byte(bStr), &b)
+		err := json.Unmarshal([]byte(marshalledBlocks[i]), &b)
 		if err != nil {
 			return nil, err
 		}
@@ -316,18 +327,24 @@ func (c *Redis) LatestTransactions(ctx context.Context, pagination *types.Pagina
 		startIndex    = 0 + int64(pagination.Skip)
 		endIndex      = startIndex + int64(pagination.Limit) - 1
 	)
-	latestBlockHeight := c.LatestBlockHeight(ctx)
-	KeyTxsOfLatestBlock := fmt.Sprintf(KeyTxsOfBlockHeight, latestBlockHeight)
-	c.logger.Debug("Get latest txs from block", zap.String("Key", KeyTxsOfLatestBlock))
-	marshalledTxs, err := c.client.LRange(ctx, KeyTxsOfLatestBlock, startIndex, endIndex).Result()
-	c.logger.Debug("Getting txs from cache: ", zap.Int64("startIndex", startIndex), zap.Int64("endIndex", endIndex))
+	len, err := c.ListSize(ctx, KeyLatestTxs)
+	if err != nil {
+		return nil, err
+	}
+	// return error if startIndex or endIndex is out of cache range, require querying in database instead
+	if startIndex >= len || endIndex >= len {
+		return nil, errors.New("indexes of latest txs out of range in cache")
+	}
+
+	c.logger.Debug("Get latest txs from block in cache", zap.String("Key", KeyLatestTxs), zap.Int64("startIndex", startIndex), zap.Int64("endIndex", endIndex))
+	marshalledTxs, err = c.client.LRange(ctx, KeyLatestTxs, startIndex, endIndex).Result()
 	if err != nil {
 		return nil, err
 	}
 
-	for _, txStr := range marshalledTxs {
+	for i := startIndex; i <= endIndex; i++ {
 		var tx types.Transaction
-		err := json.Unmarshal([]byte(txStr), &tx)
+		err := json.Unmarshal([]byte(marshalledTxs[i]), &tx)
 		if err != nil {
 			return nil, err
 		}
@@ -496,7 +513,7 @@ func (c *Redis) deleteKeysOfBlock(ctx context.Context, block *types.Block) error
 }
 
 func (c *Redis) getBlockInCache(ctx context.Context, height uint64, hash string) (*types.Block, error) {
-	len, err := c.BlocksSize(ctx)
+	len, err := c.ListSize(ctx, KeyBlocks)
 	if err != nil {
 		return nil, err
 	}

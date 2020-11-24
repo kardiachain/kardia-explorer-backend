@@ -297,7 +297,32 @@ func TestRedis_InsertBlock(t *testing.T) {
 	}
 }
 
-func TestRedis_InsertTxs(t *testing.T) {
+func insertTxsSetup(ctx context.Context, client *redis.Client) (*types.Block, error) {
+	var (
+		blockHeight uint64 = 1
+		blockHash          = "0xhash1"
+		txs         []*types.Transaction
+		numTxs      uint64 = 100
+	)
+	for i := uint64(0); i < numTxs; i++ {
+		tx := types.Transaction{
+			BlockNumber:      blockHeight,
+			BlockHash:        blockHash,
+			Hash:             "0xtxHash" + strconv.FormatUint(i, 10),
+			TransactionIndex: uint(i),
+		}
+		txs = append(txs, &tx)
+	}
+	block := &types.Block{
+		Hash:   blockHash,
+		Height: blockHeight,
+		NumTxs: numTxs,
+		Txs:    txs,
+	}
+	return block, nil
+}
+
+func TestRedis_InsertTxsByBlock(t *testing.T) {
 	type fields struct {
 		client *redis.Client
 		logger *zap.Logger
@@ -306,13 +331,51 @@ func TestRedis_InsertTxs(t *testing.T) {
 		ctx   context.Context
 		block *types.Block
 	}
+	client, logger, err := setup()
+	if err != nil {
+		t.Fatalf("cannot init fields for testing")
+	}
+	r := fields{
+		client: client,
+		logger: logger,
+	}
+	ctx := context.Background()
+
+	// insert test data
+	block, err := insertTxsSetup(ctx, r.client)
+	if err != nil {
+		t.Fatalf("cannot store test data to redis")
+	}
+
 	tests := []struct {
 		name    string
 		fields  fields
 		args    args
 		wantErr bool
 	}{
-		{},
+		{
+			name:   "Test_NormalBlockWithTxs",
+			fields: r,
+			args: args{
+				ctx:   ctx,
+				block: block,
+			},
+			wantErr: false,
+		},
+		{
+			name:   "Test_NormalBlockWithoutTxs",
+			fields: r,
+			args: args{
+				ctx: ctx,
+				block: &types.Block{
+					Height: block.Height,
+					Hash:   block.Hash,
+					NumTxs: 0,
+					Txs:    []*types.Transaction(nil),
+				},
+			},
+			wantErr: false,
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -322,6 +385,104 @@ func TestRedis_InsertTxs(t *testing.T) {
 			}
 			if err := c.InsertTxsOfBlock(tt.args.ctx, tt.args.block); (err != nil) != tt.wantErr {
 				t.Errorf("InsertTxsOfBlock() error = %v, wantErr %v", err, tt.wantErr)
+			}
+		})
+	}
+}
+
+func TestRedis_LatestTransactions(t *testing.T) {
+	type fields struct {
+		client *redis.Client
+		logger *zap.Logger
+	}
+	type args struct {
+		ctx        context.Context
+		pagination *types.Pagination
+	}
+	client, logger, err := setup()
+	if err != nil {
+		t.Fatalf("cannot init fields for testing")
+	}
+	r := fields{
+		client: client,
+		logger: logger,
+	}
+	ctx := context.Background()
+
+	// insert test data
+	block, err := insertTxsSetup(ctx, r.client)
+	if err != nil {
+		t.Fatalf("cannot store test data to redis")
+	}
+	c := &Redis{
+		client: r.client,
+		logger: r.logger,
+	}
+	if err := c.InsertTxsOfBlock(ctx, block); err != nil {
+		t.Fatalf("cannot store test data to redis")
+	}
+
+	tests := []struct {
+		name    string
+		fields  fields
+		args    args
+		want    []*types.Transaction
+		wantErr bool
+	}{
+		{
+			name:   "Test_LatestTransactions_ProperPagination",
+			fields: r,
+			args: args{
+				ctx: ctx,
+				pagination: &types.Pagination{
+					Skip:  0,
+					Limit: 5,
+				},
+			},
+			want: []*types.Transaction{
+				{BlockNumber: 1, BlockHash: "0xhash1", Hash: "0xtxHash0", TransactionIndex: 0},
+				{BlockNumber: 1, BlockHash: "0xhash1", Hash: "0xtxHash1", TransactionIndex: 1},
+				{BlockNumber: 1, BlockHash: "0xhash1", Hash: "0xtxHash2", TransactionIndex: 2},
+				{BlockNumber: 1, BlockHash: "0xhash1", Hash: "0xtxHash3", TransactionIndex: 3},
+				{BlockNumber: 1, BlockHash: "0xhash1", Hash: "0xtxHash4", TransactionIndex: 4},
+			},
+			wantErr: false,
+		},
+		{
+			name:   "Test_LatestTransactions_ImproperPagination_1",
+			fields: r,
+			args: args{
+				ctx: ctx,
+				pagination: &types.Pagination{
+					Skip:  100,
+					Limit: 1,
+				},
+			},
+			want:    nil,
+			wantErr: true,
+		},
+		{
+			name:   "Test_LatestTransactions_ImproperPagination_2",
+			fields: r,
+			args: args{
+				ctx: ctx,
+				pagination: &types.Pagination{
+					Skip:  50,
+					Limit: 52,
+				},
+			},
+			want:    nil,
+			wantErr: true,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := c.LatestTransactions(tt.args.ctx, tt.args.pagination)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("LatestTransactions() error = %v, wantErr %v", err, tt.wantErr)
+			}
+			if !isTxsListEqual(got, tt.want) {
+				t.Errorf("LatestTransactions() got = %v, want %v", got, tt.want)
 			}
 		})
 	}
@@ -367,9 +528,10 @@ func getTxsByBlockSetup(ctx context.Context, client *redis.Client) error {
 	key := fmt.Sprintf(KeyTxsOfBlockHeight, 0)
 	for i := 0; i < 10; i++ {
 		tx := types.Transaction{
-			BlockNumber: 0,
-			BlockHash:   "0xhash0",
-			Hash:        strconv.FormatInt(int64(i), 10),
+			BlockNumber:      0,
+			BlockHash:        "0xhash0",
+			Hash:             strconv.FormatInt(int64(i), 10),
+			TransactionIndex: uint(i),
 		}
 		txStr, err := json.Marshal(tx)
 		if err != nil {
@@ -380,7 +542,7 @@ func getTxsByBlockSetup(ctx context.Context, client *redis.Client) error {
 		}
 	}
 	keyBlockHashByHeight := fmt.Sprintf(KeyBlockHashByHeight, "0xhash0")
-	if err := client.Set(ctx, keyBlockHashByHeight, 0, cfg.BlockHeightByHashExpTime).Err(); err != nil {
+	if err := client.Set(ctx, keyBlockHashByHeight, 0, cfg.BlockInfoExpTime).Err(); err != nil {
 		return err
 	}
 	return nil
@@ -431,11 +593,11 @@ func TestRedis_TxsByBlockHeight(t *testing.T) {
 				},
 			},
 			want: []*types.Transaction{
-				{BlockNumber: 0, BlockHash: "0xhash0", Hash: "0"},
-				{BlockNumber: 0, BlockHash: "0xhash0", Hash: "1"},
-				{BlockNumber: 0, BlockHash: "0xhash0", Hash: "2"},
-				{BlockNumber: 0, BlockHash: "0xhash0", Hash: "3"},
-				{BlockNumber: 0, BlockHash: "0xhash0", Hash: "4"},
+				{BlockNumber: 0, BlockHash: "0xhash0", Hash: "0", TransactionIndex: 0},
+				{BlockNumber: 0, BlockHash: "0xhash0", Hash: "1", TransactionIndex: 1},
+				{BlockNumber: 0, BlockHash: "0xhash0", Hash: "2", TransactionIndex: 2},
+				{BlockNumber: 0, BlockHash: "0xhash0", Hash: "3", TransactionIndex: 3},
+				{BlockNumber: 0, BlockHash: "0xhash0", Hash: "4", TransactionIndex: 4},
 			},
 			wantErr: false,
 		},
@@ -465,11 +627,11 @@ func TestRedis_TxsByBlockHeight(t *testing.T) {
 				},
 			},
 			want: []*types.Transaction{
-				{BlockNumber: 0, BlockHash: "0xhash0", Hash: "5"},
-				{BlockNumber: 0, BlockHash: "0xhash0", Hash: "6"},
-				{BlockNumber: 0, BlockHash: "0xhash0", Hash: "7"},
-				{BlockNumber: 0, BlockHash: "0xhash0", Hash: "8"},
-				{BlockNumber: 0, BlockHash: "0xhash0", Hash: "9"},
+				{BlockNumber: 0, BlockHash: "0xhash0", Hash: "5", TransactionIndex: 5},
+				{BlockNumber: 0, BlockHash: "0xhash0", Hash: "6", TransactionIndex: 6},
+				{BlockNumber: 0, BlockHash: "0xhash0", Hash: "7", TransactionIndex: 7},
+				{BlockNumber: 0, BlockHash: "0xhash0", Hash: "8", TransactionIndex: 8},
+				{BlockNumber: 0, BlockHash: "0xhash0", Hash: "9", TransactionIndex: 9},
 			},
 			wantErr: false,
 		},
@@ -632,8 +794,9 @@ func isTxsListEqual(src []*types.Transaction, dest []*types.Transaction) bool {
 	if len(src) != len(dest) {
 		return false
 	}
+
 	for i := range src {
-		if (src[i].Hash != dest[i].Hash) || (src[i].BlockHash != dest[i].BlockHash) || (src[i].BlockNumber != dest[i].BlockNumber) {
+		if (src[i].Hash != dest[i].Hash) || (src[i].BlockHash != dest[i].BlockHash) || (src[i].BlockNumber != dest[i].BlockNumber) || (src[i].TransactionIndex != dest[i].TransactionIndex) {
 			return false
 		}
 	}
