@@ -214,7 +214,8 @@ func (ec *Client) NodesInfo(ctx context.Context) ([]*types.NodeInfo, error) {
 		nodes = []*types.NodeInfo(nil)
 		err   error
 	)
-	clientList := append(append([]*RPCClient{}, ec.clientList...), ec.trustedClientList...)
+	clientList := append(ec.clientList, ec.trustedClientList...)
+	nodeMap := make(map[string]*types.NodeInfo, len(clientList))
 	for _, client := range clientList {
 		var (
 			node  *types.NodeInfo
@@ -229,7 +230,12 @@ func (ec *Client) NodesInfo(ctx context.Context) ([]*types.NodeInfo, error) {
 			continue
 		}
 		node.Peers = peers
-		nodes = appendNodesList(nodes, node)
+		if nodeMap[node.ID] == nil {
+			nodeMap[node.ID] = node
+		}
+	}
+	for _, node := range nodeMap {
+		nodes = append(nodes, node)
 	}
 	return nodes, nil
 }
@@ -240,15 +246,15 @@ func (ec *Client) Datadir(ctx context.Context) (string, error) {
 	return result, err
 }
 
-func (ec *Client) Validator(ctx context.Context, address string, isGetDelegator bool) (*types.Validator, error) {
+func (ec *Client) Validator(ctx context.Context, address string, isGetDelegators bool) (*types.Validator, error) {
 	var result *types.Validator
-	err := ec.chooseClient().c.CallContext(ctx, &result, "kai_validator", address, isGetDelegator)
+	err := ec.chooseClient().c.CallContext(ctx, &result, "kai_validator", address, isGetDelegators)
 	return result, err
 }
 
-func (ec *Client) Validators(ctx context.Context, isGetDelegator bool) ([]*types.Validator, error) {
+func (ec *Client) Validators(ctx context.Context, isGetDelegators bool) ([]*types.Validator, error) {
 	var result []*types.Validator
-	err := ec.chooseClient().c.CallContext(ctx, &result, "kai_validators", isGetDelegator)
+	err := ec.chooseClient().c.CallContext(ctx, &result, "kai_validators", isGetDelegators)
 	return result, err
 }
 
@@ -268,14 +274,4 @@ func (ec *Client) getBlockHeader(ctx context.Context, method string, args ...int
 		return nil, err
 	}
 	return &raw, nil
-}
-
-func appendNodesList(nodesList []*types.NodeInfo, node *types.NodeInfo) []*types.NodeInfo {
-	for _, tmpNode := range nodesList {
-		if tmpNode.ID == node.ID {
-			return nodesList
-		}
-	}
-	nodesList = append(nodesList, node)
-	return nodesList
 }

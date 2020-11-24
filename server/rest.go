@@ -153,7 +153,7 @@ func (s *Server) Nodes(c echo.Context) error {
 	ctx := context.Background()
 	nodes, err := s.cacheClient.NodesInfo(ctx)
 	if err == nil && nodes != nil {
-		s.logger.Debug("Got nodes info from cache", zap.Any("nodes info", nodes))
+		s.logger.Debug("Got nodes info from cache")
 		return api.OK.SetData(nodes).Build(c)
 	}
 	s.logger.Debug("Cannot get nodes info from cache, getting from RPC", zap.Any("nodes info", nodes), zap.Error(err))
@@ -209,22 +209,12 @@ func (s *Server) ValidatorStats(c echo.Context) error {
 
 func (s *Server) Validators(c echo.Context) error {
 	ctx := context.Background()
-	valsList, err := s.cacheClient.Validators(ctx)
-	if err == nil && valsList != nil {
-		s.logger.Debug("Got validators list from cache", zap.Any("validators", valsList))
-		return api.OK.SetData(valsList).Build(c)
-	}
-	s.logger.Debug("Cannot get validators list from cache, getting from RPC", zap.Any("validators", valsList), zap.Error(err))
-	valsList, err = s.kaiClient.Validators(ctx, false)
+	valsList, err := s.kaiClient.Validators(ctx, false)
 	if err != nil {
 		s.logger.Warn("cannot get validators list from RPC", zap.Error(err))
 		return api.Invalid.Build(c)
 	}
-	err = s.cacheClient.UpdateValidators(ctx, valsList)
-	if err != nil {
-		s.logger.Warn("cannot set validators list to cache", zap.Error(err))
-	}
-	s.logger.Debug("Got validators list from RPC", zap.Any("validators", valsList))
+	s.logger.Debug("Got validators list from RPC")
 	return api.OK.SetData(valsList).Build(c)
 }
 
