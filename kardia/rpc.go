@@ -67,9 +67,6 @@ func NewKaiClient(cfg *Config) (ClientInterface, error) {
 			ip:     u,
 		}
 		clientList = append(clientList, newClient)
-		if defaultClient == nil {
-			defaultClient = newClient
-		}
 	}
 	var trustedClientList = []*RPCClient{}
 	for _, u := range cfg.trustedNodeRPCURL {
@@ -83,10 +80,9 @@ func NewKaiClient(cfg *Config) (ClientInterface, error) {
 			ip:     u,
 		}
 		trustedClientList = append(trustedClientList, newClient)
-		if defaultClient == nil {
-			defaultClient = newClient
-		}
 	}
+	// set default RPC client as one of our trusted ones
+	defaultClient = trustedClientList[0]
 
 	return &Client{clientList, trustedClientList, defaultClient, 0, cfg.lgr}, nil
 }
@@ -214,7 +210,8 @@ func (ec *Client) NodesInfo(ctx context.Context) ([]*types.NodeInfo, error) {
 		nodes = []*types.NodeInfo(nil)
 		err   error
 	)
-	clientList := append(append([]*RPCClient{}, ec.clientList...), ec.trustedClientList...)
+	clientList := append(ec.clientList, ec.trustedClientList...)
+	nodeMap := make(map[string]*types.NodeInfo, len(clientList))
 	for _, client := range clientList {
 		var (
 			node  *types.NodeInfo
@@ -229,7 +226,10 @@ func (ec *Client) NodesInfo(ctx context.Context) ([]*types.NodeInfo, error) {
 			continue
 		}
 		node.Peers = peers
-		nodes = appendNodesList(nodes, node)
+		nodeMap[node.ID] = node
+	}
+	for _, node := range nodeMap {
+		nodes = append(nodes, node)
 	}
 	return nodes, nil
 }
@@ -240,21 +240,21 @@ func (ec *Client) Datadir(ctx context.Context) (string, error) {
 	return result, err
 }
 
-func (ec *Client) Validator(ctx context.Context, address string, isGetDelegator bool) (*types.Validator, error) {
+func (ec *Client) Validator(ctx context.Context, address string) (*types.Validator, error) {
 	var result *types.Validator
-	err := ec.chooseClient().c.CallContext(ctx, &result, "kai_validator", address, isGetDelegator)
+	err := ec.chooseClient().c.CallContext(ctx, &result, "kai_validator", address, true)
 	return result, err
 }
 
-func (ec *Client) Validators(ctx context.Context, isGetDelegator bool) ([]*types.Validator, error) {
+func (ec *Client) Validators(ctx context.Context) ([]*types.Validator, error) {
 	var result []*types.Validator
-	err := ec.chooseClient().c.CallContext(ctx, &result, "kai_validators", isGetDelegator)
+	err := ec.chooseClient().c.CallContext(ctx, &result, "kai_validators", false)
 	return result, err
 }
 
 func (ec *Client) getBlock(ctx context.Context, method string, args ...interface{}) (*types.Block, error) {
 	var raw types.Block
-	err := ec.chooseClient().c.CallContext(ctx, &raw, method, args...)
+	err := ec.defaultClient.c.CallContext(ctx, &raw, method, args...)
 	if err != nil {
 		return nil, err
 	}
@@ -263,19 +263,9 @@ func (ec *Client) getBlock(ctx context.Context, method string, args ...interface
 
 func (ec *Client) getBlockHeader(ctx context.Context, method string, args ...interface{}) (*types.Header, error) {
 	var raw types.Header
-	err := ec.chooseClient().c.CallContext(ctx, &raw, method, args...)
+	err := ec.defaultClient.c.CallContext(ctx, &raw, method, args...)
 	if err != nil {
 		return nil, err
 	}
 	return &raw, nil
-}
-
-func appendNodesList(nodesList []*types.NodeInfo, node *types.NodeInfo) []*types.NodeInfo {
-	for _, tmpNode := range nodesList {
-		if tmpNode.ID == node.ID {
-			return nodesList
-		}
-	}
-	nodesList = append(nodesList, node)
-	return nodesList
 }

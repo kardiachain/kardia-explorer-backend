@@ -12,6 +12,19 @@ import (
 	"go.uber.org/zap"
 )
 
+var (
+	currentProcessBlock uint64
+	processCounter      = 0
+)
+
+const (
+	counterLimit = 3
+)
+
+func IsSkip() bool {
+	return processCounter >= counterLimit
+}
+
 func backfill(ctx context.Context, srv *server.Server) {
 	srv.Logger.Info("Start refilling...")
 	t := time.NewTicker(time.Second * 1)
@@ -20,48 +33,44 @@ func backfill(ctx context.Context, srv *server.Server) {
 		select {
 		case <-t.C:
 			blockHeight, err := srv.PopErrorBlockHeight(ctx)
+			if blockHeight == currentProcessBlock && blockHeight != 0 {
+				processCounter++
+				if IsSkip() {
+					srv.Logger.Warn("Skip block since expected error", zap.Uint64("BlockHeight", blockHeight))
+					// Reset counter
+					processCounter = 0
+					continue
+				}
+			}
+			currentProcessBlock = blockHeight
 			lgr := srv.Logger.With(zap.Uint64("block", blockHeight))
 			if err != nil {
 				lgr.Info("Refilling: Failed to pop error block number", zap.Error(err))
-				err := srv.InsertErrorBlocks(ctx, blockHeight-1, blockHeight+1)
-				if err != nil {
-					lgr.Error("Listener: Failed to insert error block height", zap.Error(err))
-					continue
-				}
+				_ = srv.InsertErrorBlocks(ctx, blockHeight-1, blockHeight+1)
+				continue
 			}
-			lgr.Info("Refilling: ")
-			// TODO(trinhdn): remove hardcode
 			if blockHeight == 0 {
 				continue
 			}
+			lgr.Info("Refilling: ")
 			block, err := srv.BlockByHeight(ctx, blockHeight)
 			if err != nil {
 				lgr.Error("Refilling: Failed to get block", zap.Error(err))
-				err := srv.InsertErrorBlocks(ctx, blockHeight-1, blockHeight+1)
-				if err != nil {
-					lgr.Error("Listener: Failed to insert error block height", zap.Error(err))
-					continue
-				}
+				_ = srv.InsertErrorBlocks(ctx, blockHeight-1, blockHeight+1)
+				continue
 			}
 			if block == nil {
 				lgr.Error("Refilling: Block not found")
-				err := srv.InsertErrorBlocks(ctx, blockHeight-1, blockHeight+1)
-				if err != nil {
-					lgr.Error("Listener: Failed to insert error block height", zap.Error(err))
-					continue
-				}
+				_ = srv.InsertErrorBlocks(ctx, blockHeight-1, blockHeight+1)
+				continue
 			}
 			if err := srv.ImportBlock(ctx, block, false); err != nil {
 				if !errors.Is(err, types.ErrRecordExist) {
-					continue
+					lgr.Error("Record exist")
 				}
 				lgr.Error("Refilling: Failed to import block", zap.Error(err))
-				err := srv.InsertErrorBlocks(ctx, blockHeight-1, blockHeight+1)
-				if err != nil {
-					lgr.Error("Listener: Failed to insert error block height", zap.Error(err))
-					continue
-				}
-
+				_ = srv.InsertErrorBlocks(ctx, blockHeight-1, blockHeight+1)
+				continue
 			}
 		}
 	}

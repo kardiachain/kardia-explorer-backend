@@ -108,13 +108,13 @@ func New() (ExplorerConfig, error) {
 	if kardiaTrustedNodesStr != "" {
 		kardiaTrustedNodes = strings.Split(kardiaTrustedNodesStr, ",")
 	} else {
-		kardiaTrustedNodes = []string(nil)
+		panic("missing trusted RPC URLs in config")
 	}
 	kardiaURLsStr := os.Getenv("KARDIA_URL")
 	if kardiaURLsStr != "" {
 		kardiaURLs = strings.Split(kardiaURLsStr, ",")
 	} else {
-		kardiaURLs = []string(nil)
+		panic("missing RPC URLs in config")
 	}
 
 	storageMinConnStr := os.Getenv("STORAGE_MIN_CONN")
