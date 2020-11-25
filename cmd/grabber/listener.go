@@ -14,8 +14,16 @@ import (
 // listener fetch LatestBlockNumber every second and check if we stay behind latest block
 // todo: implement pipeline with worker for dispatch InsertBlock task
 func listener(ctx context.Context, srv *server.Server) {
+	prevHeader := uint64(0) // the highest persistent block in database, don't need to backfill blocks have blockHeight < prevHeader
+	// delete current latest block in db
+	deletedHeight, err := srv.DeleteLatestBlock(ctx)
+	if err != nil {
+		srv.Logger.Warn("cannot remove old latest block", zap.Error(err))
+	}
+	if deletedHeight > 0 {
+		prevHeader = deletedHeight - 1 // the highest persistent block in database now is deletedHeight - 1
+	}
 	srv.Logger.Info("Start listening...")
-	var prevHeader uint64 = 0
 	t := time.NewTicker(time.Second * 1)
 	defer t.Stop()
 	for {
