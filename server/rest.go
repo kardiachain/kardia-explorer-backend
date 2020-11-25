@@ -198,7 +198,7 @@ func (s *Server) TPS(c echo.Context) error {
 
 func (s *Server) ValidatorStats(c echo.Context) error {
 	ctx := context.Background()
-	validator, err := s.kaiClient.Validator(ctx, c.Param("address"), true)
+	validator, err := s.kaiClient.Validator(ctx, c.Param("address"))
 	if err != nil {
 		s.logger.Warn("cannot get validators list from RPC", zap.Error(err))
 		return api.Invalid.Build(c)
@@ -209,7 +209,7 @@ func (s *Server) ValidatorStats(c echo.Context) error {
 
 func (s *Server) Validators(c echo.Context) error {
 	ctx := context.Background()
-	valsList, err := s.kaiClient.Validators(ctx, false)
+	valsList, err := s.kaiClient.Validators(ctx)
 	if err != nil {
 		s.logger.Warn("cannot get validators list from RPC", zap.Error(err))
 		return api.Invalid.Build(c)
