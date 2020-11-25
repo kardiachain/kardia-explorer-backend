@@ -33,7 +33,8 @@ const (
 
 	PatternGetAllKeyOfBlockHeight = "#block#height#%d*"
 
-	ErrorBlocks = "#errorBlocks" // List
+	KeyErrorBlocks           = "#errorBlocks"           // List
+	KeyPersistentErrorBlocks = "#persistentErrorBlocks" // List
 
 	KeyTokenInfo = "#token#info"
 
@@ -274,7 +275,6 @@ func (c *Redis) LatestBlocks(ctx context.Context, pagination *types.Pagination) 
 		}
 		blockList = append(blockList, &b)
 	}
-	c.logger.Debug("Latest blocks from cache: ", zap.Any("blocks", blockList))
 	return blockList, nil
 }
 
@@ -302,13 +302,12 @@ func (c *Redis) LatestTransactions(ctx context.Context, pagination *types.Pagina
 		}
 		txList = append(txList, &tx)
 	}
-	c.logger.Debug("Latest txs from cache: ", zap.Any("txs", txList))
 	return txList, nil
 }
 
 func (c *Redis) InsertErrorBlocks(ctx context.Context, start uint64, end uint64) error {
 	for i := start + 1; i < end; i++ {
-		_, err := c.client.LPush(ctx, ErrorBlocks, strconv.FormatUint(i, 10)).Result()
+		_, err := c.client.LPush(ctx, KeyErrorBlocks, strconv.FormatUint(i, 10)).Result()
 		if err != nil {
 			return err
 		}
@@ -317,7 +316,27 @@ func (c *Redis) InsertErrorBlocks(ctx context.Context, start uint64, end uint64)
 }
 
 func (c *Redis) PopErrorBlockHeight(ctx context.Context) (uint64, error) {
-	heightStr, err := c.client.LPop(ctx, ErrorBlocks).Result()
+	heightStr, err := c.client.LPop(ctx, KeyErrorBlocks).Result()
+	if err != nil {
+		return 0, err
+	}
+	height, err := strconv.ParseUint(heightStr, 10, 64)
+	if err != nil {
+		return 0, err
+	}
+	return height, nil
+}
+
+func (c *Redis) InsertPersistentErrorBlocks(ctx context.Context, blockHeight uint64) error {
+	_, err := c.client.LPush(ctx, KeyPersistentErrorBlocks, strconv.FormatUint(blockHeight, 10)).Result()
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (c *Redis) PopPersistentErrorBlockHeight(ctx context.Context) (uint64, error) {
+	heightStr, err := c.client.LPop(ctx, KeyPersistentErrorBlocks).Result()
 	if err != nil {
 		return 0, err
 	}
