@@ -151,10 +151,22 @@ func (s *Server) TotalHolders(c echo.Context) error {
 
 func (s *Server) Nodes(c echo.Context) error {
 	ctx := context.Background()
-	nodes, err := s.kaiClient.NodesInfo(ctx)
+	nodes, err := s.cacheClient.NodesInfo(ctx)
+	if err == nil && nodes != nil {
+		s.logger.Debug("Got nodes info from cache")
+		return api.OK.SetData(nodes).Build(c)
+	}
+	s.logger.Debug("Cannot get nodes info from cache, getting from RPC", zap.Any("nodes info", nodes), zap.Error(err))
+	nodes, err = s.kaiClient.NodesInfo(ctx)
 	if err != nil {
+		s.logger.Warn("cannot get nodes info from RPC", zap.Error(err))
 		return api.Invalid.Build(c)
 	}
+	err = s.cacheClient.UpdateNodesInfo(ctx, nodes)
+	if err != nil {
+		s.logger.Warn("cannot set nodes info to cache", zap.Error(err))
+	}
+	s.logger.Debug("Got nodes info from RPC", zap.Any("nodes info", nodes))
 	return api.OK.SetData(nodes).Build(c)
 }
 
@@ -185,25 +197,25 @@ func (s *Server) TPS(c echo.Context) error {
 }
 
 func (s *Server) ValidatorStats(c echo.Context) error {
-	s.logger.Debug("ValidatorInfo", zap.Any("URL", c.Param("rpcURL")))
 	ctx := context.Background()
-	rpcURL := c.Param("rpcURL")
-	validator, err := s.kaiClient.Validator(ctx, rpcURL)
+	validator, err := s.kaiClient.Validator(ctx, c.Param("address"))
 	if err != nil {
+		s.logger.Warn("cannot get validators list from RPC", zap.Error(err))
 		return api.Invalid.Build(c)
 	}
-	s.logger.Debug("ValidatorInfo", zap.Any("ValidatorInfo", validator))
+	s.logger.Debug("Got validator info from RPC", zap.Any("ValidatorInfo", validator))
 	return api.OK.SetData(validator).Build(c)
 }
 
 func (s *Server) Validators(c echo.Context) error {
 	ctx := context.Background()
-	validators, err := s.kaiClient.Validators(ctx)
+	valsList, err := s.kaiClient.Validators(ctx)
 	if err != nil {
+		s.logger.Warn("cannot get validators list from RPC", zap.Error(err))
 		return api.Invalid.Build(c)
 	}
-	s.logger.Debug("Validators", zap.Any("validators", validators))
-	return api.OK.SetData(validators).Build(c)
+	s.logger.Debug("Got validators list from RPC")
+	return api.OK.SetData(valsList).Build(c)
 }
 
 func (s *Server) Blocks(c echo.Context) error {
