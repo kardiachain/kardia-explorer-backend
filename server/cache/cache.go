@@ -33,13 +33,15 @@ type Config struct {
 
 type Client interface {
 	InsertBlock(ctx context.Context, block *types.Block) error
+	InsertTxsOfBlock(ctx context.Context, block *types.Block) error
 	BlockByHeight(ctx context.Context, blockHeight uint64) (*types.Block, error)
 	BlockByHash(ctx context.Context, blockHash string) (*types.Block, error)
+	TxsByBlockHash(ctx context.Context, blockHash string, pagination *types.Pagination) ([]*types.Transaction, uint64, error)
+	TxsByBlockHeight(ctx context.Context, blockHeight uint64, pagination *types.Pagination) ([]*types.Transaction, uint64, error)
 
-	InsertTxsOfBlock(ctx context.Context, block *types.Block) error
 	TxByHash(ctx context.Context, txHash string) (*types.Transaction, error)
 
-	BlocksSize(ctx context.Context) (int64, error)
+	ListSize(ctx context.Context, key string) (int64, error)
 	PopReceipt(ctx context.Context) (*types.Receipt, error)
 
 	LatestBlocks(ctx context.Context, pagination *types.Pagination) ([]*types.Block, error)
@@ -48,7 +50,7 @@ type Client interface {
 	InsertErrorBlocks(ctx context.Context, start uint64, end uint64) error
 	PopErrorBlockHeight(ctx context.Context) (uint64, error)
 	InsertPersistentErrorBlocks(ctx context.Context, blockHeight uint64) error
-	PopPersistentErrorBlockHeight(ctx context.Context) (uint64, error)
+	PersistentErrorBlockHeights(ctx context.Context) ([]uint64, error)
 
 	UpdateTotalTxs(ctx context.Context, blockTxs uint64) (uint64, error)
 	TotalTxs(ctx context.Context) uint64

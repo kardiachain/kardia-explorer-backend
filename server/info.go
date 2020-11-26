@@ -37,6 +37,7 @@ type InfoServer interface {
 
 	InsertErrorBlocks(ctx context.Context, start uint64, end uint64) error
 	PopErrorBlockHeight(ctx context.Context) (uint64, error)
+	InsertPersistentErrorBlocks(ctx context.Context, blockHeight uint64) error
 }
 
 // infoServer handle how data was retrieved, stored without interact with other network excluded dbClient
@@ -280,6 +281,15 @@ func (s *infoServer) PopErrorBlockHeight(ctx context.Context) (uint64, error) {
 		return 0, err
 	}
 	return height, nil
+}
+
+func (s *infoServer) InsertPersistentErrorBlocks(ctx context.Context, blockHeight uint64) error {
+	err := s.cacheClient.InsertPersistentErrorBlocks(ctx, blockHeight)
+	if err != nil {
+		s.logger.Warn("Cannot insert persistent error block into list", zap.Uint64("blockHeight", blockHeight))
+		return err
+	}
+	return nil
 }
 
 func (s *infoServer) ImportReceipts(ctx context.Context, block *types.Block) error {

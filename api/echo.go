@@ -52,6 +52,7 @@ type EchoServer interface {
 	Block(c echo.Context) error
 	BlockExist(c echo.Context) error
 	BlockTxs(c echo.Context) error
+	PersistentErrorBlocks(c echo.Context) error
 
 	// Addresses
 	Addresses(c echo.Context) error
@@ -138,6 +139,11 @@ func bind(gr *echo.Group, srv EchoServer) {
 			method: echo.GET,
 			path:   "/blocks/:block",
 			fn:     srv.Block,
+		},
+		{
+			method: echo.GET,
+			path:   "/blocks/error",
+			fn:     srv.PersistentErrorBlocks,
 		},
 		{
 			method: echo.GET,
