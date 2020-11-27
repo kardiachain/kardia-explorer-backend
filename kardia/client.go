@@ -32,7 +32,7 @@ type ClientInterface interface {
 	BlockByHeight(ctx context.Context, height uint64) (*types.Block, error)
 	BlockHeaderByHash(ctx context.Context, hash string) (*types.Header, error)
 	BlockHeaderByNumber(ctx context.Context, number uint64) (*types.Header, error)
-	GetTransaction(ctx context.Context, hash string) (*types.Transaction, bool, error)
+	GetTransaction(ctx context.Context, hash string) (*types.Transaction, error)
 	GetTransactionReceipt(ctx context.Context, txHash string) (*types.Receipt, error)
 	GetBalance(ctx context.Context, account string) (string, error)
 	GetStorageAt(ctx context.Context, account string, key string) (common.Bytes, error)
