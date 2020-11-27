@@ -356,6 +356,15 @@ func (s *Server) Block(c echo.Context) error {
 	return api.OK.SetData(block).Build(c)
 }
 
+func (s *Server) PersistentErrorBlocks(c echo.Context) error {
+	ctx := context.Background()
+	heights, err := s.cacheClient.PersistentErrorBlockHeights(ctx)
+	if err != nil {
+		return api.Invalid.Build(c)
+	}
+	return api.OK.SetData(heights).Build(c)
+}
+
 func (s *Server) BlockExist(c echo.Context) error {
 	return api.OK.Build(c)
 }
