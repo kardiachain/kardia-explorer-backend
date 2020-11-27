@@ -133,15 +133,15 @@ func (ec *Client) BlockHeaderByHash(ctx context.Context, hash string) (*types.He
 }
 
 // GetTransaction returns the transaction with the given hash.
-func (ec *Client) GetTransaction(ctx context.Context, hash string) (*types.Transaction, bool, error) {
+func (ec *Client) GetTransaction(ctx context.Context, hash string) (*types.Transaction, error) {
 	var raw *types.Transaction
 	err := ec.chooseClient().c.CallContext(ctx, &raw, "tx_getTransaction", common.HexToHash(hash))
 	if err != nil {
-		return nil, false, err
+		return nil, err
 	} else if raw == nil {
-		return nil, false, kardia.NotFound
+		return nil, kardia.NotFound
 	}
-	return raw, raw.BlockNumber == 0, nil
+	return raw, nil
 }
 
 // GetTransactionReceipt returns the receipt of a transaction by transaction hash.

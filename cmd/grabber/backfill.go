@@ -38,7 +38,8 @@ func backfill(ctx context.Context, srv *server.Server) {
 			if blockHeight == currentProcessBlock && blockHeight != 0 {
 				processCounter++
 				if IsSkip() {
-					srv.Logger.Warn("Skip block since expected error", zap.Uint64("BlockHeight", blockHeight))
+					srv.Logger.Warn("Skip block since several error attemps, inserting to persistent error blocks list", zap.Uint64("BlockHeight", blockHeight))
+					_ = srv.InsertPersistentErrorBlocks(ctx, blockHeight)
 					// Reset counter
 					processCounter = 0
 					continue

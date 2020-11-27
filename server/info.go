@@ -33,9 +33,11 @@ type InfoServer interface {
 	BlockByHash(ctx context.Context, blockHash string) (*types.Block, error)
 
 	ImportBlock(ctx context.Context, block *types.Block, writeToCache bool) (*types.Block, error)
+	DeleteLatestBlock(ctx context.Context) error
 
 	InsertErrorBlocks(ctx context.Context, start uint64, end uint64) error
 	PopErrorBlockHeight(ctx context.Context) (uint64, error)
+	InsertPersistentErrorBlocks(ctx context.Context, blockHeight uint64) error
 }
 
 // infoServer handle how data was retrieved, stored without interact with other network excluded dbClient
@@ -206,6 +208,10 @@ func (s *infoServer) ImportBlock(ctx context.Context, block *types.Block, writeT
 		return err
 	}
 
+	// merge receipts into corresponding transactions
+	// because getBlockByHash/Height API returns 2 array contains txs and receipts separately
+	block.Txs = mergeReceipts(block.Txs, block.Receipts)
+
 	// Start import block
 	// consider new routine here
 	// todo: add metrics
@@ -260,6 +266,15 @@ func (s *infoServer) ImportBlock(ctx context.Context, block *types.Block, writeT
 	return nil
 }
 
+func (s *infoServer) DeleteLatestBlock(ctx context.Context) (uint64, error) {
+	height, err := s.dbClient.DeleteLatestBlock(ctx)
+	if err != nil {
+		s.logger.Warn("cannot remove old latest block", zap.Error(err))
+		return 0, err
+	}
+	return height, nil
+}
+
 func (s *infoServer) InsertErrorBlocks(ctx context.Context, start uint64, end uint64) error {
 	err := s.cacheClient.InsertErrorBlocks(ctx, start, end)
 	if err != nil {
@@ -275,6 +290,15 @@ func (s *infoServer) PopErrorBlockHeight(ctx context.Context) (uint64, error) {
 		return 0, err
 	}
 	return height, nil
+}
+
+func (s *infoServer) InsertPersistentErrorBlocks(ctx context.Context, blockHeight uint64) error {
+	err := s.cacheClient.InsertPersistentErrorBlocks(ctx, blockHeight)
+	if err != nil {
+		s.logger.Warn("Cannot insert persistent error block into list", zap.Uint64("blockHeight", blockHeight))
+		return err
+	}
+	return nil
 }
 
 func (s *infoServer) ImportReceipts(ctx context.Context, block *types.Block) error {
@@ -453,4 +477,21 @@ func filterAddrSet(txs []*types.Transaction) (addr map[string]bool, contractAddr
 		}
 	}
 	return addr, contractAddr
+}
+
+func mergeReceipts(txs []*types.Transaction, receipts []*types.Receipt) []*types.Transaction {
+	receiptIndex := 0
+	for _, tx := range txs {
+		if (receiptIndex > len(receipts)-1) || !(receipts[receiptIndex].TransactionHash == tx.Hash) {
+			tx.Status = 0
+			continue
+		}
+		tx.Logs = receipts[receiptIndex].Logs
+		tx.Root = receipts[receiptIndex].Root
+		tx.Status = receipts[receiptIndex].Status
+		tx.GasUsed = receipts[receiptIndex].GasUsed
+		tx.ContractAddress = receipts[receiptIndex].ContractAddress
+		receiptIndex++
+	}
+	return txs
 }
