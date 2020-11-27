@@ -23,6 +23,7 @@ import (
 	"errors"
 	"math/big"
 	"sort"
+	"strings"
 
 	"go.uber.org/zap"
 
@@ -32,6 +33,8 @@ import (
 
 	"github.com/kardiachain/explorer-backend/types"
 )
+
+var ErrParsingBigIntFromString = errors.New("cannot parse string to big.Int")
 
 type RPCClient struct {
 	c      *rpc.Client
@@ -245,7 +248,10 @@ func (ec *Client) Datadir(ctx context.Context) (string, error) {
 func (ec *Client) Validator(ctx context.Context, address string) (*types.Validator, error) {
 	var result *types.Validator
 	err := ec.chooseClient().c.CallContext(ctx, &result, "kai_validator", address, true)
-	return result, err
+	if err != nil {
+		result, err = convertValidatorInfo(result, nil)
+	}
+	return result, nil
 }
 
 func (ec *Client) Validators(ctx context.Context) (*types.Validators, error) {
@@ -288,6 +294,11 @@ func (ec *Client) Validators(ctx context.Context) (*types.Validators, error) {
 		jAmount, _ := new(big.Int).SetString(validators[j].StakedAmount, 10)
 		return iAmount.Cmp(jAmount) == 1
 	})
+	for _, val := range validators {
+		if val, err = convertValidatorInfo(val, totalStakedAmount); err != nil {
+			return nil, err
+		}
+	}
 	result := &types.Validators{
 		TotalValidators:            len(validators),
 		TotalDelegators:            len(delegators),
@@ -316,4 +327,45 @@ func (ec *Client) getBlockHeader(ctx context.Context, method string, args ...int
 		return nil, err
 	}
 	return &raw, nil
+}
+
+func convertValidatorInfo(val *types.Validator, totalStakedAmount *big.Int) (*types.Validator, error) {
+	var err error
+	val.Commission = ""
+	if val.CommissionRate, err = convertBigIntToPercentage(val.CommissionRate); err != nil {
+		return nil, err
+	}
+	if val.MaxRate, err = convertBigIntToPercentage(val.MaxRate); err != nil {
+		return nil, err
+	}
+	if val.MaxChangeRate, err = convertBigIntToPercentage(val.MaxChangeRate); err != nil {
+		return nil, err
+	}
+	if totalStakedAmount != nil {
+		if val.VotingPowerPercentage, err = calculateVotingPower(val.StakedAmount, totalStakedAmount); err != nil {
+			return nil, err
+		}
+	}
+	return val, nil
+}
+
+func convertBigIntToPercentage(raw string) (string, error) {
+	input, ok := new(big.Int).SetString(raw, 10)
+	if !ok {
+		return "", ErrParsingBigIntFromString
+	}
+	tmp := new(big.Int).Mul(input, new(big.Int).SetInt64(100000))
+	tenPoweredBy18 := new(big.Int).Exp(big.NewInt(10), big.NewInt(18), nil)
+	result := new(big.Int).Div(tmp, tenPoweredBy18).String()
+	return strings.TrimRight(strings.TrimRight(result[:len(result)-3] + "." + result[len(result)-3:], "0"), "."), nil
+}
+
+func calculateVotingPower(raw string, total *big.Int) (string, error) {
+	valStakedAmount, ok := new(big.Int).SetString(raw, 10)
+	if !ok {
+		return "", ErrParsingBigIntFromString
+	}
+	tmp := new(big.Int).Mul(valStakedAmount, new(big.Int).SetInt64(100000))
+	result :=  new(big.Int).Div(tmp, total).String()
+	return strings.TrimRight(strings.TrimRight(result[:len(result)-3] + "." + result[len(result)-3:], "0"), "."), nil
 }
