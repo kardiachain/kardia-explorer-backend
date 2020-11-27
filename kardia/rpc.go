@@ -255,6 +255,12 @@ func (ec *Client) Validator(ctx context.Context, address string) (*types.Validat
 	}
 	for _, val := range result.Validators {
 		if strings.ToLower(val.Address.Hex()) == strings.ToLower(address) {
+			// get delegation details
+			var validator *types.Validator
+			if err := ec.chooseClient().c.CallContext(ctx, &validator, "kai_validator", address, true); err != nil {
+				return nil, err
+			}
+			val.Delegators = validator.Delegators
 			return val, nil
 		}
 	}
