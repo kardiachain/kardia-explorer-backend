@@ -252,7 +252,7 @@ func (s *infoServer) ImportBlock(ctx context.Context, block *types.Block, writeT
 	if err := s.dbClient.UpdateActiveAddresses(ctx, addrList, contractList); err != nil {
 		return err
 	}
-	insertActiveAddrConsumed := time.Since(insertActiveAddrTime)
+	insertActiveAddrConsumed := time.Since(startTime)
 	s.logger.Debug("Total time for update active addresses", zap.Any("TimeConsumed", insertActiveAddrConsumed))
 	totalAddr, totalContractAddr, err := s.dbClient.GetTotalActiveAddresses(ctx)
 	if err != nil {
@@ -267,7 +267,7 @@ func (s *infoServer) ImportBlock(ctx context.Context, block *types.Block, writeT
 	s.metrics.RecordInsertActiveAddressTime(endTime)
 	s.logger.Debug("Total time for import active addresses", zap.Duration("TimeConsumed", endTime), zap.String("Avg", s.metrics.GetInsertActiveAddressTime()))
 	startTime = time.Now()
-	totalAddr, totalContractAddr, err := s.dbClient.GetTotalActiveAddresses(ctx)
+	totalAddr, totalContractAddr, err = s.dbClient.GetTotalActiveAddresses(ctx)
 	if err != nil {
 		return err
 	}
