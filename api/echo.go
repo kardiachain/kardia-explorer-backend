@@ -33,11 +33,11 @@ type EchoServer interface {
 	Ping(c echo.Context) error
 	Info(c echo.Context) error
 	Stats(c echo.Context) error
-	Search(c echo.Context) error
 	TotalHolders(c echo.Context) error
 
 	// Info
 	TokenInfo(c echo.Context) error
+	UpdateCirculatingSupply(c echo.Context) error
 
 	// Chart
 	TPS(c echo.Context) error
@@ -52,6 +52,7 @@ type EchoServer interface {
 	Block(c echo.Context) error
 	BlockExist(c echo.Context) error
 	BlockTxs(c echo.Context) error
+	PersistentErrorBlocks(c echo.Context) error
 
 	// Addresses
 	Addresses(c echo.Context) error
@@ -98,21 +99,6 @@ func bind(gr *echo.Group, srv EchoServer) {
 			middlewares: nil,
 		},
 		{
-			method:      echo.GET,
-			path:        "/search",
-			fn:          srv.Search,
-			middlewares: nil,
-		},
-		// Dashboard
-		{
-			method: echo.GET,
-			// Params: block hash or block height or transaction hash or address (with paging option for address txs list)
-			// Query params: ?address=0x0page=1&limit=10&txHash=0x0?blockHash=0x0?blockHeight=5
-			path:        "/search",
-			fn:          srv.Search,
-			middlewares: []echo.MiddlewareFunc{checkPagination()},
-		},
-		{
 			method: echo.GET,
 			path:   "/dashboard/stats",
 			fn:     srv.Stats,
@@ -127,6 +113,11 @@ func bind(gr *echo.Group, srv EchoServer) {
 			path:   "/dashboard/token",
 			fn:     srv.TokenInfo,
 		},
+		{
+			method: echo.PUT,
+			path:   "/dashboard/token/circulating",
+			fn:     srv.UpdateCirculatingSupply,
+		},
 		// Blocks
 		{
 			method: echo.GET,
@@ -138,6 +129,11 @@ func bind(gr *echo.Group, srv EchoServer) {
 			method: echo.GET,
 			path:   "/blocks/:block",
 			fn:     srv.Block,
+		},
+		{
+			method: echo.GET,
+			path:   "/blocks/error",
+			fn:     srv.PersistentErrorBlocks,
 		},
 		{
 			method: echo.GET,
@@ -191,7 +187,7 @@ func bind(gr *echo.Group, srv EchoServer) {
 		},
 		{
 			method:      echo.GET,
-			path:        "/validators/:rpcURL/info",
+			path:        "/validators/:address",
 			fn:          srv.ValidatorStats,
 			middlewares: nil,
 		},
@@ -208,7 +204,6 @@ func Start(srv EchoServer, cfg cfg.ExplorerConfig) {
 
 	e.Use(middleware.CORS())
 	e.Use(middleware.Logger())
-	e.Use(middleware.CSRF())
 	e.Use(middleware.Gzip())
 
 	v1Gr := e.Group("/api/v1")

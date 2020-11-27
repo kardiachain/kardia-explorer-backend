@@ -7,6 +7,8 @@ import (
 	"errors"
 	"fmt"
 	"io/ioutil"
+	"math"
+	"math/big"
 	"net"
 	"net/http"
 	"time"
@@ -33,9 +35,11 @@ type InfoServer interface {
 	BlockByHash(ctx context.Context, blockHash string) (*types.Block, error)
 
 	ImportBlock(ctx context.Context, block *types.Block, writeToCache bool) (*types.Block, error)
+	DeleteLatestBlock(ctx context.Context) error
 
 	InsertErrorBlocks(ctx context.Context, start uint64, end uint64) error
 	PopErrorBlockHeight(ctx context.Context) (uint64, error)
+	InsertPersistentErrorBlocks(ctx context.Context, blockHeight uint64) error
 }
 
 // infoServer handle how data was retrieved, stored without interact with other network excluded dbClient
@@ -45,6 +49,8 @@ type infoServer struct {
 	kaiClient   kardia.ClientInterface
 
 	metrics *metrics.Provider
+
+	HttpRequestSecret string
 
 	logger *zap.Logger
 }
@@ -68,9 +74,9 @@ func (s *infoServer) TokenInfo(ctx context.Context) (*types.TokenInfo, error) {
 		NumMarketPairs    int                `json:"num_market_pairs"`
 		DateAdded         string             `json:"date_added"`
 		Tags              []string           `json:"tags"`
-		MaxSupply         int                `json:"max_supply"`
-		CirculatingSupply int                `json:"circulating_supply"`
-		TotalSupply       int                `json:"total_supply"`
+		MaxSupply         int64              `json:"max_supply"`
+		CirculatingSupply int64              `json:"circulating_supply"`
+		TotalSupply       int64              `json:"total_supply"`
 		IsActive          int                `json:"is_active"`
 		Platform          interface{}        `json:"platform"`
 		CmcRank           int                `json:"cmc_rank"`
@@ -206,33 +212,42 @@ func (s *infoServer) ImportBlock(ctx context.Context, block *types.Block, writeT
 		return err
 	}
 
+	// merge receipts into corresponding transactions
+	// because getBlockByHash/Height API returns 2 array contains txs and receipts separately
+	block.Txs = mergeReceipts(block.Txs, block.Receipts)
+
 	// Start import block
 	// consider new routine here
 	// todo: add metrics
 	// todo @longnd: Use redis or leveldb as mem-write buffer for N blocks
+	startTime := time.Now()
 	if err := s.dbClient.InsertBlock(ctx, block); err != nil {
 		s.logger.Debug("cannot import block to db", zap.Error(err))
 		return err
 	}
+	endTime := time.Since(startTime)
+	s.metrics.RecordInsertBlockTime(endTime)
+	s.logger.Debug("Total time for import block", zap.Duration("TimeConsumed", endTime), zap.String("Avg", s.metrics.GetInsertBlockTime()))
 
 	if writeToCache {
-		s.logger.Debug("Insert block txs to cached")
+		s.logger.Debug("Insert block txs to cache")
 		if err := s.cacheClient.InsertTxsOfBlock(ctx, block); err != nil {
 			s.logger.Debug("cannot import txs to cache", zap.Error(err))
 			return err
 		}
 	}
 
-	insertTxTime := time.Now()
+	startTime = time.Now()
 	// todo @trinh: Consider using avgTime metric for reporting/monitor
 	if err := s.dbClient.InsertTxs(ctx, block.Txs); err != nil {
 		return err
 	}
-	insertTxConsume := time.Since(insertTxTime)
-	s.logger.Debug("Total time for import tx", zap.Any("TimeConsumed", insertTxConsume))
+	endTime = time.Since(startTime)
+	s.metrics.RecordInsertTxsTime(endTime)
+	s.logger.Debug("Total time for import tx", zap.Duration("TimeConsumed", endTime), zap.String("Avg", s.metrics.GetInsertTxsTime()))
 
 	// update active addresses
-	insertActiveAddrTime := time.Now()
+	startTime = time.Now()
 	addrList, contractList := filterAddrSet(block.Txs)
 	if err := s.dbClient.UpdateActiveAddresses(ctx, addrList, contractList); err != nil {
 		return err
@@ -248,12 +263,36 @@ func (s *infoServer) ImportBlock(ctx context.Context, block *types.Block, writeT
 		return err
 	}
 
+	endTime = time.Since(startTime)
+	s.metrics.RecordInsertActiveAddressTime(endTime)
+	s.logger.Debug("Total time for import active addresses", zap.Duration("TimeConsumed", endTime), zap.String("Avg", s.metrics.GetInsertActiveAddressTime()))
+	startTime = time.Now()
+	totalAddr, totalContractAddr, err := s.dbClient.GetTotalActiveAddresses(ctx)
+	if err != nil {
+		return err
+	}
+	err = s.cacheClient.UpdateTotalHolders(ctx, totalAddr, totalContractAddr)
+	if err != nil {
+		return err
+	}
+	s.logger.Debug("Total time for getting active addresses", zap.Duration("TimeConsumed", time.Since(startTime)))
+
 	return nil
+}
+
+func (s *infoServer) DeleteLatestBlock(ctx context.Context) (uint64, error) {
+	height, err := s.dbClient.DeleteLatestBlock(ctx)
+	if err != nil {
+		s.logger.Warn("cannot remove old latest block", zap.Error(err))
+		return 0, err
+	}
+	return height, nil
 }
 
 func (s *infoServer) InsertErrorBlocks(ctx context.Context, start uint64, end uint64) error {
 	err := s.cacheClient.InsertErrorBlocks(ctx, start, end)
 	if err != nil {
+		s.logger.Warn("Cannot insert error block into retry list", zap.Uint64("Start", start), zap.Uint64("End", end))
 		return err
 	}
 	return nil
@@ -265,6 +304,15 @@ func (s *infoServer) PopErrorBlockHeight(ctx context.Context) (uint64, error) {
 		return 0, err
 	}
 	return height, nil
+}
+
+func (s *infoServer) InsertPersistentErrorBlocks(ctx context.Context, blockHeight uint64) error {
+	err := s.cacheClient.InsertPersistentErrorBlocks(ctx, blockHeight)
+	if err != nil {
+		s.logger.Warn("Cannot insert persistent error block into list", zap.Uint64("blockHeight", blockHeight))
+		return err
+	}
+	return nil
 }
 
 func (s *infoServer) ImportReceipts(ctx context.Context, block *types.Block) error {
@@ -443,4 +491,33 @@ func filterAddrSet(txs []*types.Transaction) (addr map[string]bool, contractAddr
 		}
 	}
 	return addr, contractAddr
+}
+
+func mergeReceipts(txs []*types.Transaction, receipts []*types.Receipt) []*types.Transaction {
+	receiptIndex := 0
+	var (
+		gasPrice *big.Int
+		gasUsed *big.Int
+		txFeeInGwei *big.Int
+	)
+	for _, tx := range txs {
+		if (receiptIndex > len(receipts)-1) || !(receipts[receiptIndex].TransactionHash == tx.Hash) {
+			tx.Status = 0
+			continue
+		}
+
+		tx.Logs = receipts[receiptIndex].Logs
+		tx.Root = receipts[receiptIndex].Root
+		tx.Status = receipts[receiptIndex].Status
+		tx.GasUsed = receipts[receiptIndex].GasUsed
+		tx.ContractAddress = receipts[receiptIndex].ContractAddress
+		// update txFee
+		gasPrice = new(big.Int).SetUint64(tx.GasPrice)
+		gasUsed = new(big.Int).SetUint64(tx.GasUsed)
+		txFeeInGwei = new(big.Int).Mul(gasPrice, gasUsed)
+		tx.TxFee = new(big.Int).Mul(txFeeInGwei, big.NewInt(int64(math.Pow10(9)))).String()
+
+		receiptIndex++
+	}
+	return txs
 }

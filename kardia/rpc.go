@@ -21,16 +21,22 @@ package kardia
 import (
 	"context"
 	"errors"
+	"math/big"
+	"sort"
 	"strings"
 
 	"go.uber.org/zap"
 
 	kardia "github.com/kardiachain/go-kardiamain"
 	"github.com/kardiachain/go-kardiamain/lib/common"
-	"github.com/kardiachain/go-kardiamain/lib/rlp"
 	"github.com/kardiachain/go-kardiamain/rpc"
 
 	"github.com/kardiachain/explorer-backend/types"
+)
+
+var (
+	ErrParsingBigIntFromString = errors.New("cannot parse string to big.Int")
+	ErrValidatorNotFound = errors.New("validator address not found")
 )
 
 type RPCClient struct {
@@ -53,17 +59,22 @@ func NewKaiClient(cfg *Config) (ClientInterface, error) {
 	if len(cfg.rpcURL) == 0 && len(cfg.trustedNodeRPCURL) == 0 {
 		return nil, errors.New("empty RPC URL")
 	}
-	var clientList = []*RPCClient{}
+
+	var (
+		defaultClient *RPCClient = nil
+		clientList               = []*RPCClient{}
+	)
 	for _, u := range cfg.rpcURL {
 		rpcClient, err := rpc.Dial(u)
 		if err != nil {
 			return nil, err
 		}
-		clientList = append(clientList, &RPCClient{
+		newClient := &RPCClient{
 			c:      rpcClient,
 			isDead: false,
 			ip:     u,
-		})
+		}
+		clientList = append(clientList, newClient)
 	}
 	var trustedClientList = []*RPCClient{}
 	for _, u := range cfg.trustedNodeRPCURL {
@@ -71,19 +82,22 @@ func NewKaiClient(cfg *Config) (ClientInterface, error) {
 		if err != nil {
 			return nil, err
 		}
-		trustedClientList = append(trustedClientList, &RPCClient{
+		newClient := &RPCClient{
 			c:      rpcClient,
 			isDead: false,
 			ip:     u,
-		})
+		}
+		trustedClientList = append(trustedClientList, newClient)
 	}
+	// set default RPC client as one of our trusted ones
+	defaultClient = trustedClientList[0]
 
-	return &Client{clientList, trustedClientList, clientList[len(clientList)-1], 0, cfg.lgr}, nil
+	return &Client{clientList, trustedClientList, defaultClient, 0, cfg.lgr}, nil
 }
 
 func (ec *Client) chooseClient() *RPCClient {
 	if len(ec.clientList) > 1 {
-		if ec.numRequest == len(ec.clientList)-2 {
+		if ec.numRequest == len(ec.clientList)-1 {
 			ec.numRequest = 0
 		} else {
 			ec.numRequest++
@@ -127,15 +141,15 @@ func (ec *Client) BlockHeaderByHash(ctx context.Context, hash string) (*types.He
 }
 
 // GetTransaction returns the transaction with the given hash.
-func (ec *Client) GetTransaction(ctx context.Context, hash string) (*types.Transaction, bool, error) {
+func (ec *Client) GetTransaction(ctx context.Context, hash string) (*types.Transaction, error) {
 	var raw *types.Transaction
 	err := ec.chooseClient().c.CallContext(ctx, &raw, "tx_getTransaction", common.HexToHash(hash))
 	if err != nil {
-		return nil, false, err
+		return nil, err
 	} else if raw == nil {
-		return nil, false, kardia.NotFound
+		return nil, kardia.NotFound
 	}
-	return raw, raw.BlockNumber == 0, nil
+	return raw, nil
 }
 
 // GetTransactionReceipt returns the receipt of a transaction by transaction hash.
@@ -189,44 +203,43 @@ func (ec *Client) NonceAt(ctx context.Context, account string) (uint64, error) {
 //
 // If the transaction was a contract creation use the GetTransactionReceipt method to get the
 // contract address after the transaction has been mined.
-// TODO(trinhdn): verify which types of tx is suitable for this API
-func (ec *Client) SendRawTransaction(ctx context.Context, tx *types.Transaction) error {
-	data, err := rlp.EncodeToBytes(tx)
-	if err != nil {
-		return err
-	}
-	return ec.chooseClient().c.CallContext(ctx, nil, "tx_sendRawTransaction", common.ToHex(data))
+func (ec *Client) SendRawTransaction(ctx context.Context, tx string) error {
+	return ec.chooseClient().c.CallContext(ctx, nil, "tx_sendRawTransaction", tx)
 }
 
-func (ec *Client) Peers(ctx context.Context) (peers *types.PeerInfo, err error) {
-	var tempPeers *types.PeerInfo
-	for _, client := range ec.clientList {
-		err = client.c.CallContext(ctx, &tempPeers, "node_peers")
-		for _, tempPeer := range tempPeers.NodesInfo {
-			appendPeersList(tempPeer, tempPeers.NodesInfo)
-		}
-	}
-	for _, client := range ec.trustedClientList {
-		err = client.c.CallContext(ctx, &tempPeers, "node_peers")
-		for _, tempPeer := range tempPeers.NodesInfo {
-			appendPeersList(tempPeer, tempPeers.NodesInfo)
-		}
-	}
-	return peers, err
+func (ec *Client) Peers(ctx context.Context, client *RPCClient) ([]*types.PeerInfo, error) {
+	var result []*types.PeerInfo
+	err := client.c.CallContext(ctx, &result, "node_peers")
+	return result, err
 }
 
-func (ec *Client) NodesInfo(ctx context.Context) (nodes []*types.NodeInfo, err error) {
-	for _, client := range ec.clientList {
-		var node *types.NodeInfo
+func (ec *Client) NodesInfo(ctx context.Context) ([]*types.NodeInfo, error) {
+	var (
+		nodes = []*types.NodeInfo(nil)
+		err   error
+	)
+	clientList := append(ec.clientList, ec.trustedClientList...)
+	nodeMap := make(map[string]*types.NodeInfo, len(clientList))
+	for _, client := range clientList {
+		var (
+			node  *types.NodeInfo
+			peers []*types.PeerInfo
+		)
 		err = client.c.CallContext(ctx, &node, "node_nodeInfo")
+		if err != nil {
+			continue
+		}
+		peers, err = ec.Peers(ctx, client)
+		if err != nil {
+			continue
+		}
+		node.Peers = peers
+		nodeMap[node.ID] = node
+	}
+	for _, node := range nodeMap {
 		nodes = append(nodes, node)
 	}
-	for _, client := range ec.trustedClientList {
-		var node *types.NodeInfo
-		err = client.c.CallContext(ctx, &node, "node_nodeInfo")
-		nodes = append(nodes, node)
-	}
-	return nodes, err
+	return nodes, nil
 }
 
 func (ec *Client) Datadir(ctx context.Context) (string, error) {
@@ -235,101 +248,85 @@ func (ec *Client) Datadir(ctx context.Context) (string, error) {
 	return result, err
 }
 
-func (ec *Client) Validator(ctx context.Context, rpcURL string) (*types.Validator, error) {
-	var result map[string]interface{}
-	if rpcURL != "" {
-		for _, client := range ec.clientList {
-			if client.ip == rpcURL {
-				err := client.c.CallContext(ctx, &result, "kai_validator")
-				if err != nil {
-					return nil, err
-				}
-				break
+func (ec *Client) Validator(ctx context.Context, address string) (*types.Validator, error) {
+	result, err := ec.Validators(ctx)
+	if err != nil {
+		return nil, err
+	}
+	for _, val := range result.Validators {
+		if strings.ToLower(val.Address.Hex()) == strings.ToLower(address) {
+			// get delegation details
+			var validator *types.Validator
+			if err := ec.chooseClient().c.CallContext(ctx, &validator, "kai_validator", address, true); err != nil {
+				return nil, err
 			}
+			val.Delegators = validator.Delegators
+			return val, nil
 		}
-		for _, client := range ec.trustedClientList {
-			if client.ip == rpcURL {
-				err := client.c.CallContext(ctx, &result, "kai_validator")
-				if err != nil {
-					return nil, err
-				}
-				break
+	}
+	return nil, ErrValidatorNotFound
+}
+
+func (ec *Client) Validators(ctx context.Context) (*types.Validators, error) {
+	var validators []*types.Validator
+	err := ec.chooseClient().c.CallContext(ctx, &validators, "kai_validators", true)
+	if err != nil {
+		return nil, err
+	}
+	var (
+		delegators                 = make(map[string]bool)
+		totalStakedAmount          = big.NewInt(0)
+		totalDelegatorStakedAmount = big.NewInt(0)
+
+		valStakedAmount *big.Int
+		delStakedAmount *big.Int
+		ok              bool
+	)
+	for _, val := range validators {
+		for _, del := range val.Delegators {
+			delegators[del.Address.Hex()] = true
+			// exclude validator self delegation
+			if del.Address.Equal(val.Address) {
+				continue
 			}
+			delStakedAmount, ok = new(big.Int).SetString(del.StakedAmount, 10)
+			if !ok {
+				return nil, err
+			}
+			totalDelegatorStakedAmount = new(big.Int).Add(totalDelegatorStakedAmount, delStakedAmount)
 		}
-	} else {
-		err := ec.chooseClient().c.CallContext(ctx, &result, "kai_validator")
-		if err != nil {
+		valStakedAmount, ok = new(big.Int).SetString(val.StakedAmount, 10)
+		if !ok {
+			return nil, err
+		}
+		totalStakedAmount = new(big.Int).Add(totalStakedAmount, valStakedAmount)
+		val.Delegators = nil
+	}
+	sort.Slice(validators, func(i, j int) bool {
+		iAmount, _ := new(big.Int).SetString(validators[i].StakedAmount, 10)
+		jAmount, _ := new(big.Int).SetString(validators[j].StakedAmount, 10)
+		return iAmount.Cmp(jAmount) == 1
+	})
+	for _, val := range validators {
+		if val, err = convertValidatorInfo(val, totalStakedAmount); err != nil {
 			return nil, err
 		}
 	}
-	if result == nil {
-		return &types.Validator{}, nil
+	result := &types.Validators{
+		TotalValidators:            len(validators),
+		TotalDelegators:            len(delegators),
+		TotalStakedAmount:          totalStakedAmount.String(),
+		TotalValidatorStakedAmount: new(big.Int).Sub(totalStakedAmount, totalDelegatorStakedAmount).String(),
+		TotalDelegatorStakedAmount: totalDelegatorStakedAmount.String(),
+		TotalProposer:              21, // TODO(trinhdn): follow core API updates
+		Validators:                 validators,
 	}
-	ret := &types.Validator{
-		Address:     result["address"].(string),
-		VotingPower: result["votingPower"].(float64),
-	}
-	nodes, err := ec.NodesInfo(ctx)
-	if err != nil {
-		return nil, err
-	}
-	for _, node := range nodes {
-		if strings.Contains(strings.ToLower(ret.Address), node.ID) {
-			ret.Name = node.Moniker
-			ret.RpcUrl = node.Other.RPCAddress
-			ret.Protocols = node.ProtocolVersion
-			return ret, nil
-		}
-	}
-
-	return ret, nil
-}
-
-func (ec *Client) Validators(ctx context.Context) ([]*types.Validator, error) {
-	var result []map[string]interface{}
-	err := ec.chooseClient().c.CallContext(ctx, &result, "kai_validators")
-	if err != nil {
-		return nil, err
-	}
-	var ret []*types.Validator
-	nodes, err := ec.NodesInfo(ctx)
-	if err != nil {
-		return nil, err
-	}
-	for _, val := range result {
-		if result == nil {
-			continue
-		}
-		tmp := &types.Validator{
-			Address:     val["address"].(string),
-			VotingPower: val["votingPower"].(float64),
-		}
-		for _, node := range nodes {
-			if strings.Contains(strings.ToLower(tmp.Address), node.ID) {
-				tmp.Name = node.Moniker
-				tmp.RpcUrl = node.Other.RPCAddress
-				tmp.Protocols = node.ProtocolVersion
-				var existed = false
-				for _, currValidator := range ret {
-					if currValidator.Address == tmp.Address {
-						currValidator.VotingPower += tmp.VotingPower
-						existed = true
-						break
-					}
-				}
-				if !existed {
-					ret = append(ret, tmp)
-				}
-				break
-			}
-		}
-	}
-	return ret, nil
+	return result, nil
 }
 
 func (ec *Client) getBlock(ctx context.Context, method string, args ...interface{}) (*types.Block, error) {
 	var raw types.Block
-	err := ec.chooseClient().c.CallContext(ctx, &raw, method, args...)
+	err := ec.defaultClient.c.CallContext(ctx, &raw, method, args...)
 	if err != nil {
 		return nil, err
 	}
@@ -338,18 +335,50 @@ func (ec *Client) getBlock(ctx context.Context, method string, args ...interface
 
 func (ec *Client) getBlockHeader(ctx context.Context, method string, args ...interface{}) (*types.Header, error) {
 	var raw types.Header
-	err := ec.chooseClient().c.CallContext(ctx, &raw, method, args...)
+	err := ec.defaultClient.c.CallContext(ctx, &raw, method, args...)
 	if err != nil {
 		return nil, err
 	}
 	return &raw, nil
 }
 
-func appendPeersList(peer *types.NodeInfo, peersList []*types.NodeInfo) {
-	for _, tmp := range peersList {
-		if tmp.ID == peer.ID {
-			return
+func convertValidatorInfo(val *types.Validator, totalStakedAmount *big.Int) (*types.Validator, error) {
+	var err error
+	val.Commission = ""
+	if val.CommissionRate, err = convertBigIntToPercentage(val.CommissionRate); err != nil {
+		return nil, err
+	}
+	if val.MaxRate, err = convertBigIntToPercentage(val.MaxRate); err != nil {
+		return nil, err
+	}
+	if val.MaxChangeRate, err = convertBigIntToPercentage(val.MaxChangeRate); err != nil {
+		return nil, err
+	}
+	if totalStakedAmount != nil {
+		if val.VotingPowerPercentage, err = calculateVotingPower(val.StakedAmount, totalStakedAmount); err != nil {
+			return nil, err
 		}
 	}
-	peersList = append(peersList, peer)
+	return val, nil
+}
+
+func convertBigIntToPercentage(raw string) (string, error) {
+	input, ok := new(big.Int).SetString(raw, 10)
+	if !ok {
+		return "", ErrParsingBigIntFromString
+	}
+	tmp := new(big.Int).Mul(input, new(big.Int).SetInt64(100000))
+	tenPoweredBy18 := new(big.Int).Exp(big.NewInt(10), big.NewInt(18), nil)
+	result := new(big.Int).Div(tmp, tenPoweredBy18).String()
+	return strings.TrimRight(strings.TrimRight(result[:len(result)-3] + "." + result[len(result)-3:], "0"), "."), nil
+}
+
+func calculateVotingPower(raw string, total *big.Int) (string, error) {
+	valStakedAmount, ok := new(big.Int).SetString(raw, 10)
+	if !ok {
+		return "", ErrParsingBigIntFromString
+	}
+	tmp := new(big.Int).Mul(valStakedAmount, new(big.Int).SetInt64(100000))
+	result :=  new(big.Int).Div(tmp, total).String()
+	return strings.TrimRight(strings.TrimRight(result[:len(result)-3] + "." + result[len(result)-3:], "0"), "."), nil
 }

@@ -21,6 +21,8 @@ package server
 import (
 	"context"
 	"time"
+
+	"github.com/kardiachain/explorer-backend/server/cache"
 )
 
 const (
@@ -32,5 +34,5 @@ func (s *infoServer) LatestBlockHeight(ctx context.Context) (uint64, error) {
 }
 
 func (s *infoServer) BlockCacheSize(ctx context.Context) (int64, error) {
-	return s.cacheClient.BlocksSize(ctx)
+	return s.cacheClient.ListSize(ctx, cache.KeyBlocks)
 }

@@ -46,6 +46,8 @@ type Config struct {
 
 	BlockBuffer int64
 
+	HttpRequestSecret string
+
 	Metrics *metrics.Provider
 	Logger  *zap.Logger
 }
@@ -59,6 +61,8 @@ type Server struct {
 
 	infoServer
 }
+
+func (s *Server) Metrics() *metrics.Provider { return s.metrics }
 
 func New(cfg Config) (*Server, error) {
 	cfg.Logger.Info("Create new server instance", zap.Any("config", cfg))
@@ -97,16 +101,20 @@ func New(cfg Config) (*Server, error) {
 	if err != nil {
 		return nil, err
 	}
+	metrics := metrics.New()
 
 	infoServer := infoServer{
-		dbClient:    dbClient,
-		cacheClient: cacheClient,
-		kaiClient:   kaiClient,
-		logger:      cfg.Logger,
+		dbClient:          dbClient,
+		cacheClient:       cacheClient,
+		kaiClient:         kaiClient,
+		HttpRequestSecret: cfg.HttpRequestSecret,
+		logger:            cfg.Logger,
+		metrics:     metrics,
 	}
 
 	return &Server{
 		Logger:     cfg.Logger,
+		metrics:    metrics,
 		infoServer: infoServer,
 	}, nil
 }

@@ -28,6 +28,7 @@ var (
 	OK             = EchoResponse{StatusCode: http.StatusOK, Code: 1000, Msg: "Success"}
 	InternalServer = EchoResponse{StatusCode: http.StatusInternalServerError, Code: 1100, Msg: "Server busy..."}
 	Invalid        = EchoResponse{StatusCode: http.StatusBadRequest, Code: 1101, Msg: "Bad request"}
+	Unauthorized   = EchoResponse{StatusCode: http.StatusUnauthorized, Code: 401, Msg: "Unauthorized"}
 )
 
 type Pagination struct {

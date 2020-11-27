@@ -161,9 +161,6 @@ func (m *mongoDB) BlockByHash(ctx context.Context, blockHash string) (*types.Blo
 	var block types.Block
 	err := m.wrapper.C(cBlocks).FindOne(bson.M{"hash": blockHash}, options.FindOne().SetProjection(bson.M{"txs": 0, "receipts": 0})).Decode(&block)
 	if err != nil {
-		if err == mongo.ErrNoDocuments {
-			return nil, nil
-		}
 		return nil, err
 	}
 	return &block, nil
@@ -192,6 +189,7 @@ func (m *mongoDB) InsertBlock(ctx context.Context, block *types.Block) error {
 	}
 
 	if _, err := m.wrapper.C(cTxs).RemoveAll(bson.M{"blockNumber": block.Height}); err != nil {
+		logger.Warn("cannot remove old block txs", zap.Error(err))
 		return err
 	}
 
@@ -201,6 +199,32 @@ func (m *mongoDB) InsertBlock(ctx context.Context, block *types.Block) error {
 // UpsertBlock call by backfill, to avoid duplicate block record
 func (m *mongoDB) UpsertBlock(ctx context.Context, block *types.Block) error {
 	return nil
+}
+
+func (m *mongoDB) DeleteLatestBlock(ctx context.Context) (uint64, error) {
+	blocks, err := m.Blocks(ctx, &types.Pagination{
+		Skip:  0,
+		Limit: 1,
+	})
+	if err != nil {
+		m.logger.Warn("cannot get old latest block", zap.Error(err))
+		return 0, err
+	}
+	if len(blocks) == 0 {
+		m.logger.Warn("there isn't any block in database now, nothing to delete", zap.Error(err))
+		return 0, nil
+	}
+	m.logger.Debug("DeleteLatestBlock...", zap.Uint64("latest block height", blocks[0].Height))
+	if _, err := m.wrapper.C(cBlocks).RemoveAll(bson.M{"height": blocks[0].Height}); err != nil {
+		m.logger.Warn("cannot remove old latest block", zap.Error(err), zap.Uint64("latest block height", blocks[0].Height))
+		return 0, err
+	}
+	if _, err := m.wrapper.C(cTxs).RemoveAll(bson.M{"blockNumber": blocks[0].Height}); err != nil {
+		m.logger.Warn("cannot remove old latest block txs", zap.Error(err), zap.Uint64("latest block height", blocks[0].Height))
+		return 0, err
+	}
+	m.logger.Debug("DeleteLatestBlock success", zap.Uint64("latest block height", blocks[0].Height))
+	return blocks[0].Height, nil
 }
 
 //endregion Blocks
@@ -287,6 +311,7 @@ func (m *mongoDB) TxsByBlockHeight(ctx context.Context, blockHeight uint64, pagi
 func (m *mongoDB) TxsByAddress(ctx context.Context, address string, pagination *types.Pagination) ([]*types.Transaction, uint64, error) {
 	var txs []*types.Transaction
 	opts := []*options.FindOptions{
+		m.wrapper.FindSetSort("-time"),
 		options.Find().SetSkip(int64(pagination.Skip)),
 		options.Find().SetLimit(int64(pagination.Limit)),
 	}

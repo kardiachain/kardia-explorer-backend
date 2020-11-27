@@ -4,9 +4,9 @@ package types
 type TokenInfo struct {
 	Name              string  `json:"name"`
 	Symbol            string  `json:"symbol"`
-	Decimal           int     `json:"decimal"`
-	TotalSupply       int     `json:"total_supply"`
-	CirculatingSupply int     `json:"circulating_supply"`
+	Decimal           int64   `json:"decimal"`
+	TotalSupply       int64   `json:"total_supply"`
+	CirculatingSupply int64   `json:"circulating_supply"`
 	Price             float64 `json:"price"`
 	Volume24h         float64 `json:"volume_24h"`
 	Change1h          float64 `json:"change_1h"`

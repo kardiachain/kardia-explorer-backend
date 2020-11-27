@@ -19,6 +19,7 @@ type Transaction struct {
 	GasPrice         uint64      `json:"gasPrice" bson:"gasPrice"`
 	GasLimit         uint64      `json:"gas" bson:"gas"`
 	GasUsed          uint64      `json:"gasUsed"`
+	TxFee            string      `json:"txFee"`
 	Nonce            uint64      `json:"nonce" bson:"nonce"`
 	Time             time.Time   `json:"time" bson:"time"`
 	InputData        string      `json:"input" bson:"input"`
