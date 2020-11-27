@@ -156,13 +156,14 @@ func (s *Server) ValidatorStats(c echo.Context) error {
 	} else {
 		delegators = validator.Delegators[pagination.Skip : pagination.Skip+pagination.Limit]
 	}
+	total := uint64(len(validator.Delegators))
 	validator.Delegators = delegators
 
 	s.logger.Debug("Got validator info from RPC", zap.Any("ValidatorInfo", validator))
 	return api.OK.SetData(PagingResponse{
 		Page:  page,
 		Limit: limit,
-		Total: uint64(len(validator.Delegators)),
+		Total: total,
 		Data:  validator,
 	}).Build(c)
 }
