@@ -22,6 +22,7 @@ import (
 	"context"
 	"errors"
 	"math/big"
+	"sort"
 
 	"go.uber.org/zap"
 
@@ -282,6 +283,11 @@ func (ec *Client) Validators(ctx context.Context) (*types.Validators, error) {
 		totalStakedAmount = new(big.Int).Add(totalStakedAmount, valStakedAmount)
 		val.Delegators = nil
 	}
+	sort.Slice(validators, func(i, j int) bool {
+		iAmount, _ := new(big.Int).SetString(validators[i].StakedAmount, 10)
+		jAmount, _ := new(big.Int).SetString(validators[j].StakedAmount, 10)
+		return iAmount.Cmp(jAmount) == 1
+	})
 	result := &types.Validators{
 		TotalValidators:            len(validators),
 		TotalDelegators:            len(delegators),

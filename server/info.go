@@ -7,6 +7,8 @@ import (
 	"errors"
 	"fmt"
 	"io/ioutil"
+	"math"
+	"math/big"
 	"net"
 	"net/http"
 	"time"
@@ -483,16 +485,28 @@ func filterAddrSet(txs []*types.Transaction) (addr map[string]bool, contractAddr
 
 func mergeReceipts(txs []*types.Transaction, receipts []*types.Receipt) []*types.Transaction {
 	receiptIndex := 0
+	var (
+		gasPrice *big.Int
+		gasUsed *big.Int
+		txFeeInGwei *big.Int
+	)
 	for _, tx := range txs {
 		if (receiptIndex > len(receipts)-1) || !(receipts[receiptIndex].TransactionHash == tx.Hash) {
 			tx.Status = 0
 			continue
 		}
+
 		tx.Logs = receipts[receiptIndex].Logs
 		tx.Root = receipts[receiptIndex].Root
 		tx.Status = receipts[receiptIndex].Status
 		tx.GasUsed = receipts[receiptIndex].GasUsed
 		tx.ContractAddress = receipts[receiptIndex].ContractAddress
+		// update txFee
+		gasPrice = new(big.Int).SetUint64(tx.GasPrice)
+		gasUsed = new(big.Int).SetUint64(tx.GasUsed)
+		txFeeInGwei = new(big.Int).Mul(gasPrice, gasUsed)
+		tx.TxFee = new(big.Int).Mul(txFeeInGwei, big.NewInt(int64(math.Pow10(9)))).String()
+
 		receiptIndex++
 	}
 	return txs
