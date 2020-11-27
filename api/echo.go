@@ -33,7 +33,6 @@ type EchoServer interface {
 	Ping(c echo.Context) error
 	Info(c echo.Context) error
 	Stats(c echo.Context) error
-	Search(c echo.Context) error
 	TotalHolders(c echo.Context) error
 
 	// Info
@@ -97,21 +96,6 @@ func bind(gr *echo.Group, srv EchoServer) {
 			path:        "/info",
 			fn:          srv.Info,
 			middlewares: nil,
-		},
-		{
-			method:      echo.GET,
-			path:        "/search",
-			fn:          srv.Search,
-			middlewares: nil,
-		},
-		// Dashboard
-		{
-			method: echo.GET,
-			// Params: block hash or block height or transaction hash or address (with paging option for address txs list)
-			// Query params: ?address=0x0page=1&limit=10&txHash=0x0?blockHash=0x0?blockHeight=5
-			path:        "/search",
-			fn:          srv.Search,
-			middlewares: []echo.MiddlewareFunc{checkPagination()},
 		},
 		{
 			method: echo.GET,
