@@ -340,7 +340,7 @@ func workerGetTxReceipt(ctx context.Context, wg *sync.WaitGroup, client *Client,
 		_, _ = client.GetTransactionReceipt(ctx, j)
 	}
 	endTime := time.Since(startTime)
-	m.RecordProcessingTime(endTime)
+	m.RecordInsertBlockTime(endTime)
 	logger.Info("Result: ", zap.Int("Worker index: ", workerIndex), zap.String("Processing time: ", endTime.String()))
 	return
 }
@@ -368,7 +368,7 @@ func getTxReceipts(m *metrics.Provider, numOfTx int, numOfWorker int, numOfNodes
 	close(job)
 
 	wg.Wait()
-	logger.Info("Elapsed time: ", zap.String("Avg processing time: ", m.GetProcessingTime()))
+	logger.Info("Elapsed time: ", zap.String("Avg processing time: ", m.GetInsertBlockTime()))
 	m.Reset()
 }
 

@@ -216,35 +216,43 @@ func (s *infoServer) ImportBlock(ctx context.Context, block *types.Block, writeT
 	// consider new routine here
 	// todo: add metrics
 	// todo @longnd: Use redis or leveldb as mem-write buffer for N blocks
+	startTime := time.Now()
 	if err := s.dbClient.InsertBlock(ctx, block); err != nil {
 		s.logger.Debug("cannot import block to db", zap.Error(err))
 		return err
 	}
+	endTime := time.Since(startTime)
+	s.metrics.RecordInsertBlockTime(endTime)
+	s.logger.Debug("Total time for import block", zap.Duration("TimeConsumed", endTime), zap.String("Avg", s.metrics.GetInsertBlockTime()))
 
 	if writeToCache {
-		s.logger.Debug("Insert block txs to cached")
+		s.logger.Debug("Insert block txs to cache")
 		if err := s.cacheClient.InsertTxsOfBlock(ctx, block); err != nil {
 			s.logger.Debug("cannot import txs to cache", zap.Error(err))
 			return err
 		}
 	}
 
-	insertTxTime := time.Now()
+	startTime = time.Now()
 	// todo @trinh: Consider using avgTime metric for reporting/monitor
 	if err := s.dbClient.InsertTxs(ctx, block.Txs); err != nil {
 		return err
 	}
-	insertTxConsume := time.Since(insertTxTime)
-	s.logger.Debug("Total time for import tx", zap.Any("TimeConsumed", insertTxConsume))
+	endTime = time.Since(startTime)
+	s.metrics.RecordInsertTxsTime(endTime)
+	s.logger.Debug("Total time for import tx", zap.Duration("TimeConsumed", endTime), zap.String("Avg", s.metrics.GetInsertTxsTime()))
 
 	// update active addresses
-	insertActiveAddrTime := time.Now()
+	startTime = time.Now()
 	addrList, contractList := filterAddrSet(block.Txs)
 	if err := s.dbClient.UpdateActiveAddresses(ctx, addrList, contractList); err != nil {
 		return err
 	}
-	insertActiveAddrConsumed := time.Since(insertActiveAddrTime)
-	s.logger.Debug("Total time for update active addresses", zap.Any("TimeConsumed", insertActiveAddrConsumed))
+
+	endTime = time.Since(startTime)
+	s.metrics.RecordInsertActiveAddressTime(endTime)
+	s.logger.Debug("Total time for import active addresses", zap.Duration("TimeConsumed", endTime), zap.String("Avg", s.metrics.GetInsertActiveAddressTime()))
+	startTime = time.Now()
 	totalAddr, totalContractAddr, err := s.dbClient.GetTotalActiveAddresses(ctx)
 	if err != nil {
 		return err
@@ -253,6 +261,7 @@ func (s *infoServer) ImportBlock(ctx context.Context, block *types.Block, writeT
 	if err != nil {
 		return err
 	}
+	s.logger.Debug("Total time for getting active addresses", zap.Duration("TimeConsumed", time.Since(startTime)))
 
 	return nil
 }

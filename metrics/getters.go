@@ -17,18 +17,18 @@
  */
 package metrics
 
-func (p *Provider) GetProcessingTime() string {
+func (p *Provider) GetInsertBlockTime() string {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 
-	return p.processingTime.String()
+	return p.insertBlockTime.String()
 }
 
-func (p *Provider) GetRawProcessingTime() int64 {
+func (p *Provider) GetRawInsertBlockTime() int64 {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 
-	return p.processingTime.Raw()
+	return p.insertBlockTime.Raw()
 }
 
 func (p *Provider) GetScrapingTime() string {
@@ -45,18 +45,32 @@ func (p *Provider) GetRawScrapingTime() int64 {
 	return p.scrapingTime.Raw()
 }
 
-func (p *Provider) GetIndexingTime() string {
+func (p *Provider) GetInsertTxsTime() string {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 
-	return p.indexingTime.String()
+	return p.insertTxsTime.String()
 }
 
-func (p *Provider) GetRawIndexingTime() int64 {
+func (p *Provider) GetRawInsertTxsTime() int64 {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 
-	return p.indexingTime.Raw()
+	return p.insertTxsTime.Raw()
+}
+
+func (p *Provider) GetInsertActiveAddressTime() string {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+
+	return p.insertActiveAddressTime.String()
+}
+
+func (p *Provider) GetRawInsertActiveAddressTime() int64 {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+
+	return p.insertActiveAddressTime.Raw()
 }
 
 func (p *Provider) GetLatestBLock() int64 {

@@ -60,6 +60,8 @@ type Server struct {
 	infoServer
 }
 
+func (s *Server) Metrics() *metrics.Provider { return s.metrics }
+
 func New(cfg Config) (*Server, error) {
 	cfg.Logger.Info("Create new server instance", zap.Any("config", cfg))
 	dbConfig := db.Config{
@@ -97,16 +99,19 @@ func New(cfg Config) (*Server, error) {
 	if err != nil {
 		return nil, err
 	}
+	metrics := metrics.New()
 
 	infoServer := infoServer{
 		dbClient:    dbClient,
 		cacheClient: cacheClient,
 		kaiClient:   kaiClient,
+		metrics:     metrics,
 		logger:      cfg.Logger,
 	}
 
 	return &Server{
 		Logger:     cfg.Logger,
+		metrics:    metrics,
 		infoServer: infoServer,
 	}, nil
 }
