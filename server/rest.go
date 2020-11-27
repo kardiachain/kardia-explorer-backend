@@ -123,13 +123,49 @@ func (s *Server) TPS(c echo.Context) error {
 
 func (s *Server) ValidatorStats(c echo.Context) error {
 	ctx := context.Background()
+	var (
+		page, limit int
+		err         error
+	)
+	pageParams := c.QueryParam("page")
+	limitParams := c.QueryParam("limit")
+	page, err = strconv.Atoi(pageParams)
+	if err != nil {
+		page = 1
+	}
+	limit, err = strconv.Atoi(limitParams)
+	if err != nil {
+		limit = 20
+	}
+	pagination := &types.Pagination{
+		Skip:  page * limit,
+		Limit: limit,
+	}
+	pagination.Sanitize()
+
 	validator, err := s.kaiClient.Validator(ctx, c.Param("address"))
 	if err != nil {
 		s.logger.Warn("cannot get validators list from RPC", zap.Error(err))
 		return api.Invalid.Build(c)
 	}
+	var delegators []*types.Delegator
+	if pagination.Skip > len(validator.Delegators) {
+		delegators = []*types.Delegator(nil)
+	} else if pagination.Skip+pagination.Limit > len(validator.Delegators) {
+		delegators = validator.Delegators[pagination.Skip:len(validator.Delegators)]
+	} else {
+		delegators = validator.Delegators[pagination.Skip : pagination.Skip+pagination.Limit]
+	}
+	total := uint64(len(validator.Delegators))
+	validator.Delegators = delegators
+
 	s.logger.Debug("Got validator info from RPC", zap.Any("ValidatorInfo", validator))
-	return api.OK.SetData(validator).Build(c)
+	return api.OK.SetData(PagingResponse{
+		Page:  page,
+		Limit: limit,
+		Total: total,
+		Data:  validator,
+	}).Build(c)
 }
 
 func (s *Server) Validators(c echo.Context) error {
@@ -160,9 +196,6 @@ func (s *Server) Blocks(c echo.Context) error {
 	limit, err = strconv.Atoi(limitParams)
 	if err != nil {
 		limit = 20
-	}
-	if limit > 100 {
-		return api.Invalid.Build(c)
 	}
 	pagination := &types.Pagination{
 		Skip:  page * limit,

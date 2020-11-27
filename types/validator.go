@@ -5,8 +5,19 @@ import (
 	"github.com/kardiachain/go-kardiamain/lib/common"
 )
 
+type Validators struct {
+	TotalValidators            int          `json:"totalValidators"`
+	TotalDelegators            int          `json:"totalDelegators"`
+	TotalStakedAmount          string       `json:"totalStakedAmount"`
+	TotalValidatorStakedAmount string       `json:"totalValidatorStakedAmount"`
+	TotalDelegatorStakedAmount string       `json:"totalDelegatorStakedAmount"`
+	TotalProposer              int          `json:"totalProposer"`
+	Validators                 []*Validator `json:"validators"`
+}
+
 type Validator struct {
 	Address         common.Address `json:"address"`
+	Name            string         `json:"name,omitempty"`
 	VotingPower     int64          `json:"votingPower"`
 	StakedAmount    string         `json:"stakedAmount"`
 	Commission      string         `json:"commission"`
@@ -19,6 +30,7 @@ type Validator struct {
 
 type Delegator struct {
 	Address      common.Address `json:"address"`
+	Name         string         `json:"name,omitempty"`
 	StakedAmount string         `json:"stakedAmount"`
 	Reward       string         `json:"reward"`
 }
