@@ -101,6 +101,23 @@ func New() (ExplorerConfig, error) {
 		cacheIsFlush = true
 	}
 
+	var (
+		kardiaTrustedNodes []string
+		kardiaURLs         []string
+	)
+	kardiaTrustedNodesStr := os.Getenv("KARDIA_TRUSTED_NODES")
+	if kardiaTrustedNodesStr != "" {
+		kardiaTrustedNodes = strings.Split(kardiaTrustedNodesStr, ",")
+	} else {
+		panic("missing trusted RPC URLs in config")
+	}
+	kardiaURLsStr := os.Getenv("KARDIA_URL")
+	if kardiaURLsStr != "" {
+		kardiaURLs = strings.Split(kardiaURLsStr, ",")
+	} else {
+		panic("missing RPC URLs in config")
+	}
+
 	storageMinConnStr := os.Getenv("STORAGE_MIN_CONN")
 	storageMinConn, err := strconv.Atoi(storageMinConnStr)
 	if err != nil {
@@ -137,8 +154,8 @@ func New() (ExplorerConfig, error) {
 		CacheIsFlush: cacheIsFlush,
 
 		KardiaProtocol:     os.Getenv("KARDIA_PROTOCOL"),
-		KardiaURLs:         strings.Split(os.Getenv("KARDIA_URL"), ","),
-		KardiaTrustedNodes: strings.Split(os.Getenv("KARDIA_TRUSTED_NODES"), ","),
+		KardiaURLs:         kardiaURLs,
+		KardiaTrustedNodes: kardiaTrustedNodes,
 
 		StorageDriver:  os.Getenv("STORAGE_DRIVER"),
 		StorageURI:     os.Getenv("STORAGE_URI"),

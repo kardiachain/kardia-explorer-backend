@@ -52,13 +52,13 @@ func (s *Server) Search(c echo.Context) error {
 				Skip:  page * limit,
 				Limit: limit,
 			}
+			pagination.Sanitize()
 			txs, total, err := s.dbClient.TxsByAddress(ctx, paramValue[0], pagination)
-			s.Logger.Info("search tx by hash:", zap.String("address", paramValue[0]))
 			balance, err := s.kaiClient.GetBalance(ctx, paramValue[0])
 			if err != nil {
 				return err
 			}
-			s.logger.Debug("Balance", zap.String("address", paramValue[0]), zap.String("balance", balance))
+			s.logger.Debug("Get address info", zap.String("address", paramValue[0]), zap.String("balance", balance))
 			return api.OK.SetData(struct {
 				Balance string         `json:"balance"`
 				Txs     PagingResponse `json:"txs"`
@@ -72,28 +72,55 @@ func (s *Server) Search(c echo.Context) error {
 				},
 			}).Build(c)
 		case "txHash":
-			s.Logger.Info("search tx by hash:", zap.String("txHash", paramValue[0]))
 			tx, err := s.dbClient.TxByHash(ctx, paramValue[0])
 			if err != nil {
-				return api.Invalid.Build(c)
+				s.Logger.Debug("cannot get tx by hash from db:", zap.String("txHash", paramValue[0]))
+				// try to get tx by hash through RPC
+				tx, err = s.kaiClient.GetTransaction(ctx, paramValue[0])
+				if err != nil {
+					s.Logger.Debug("cannot get tx by hash from RPC:", zap.String("txHash", paramValue[0]))
+					return api.Invalid.Build(c)
+				}
+				receipt, err := s.kaiClient.GetTransactionReceipt(ctx, paramValue[0])
+				if err != nil {
+					s.Logger.Debug("cannot get receipt by hash from RPC:", zap.String("txHash", paramValue[0]))
+				}
+				s.Logger.Info("got tx by hash from RPC:", zap.String("txHash", paramValue[0]))
+				if receipt != nil {
+					tx.Logs = receipt.Logs
+					tx.Root = receipt.Root
+					tx.Status = receipt.Status
+					tx.GasUsed = receipt.GasUsed
+					tx.ContractAddress = receipt.ContractAddress
+				}
 			}
 			return api.OK.SetData(tx).Build(c)
 		case "blockHash":
-			s.Logger.Info("search block by hash:", zap.String("blockHash", paramValue[0]))
 			block, err := s.dbClient.BlockByHash(ctx, paramValue[0])
 			if err != nil {
-				return api.Invalid.Build(c)
+				s.Logger.Debug("cannot get block by hash from db:", zap.String("blockHash", paramValue[0]))
+				// try to get block by hash through RPC
+				block, err = s.kaiClient.BlockByHash(ctx, paramValue[0])
+				if err != nil {
+					return api.Invalid.Build(c)
+				}
+				s.Logger.Info("got block by hash from RPC:", zap.String("blockHash", paramValue[0]))
 			}
 			return api.OK.SetData(block).Build(c)
 		case "blockHeight":
 			blockHeight, err := strconv.ParseUint(paramValue[0], 10, 64)
-			s.Logger.Info("search block by height:", zap.Uint64("blockHeight", blockHeight))
 			if err != nil || blockHeight < 0 {
 				return api.Invalid.Build(c)
 			}
 			block, err := s.dbClient.BlockByHeight(ctx, blockHeight)
 			if err != nil {
-				return api.Invalid.Build(c)
+				s.Logger.Debug("cannot get block by height from db:", zap.Uint64("blockHeight", blockHeight))
+				// try to get block by height through RPC
+				block, err = s.kaiClient.BlockByHeight(ctx, blockHeight)
+				if err != nil {
+					return api.Invalid.Build(c)
+				}
+				s.Logger.Info("got block by height from RPC:", zap.Uint64("blockHeight", blockHeight))
 			}
 			return api.OK.SetData(block).Build(c)
 		default:
@@ -151,10 +178,22 @@ func (s *Server) TotalHolders(c echo.Context) error {
 
 func (s *Server) Nodes(c echo.Context) error {
 	ctx := context.Background()
-	nodes, err := s.kaiClient.NodesInfo(ctx)
+	nodes, err := s.cacheClient.NodesInfo(ctx)
+	if err == nil && nodes != nil {
+		s.logger.Debug("Got nodes info from cache")
+		return api.OK.SetData(nodes).Build(c)
+	}
+	s.logger.Debug("Cannot get nodes info from cache, getting from RPC", zap.Any("nodes info", nodes), zap.Error(err))
+	nodes, err = s.kaiClient.NodesInfo(ctx)
 	if err != nil {
+		s.logger.Warn("cannot get nodes info from RPC", zap.Error(err))
 		return api.Invalid.Build(c)
 	}
+	err = s.cacheClient.UpdateNodesInfo(ctx, nodes)
+	if err != nil {
+		s.logger.Warn("cannot set nodes info to cache", zap.Error(err))
+	}
+	s.logger.Debug("Got nodes info from RPC", zap.Any("nodes info", nodes))
 	return api.OK.SetData(nodes).Build(c)
 }
 
@@ -201,25 +240,25 @@ func (s *Server) TPS(c echo.Context) error {
 }
 
 func (s *Server) ValidatorStats(c echo.Context) error {
-	s.logger.Debug("ValidatorInfo", zap.Any("URL", c.Param("rpcURL")))
 	ctx := context.Background()
-	rpcURL := c.Param("rpcURL")
-	validator, err := s.kaiClient.Validator(ctx, rpcURL)
+	validator, err := s.kaiClient.Validator(ctx, c.Param("address"))
 	if err != nil {
+		s.logger.Warn("cannot get validators list from RPC", zap.Error(err))
 		return api.Invalid.Build(c)
 	}
-	s.logger.Debug("ValidatorInfo", zap.Any("ValidatorInfo", validator))
+	s.logger.Debug("Got validator info from RPC", zap.Any("ValidatorInfo", validator))
 	return api.OK.SetData(validator).Build(c)
 }
 
 func (s *Server) Validators(c echo.Context) error {
 	ctx := context.Background()
-	validators, err := s.kaiClient.Validators(ctx)
+	valsList, err := s.kaiClient.Validators(ctx)
 	if err != nil {
+		s.logger.Warn("cannot get validators list from RPC", zap.Error(err))
 		return api.Invalid.Build(c)
 	}
-	s.logger.Debug("Validators", zap.Any("validators", validators))
-	return api.OK.SetData(validators).Build(c)
+	s.logger.Debug("Got validators list from RPC")
+	return api.OK.SetData(valsList).Build(c)
 }
 
 func (s *Server) Blocks(c echo.Context) error {
@@ -247,6 +286,7 @@ func (s *Server) Blocks(c echo.Context) error {
 		Skip:  page * limit,
 		Limit: limit,
 	}
+	pagination.Sanitize()
 
 	// todo @londnd: implement read from cache,
 	blocks, err = s.cacheClient.LatestBlocks(ctx, pagination)
@@ -258,8 +298,9 @@ func (s *Server) Blocks(c echo.Context) error {
 			return api.InternalServer.Build(c)
 		}
 		s.logger.Debug("Got latest blocks from db")
+	} else {
+		s.logger.Debug("Got latest blocks from cache")
 	}
-	s.logger.Debug("Got latest blocks from cache")
 
 	return api.OK.SetData(struct {
 		Page  int         `json:"page"`
@@ -280,20 +321,51 @@ func (s *Server) Block(c echo.Context) error {
 		err   error
 	)
 	if strings.HasPrefix(blockHashOrHeightStr, "0x") {
-		s.Logger.Info("get block by hash:", zap.String("blockHash", blockHashOrHeightStr))
-		block, err = s.dbClient.BlockByHash(ctx, blockHashOrHeightStr)
+		// get block in cache if exist
+		block, err = s.cacheClient.BlockByHash(ctx, blockHashOrHeightStr)
 		if err != nil {
-			return api.Invalid.Build(c)
+			s.logger.Debug("got block by hash from cache error", zap.Any("block", block), zap.Error(err))
+			// otherwise, get from db
+			block, err = s.dbClient.BlockByHash(ctx, blockHashOrHeightStr)
+			if err != nil {
+				s.logger.Debug("got block by hash from db error", zap.Any("block", block), zap.Error(err))
+				// try to get from RPC at last
+				block, err = s.kaiClient.BlockByHash(ctx, blockHashOrHeightStr)
+				if err != nil {
+					s.logger.Debug("got block by hash from RPC error", zap.Any("block", block), zap.Error(err))
+					return api.Invalid.Build(c)
+				}
+				s.logger.Info("got block by hash from RPC:", zap.Any("block", block), zap.Error(err))
+			} else {
+				s.Logger.Info("got block by hash from db:", zap.String("blockHash", blockHashOrHeightStr))
+			}
+		} else {
+			s.Logger.Info("got block by hash from cache:", zap.String("blockHash", blockHashOrHeightStr))
 		}
 	} else {
 		blockHeight, err := strconv.ParseUint(blockHashOrHeightStr, 10, 64)
-		s.Logger.Info("get block by height:", zap.Uint64("blockHeight", blockHeight))
 		if err != nil || blockHeight <= 0 {
 			return api.Invalid.Build(c)
 		}
-		block, err = s.dbClient.BlockByHeight(ctx, blockHeight)
+		// get block in cache if exist
+		block, err = s.cacheClient.BlockByHeight(ctx, blockHeight)
 		if err != nil {
-			return api.Invalid.Build(c)
+			s.logger.Debug("got block by height from cache error", zap.Any("block", block), zap.Error(err))
+			// otherwise, get from db
+			block, err = s.dbClient.BlockByHeight(ctx, blockHeight)
+			if err != nil {
+				s.logger.Debug("got block by height from db error", zap.Any("block", block), zap.Error(err))
+				// try to get from RPC at last
+				block, err = s.kaiClient.BlockByHeight(ctx, blockHeight)
+				if err != nil {
+					s.logger.Debug("got block by hash from RPC error", zap.Any("block", block), zap.Error(err))
+					return api.Invalid.Build(c)
+				}
+				s.logger.Info("got block by hash from RPC:", zap.Any("block", block), zap.Error(err))
+			}
+			s.Logger.Info("got block by height from db:", zap.Uint64("blockHeight", blockHeight))
+		} else {
+			s.Logger.Info("got block by height from cache:", zap.Uint64("blockHeight", blockHeight))
 		}
 	}
 
@@ -319,7 +391,6 @@ func (s *Server) BlockTxs(c echo.Context) error {
 	if err != nil {
 		limit = 20
 	}
-	// Random number of txs of block hash
 
 	var (
 		txs   []*types.Transaction
@@ -329,28 +400,75 @@ func (s *Server) BlockTxs(c echo.Context) error {
 		Skip:  page * limit,
 		Limit: limit,
 	}
+	pagination.Sanitize()
 	if strings.HasPrefix(block, "0x") {
-		s.logger.Debug("fetch block txs by hash", zap.String("hash", block))
-
-		txs, total, err = s.dbClient.TxsByBlockHash(ctx, block, pagination)
+		// get block txs in block if exist
+		txs, total, err = s.cacheClient.TxsByBlockHash(ctx, block, pagination)
 		if err != nil {
-			s.logger.Debug("cannot get txs by block hash", zap.String("blockHash", block))
-			return api.InternalServer.Build(c)
+			s.logger.Debug("cannot get block txs by hash from cache", zap.String("blockHash", block), zap.Error(err))
+			// otherwise, get from db
+			txs, total, err = s.dbClient.TxsByBlockHash(ctx, block, pagination)
+			if err != nil {
+				s.logger.Debug("cannot get block txs by hash from db", zap.String("blockHash", block), zap.Error(err))
+				// try to get block txs from RPC
+				blockRPC, err := s.kaiClient.BlockByHash(ctx, block)
+				if err != nil {
+					s.logger.Debug("cannot get block txs by hash from RPC", zap.String("blockHash", block), zap.Error(err))
+					return api.InternalServer.Build(c)
+				}
+				txs = blockRPC.Txs
+				if pagination.Skip > len(txs) {
+					txs = []*types.Transaction(nil)
+				} else if pagination.Skip+pagination.Limit > len(txs) {
+					txs = blockRPC.Txs[pagination.Skip:len(txs)]
+				} else {
+					txs = blockRPC.Txs[pagination.Skip : pagination.Skip+pagination.Limit]
+				}
+				total = blockRPC.NumTxs
+				s.Logger.Debug("got block txs by hash from RPC:", zap.String("blockHash", block))
+			} else {
+				s.Logger.Debug("got block txs by hash from db:", zap.String("blockHash", block))
+			}
+		} else {
+			s.Logger.Debug("got block txs by hash from cache:", zap.String("blockHash", block))
 		}
 	} else {
-		s.logger.Debug("fetch block txs by height", zap.String("height", block))
-		height, err := strconv.Atoi(block)
+		height, err := strconv.ParseUint(block, 10, 64)
 		if err != nil {
 			return api.Invalid.Build(c)
 		}
-
 		if height <= 0 {
 			return api.Invalid.Build(c)
 		}
-		// Convert to height
-		txs, total, err = s.dbClient.TxsByBlockHeight(ctx, uint64(height), pagination)
+		// get block txs in block if exist
+		txs, total, err = s.cacheClient.TxsByBlockHeight(ctx, height, pagination)
 		if err != nil {
-			return api.Invalid.Build(c)
+			s.logger.Debug("cannot get block txs by height from cache", zap.String("blockHeight", block), zap.Error(err))
+			// otherwise, get from db
+			txs, total, err = s.dbClient.TxsByBlockHeight(ctx, height, pagination)
+			if err != nil {
+				s.logger.Debug("cannot get block txs by height from db", zap.String("blockHeight", block), zap.Error(err))
+				// try to get block txs from RPC
+				blockRPC, err := s.kaiClient.BlockByHeight(ctx, height)
+				if err != nil {
+					s.logger.Debug("cannot get block height by hash from RPC", zap.String("blockHeight", block), zap.Error(err))
+					return api.InternalServer.Build(c)
+				}
+				txs = blockRPC.Txs
+				if pagination.Skip > len(txs) {
+					txs = []*types.Transaction(nil)
+				} else if pagination.Skip+pagination.Limit > len(txs) {
+					txs = blockRPC.Txs[pagination.Skip:len(txs)]
+				} else {
+					txs = blockRPC.Txs[pagination.Skip : pagination.Skip+pagination.Limit]
+				}
+				total = blockRPC.NumTxs
+				s.Logger.Debug("got block txs by height from RPC:", zap.String("blockHeight", block))
+			} else {
+				s.Logger.Debug("got block txs by height from db:", zap.String("blockHeight", block))
+			}
+		} else {
+			s.Logger.Debug("got block txs by height from cache:", zap.String("blockHeight", block))
 		}
 	}
 
@@ -384,9 +502,10 @@ func (s *Server) Txs(c echo.Context) error {
 		Skip:  page * limit,
 		Limit: limit,
 	}
+	pagination.Sanitize()
 
 	txs, err = s.cacheClient.LatestTransactions(ctx, pagination)
-	if err != nil || txs == nil {
+	if err != nil || txs == nil || len(txs) < limit {
 		s.logger.Debug("Cannot get latest txs from cache", zap.Error(err))
 		txs, err = s.dbClient.LatestTxs(ctx, pagination)
 		if err != nil {
@@ -469,6 +588,7 @@ func (s *Server) AddressTxs(c echo.Context) error {
 		Skip:  page * limit,
 		Limit: limit,
 	}
+	pagination.Sanitize()
 
 	txs, total, err := s.dbClient.TxsByAddress(ctx, address, pagination)
 	if err != nil {
@@ -548,7 +668,27 @@ func (s *Server) TxByHash(c echo.Context) error {
 	var tx *types.Transaction
 	tx, err := s.dbClient.TxByHash(ctx, txHash)
 	if err != nil {
-		return api.InternalServer.Build(c)
+		// try to get tx by hash through RPC
+		s.Logger.Debug("cannot get tx by hash from db:", zap.String("txHash", txHash))
+		tx, err = s.kaiClient.GetTransaction(ctx, txHash)
+		if err != nil {
+			s.Logger.Debug("cannot get tx by hash from RPC:", zap.String("txHash", txHash))
+			return api.Invalid.Build(c)
+		}
+		receipt, err := s.kaiClient.GetTransactionReceipt(ctx, txHash)
+		if err != nil {
+			s.Logger.Debug("cannot get receipt by hash from RPC:", zap.String("txHash", txHash))
+		}
+		s.Logger.Debug("got tx by hash from RPC:", zap.String("txHash", txHash))
+		if receipt != nil {
+			tx.Logs = receipt.Logs
+			tx.Root = receipt.Root
+			tx.Status = receipt.Status
+			tx.GasUsed = receipt.GasUsed
+			tx.ContractAddress = receipt.ContractAddress
+		}
+	} else {
+		s.Logger.Debug("got tx by hash from db:", zap.String("txHash", txHash))
 	}
 
 	return api.OK.SetData(tx).Build(c)

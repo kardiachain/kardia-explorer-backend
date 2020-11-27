@@ -256,6 +256,7 @@ func (s *infoServer) ImportBlock(ctx context.Context, block *types.Block, writeT
 func (s *infoServer) InsertErrorBlocks(ctx context.Context, start uint64, end uint64) error {
 	err := s.cacheClient.InsertErrorBlocks(ctx, start, end)
 	if err != nil {
+		s.logger.Warn("Cannot insert error block into retry list", zap.Uint64("Start", start), zap.Uint64("End", end))
 		return err
 	}
 	return nil

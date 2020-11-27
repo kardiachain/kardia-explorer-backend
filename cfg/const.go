@@ -18,3 +18,15 @@
 
 // Package cfg
 package cfg
+
+import "time"
+
+const (
+	// redis list length
+	LatestTxsLength = 1000
+
+	// redis keys expiration time
+	ValidatorsListExpTime = 10 * time.Second
+	NodesInfoListExpTime  = 1 * time.Hour
+	BlockInfoExpTime      = 30 * time.Minute
+)
