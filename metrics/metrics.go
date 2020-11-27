@@ -25,9 +25,10 @@ import (
 type Provider struct {
 	mu sync.Mutex
 
-	processingTime AverageDuration
-	scrapingTime   AverageDuration
-	indexingTime   AverageDuration
+	insertBlockTime         AverageDuration
+	scrapingTime            AverageDuration
+	insertTxsTime           AverageDuration
+	insertActiveAddressTime AverageDuration
 
 	latestBlock   int64
 	todoLength    int64
@@ -40,9 +41,10 @@ func New() *Provider {
 }
 
 func (p *Provider) Reset() {
-	p.processingTime.Reset()
+	p.insertBlockTime.Reset()
 	p.scrapingTime.Reset()
-	p.indexingTime.Reset()
+	p.insertTxsTime.Reset()
+	p.insertActiveAddressTime.Reset()
 
 	p.latestBlock = 0
 	p.todoLength = 0
@@ -50,11 +52,11 @@ func (p *Provider) Reset() {
 	p.invalidBlocks = 0
 }
 
-func (p *Provider) RecordProcessingTime(duration time.Duration) {
+func (p *Provider) RecordInsertBlockTime(duration time.Duration) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 
-	p.processingTime.Add(duration)
+	p.insertBlockTime.Add(duration)
 }
 
 func (p *Provider) RecordScrapingTime(duration time.Duration) {
@@ -64,11 +66,18 @@ func (p *Provider) RecordScrapingTime(duration time.Duration) {
 	p.scrapingTime.Add(duration)
 }
 
-func (p *Provider) RecordIndexingTime(duration time.Duration) {
+func (p *Provider) RecordInsertTxsTime(duration time.Duration) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 
-	p.indexingTime.Add(duration)
+	p.insertTxsTime.Add(duration)
+}
+
+func (p *Provider) RecordInsertActiveAddressTime(duration time.Duration) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+
+	p.insertActiveAddressTime.Add(duration)
 }
 
 func (p *Provider) RecordLatestBlock(block int64) {
