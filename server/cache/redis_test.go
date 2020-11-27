@@ -488,6 +488,67 @@ func TestRedis_LatestTransactions(t *testing.T) {
 	}
 }
 
+func TestRedis_PersistentErrorBlocks(t *testing.T) {
+	type fields struct {
+		client *redis.Client
+		logger *zap.Logger
+	}
+	type args struct {
+		ctx     context.Context
+		heights []uint64
+	}
+	client, logger, err := setup()
+	if err != nil {
+		t.Fatalf("cannot init fields for testing")
+	}
+	r := fields{
+		client: client,
+		logger: logger,
+	}
+	ctx := context.Background()
+	tests := []struct {
+		name            string
+		fields          fields
+		args            args
+		want            []uint64
+		wantInsertErr   bool
+		wantRetrieveErr bool
+	}{
+		{
+			name:   "Test_PersistentErrorBlock_1",
+			fields: r,
+			args: args{
+				ctx:     ctx,
+				heights: []uint64{0, 2, 3, 4, 99},
+			},
+			want:            []uint64{0, 2, 3, 4, 99},
+			wantInsertErr:   false,
+			wantRetrieveErr: false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			c := &Redis{
+				client: r.client,
+				logger: r.logger,
+			}
+			for i := range tt.args.heights {
+				err := c.InsertPersistentErrorBlocks(tt.args.ctx, tt.args.heights[i])
+				if (err != nil) != tt.wantInsertErr {
+					t.Errorf("InsertPersistentErrorBlocks() error = %v, wantErr %v", err, tt.wantInsertErr)
+				}
+			}
+			got, err := c.PersistentErrorBlockHeights(tt.args.ctx)
+			if (err != nil) != tt.wantRetrieveErr {
+				t.Errorf("PersistentErrorBlockHeights() error = %v, wantErr %v", err, tt.wantRetrieveErr)
+			}
+			if !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("PersistentErrorBlockHeights() got = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
 func TestRedis_TxByHash(t *testing.T) {
 	type fields struct {
 		client *redis.Client

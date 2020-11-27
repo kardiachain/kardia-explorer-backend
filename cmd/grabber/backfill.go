@@ -15,6 +15,8 @@ import (
 var (
 	currentProcessBlock uint64
 	processCounter      = 0
+	startTime           time.Time
+	endTime             time.Duration
 )
 
 const (
@@ -36,7 +38,8 @@ func backfill(ctx context.Context, srv *server.Server) {
 			if blockHeight == currentProcessBlock && blockHeight != 0 {
 				processCounter++
 				if IsSkip() {
-					srv.Logger.Warn("Skip block since expected error", zap.Uint64("BlockHeight", blockHeight))
+					srv.Logger.Warn("Skip block since several error attemps, inserting to persistent error blocks list", zap.Uint64("BlockHeight", blockHeight))
+					_ = srv.InsertPersistentErrorBlocks(ctx, blockHeight)
 					// Reset counter
 					processCounter = 0
 					continue
@@ -52,13 +55,16 @@ func backfill(ctx context.Context, srv *server.Server) {
 			if blockHeight == 0 {
 				continue
 			}
-			lgr.Info("Refilling: ")
+			startTime = time.Now()
 			block, err := srv.BlockByHeight(ctx, blockHeight)
 			if err != nil {
 				lgr.Error("Refilling: Failed to get block", zap.Error(err))
 				_ = srv.InsertErrorBlocks(ctx, blockHeight-1, blockHeight+1)
 				continue
 			}
+			endTime = time.Since(startTime)
+			srv.Metrics().RecordScrapingTime(endTime)
+			lgr.Info("Refilling: Scraping block time", zap.Duration("TimeConsumed", endTime), zap.String("Avg", srv.Metrics().GetScrapingTime()))
 			if block == nil {
 				lgr.Error("Refilling: Block not found")
 				_ = srv.InsertErrorBlocks(ctx, blockHeight-1, blockHeight+1)

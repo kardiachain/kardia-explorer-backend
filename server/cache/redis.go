@@ -28,7 +28,8 @@ const (
 	KeyLatestStats = "#stats#latest"
 	KeyLatestTxs   = "#txs#latest" // List
 
-	ErrorBlocks = "#errorBlocks" // List
+	KeyErrorBlocks           = "#errorBlocks"           // List
+	KeyPersistentErrorBlocks = "#persistentErrorBlocks" // List
 
 	KeyTokenInfo         = "#token#info"
 	KeyCirculatingSupply = "#token#circulating"
@@ -380,7 +381,7 @@ func (c *Redis) LatestTransactions(ctx context.Context, pagination *types.Pagina
 
 func (c *Redis) InsertErrorBlocks(ctx context.Context, start uint64, end uint64) error {
 	for i := start + 1; i < end; i++ {
-		_, err := c.client.LPush(ctx, ErrorBlocks, strconv.FormatUint(i, 10)).Result()
+		_, err := c.client.LPush(ctx, KeyErrorBlocks, strconv.FormatUint(i, 10)).Result()
 		if err != nil {
 			return err
 		}
@@ -389,7 +390,7 @@ func (c *Redis) InsertErrorBlocks(ctx context.Context, start uint64, end uint64)
 }
 
 func (c *Redis) PopErrorBlockHeight(ctx context.Context) (uint64, error) {
-	heightStr, err := c.client.LPop(ctx, ErrorBlocks).Result()
+	heightStr, err := c.client.LPop(ctx, KeyErrorBlocks).Result()
 	if err != nil {
 		return 0, err
 	}
@@ -398,6 +399,30 @@ func (c *Redis) PopErrorBlockHeight(ctx context.Context) (uint64, error) {
 		return 0, err
 	}
 	return height, nil
+}
+
+func (c *Redis) InsertPersistentErrorBlocks(ctx context.Context, blockHeight uint64) error {
+	_, err := c.client.RPush(ctx, KeyPersistentErrorBlocks, strconv.FormatUint(blockHeight, 10)).Result()
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (c *Redis) PersistentErrorBlockHeights(ctx context.Context) ([]uint64, error) {
+	heightsStr, err := c.client.LRange(ctx, KeyPersistentErrorBlocks, 0, -1).Result()
+	if err != nil {
+		return nil, err
+	}
+	var heights []uint64
+	for _, str := range heightsStr {
+		height, err := strconv.ParseUint(str, 10, 64)
+		if err != nil {
+			return nil, err
+		}
+		heights = append(heights, height)
+	}
+	return heights, nil
 }
 
 // Holders summary

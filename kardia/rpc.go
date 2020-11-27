@@ -21,6 +21,7 @@ package kardia
 import (
 	"context"
 	"errors"
+	"math/big"
 
 	"go.uber.org/zap"
 
@@ -246,10 +247,51 @@ func (ec *Client) Validator(ctx context.Context, address string) (*types.Validat
 	return result, err
 }
 
-func (ec *Client) Validators(ctx context.Context) ([]*types.Validator, error) {
-	var result []*types.Validator
-	err := ec.chooseClient().c.CallContext(ctx, &result, "kai_validators", false)
-	return result, err
+func (ec *Client) Validators(ctx context.Context) (*types.Validators, error) {
+	var validators []*types.Validator
+	err := ec.chooseClient().c.CallContext(ctx, &validators, "kai_validators", true)
+	if err != nil {
+		return nil, err
+	}
+	var (
+		delegators                 = make(map[string]bool)
+		totalStakedAmount          = big.NewInt(0)
+		totalDelegatorStakedAmount = big.NewInt(0)
+
+		valStakedAmount *big.Int
+		delStakedAmount *big.Int
+		ok              bool
+	)
+	for _, val := range validators {
+		for _, del := range val.Delegators {
+			delegators[del.Address.Hex()] = true
+			// exclude validator self delegation
+			if del.Address.Equal(val.Address) {
+				continue
+			}
+			delStakedAmount, ok = new(big.Int).SetString(del.StakedAmount, 10)
+			if !ok {
+				return nil, err
+			}
+			totalDelegatorStakedAmount = new(big.Int).Add(totalDelegatorStakedAmount, delStakedAmount)
+		}
+		valStakedAmount, ok = new(big.Int).SetString(val.StakedAmount, 10)
+		if !ok {
+			return nil, err
+		}
+		totalStakedAmount = new(big.Int).Add(totalStakedAmount, valStakedAmount)
+		val.Delegators = nil
+	}
+	result := &types.Validators{
+		TotalValidators:            len(validators),
+		TotalDelegators:            len(delegators),
+		TotalStakedAmount:          totalStakedAmount.String(),
+		TotalValidatorStakedAmount: new(big.Int).Sub(totalStakedAmount, totalDelegatorStakedAmount).String(),
+		TotalDelegatorStakedAmount: totalDelegatorStakedAmount.String(),
+		TotalProposer:              21, // TODO(trinhdn): follow core API updates
+		Validators:                 validators,
+	}
+	return result, nil
 }
 
 func (ec *Client) getBlock(ctx context.Context, method string, args ...interface{}) (*types.Block, error) {

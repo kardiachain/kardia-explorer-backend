@@ -46,6 +46,7 @@ type Client interface {
 	// Interact with block
 	InsertBlock(ctx context.Context, block *types.Block) error
 	UpsertBlock(ctx context.Context, block *types.Block) error
+	DeleteLatestBlock(ctx context.Context) (uint64, error)
 
 	// Txs
 	Txs(ctx context.Context, pagination *types.Pagination) ([]*types.Transaction, error)

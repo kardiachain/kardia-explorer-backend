@@ -931,13 +931,13 @@ func generateRecordSet(blockSize int, txSize int, t *testing.T) {
 		insertBlockTime := time.Now()
 		_ = db.InsertBlock(context.Background(), &block)
 		_ = db.InsertTxs(context.Background(), txs)
-		m.RecordProcessingTime(time.Since(insertBlockTime))
+		m.RecordInsertBlockTime(time.Since(insertBlockTime))
 	}
-	t.Log("\nblockSize: ", blockSize, "\ntxSize: ", txSize, "\nElasped time: ", time.Since(startTime).String(), "\nAverage time: ", m.GetProcessingTime())
+	t.Log("\nblockSize: ", blockSize, "\ntxSize: ", txSize, "\nElasped time: ", time.Since(startTime).String(), "\nAverage time: ", m.GetInsertBlockTime())
 
 	// measure query latestTxs time
 	m.Reset()
 	startTime = time.Now()
 
-	t.Log("\nblockSize: ", blockSize, "\ntxSize: ", txSize, "\nElasped time: ", time.Since(startTime).String(), "\nAverage time: ", m.GetProcessingTime())
+	t.Log("\nblockSize: ", blockSize, "\ntxSize: ", txSize, "\nElasped time: ", time.Since(startTime).String(), "\nAverage time: ", m.GetInsertBlockTime())
 }

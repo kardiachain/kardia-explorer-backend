@@ -3,7 +3,6 @@ package main
 
 import (
 	"context"
-	"strconv"
 	"time"
 
 	"go.uber.org/zap"
@@ -14,8 +13,20 @@ import (
 // listener fetch LatestBlockNumber every second and check if we stay behind latest block
 // todo: implement pipeline with worker for dispatch InsertBlock task
 func listener(ctx context.Context, srv *server.Server) {
+	var (
+		prevHeader uint64 = 0 // the highest persistent block in database, don't need to backfill blocks have blockHeight < prevHeader
+		startTime  time.Time
+		endTime    time.Duration
+	)
+	// delete current latest block in db
+	deletedHeight, err := srv.DeleteLatestBlock(ctx)
+	if err != nil {
+		srv.Logger.Warn("cannot remove old latest block", zap.Error(err))
+	}
+	if deletedHeight > 0 {
+		prevHeader = deletedHeight - 1 // the highest persistent block in database now is deletedHeight - 1
+	}
 	srv.Logger.Info("Start listening...")
-	var prevHeader uint64 = 0
 	t := time.NewTicker(time.Second * 1)
 	defer t.Stop()
 	for {
@@ -34,13 +45,16 @@ func listener(ctx context.Context, srv *server.Server) {
 			// todo @longnd: this check quite bad, since its require us to keep backfill running
 			// for example, if our
 			if prevHeader != latest {
-				lgr.Info("Listener: Getting block " + strconv.FormatUint(latest, 10))
+				startTime = time.Now()
 				block, err := srv.BlockByHeight(ctx, latest)
 				if err != nil {
 					lgr.Error("Listener: Failed to get block", zap.Error(err))
 					lgr.Debug("Block not found result", zap.Error(err))
 					continue
 				}
+				endTime = time.Since(startTime)
+				srv.Metrics().RecordScrapingTime(endTime)
+				lgr.Info("Listener: Scraping block time", zap.Duration("TimeConsumed", endTime), zap.String("Avg", srv.Metrics().GetScrapingTime()))
 				if block == nil {
 					lgr.Error("Listener: Block not found")
 					continue
@@ -50,7 +64,7 @@ func listener(ctx context.Context, srv *server.Server) {
 					continue
 				}
 				if latest-1 > prevHeader {
-					lgr.Info("Listener: Insert error blocks", zap.Uint64("from", prevHeader), zap.Uint64("to", latest))
+					lgr.Warn("Listener: We are behind network, inserting error blocks", zap.Uint64("from", prevHeader), zap.Uint64("to", latest))
 					err := srv.InsertErrorBlocks(ctx, prevHeader, latest)
 					if err != nil {
 						lgr.Error("Listener: Failed to insert error block height", zap.Error(err))

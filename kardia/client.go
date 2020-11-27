@@ -43,7 +43,7 @@ type ClientInterface interface {
 	NodesInfo(ctx context.Context) ([]*types.NodeInfo, error)
 	Datadir(ctx context.Context) (string, error)
 	Validator(ctx context.Context, address string) (*types.Validator, error)
-	Validators(ctx context.Context) ([]*types.Validator, error)
+	Validators(ctx context.Context) (*types.Validators, error)
 }
 
 type Config struct {
