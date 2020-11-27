@@ -34,7 +34,10 @@ import (
 	"github.com/kardiachain/explorer-backend/types"
 )
 
-var ErrParsingBigIntFromString = errors.New("cannot parse string to big.Int")
+var (
+	ErrParsingBigIntFromString = errors.New("cannot parse string to big.Int")
+	ErrValidatorNotFound = errors.New("validator address not found")
+)
 
 type RPCClient struct {
 	c      *rpc.Client
@@ -246,12 +249,16 @@ func (ec *Client) Datadir(ctx context.Context) (string, error) {
 }
 
 func (ec *Client) Validator(ctx context.Context, address string) (*types.Validator, error) {
-	var result *types.Validator
-	err := ec.chooseClient().c.CallContext(ctx, &result, "kai_validator", address, true)
+	result, err := ec.Validators(ctx)
 	if err != nil {
-		result, err = convertValidatorInfo(result, nil)
+		return nil, err
 	}
-	return result, nil
+	for _, val := range result.Validators {
+		if strings.ToLower(val.Address.Hex()) == strings.ToLower(address) {
+			return val, nil
+		}
+	}
+	return nil, ErrValidatorNotFound
 }
 
 func (ec *Client) Validators(ctx context.Context) (*types.Validators, error) {
