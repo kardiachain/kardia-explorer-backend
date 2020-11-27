@@ -105,7 +105,7 @@ func (s *Server) TokenInfo(c echo.Context) error {
 				return api.Invalid.Build(c)
 			}
 		}
-
+		tokenInfo.MarketCap = tokenInfo.Price * float64(tokenInfo.CirculatingSupply)
 		return api.OK.SetData(tokenInfo).Build(c)
 	}
 
@@ -114,7 +114,23 @@ func (s *Server) TokenInfo(c echo.Context) error {
 		return api.Invalid.Build(c)
 	}
 
+	tokenInfo.MarketCap = tokenInfo.Price * float64(tokenInfo.CirculatingSupply)
 	return api.OK.SetData(tokenInfo).Build(c)
+}
+
+func (s *Server) UpdateCirculatingSupply(c echo.Context) error {
+	ctx := context.Background()
+	if !strings.Contains(c.Request().Header.Get("Authorization"), s.infoServer.HttpRequestSecret) {
+		return api.Unauthorized.Build(c)
+	}
+	m := make(map[string]int64)
+	if err := c.Bind(&m); err != nil {
+		return api.Invalid.Build(c)
+	}
+	if err := s.cacheClient.UpdateCirculatingSupply(ctx, m["circulatingSupply"]); err != nil {
+		return api.Invalid.Build(c)
+	}
+	return api.OK.Build(c)
 }
 
 func (s *Server) TPS(c echo.Context) error {
@@ -156,6 +172,7 @@ func (s *Server) ValidatorStats(c echo.Context) error {
 	} else {
 		delegators = validator.Delegators[pagination.Skip : pagination.Skip+pagination.Limit]
 	}
+  
 	total := uint64(len(validator.Delegators))
 	validator.Delegators = delegators
 

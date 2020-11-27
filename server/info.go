@@ -48,6 +48,8 @@ type infoServer struct {
 
 	metrics *metrics.Provider
 
+	HttpRequestSecret string
+
 	logger *zap.Logger
 }
 
@@ -70,9 +72,9 @@ func (s *infoServer) TokenInfo(ctx context.Context) (*types.TokenInfo, error) {
 		NumMarketPairs    int                `json:"num_market_pairs"`
 		DateAdded         string             `json:"date_added"`
 		Tags              []string           `json:"tags"`
-		MaxSupply         int                `json:"max_supply"`
-		CirculatingSupply int                `json:"circulating_supply"`
-		TotalSupply       int                `json:"total_supply"`
+		MaxSupply         int64              `json:"max_supply"`
+		CirculatingSupply int64              `json:"circulating_supply"`
+		TotalSupply       int64              `json:"total_supply"`
 		IsActive          int                `json:"is_active"`
 		Platform          interface{}        `json:"platform"`
 		CmcRank           int                `json:"cmc_rank"`

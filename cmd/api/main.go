@@ -48,11 +48,12 @@ func main() {
 		KardiaURLs:         serviceCfg.KardiaURLs,
 		KardiaTrustedNodes: serviceCfg.KardiaTrustedNodes,
 
-		CacheAdapter: cache.Adapter(serviceCfg.CacheEngine),
-		CacheURL:     serviceCfg.CacheURL,
-		CacheDB:      serviceCfg.CacheDB,
-		CacheIsFlush: serviceCfg.CacheIsFlush,
-		BlockBuffer:  serviceCfg.BufferedBlocks,
+		CacheAdapter:      cache.Adapter(serviceCfg.CacheEngine),
+		CacheURL:          serviceCfg.CacheURL,
+		CacheDB:           serviceCfg.CacheDB,
+		CacheIsFlush:      serviceCfg.CacheIsFlush,
+		BlockBuffer:       serviceCfg.BufferedBlocks,
+		HttpRequestSecret: serviceCfg.HttpRequestSecret,
 
 		Metrics: nil,
 		Logger:  logger,

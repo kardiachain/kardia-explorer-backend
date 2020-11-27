@@ -37,6 +37,7 @@ type EchoServer interface {
 
 	// Info
 	TokenInfo(c echo.Context) error
+	UpdateCirculatingSupply(c echo.Context) error
 
 	// Chart
 	TPS(c echo.Context) error
@@ -111,6 +112,11 @@ func bind(gr *echo.Group, srv EchoServer) {
 			method: echo.GET,
 			path:   "/dashboard/token",
 			fn:     srv.TokenInfo,
+		},
+		{
+			method: echo.PUT,
+			path:   "/dashboard/token/circulating",
+			fn:     srv.UpdateCirculatingSupply,
 		},
 		// Blocks
 		{
@@ -198,7 +204,6 @@ func Start(srv EchoServer, cfg cfg.ExplorerConfig) {
 
 	e.Use(middleware.CORS())
 	e.Use(middleware.Logger())
-	e.Use(middleware.CSRF())
 	e.Use(middleware.Gzip())
 
 	v1Gr := e.Group("/api/v1")
