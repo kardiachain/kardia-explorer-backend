@@ -161,9 +161,6 @@ func (m *mongoDB) BlockByHash(ctx context.Context, blockHash string) (*types.Blo
 	var block types.Block
 	err := m.wrapper.C(cBlocks).FindOne(bson.M{"hash": blockHash}, options.FindOne().SetProjection(bson.M{"txs": 0, "receipts": 0})).Decode(&block)
 	if err != nil {
-		if err == mongo.ErrNoDocuments {
-			return nil, nil
-		}
 		return nil, err
 	}
 	return &block, nil
@@ -287,6 +284,7 @@ func (m *mongoDB) TxsByBlockHeight(ctx context.Context, blockHeight uint64, pagi
 func (m *mongoDB) TxsByAddress(ctx context.Context, address string, pagination *types.Pagination) ([]*types.Transaction, uint64, error) {
 	var txs []*types.Transaction
 	opts := []*options.FindOptions{
+		m.wrapper.FindSetSort("-time"),
 		options.Find().SetSkip(int64(pagination.Skip)),
 		options.Find().SetLimit(int64(pagination.Limit)),
 	}
