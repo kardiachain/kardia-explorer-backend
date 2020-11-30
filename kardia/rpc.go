@@ -21,6 +21,7 @@ package kardia
 import (
 	"context"
 	"errors"
+	"fmt"
 	"math/big"
 	"sort"
 	"strings"
@@ -36,7 +37,10 @@ import (
 
 var (
 	ErrParsingBigIntFromString = errors.New("cannot parse string to big.Int")
-	ErrValidatorNotFound = errors.New("validator address not found")
+	ErrValidatorNotFound       = errors.New("validator address not found")
+
+	tenPoweredBy5 = new(big.Int).Exp(big.NewInt(10), big.NewInt(5), nil)
+	tenPoweredBy18 = new(big.Int).Exp(big.NewInt(10), big.NewInt(18), nil)
 )
 
 type RPCClient struct {
@@ -367,10 +371,14 @@ func convertBigIntToPercentage(raw string) (string, error) {
 	if !ok {
 		return "", ErrParsingBigIntFromString
 	}
-	tmp := new(big.Int).Mul(input, new(big.Int).SetInt64(100000))
-	tenPoweredBy18 := new(big.Int).Exp(big.NewInt(10), big.NewInt(18), nil)
+	tmp := new(big.Int).Mul(input, tenPoweredBy18)
 	result := new(big.Int).Div(tmp, tenPoweredBy18).String()
-	return strings.TrimRight(strings.TrimRight(result[:len(result)-3] + "." + result[len(result)-3:], "0"), "."), nil
+	result = fmt.Sprintf("%020s", result)
+	result = strings.TrimLeft(strings.TrimRight(strings.TrimRight(result[:len(result)-16]+"."+result[len(result)-16:], "0"), "."), "0")
+	if strings.HasPrefix(result, ".") {
+		result = "0" + result
+	}
+	return result, nil
 }
 
 func calculateVotingPower(raw string, total *big.Int) (string, error) {
@@ -378,7 +386,12 @@ func calculateVotingPower(raw string, total *big.Int) (string, error) {
 	if !ok {
 		return "", ErrParsingBigIntFromString
 	}
-	tmp := new(big.Int).Mul(valStakedAmount, new(big.Int).SetInt64(100000))
-	result :=  new(big.Int).Div(tmp, total).String()
-	return strings.TrimRight(strings.TrimRight(result[:len(result)-3] + "." + result[len(result)-3:], "0"), "."), nil
+	tmp := new(big.Int).Mul(valStakedAmount, tenPoweredBy5)
+	result := new(big.Int).Div(tmp, total).String()
+	result = fmt.Sprintf("%020s", result)
+	result = strings.TrimLeft(strings.TrimRight(strings.TrimRight(result[:len(result)-3]+"."+result[len(result)-3:], "0"), "."), "0")
+	if strings.HasPrefix(result, ".") {
+		result = "0" + result
+	}
+	return result, nil
 }

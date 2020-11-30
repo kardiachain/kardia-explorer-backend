@@ -320,22 +320,22 @@ func (c *Redis) LatestBlocks(ctx context.Context, pagination *types.Pagination) 
 		startIndex       = 0 + int64(pagination.Skip)
 		endIndex         = startIndex + int64(pagination.Limit) - 1
 	)
-	len, err := c.ListSize(ctx, KeyBlocks)
+	length, err := c.ListSize(ctx, KeyBlocks)
 	if err != nil {
 		return nil, err
 	}
 	// return error if startIndex or endIndex is out of cache range, require querying in database instead
-	if startIndex >= len || endIndex >= len {
+	if startIndex >= length || endIndex >= length {
 		return nil, errors.New("indexes of latest blocks out of range in cache")
 	}
 
-	c.logger.Debug("Getting blocks from cache: ", zap.Int64("startIndex", startIndex), zap.Int64("endIndex", endIndex), zap.Uint64("Current latest block height", c.LatestBlockHeight(ctx)))
+	c.logger.Debug("Getting blocks from cache: ", zap.Int64("startIndex", startIndex), zap.Int64("endIndex", endIndex), zap.Int64("cache length", length), zap.Uint64("Current latest block height", c.LatestBlockHeight(ctx)))
 	marshalledBlocks, err = c.client.LRange(ctx, KeyBlocks, startIndex, endIndex).Result()
 	if err != nil {
 		return nil, err
 	}
 
-	for i := startIndex; i <= endIndex; i++ {
+	for i := 0; i < len(marshalledBlocks); i++ {
 		var b types.Block
 		err := json.Unmarshal([]byte(marshalledBlocks[i]), &b)
 		if err != nil {
@@ -353,22 +353,22 @@ func (c *Redis) LatestTransactions(ctx context.Context, pagination *types.Pagina
 		startIndex    = 0 + int64(pagination.Skip)
 		endIndex      = startIndex + int64(pagination.Limit) - 1
 	)
-	len, err := c.ListSize(ctx, KeyLatestTxs)
+	length, err := c.ListSize(ctx, KeyLatestTxs)
 	if err != nil {
 		return nil, err
 	}
 	// return error if startIndex or endIndex is out of cache range, require querying in database instead
-	if startIndex >= len || endIndex >= len {
+	if startIndex >= length || endIndex >= length {
 		return nil, errors.New("indexes of latest txs out of range in cache")
 	}
 
-	c.logger.Debug("Get latest txs from block in cache", zap.String("Key", KeyLatestTxs), zap.Int64("startIndex", startIndex), zap.Int64("endIndex", endIndex))
+	c.logger.Debug("Get latest txs from block in cache", zap.String("Key", KeyLatestTxs), zap.Int64("startIndex", startIndex), zap.Int64("endIndex", endIndex), zap.Int64("cache length", length))
 	marshalledTxs, err = c.client.LRange(ctx, KeyLatestTxs, startIndex, endIndex).Result()
 	if err != nil {
 		return nil, err
 	}
 
-	for i := startIndex; i <= endIndex; i++ {
+	for i := 0; i < len(marshalledTxs); i++ {
 		var tx types.Transaction
 		err := json.Unmarshal([]byte(marshalledTxs[i]), &tx)
 		if err != nil {
