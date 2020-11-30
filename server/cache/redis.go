@@ -179,12 +179,12 @@ func (c *Redis) InsertTxsOfBlock(ctx context.Context, block *types.Block) error 
 		}
 		// check if we need to pop old tx from latest transaction list due to max size exceeded
 		if latestTxsLen+1 > cfg.LatestTxsLength {
-			if err := c.client.LPop(ctx, KeyLatestTxs).Err(); err != nil {
+			if err := c.client.RPop(ctx, KeyLatestTxs).Err(); err != nil {
 				return err
 			}
 		}
 		// also push to latest transaction list
-		if err := c.client.RPush(ctx, KeyLatestTxs, txStr).Err(); err != nil {
+		if err := c.client.LPush(ctx, KeyLatestTxs, txStr).Err(); err != nil {
 			return err
 		}
 		latestTxsLen++
