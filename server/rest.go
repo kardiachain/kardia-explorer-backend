@@ -159,10 +159,26 @@ func (s *Server) ValidatorStats(c echo.Context) error {
 	}
 	pagination.Sanitize()
 
+	// get validator list from cache
+	valsList, err := s.getValidatorsListFromCache(ctx)
+	if err != nil {
+		return api.Invalid.Build(c)
+	}
+
+	// get delegation details
 	validator, err := s.kaiClient.Validator(ctx, c.Param("address"))
 	if err != nil {
-		s.logger.Warn("cannot get validators list from RPC", zap.Error(err))
-		return api.Invalid.Build(c)
+		s.logger.Warn("cannot get validators list from RPC, use cached validator info instead", zap.Error(err))
+	}
+	// get validator additional info such as commission rate
+	for _, val := range valsList.Validators {
+		if strings.ToLower(val.Address.Hex()) == strings.ToLower(c.Param("address")) {
+			if validator == nil {
+				validator = val
+			}
+			validator.CommissionRate = val.CommissionRate
+			break
+		}
 	}
 	var delegators []*types.Delegator
 	if pagination.Skip > len(validator.Delegators) {
@@ -172,7 +188,7 @@ func (s *Server) ValidatorStats(c echo.Context) error {
 	} else {
 		delegators = validator.Delegators[pagination.Skip : pagination.Skip+pagination.Limit]
 	}
-  
+
 	total := uint64(len(validator.Delegators))
 	validator.Delegators = delegators
 
@@ -187,12 +203,10 @@ func (s *Server) ValidatorStats(c echo.Context) error {
 
 func (s *Server) Validators(c echo.Context) error {
 	ctx := context.Background()
-	valsList, err := s.kaiClient.Validators(ctx)
+	valsList, err := s.getValidatorsListFromCache(ctx)
 	if err != nil {
-		s.logger.Warn("cannot get validators list from RPC", zap.Error(err))
 		return api.Invalid.Build(c)
 	}
-	s.logger.Debug("Got validators list from RPC")
 	return api.OK.SetData(valsList).Build(c)
 }
 
@@ -642,4 +656,24 @@ func (s *Server) Contracts(c echo.Context) error {
 
 func (s *Server) BlockTime(c echo.Context) error {
 	panic("implement me")
+}
+
+func (s *Server) getValidatorsListFromCache(ctx context.Context) (*types.Validators, error) {
+	valsList, err := s.cacheClient.Validators(ctx)
+	if err == nil {
+		s.logger.Warn("got validators list from cache", zap.Error(err))
+		return valsList, nil
+	}
+	s.logger.Warn("cannot get validators list from cache", zap.Error(err))
+	valsList, err = s.kaiClient.Validators(ctx)
+	if err != nil {
+		s.logger.Warn("cannot get validators list from RPC", zap.Error(err))
+		return nil, err
+	}
+	s.logger.Debug("Got validators list from RPC")
+	err = s.cacheClient.UpdateValidators(ctx, valsList)
+	if err != nil {
+		s.logger.Warn("cannot store validators list to cache", zap.Error(err))
+	}
+	return valsList, nil
 }
