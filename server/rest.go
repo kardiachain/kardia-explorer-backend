@@ -661,7 +661,7 @@ func (s *Server) BlockTime(c echo.Context) error {
 func (s *Server) getValidatorsListFromCache(ctx context.Context) (*types.Validators, error) {
 	valsList, err := s.cacheClient.Validators(ctx)
 	if err == nil {
-		s.logger.Warn("got validators list from cache", zap.Error(err))
+		s.logger.Debug("got validators list from cache", zap.Error(err))
 		return valsList, nil
 	}
 	s.logger.Warn("cannot get validators list from cache", zap.Error(err))
