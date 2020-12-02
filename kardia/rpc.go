@@ -39,7 +39,7 @@ var (
 	ErrParsingBigIntFromString = errors.New("cannot parse string to big.Int")
 	ErrValidatorNotFound       = errors.New("validator address not found")
 
-	tenPoweredBy5 = new(big.Int).Exp(big.NewInt(10), big.NewInt(5), nil)
+	tenPoweredBy5  = new(big.Int).Exp(big.NewInt(10), big.NewInt(5), nil)
 	tenPoweredBy18 = new(big.Int).Exp(big.NewInt(10), big.NewInt(18), nil)
 )
 
@@ -253,27 +253,17 @@ func (ec *Client) Datadir(ctx context.Context) (string, error) {
 }
 
 func (ec *Client) Validator(ctx context.Context, address string) (*types.Validator, error) {
-	result, err := ec.Validators(ctx)
+	var validator *types.Validator
+	err := ec.defaultClient.c.CallContext(ctx, &validator, "kai_validator", address, true)
 	if err != nil {
 		return nil, err
 	}
-	for _, val := range result.Validators {
-		if strings.ToLower(val.Address.Hex()) == strings.ToLower(address) {
-			// get delegation details
-			var validator *types.Validator
-			if err := ec.chooseClient().c.CallContext(ctx, &validator, "kai_validator", address, true); err != nil {
-				return nil, err
-			}
-			val.Delegators = validator.Delegators
-			return val, nil
-		}
-	}
-	return nil, ErrValidatorNotFound
+	return validator, nil
 }
 
 func (ec *Client) Validators(ctx context.Context) (*types.Validators, error) {
 	var validators []*types.Validator
-	err := ec.chooseClient().c.CallContext(ctx, &validators, "kai_validators", true)
+	err := ec.defaultClient.c.CallContext(ctx, &validators, "kai_validators", true)
 	if err != nil {
 		return nil, err
 	}
@@ -304,7 +294,6 @@ func (ec *Client) Validators(ctx context.Context) (*types.Validators, error) {
 			return nil, err
 		}
 		totalStakedAmount = new(big.Int).Add(totalStakedAmount, valStakedAmount)
-		val.Delegators = nil
 	}
 	sort.Slice(validators, func(i, j int) bool {
 		iAmount, _ := new(big.Int).SetString(validators[i].StakedAmount, 10)

@@ -26,7 +26,7 @@ const (
 	LatestTxsLength = 1000
 
 	// redis keys expiration time
-	ValidatorsListExpTime = 10 * time.Second
+	ValidatorsListExpTime = 5 * time.Minute
 	NodesInfoListExpTime  = 1 * time.Hour
 	BlockInfoExpTime      = 30 * time.Minute
 )

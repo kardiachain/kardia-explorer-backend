@@ -38,8 +38,8 @@ const (
 	KeyTotalHolders   = "#holders#total"
 	KeyTotalContracts = "#contracts#total"
 
-	KeyValidatorsList = "#validators" // List
-	KeyNodesInfoList  = "#nodesInfo"  // List
+	KeyValidatorsList = "#validators"
+	KeyNodesInfoList  = "#nodesInfo" // List
 )
 
 type Redis struct {
@@ -460,45 +460,28 @@ func (c *Redis) TotalHolders(ctx context.Context) (uint64, uint64) {
 	return totalHolders, totalContracts
 }
 
-func (c *Redis) Validators(ctx context.Context) ([]*types.Validator, error) {
-	valsListLen, err := c.client.LLen(ctx, KeyValidatorsList).Result()
+func (c *Redis) Validators(ctx context.Context) (*types.Validators, error) {
+	valsListStr, err := c.client.Get(ctx, KeyValidatorsList).Result()
 	if err != nil {
-		c.logger.Warn("cannot get validators list length from cache")
 		return nil, err
 	}
-	if valsListLen == 0 {
-		return nil, nil
+	if valsListStr == "" {
+		return nil, errors.New("validators list in cache is empty")
 	}
-	valStrList, err := c.client.LRange(ctx, KeyValidatorsList, 0, valsListLen-1).Result()
-	if err != nil {
-		c.logger.Warn("cannot get validators list from cache", zap.Int("from", 0), zap.Int64("to", valsListLen-1))
+	var vals *types.Validators
+	if err := json.Unmarshal([]byte(valsListStr), &vals); err != nil {
 		return nil, err
 	}
-	var valsList []*types.Validator
-	for _, valStr := range valStrList {
-		var val *types.Validator
-		if err := json.Unmarshal([]byte(valStr), &val); err != nil {
-			return nil, err
-		}
-		valsList = append(valsList, val)
-	}
-	return valsList, nil
+	return vals, nil
 }
 
-func (c *Redis) UpdateValidators(ctx context.Context, vals []*types.Validator) error {
-	for _, val := range vals {
-		valJSON, err := json.Marshal(val)
-		if err != nil {
-			return err
-		}
-		if err := c.client.RPush(ctx, KeyValidatorsList, string(valJSON)).Err(); err != nil {
-			c.logger.Warn("cannot push validators to cache")
-			return err
-		}
+func (c *Redis) UpdateValidators(ctx context.Context, vals *types.Validators) error {
+	valsJSON, err := json.Marshal(vals)
+	if err != nil {
+		return err
 	}
-	result, err := c.client.Expire(ctx, KeyValidatorsList, cfg.ValidatorsListExpTime).Result()
-	if err != nil || !result {
-		c.logger.Warn("cannot set validators expiration time in cache", zap.Bool("result", result), zap.Error(err))
+	if err := c.client.Set(ctx, KeyValidatorsList, string(valsJSON), cfg.ValidatorsListExpTime).Err(); err != nil {
+		c.logger.Warn("cannot set validators list to cache")
 		return err
 	}
 	return nil
