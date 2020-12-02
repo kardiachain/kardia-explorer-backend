@@ -67,8 +67,8 @@ type Client interface {
 	CirculatingSupply(ctx context.Context) (int64, error)
 	UpdateCirculatingSupply(ctx context.Context, cirSup int64) error
 
-	Validators(ctx context.Context) ([]*types.Validator, error)
-	UpdateValidators(ctx context.Context, vals []*types.Validator) error
+	Validators(ctx context.Context) (*types.Validators, error)
+	UpdateValidators(ctx context.Context, vals *types.Validators) error
 
 	NodesInfo(ctx context.Context) ([]*types.NodeInfo, error)
 	UpdateNodesInfo(ctx context.Context, nodes []*types.NodeInfo) error
