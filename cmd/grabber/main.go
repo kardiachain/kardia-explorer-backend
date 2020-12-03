@@ -104,11 +104,37 @@ func main() {
 		logger.Panic(err.Error())
 	}
 
+	srvConfigForVerifying := server.Config{
+		StorageAdapter: db.Adapter(serviceCfg.StorageDriver),
+		StorageURI:     serviceCfg.StorageURI,
+		StorageDB:      serviceCfg.StorageDB,
+		StorageIsFlush: serviceCfg.StorageIsFlush,
+
+		KardiaProtocol:     kardia.Protocol(serviceCfg.KardiaProtocol),
+		KardiaURLs:         serviceCfg.KardiaURLs,
+		KardiaTrustedNodes: serviceCfg.KardiaTrustedNodes,
+
+		CacheAdapter: cache.Adapter(serviceCfg.CacheEngine),
+		CacheURL:     serviceCfg.CacheURL,
+		CacheDB:      serviceCfg.CacheDB,
+		CacheIsFlush: serviceCfg.CacheIsFlush,
+		BlockBuffer:  serviceCfg.BufferedBlocks,
+
+		Metrics: nil,
+		Logger:  logger.With(zap.String("service", "verify")),
+	}
+	verifySrv, err := server.New(srvConfigForVerifying)
+	if err != nil {
+		logger.Panic(err.Error())
+	}
+
 	// Start listener in new go routine
 	// todo @longnd: Running multi goroutine same time
-	go listener(ctx, srv)
+	go listener(ctx, srv, serviceCfg.ListenerInterval)
 	backfillCtx, _ := context.WithCancel(context.Background())
-	go backfill(backfillCtx, backfillSrv)
+	go backfill(backfillCtx, backfillSrv, serviceCfg.BackfillInterval)
+	verifyCtx, _ := context.WithCancel(context.Background())
+	go verify(verifyCtx, verifySrv, serviceCfg.VerifierInterval)
 	//updateAddresses(ctx, true, 0, srv)
 	<-waitExit
 	logger.Info("Grabber stopping")

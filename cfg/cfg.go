@@ -62,6 +62,10 @@ type ExplorerConfig struct {
 	StorageMinConn int
 	StorageMaxConn int
 	StorageIsFlush bool
+
+	ListenerInterval time.Duration
+	BackfillInterval time.Duration
+	VerifierInterval time.Duration
 }
 
 func New() (ExplorerConfig, error) {
@@ -118,6 +122,22 @@ func New() (ExplorerConfig, error) {
 		panic("missing RPC URLs in config")
 	}
 
+	listenerIntervalStr := os.Getenv("LISTENER_INTERVAL")
+	listenerInterval, err := time.ParseDuration(listenerIntervalStr)
+	if err != nil {
+		listenerInterval = 2 * time.Second
+	}
+	backfillIntervalStr := os.Getenv("BACKFILL_INTERVAL")
+	backfillInterval, err := time.ParseDuration(backfillIntervalStr)
+	if err != nil {
+		backfillInterval = 4 * time.Second
+	}
+	verifierIntervalStr := os.Getenv("VERIFIER_INTERVAL")
+	verifierInterval, err := time.ParseDuration(verifierIntervalStr)
+	if err != nil {
+		verifierInterval = 2 * time.Second
+	}
+
 	storageMinConnStr := os.Getenv("STORAGE_MIN_CONN")
 	storageMinConn, err := strconv.Atoi(storageMinConnStr)
 	if err != nil {
@@ -163,6 +183,10 @@ func New() (ExplorerConfig, error) {
 		StorageMinConn: storageMinConn,
 		StorageMaxConn: storageMaxConn,
 		StorageIsFlush: storageIsFLush,
+
+		ListenerInterval: listenerInterval,
+		BackfillInterval: backfillInterval,
+		VerifierInterval: verifierInterval,
 	}
 
 	return cfg, nil

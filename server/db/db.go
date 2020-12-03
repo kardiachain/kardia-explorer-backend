@@ -47,6 +47,7 @@ type Client interface {
 	InsertBlock(ctx context.Context, block *types.Block) error
 	UpsertBlock(ctx context.Context, block *types.Block) error
 	DeleteLatestBlock(ctx context.Context) (uint64, error)
+	VerifyBlock(ctx context.Context, height uint64) (bool, error)
 
 	// Txs
 	Txs(ctx context.Context, pagination *types.Pagination) ([]*types.Transaction, error)
@@ -63,10 +64,6 @@ type Client interface {
 	InsertTxs(ctx context.Context, txs []*types.Transaction) error
 	UpsertTxs(ctx context.Context, txs []*types.Transaction) error
 	InsertListTxByAddress(ctx context.Context, list []*types.TransactionByAddress) error
-
-	// Interact with receipts
-	InsertReceipts(ctx context.Context, block *types.Block) error
-	UpsertReceipts(ctx context.Context, block *types.Block) error
 
 	// Token
 	TokenHolders(ctx context.Context, tokenAddress string, pagination *types.Pagination) ([]*types.TokenHolder, uint64, error)

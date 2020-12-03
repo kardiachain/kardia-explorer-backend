@@ -20,6 +20,7 @@ package db
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"time"
 
@@ -38,6 +39,10 @@ const (
 	cAddresses       = "Addresses"
 	cTxsByAddress    = "TransactionsByAddress"
 	cActiveAddresses = "ActiveAddresses"
+)
+
+var (
+	ErrNotImplemented = errors.New("not implemented")
 )
 
 type mongoDB struct {
@@ -197,9 +202,9 @@ func (m *mongoDB) InsertBlock(ctx context.Context, block *types.Block) error {
 	return nil
 }
 
-// UpsertBlock call by backfill, to avoid duplicate block record
+// UpsertBlock call by verifier, to avoid duplicate block record
 func (m *mongoDB) UpsertBlock(ctx context.Context, block *types.Block) error {
-	return nil
+	return ErrNotImplemented
 }
 
 func (m *mongoDB) DeleteLatestBlock(ctx context.Context) (uint64, error) {
@@ -226,6 +231,10 @@ func (m *mongoDB) DeleteLatestBlock(ctx context.Context) (uint64, error) {
 	}
 	m.logger.Debug("DeleteLatestBlock success", zap.Uint64("latest block height", blocks[0].Height))
 	return blocks[0].Height, nil
+}
+
+func (m *mongoDB) VerifyBlock(ctx context.Context, height uint64) (bool, error) {
+	return false, ErrNotImplemented
 }
 
 //endregion Blocks
@@ -444,18 +453,6 @@ func (m *mongoDB) LatestTxs(ctx context.Context, pagination *types.Pagination) (
 }
 
 //endregion Txs
-
-//region Receipts
-
-func (m *mongoDB) InsertReceipts(ctx context.Context, block *types.Block) error {
-	return nil
-}
-
-func (m *mongoDB) UpsertReceipts(ctx context.Context, block *types.Block) error {
-	return nil
-}
-
-//endregion Receipts
 
 //region Token
 func (m *mongoDB) TokenHolders(ctx context.Context, tokenAddress string, pagination *types.Pagination) ([]*types.TokenHolder, uint64, error) {

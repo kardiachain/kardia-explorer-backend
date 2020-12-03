@@ -51,6 +51,8 @@ type Client interface {
 	PopErrorBlockHeight(ctx context.Context) (uint64, error)
 	InsertPersistentErrorBlocks(ctx context.Context, blockHeight uint64) error
 	PersistentErrorBlockHeights(ctx context.Context) ([]uint64, error)
+	InsertUnverifiedBlocks(ctx context.Context, height uint64) error
+	PopUnverifiedBlockHeight(ctx context.Context) (uint64, error)
 
 	UpdateTotalTxs(ctx context.Context, blockTxs uint64) (uint64, error)
 	TotalTxs(ctx context.Context) uint64

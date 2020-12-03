@@ -27,9 +27,9 @@ func IsSkip() bool {
 	return processCounter >= counterLimit
 }
 
-func backfill(ctx context.Context, srv *server.Server) {
+func backfill(ctx context.Context, srv *server.Server, interval time.Duration) {
 	srv.Logger.Info("Start refilling...")
-	t := time.NewTicker(time.Second * 1)
+	t := time.NewTicker(interval)
 	defer t.Stop()
 	for {
 		select {

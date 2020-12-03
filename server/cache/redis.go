@@ -24,12 +24,12 @@ const (
 	KeyBlocks            = "#blocks" // List
 	KeyBlockHashByHeight = "#block#height#%s#hash"
 	KeyTxsOfBlockHeight  = "#block#height#%d#txs"
+	KeyErrorBlocks           = "#blocks#error"     // List
+	KeyPersistentErrorBlocks = "#blocks#persistentError" // List
+	KeyUnverifiedBlocks      = "#blocks#unverified" // List
 
 	KeyLatestStats = "#stats#latest"
 	KeyLatestTxs   = "#txs#latest" // List
-
-	KeyErrorBlocks           = "#errorBlocks"           // List
-	KeyPersistentErrorBlocks = "#persistentErrorBlocks" // List
 
 	KeyTokenInfo         = "#token#info"
 	KeyCirculatingSupply = "#token#circulating"
@@ -423,6 +423,26 @@ func (c *Redis) PersistentErrorBlockHeights(ctx context.Context) ([]uint64, erro
 		heights = append(heights, height)
 	}
 	return heights, nil
+}
+
+func (c *Redis) InsertUnverifiedBlocks(ctx context.Context, height uint64) error {
+	err := c.client.LPush(ctx, KeyUnverifiedBlocks, strconv.FormatUint(height, 10)).Err()
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (c *Redis) PopUnverifiedBlockHeight(ctx context.Context) (uint64, error) {
+	heightStr, err := c.client.LPop(ctx, KeyUnverifiedBlocks).Result()
+	if err != nil {
+		return 0, err
+	}
+	height, err := strconv.ParseUint(heightStr, 10, 64)
+	if err != nil {
+		return 0, err
+	}
+	return height, nil
 }
 
 // Holders summary

@@ -279,6 +279,23 @@ func (s *infoServer) DeleteLatestBlock(ctx context.Context) (uint64, error) {
 	return height, nil
 }
 
+func (s *infoServer) VerifyBlock(ctx context.Context, height uint64) (bool, error) {
+	result, err := s.dbClient.VerifyBlock(ctx, height)
+	if err != nil {
+		return false, err
+	}
+	return result, nil
+}
+
+func (s *infoServer) UpsertBlock(ctx context.Context, height uint64) error {
+	block, err := s.kaiClient.BlockByHeight(ctx, height)
+	if err != nil {
+		s.logger.Warn("cannot fetch block from network", zap.Uint64("height", block.Height))
+		return err
+	}
+	return s.dbClient.UpsertBlock(ctx, block)
+}
+
 func (s *infoServer) InsertErrorBlocks(ctx context.Context, start uint64, end uint64) error {
 	err := s.cacheClient.InsertErrorBlocks(ctx, start, end)
 	if err != nil {
@@ -303,6 +320,14 @@ func (s *infoServer) InsertPersistentErrorBlocks(ctx context.Context, blockHeigh
 		return err
 	}
 	return nil
+}
+
+func (s *infoServer) PopUnverifiedBlockHeight(ctx context.Context) (uint64, error) {
+	height, err := s.cacheClient.PopUnverifiedBlockHeight(ctx)
+	if err != nil {
+		return 0, err
+	}
+	return height, nil
 }
 
 func (s *infoServer) ImportReceipts(ctx context.Context, block *types.Block) error {

@@ -10,11 +10,12 @@ import (
 	"github.com/kardiachain/explorer-backend/server"
 )
 
+var prevHeader uint64 = 0 // the highest persistent block in database, don't need to backfill blocks have blockHeight < prevHeader
+
 // listener fetch LatestBlockNumber every second and check if we stay behind latest block
 // todo: implement pipeline with worker for dispatch InsertBlock task
-func listener(ctx context.Context, srv *server.Server) {
+func listener(ctx context.Context, srv *server.Server, interval time.Duration) {
 	var (
-		prevHeader uint64 = 0 // the highest persistent block in database, don't need to backfill blocks have blockHeight < prevHeader
 		startTime  time.Time
 		endTime    time.Duration
 	)
@@ -27,7 +28,7 @@ func listener(ctx context.Context, srv *server.Server) {
 		prevHeader = deletedHeight - 1 // the highest persistent block in database now is deletedHeight - 1
 	}
 	srv.Logger.Info("Start listening...")
-	t := time.NewTicker(time.Second * 1)
+	t := time.NewTicker(interval)
 	defer t.Stop()
 	for {
 		select {
@@ -38,6 +39,10 @@ func listener(ctx context.Context, srv *server.Server) {
 			srv.Logger.Debug("Get block height from network", zap.Uint64("BlockHeight", latest), zap.Uint64("PrevHeader", prevHeader))
 			if err != nil {
 				srv.Logger.Error("Listener: Failed to get latest block number", zap.Error(err))
+				continue
+			}
+			if latest <= prevHeader {
+				srv.Logger.Debug("No new block from RPC")
 				continue
 			}
 			lgr := srv.Logger.With(zap.Uint64("block", latest))
