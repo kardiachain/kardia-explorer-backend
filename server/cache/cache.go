@@ -42,7 +42,6 @@ type Client interface {
 	TxByHash(ctx context.Context, txHash string) (*types.Transaction, error)
 
 	ListSize(ctx context.Context, key string) (int64, error)
-	PopReceipt(ctx context.Context) (*types.Receipt, error)
 
 	LatestBlocks(ctx context.Context, pagination *types.Pagination) ([]*types.Block, error)
 	LatestTransactions(ctx context.Context, pagination *types.Pagination) ([]*types.Transaction, error)
@@ -70,7 +69,7 @@ type Client interface {
 	UpdateCirculatingSupply(ctx context.Context, cirSup int64) error
 
 	Validators(ctx context.Context) (*types.Validators, error)
-	UpdateValidators(ctx context.Context, vals *types.Validators) error
+	UpdateValidators(ctx context.Context, validators *types.Validators) error
 
 	NodesInfo(ctx context.Context) ([]*types.NodeInfo, error)
 	UpdateNodesInfo(ctx context.Context, nodes []*types.NodeInfo) error

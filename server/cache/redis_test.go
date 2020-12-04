@@ -488,6 +488,101 @@ func TestRedis_LatestTransactions(t *testing.T) {
 	}
 }
 
+func TestRedis_ErrorBlocks(t *testing.T) {
+	type fields struct {
+		client *redis.Client
+		logger *zap.Logger
+	}
+	type args struct {
+		ctx     context.Context
+		start uint64
+		end uint64
+	}
+	client, logger, err := setup()
+	if err != nil {
+		t.Fatalf("cannot init fields for testing")
+	}
+	r := fields{
+		client: client,
+		logger: logger,
+	}
+	ctx := context.Background()
+	tests := []struct {
+		name            string
+		fields          fields
+		args            args
+		want            []uint64
+		wantInsertErr   bool
+		wantRetrieveErr bool
+	}{
+		{
+			name:   "Test_UnverifiedBlocks_ValidInput_1",
+			fields: r,
+			args: args{
+				ctx:     ctx,
+				start: 5,
+				end: 9,
+			},
+			want:            []uint64{8, 7, 6},
+			wantInsertErr:   false,
+			wantRetrieveErr: false,
+		},
+		{
+			name:   "Test_UnverifiedBlocks_InvalidInput_1",
+			fields: r,
+			args: args{
+				ctx:     ctx,
+				start: 9,
+				end: 5,
+			},
+			want:            []uint64(nil),
+			wantInsertErr:   false,
+			wantRetrieveErr: false,
+		},
+		{
+			name:   "Test_UnverifiedBlocks_InvalidInput_2",
+			fields: r,
+			args: args{
+				ctx:     ctx,
+				start: 5,
+				end: 5,
+			},
+			want:            []uint64(nil),
+			wantInsertErr:   false,
+			wantRetrieveErr: false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			c := &Redis{
+				client: r.client,
+				logger: r.logger,
+			}
+			err := c.InsertErrorBlocks(tt.args.ctx, tt.args.start, tt.args.end)
+			if (err != nil) != tt.wantInsertErr {
+				t.Errorf("InsertErrorBlocks() error = %v, wantErr %v", err, tt.wantInsertErr)
+			}
+			var got []uint64
+			for i := 0; i < int(tt.args.end) - int(tt.args.start) - 1; i++ {
+				height, err := c.PopErrorBlockHeight(tt.args.ctx)
+				if (err != nil) != tt.wantRetrieveErr {
+					t.Errorf("PopErrorBlockHeight() error = %v, wantErr %v", err, tt.wantRetrieveErr)
+				}
+				got = append(got, height)
+			}
+			if !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("PopErrorBlockHeight() got = %v, want %v", got, tt.want)
+			}
+			// try to pop another one when the list is empty
+			_, err = c.PopErrorBlockHeight(tt.args.ctx)
+			if (err != nil) != true {
+				t.Errorf("PopErrorBlockHeight() error = %v, wantErr %v", err, true)
+			}
+		})
+	}
+	_, _ = r.client.FlushAll(context.Background()).Result()
+}
+
 func TestRedis_PersistentErrorBlocks(t *testing.T) {
 	type fields struct {
 		client *redis.Client
@@ -547,6 +642,78 @@ func TestRedis_PersistentErrorBlocks(t *testing.T) {
 			}
 		})
 	}
+	_, _ = r.client.FlushAll(context.Background()).Result()
+}
+
+func TestRedis_UnverifiedBlocks(t *testing.T) {
+	type fields struct {
+		client *redis.Client
+		logger *zap.Logger
+	}
+	type args struct {
+		ctx     context.Context
+		heights []uint64
+	}
+	client, logger, err := setup()
+	if err != nil {
+		t.Fatalf("cannot init fields for testing")
+	}
+	r := fields{
+		client: client,
+		logger: logger,
+	}
+	ctx := context.Background()
+	tests := []struct {
+		name            string
+		fields          fields
+		args            args
+		want            []uint64
+		wantInsertErr   bool
+		wantRetrieveErr bool
+	}{
+		{
+			name:   "Test_UnverifiedBlocks_1",
+			fields: r,
+			args: args{
+				ctx:     ctx,
+				heights: []uint64{0, 2, 3, 4, 99},
+			},
+			want:            []uint64{0, 2, 3, 4, 99},
+			wantInsertErr:   false,
+			wantRetrieveErr: false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			c := &Redis{
+				client: r.client,
+				logger: r.logger,
+			}
+			for i := range tt.args.heights {
+				err := c.InsertUnverifiedBlocks(tt.args.ctx, tt.args.heights[i])
+				if (err != nil) != tt.wantInsertErr {
+					t.Errorf("InsertUnverifiedBlocks() error = %v, wantErr %v", err, tt.wantInsertErr)
+				}
+			}
+			var got []uint64
+			for _ = range tt.args.heights {
+				height, err := c.PopUnverifiedBlockHeight(tt.args.ctx)
+				if (err != nil) != tt.wantRetrieveErr {
+					t.Errorf("PopUnverifiedBlockHeight() error = %v, wantErr %v", err, tt.wantRetrieveErr)
+				}
+				got = append(got, height)
+			}
+			if !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("PopUnverifiedBlockHeight() got = %v, want %v", got, tt.want)
+			}
+			// try to pop another one when the list is empty
+			_, err = c.PopUnverifiedBlockHeight(tt.args.ctx)
+			if (err != nil) != true {
+				t.Errorf("PopUnverifiedBlockHeight() error = %v, wantErr %v", err, true)
+			}
+		})
+	}
+	_, _ = r.client.FlushAll(context.Background()).Result()
 }
 
 func TestRedis_TxByHash(t *testing.T) {

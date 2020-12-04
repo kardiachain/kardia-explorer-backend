@@ -19,7 +19,6 @@ import (
 
 const (
 	KeyLatestBlockHeight = "#block#latestHeight"
-	KeyLatestBlock       = "#block#latest"
 
 	KeyBlocks                = "#blocks" // List
 	KeyBlockHashByHeight     = "#block#height#%s#hash"
@@ -28,7 +27,6 @@ const (
 	KeyPersistentErrorBlocks = "#blocks#persistentError" // List
 	KeyUnverifiedBlocks      = "#blocks#unverified"      // List
 
-	KeyLatestStats = "#stats#latest"
 	KeyLatestTxs   = "#txs#latest" // List
 
 	KeyTokenInfo         = "#token#info"
@@ -70,7 +68,7 @@ func (c *Redis) TokenInfo(ctx context.Context) (*types.TokenInfo, error) {
 	if err := json.Unmarshal([]byte(result), &tokenInfo); err != nil {
 		return nil, err
 	}
-	// get current circulating suppply that we updated manually, if exists
+	// get current circulating supply that we updated manually, if exists
 	cirSup, err := c.CirculatingSupply(ctx)
 	if err == nil {
 		tokenInfo.CirculatingSupply = cirSup
@@ -136,10 +134,6 @@ func (c *Redis) LatestBlockHeight(ctx context.Context) uint64 {
 		c.logger.Warn("cannot get latest block height value from cache")
 	}
 	return result
-}
-
-func (c *Redis) PopReceipt(ctx context.Context) (*types.Receipt, error) {
-	panic("implement me")
 }
 
 func (c *Redis) ListSize(ctx context.Context, key string) (int64, error) {
@@ -285,22 +279,22 @@ func (c *Redis) TxsByBlockHash(ctx context.Context, blockHash string, pagination
 
 func (c *Redis) TxsByBlockHeight(ctx context.Context, blockHeight uint64, pagination *types.Pagination) ([]*types.Transaction, uint64, error) {
 	keyTxsOfThisBlock := fmt.Sprintf(KeyTxsOfBlockHeight, blockHeight)
-	len, err := c.client.LLen(ctx, keyTxsOfThisBlock).Result()
-	c.logger.Debug("TxsByBlockHeight ", zap.String("keyTxsOfThisBlock", keyTxsOfThisBlock), zap.Int64("len", len), zap.Error(err))
-	if err != nil || len == 0 {
+	length, err := c.client.LLen(ctx, keyTxsOfThisBlock).Result()
+	c.logger.Debug("TxsByBlockHeight ", zap.String("keyTxsOfThisBlock", keyTxsOfThisBlock), zap.Int64("length", length), zap.Error(err))
+	if err != nil || length == 0 {
 		return nil, 0, errors.New("block is not exist in cache")
 	}
 
 	var txs []*types.Transaction
-	if pagination.Skip > int(len)-1 {
-		return txs, uint64(len), nil
+	if pagination.Skip > int(length)-1 {
+		return txs, uint64(length), nil
 	}
 
-	txsStrList, err := c.client.LRange(ctx, keyTxsOfThisBlock, 0, len-1).Result()
+	txsStrList, err := c.client.LRange(ctx, keyTxsOfThisBlock, 0, length-1).Result()
 	if err != nil {
 		return nil, 0, err
 	}
-	for i := pagination.Skip; i < pagination.Skip+pagination.Limit && i < int(len); i++ {
+	for i := pagination.Skip; i < pagination.Skip+pagination.Limit && i < int(length); i++ {
 		var tx *types.Transaction
 		err = json.Unmarshal([]byte(txsStrList[i]), &tx)
 		if err != nil {
@@ -308,7 +302,7 @@ func (c *Redis) TxsByBlockHeight(ctx context.Context, blockHeight uint64, pagina
 		}
 		txs = append(txs, tx)
 	}
-	return txs, uint64(len), nil
+	return txs, uint64(length), nil
 }
 
 func (c *Redis) LatestBlocks(ctx context.Context, pagination *types.Pagination) ([]*types.Block, error) {
@@ -432,7 +426,7 @@ func (c *Redis) InsertUnverifiedBlocks(ctx context.Context, height uint64) error
 }
 
 func (c *Redis) PopUnverifiedBlockHeight(ctx context.Context) (uint64, error) {
-	heightStr, err := c.client.LPop(ctx, KeyUnverifiedBlocks).Result()
+	heightStr, err := c.client.RPop(ctx, KeyUnverifiedBlocks).Result()
 	if err != nil {
 		return 0, err
 	}
@@ -479,26 +473,26 @@ func (c *Redis) TotalHolders(ctx context.Context) (uint64, uint64) {
 }
 
 func (c *Redis) Validators(ctx context.Context) (*types.Validators, error) {
-	valsListStr, err := c.client.Get(ctx, KeyValidatorsList).Result()
+	validatorsListStr, err := c.client.Get(ctx, KeyValidatorsList).Result()
 	if err != nil {
 		return nil, err
 	}
-	if valsListStr == "" {
+	if validatorsListStr == "" {
 		return nil, errors.New("validators list in cache is empty")
 	}
-	var vals *types.Validators
-	if err := json.Unmarshal([]byte(valsListStr), &vals); err != nil {
+	var validatorsList *types.Validators
+	if err := json.Unmarshal([]byte(validatorsListStr), &validatorsList); err != nil {
 		return nil, err
 	}
-	return vals, nil
+	return validatorsList, nil
 }
 
-func (c *Redis) UpdateValidators(ctx context.Context, vals *types.Validators) error {
-	valsJSON, err := json.Marshal(vals)
+func (c *Redis) UpdateValidators(ctx context.Context, validators *types.Validators) error {
+	validatorsJSON, err := json.Marshal(validators)
 	if err != nil {
 		return err
 	}
-	if err := c.client.Set(ctx, KeyValidatorsList, string(valsJSON), cfg.ValidatorsListExpTime).Err(); err != nil {
+	if err := c.client.Set(ctx, KeyValidatorsList, string(validatorsJSON), cfg.ValidatorsListExpTime).Err(); err != nil {
 		c.logger.Warn("cannot set validators list to cache")
 		return err
 	}
