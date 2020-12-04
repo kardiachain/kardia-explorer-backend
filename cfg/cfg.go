@@ -20,6 +20,7 @@
 package cfg
 
 import (
+	"github.com/kardiachain/explorer-backend/types"
 	"os"
 	"strconv"
 	"strings"
@@ -66,6 +67,8 @@ type ExplorerConfig struct {
 	ListenerInterval time.Duration
 	BackfillInterval time.Duration
 	VerifierInterval time.Duration
+
+	VerifyBlockParam *types.VerifyBlockParam
 }
 
 func New() (ExplorerConfig, error) {
@@ -156,6 +159,17 @@ func New() (ExplorerConfig, error) {
 		storageIsFLush = false
 	}
 
+	verifyTxCountStr := os.Getenv("VERIFY_TX_COUNT")
+	verifyTxCount, err := strconv.ParseBool(verifyTxCountStr)
+	if err != nil {
+		verifyTxCount = false
+	}
+	verifyBlockHashStr := os.Getenv("VERIFY_BLOCK_HASH")
+	verifyBlockHash, err := strconv.ParseBool(verifyBlockHashStr)
+	if err != nil {
+		verifyBlockHash = false
+	}
+
 	cfg := ExplorerConfig{
 		ServerMode:            os.Getenv("SERVER_MODE"),
 		Port:                  os.Getenv("PORT"),
@@ -187,6 +201,11 @@ func New() (ExplorerConfig, error) {
 		ListenerInterval: listenerInterval,
 		BackfillInterval: backfillInterval,
 		VerifierInterval: verifierInterval,
+
+		VerifyBlockParam: &types.VerifyBlockParam{
+			VerifyTxCount:   verifyTxCount,
+			VerifyBlockHash: verifyBlockHash,
+		},
 	}
 
 	return cfg, nil

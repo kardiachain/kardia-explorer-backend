@@ -28,18 +28,24 @@ type InfoServer interface {
 	LatestBlockHeight(ctx context.Context) (uint64, error)
 
 	// DB
-	LatestInsertBlockHeight(ctx context.Context) (uint64, error)
+	//LatestInsertBlockHeight(ctx context.Context) (uint64, error)
 
 	// Share interface
 	BlockByHeight(ctx context.Context, blockHeight uint64) (*types.Block, error)
 	BlockByHash(ctx context.Context, blockHash string) (*types.Block, error)
 
-	ImportBlock(ctx context.Context, block *types.Block, writeToCache bool) (*types.Block, error)
-	DeleteLatestBlock(ctx context.Context) error
+	ImportBlock(ctx context.Context, block *types.Block, writeToCache bool) error
+	DeleteLatestBlock(ctx context.Context) (uint64, error)
+	DeleteBlockByHeight(ctx context.Context, height uint64) error
+	UpsertBlock(ctx context.Context, block *types.Block) error
 
 	InsertErrorBlocks(ctx context.Context, start uint64, end uint64) error
 	PopErrorBlockHeight(ctx context.Context) (uint64, error)
 	InsertPersistentErrorBlocks(ctx context.Context, blockHeight uint64) error
+	InsertUnverifiedBlocks(ctx context.Context, height uint64) error
+	PopUnverifiedBlockHeight(ctx context.Context) (uint64, error)
+
+	VerifyBlock(ctx context.Context, blockHeight uint64, verifier VerifyBlockStrategy) error
 }
 
 // infoServer handle how data was retrieved, stored without interact with other network excluded dbClient
@@ -198,7 +204,7 @@ func (s *infoServer) BlockByHeight(ctx context.Context, blockHeight uint64) (*ty
 func (s *infoServer) ImportBlock(ctx context.Context, block *types.Block, writeToCache bool) error {
 	s.logger.Info("Importing block:", zap.Uint64("Height", block.Height), zap.Int("Txs length", len(block.Txs)), zap.Int("Receipts length", len(block.Receipts)))
 	// Update cacheClient with simple struct for tracking
-	if isExist, err := s.dbClient.IsBlockExist(ctx, block); err != nil || isExist {
+	if isExist, err := s.dbClient.IsBlockExist(ctx, block.Height); err != nil || isExist {
 		return types.ErrRecordExist
 	}
 
@@ -206,10 +212,6 @@ func (s *infoServer) ImportBlock(ctx context.Context, block *types.Block, writeT
 		if err := s.cacheClient.InsertBlock(ctx, block); err != nil {
 			s.logger.Debug("cannot import block to cache", zap.Error(err))
 		}
-	}
-
-	if _, err := s.cacheClient.UpdateTotalTxs(ctx, block.NumTxs); err != nil {
-		return err
 	}
 
 	// merge receipts into corresponding transactions
@@ -238,7 +240,6 @@ func (s *infoServer) ImportBlock(ctx context.Context, block *types.Block, writeT
 	}
 
 	startTime = time.Now()
-	// todo @trinh: Consider using avgTime metric for reporting/monitor
 	if err := s.dbClient.InsertTxs(ctx, block.Txs); err != nil {
 		return err
 	}
@@ -267,6 +268,9 @@ func (s *infoServer) ImportBlock(ctx context.Context, block *types.Block, writeT
 	}
 	s.logger.Debug("Total time for getting active addresses", zap.Duration("TimeConsumed", time.Since(startTime)))
 
+	if _, err := s.cacheClient.UpdateTotalTxs(ctx, block.NumTxs); err != nil {
+		return err
+	}
 	return nil
 }
 
@@ -279,21 +283,21 @@ func (s *infoServer) DeleteLatestBlock(ctx context.Context) (uint64, error) {
 	return height, nil
 }
 
-func (s *infoServer) VerifyBlock(ctx context.Context, height uint64) (bool, error) {
-	result, err := s.dbClient.VerifyBlock(ctx, height)
+func (s *infoServer) DeleteBlockByHeight(ctx context.Context, height uint64) error {
+	err := s.dbClient.DeleteBlockByHeight(ctx, height)
 	if err != nil {
-		return false, err
-	}
-	return result, nil
-}
-
-func (s *infoServer) UpsertBlock(ctx context.Context, height uint64) error {
-	block, err := s.kaiClient.BlockByHeight(ctx, height)
-	if err != nil {
-		s.logger.Warn("cannot fetch block from network", zap.Uint64("height", block.Height))
+		s.logger.Warn("cannot remove block in database by height", zap.Error(err))
 		return err
 	}
-	return s.dbClient.UpsertBlock(ctx, block)
+	return nil
+}
+
+func (s *infoServer) UpsertBlock(ctx context.Context, block *types.Block) error {
+	s.logger.Info("Upserting block:", zap.Uint64("Height", block.Height), zap.Int("Txs length", len(block.Txs)), zap.Int("Receipts length", len(block.Receipts)))
+	if err := s.dbClient.DeleteBlockByHeight(ctx, block.Height); err != nil {
+		return err
+	}
+	return s.ImportBlock(ctx, block, false)
 }
 
 func (s *infoServer) InsertErrorBlocks(ctx context.Context, start uint64, end uint64) error {
@@ -317,6 +321,14 @@ func (s *infoServer) InsertPersistentErrorBlocks(ctx context.Context, blockHeigh
 	err := s.cacheClient.InsertPersistentErrorBlocks(ctx, blockHeight)
 	if err != nil {
 		s.logger.Warn("Cannot insert persistent error block into list", zap.Uint64("blockHeight", blockHeight))
+		return err
+	}
+	return nil
+}
+
+func (s *infoServer) InsertUnverifiedBlocks(ctx context.Context, height uint64) error {
+	err := s.cacheClient.InsertUnverifiedBlocks(ctx, height)
+	if err != nil {
 		return err
 	}
 	return nil
@@ -446,32 +458,42 @@ func (s *infoServer) ImportReceipts(ctx context.Context, block *types.Block) err
 	return nil
 }
 
-// ValidateBlock make a simple cache for block
-type ValidateBlockStrategy func(db, network *types.Block) bool
+// VerifyBlock make a simple cache for block
+type VerifyBlockStrategy func(db, network *types.Block) bool
 
-// ValidateBlock called by backfill
-func (s *infoServer) ValidateBlock(ctx context.Context, block *types.Block, validator ValidateBlockStrategy) error {
-	networkBlock, err := s.kaiClient.BlockByHeight(ctx, block.Height)
+// VerifyBlock called by verifier
+func (s *infoServer) VerifyBlock(ctx context.Context, blockHeight uint64, verifier VerifyBlockStrategy) error {
+	networkBlock, err := s.kaiClient.BlockByHeight(ctx, blockHeight)
 	if err != nil {
-		s.logger.Warn("cannot fetch block from network", zap.Uint64("height", block.Height))
+		s.logger.Warn("Cannot fetch block from network", zap.Uint64("height", blockHeight))
 		return err
 	}
 
-	isBlockImported, err := s.dbClient.IsBlockExist(ctx, block)
+	isBlockImported, err := s.dbClient.IsBlockExist(ctx, blockHeight)
 	if err != nil || !isBlockImported {
+		startTime := time.Now()
 		if err := s.dbClient.InsertBlock(ctx, networkBlock); err != nil {
-			s.logger.Warn("cannot import block", zap.String("bHash", block.Hash))
+			s.logger.Warn("Cannot import block", zap.Uint64("height", blockHeight))
 			return err
 		}
+		endTime := time.Since(startTime)
+		s.metrics.RecordInsertBlockTime(endTime)
+		s.logger.Debug("Total time for import block", zap.Duration("TimeConsumed", endTime), zap.String("Avg", s.metrics.GetInsertBlockTime()))
+		return nil
 	}
 
-	dbBlock, err := s.dbClient.BlockByHeight(ctx, block.Height)
-	if err != nil || !validator(dbBlock, networkBlock) {
+	dbBlock, err := s.dbClient.BlockByHeight(ctx, blockHeight)
+	if err != nil || !verifier(dbBlock, networkBlock) {
+		s.logger.Warn("Block in database is corrupted, upserting...", zap.Error(err))
 		// Force dbBlock with new information from network block
-		if err := s.dbClient.UpsertBlock(ctx, networkBlock); err != nil {
-			s.logger.Warn("cannot import block", zap.String("bHash", block.Hash))
+		startTime := time.Now()
+		if err := s.UpsertBlock(ctx, networkBlock); err != nil {
+			s.logger.Warn("Cannot upsert block", zap.Uint64("height", blockHeight))
 			return err
 		}
+		endTime := time.Since(startTime)
+		s.metrics.RecordUpsertBlockTime(endTime)
+		s.logger.Debug("Upsert block time", zap.Duration("TimeConsumed", endTime), zap.String("Avg", s.metrics.GetUpsertBlockTime()))
 	}
 
 	return nil
@@ -511,8 +533,8 @@ func filterAddrSet(txs []*types.Transaction) (addr map[string]bool, contractAddr
 func mergeReceipts(txs []*types.Transaction, receipts []*types.Receipt) []*types.Transaction {
 	receiptIndex := 0
 	var (
-		gasPrice *big.Int
-		gasUsed *big.Int
+		gasPrice    *big.Int
+		gasUsed     *big.Int
 		txFeeInGwei *big.Int
 	)
 	for _, tx := range txs {

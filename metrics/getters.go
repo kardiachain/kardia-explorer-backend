@@ -73,6 +73,20 @@ func (p *Provider) GetRawInsertActiveAddressTime() int64 {
 	return p.insertActiveAddressTime.Raw()
 }
 
+func (p *Provider) GetUpsertBlockTime() string {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+
+	return p.upsertBlockTime.String()
+}
+
+func (p *Provider) GetRawUpsertBlockTime() int64 {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+
+	return p.upsertBlockTime.Raw()
+}
+
 func (p *Provider) GetLatestBLock() int64 {
 	p.mu.Lock()
 	defer p.mu.Unlock()

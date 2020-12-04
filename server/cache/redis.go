@@ -21,12 +21,12 @@ const (
 	KeyLatestBlockHeight = "#block#latestHeight"
 	KeyLatestBlock       = "#block#latest"
 
-	KeyBlocks            = "#blocks" // List
-	KeyBlockHashByHeight = "#block#height#%s#hash"
-	KeyTxsOfBlockHeight  = "#block#height#%d#txs"
-	KeyErrorBlocks           = "#blocks#error"     // List
+	KeyBlocks                = "#blocks" // List
+	KeyBlockHashByHeight     = "#block#height#%s#hash"
+	KeyTxsOfBlockHeight      = "#block#height#%d#txs"
+	KeyErrorBlocks           = "#blocks#error"           // List
 	KeyPersistentErrorBlocks = "#blocks#persistentError" // List
-	KeyUnverifiedBlocks      = "#blocks#unverified" // List
+	KeyUnverifiedBlocks      = "#blocks#unverified"      // List
 
 	KeyLatestStats = "#stats#latest"
 	KeyLatestTxs   = "#txs#latest" // List

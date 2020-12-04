@@ -97,8 +97,9 @@ func createIndexes(dbClient *mongoDB) error {
 		// Add index in `from` and `to` fields to improve get txs of address, considering if memory is increasing rapidly
 		{c: cTxs, model: []mongo.IndexModel{{Keys: bson.D{{Key: "from", Value: 1}, {Key: "time", Value: -1}}, Options: options.Index().SetBackground(true).SetSparse(true)}}},
 		{c: cTxs, model: []mongo.IndexModel{{Keys: bson.D{{Key: "to", Value: 1}, {Key: "time", Value: -1}}, Options: options.Index().SetBackground(true).SetSparse(true)}}},
-		// Add index to improve querying blocks by proposer and height
+		// Add index to improve querying blocks by proposer, hash and height
 		{c: cBlocks, model: []mongo.IndexModel{{Keys: bson.M{"height": -1}, Options: options.Index().SetUnique(true).SetBackground(true).SetSparse(true)}}},
+		{c: cBlocks, model: []mongo.IndexModel{{Keys: bson.M{"hash": 1}, Options: options.Index().SetUnique(true).SetBackground(true).SetSparse(true)}}},
 		{c: cBlocks, model: []mongo.IndexModel{{Keys: bson.D{{Key: "proposerAddress", Value: 1}, {Key: "time", Value: -1}}, Options: options.Index().SetBackground(true).SetSparse(true)}}},
 	} {
 		if err := dbClient.wrapper.C(cIdx.c).EnsureIndex(cIdx.model); err != nil {
@@ -172,13 +173,10 @@ func (m *mongoDB) BlockByHash(ctx context.Context, blockHash string) (*types.Blo
 	return &block, nil
 }
 
-func (m *mongoDB) IsBlockExist(ctx context.Context, block *types.Block) (bool, error) {
+func (m *mongoDB) IsBlockExist(ctx context.Context, blockHeight uint64) (bool, error) {
 	var dbBlock types.Block
-	err := m.wrapper.C(cBlocks).FindOne(bson.M{"height": block.Height}, options.FindOne().SetProjection(bson.M{"txs": 0, "receipts": 0})).Decode(&dbBlock)
+	err := m.wrapper.C(cBlocks).FindOne(bson.M{"height": blockHeight}, options.FindOne().SetProjection(bson.M{"txs": 0, "receipts": 0})).Decode(&dbBlock)
 	if err != nil {
-		if err == mongo.ErrNoDocuments {
-			return false, nil
-		}
 		return false, err
 	}
 	return true, nil
@@ -221,20 +219,24 @@ func (m *mongoDB) DeleteLatestBlock(ctx context.Context) (uint64, error) {
 		return 0, nil
 	}
 	m.logger.Debug("DeleteLatestBlock...", zap.Uint64("latest block height", blocks[0].Height))
-	if _, err := m.wrapper.C(cBlocks).RemoveAll(bson.M{"height": blocks[0].Height}); err != nil {
+	if err := m.DeleteBlockByHeight(ctx, blocks[0].Height); err != nil {
 		m.logger.Warn("cannot remove old latest block", zap.Error(err), zap.Uint64("latest block height", blocks[0].Height))
-		return 0, err
-	}
-	if _, err := m.wrapper.C(cTxs).RemoveAll(bson.M{"blockNumber": blocks[0].Height}); err != nil {
-		m.logger.Warn("cannot remove old latest block txs", zap.Error(err), zap.Uint64("latest block height", blocks[0].Height))
 		return 0, err
 	}
 	m.logger.Debug("DeleteLatestBlock success", zap.Uint64("latest block height", blocks[0].Height))
 	return blocks[0].Height, nil
 }
 
-func (m *mongoDB) VerifyBlock(ctx context.Context, height uint64) (bool, error) {
-	return false, ErrNotImplemented
+func (m *mongoDB) DeleteBlockByHeight(ctx context.Context, blockHeight uint64) error {
+	if _, err := m.wrapper.C(cBlocks).RemoveAll(bson.M{"height": blockHeight}); err != nil {
+		m.logger.Warn("cannot remove old latest block", zap.Error(err), zap.Uint64("latest block height", blockHeight))
+		return err
+	}
+	if _, err := m.wrapper.C(cTxs).RemoveAll(bson.M{"blockNumber": blockHeight}); err != nil {
+		m.logger.Warn("cannot remove old latest block txs", zap.Error(err), zap.Uint64("latest block height", blockHeight))
+		return err
+	}
+	return nil
 }
 
 //endregion Blocks

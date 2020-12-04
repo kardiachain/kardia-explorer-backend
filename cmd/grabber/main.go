@@ -120,8 +120,10 @@ func main() {
 		CacheIsFlush: serviceCfg.CacheIsFlush,
 		BlockBuffer:  serviceCfg.BufferedBlocks,
 
+		VerifyBlockParam: serviceCfg.VerifyBlockParam,
+
 		Metrics: nil,
-		Logger:  logger.With(zap.String("service", "verify")),
+		Logger:  logger.With(zap.String("service", "verifier")),
 	}
 	verifySrv, err := server.New(srvConfigForVerifying)
 	if err != nil {

@@ -7,33 +7,39 @@ import (
 	"time"
 
 	"github.com/kardiachain/explorer-backend/server"
+	"github.com/kardiachain/explorer-backend/types"
 )
 
 func verify(ctx context.Context, srv *server.Server, interval time.Duration) {
+	verifyFunc := func(db, network *types.Block) bool {
+		if srv.VerifyBlockParam.VerifyTxCount {
+			if db.NumTxs != uint64(len(db.Txs)) {
+				return false
+			}
+		}
+		if srv.VerifyBlockParam.VerifyBlockHash {
+
+			return true
+		}
+		return true
+	}
 	srv.Logger.Info("Start verifying data...")
 	t := time.NewTicker(interval)
 	defer t.Stop()
 	for {
 		select {
 		case <-t.C:
-			blockHeight, err := srv.PopUnverifiedBlockHeight(ctx)
+			blockHeight, err := srv.InfoServer().PopUnverifiedBlockHeight(ctx)
 			if err != nil {
-				srv.Logger.Warn("Cannot pop unverified block height", zap.Error(err))
+				srv.Logger.Warn("Verifier: Cannot pop unverified block height", zap.Error(err))
 				continue
 			}
 			lgr := srv.Logger.With(zap.Uint64("block", blockHeight))
-			lgr.Debug("Checking block integrity...")
-			isValid, err := srv.VerifyBlock(ctx, blockHeight)
+			lgr.Debug("Verifier: Checking block integrity...")
+			err = srv.InfoServer().VerifyBlock(ctx, blockHeight, verifyFunc)
 			if err != nil {
-				lgr.Warn("Error while verifying block", zap.Error(err))
+				lgr.Warn("Verifier: Error while verifying block", zap.Error(err))
 				continue
-			}
-			if !isValid {
-				lgr.Warn("Block integrity is violated, reimporting...")
-				err := srv.UpsertBlock(ctx, blockHeight)
-				if err != nil {
-					lgr.Warn("Block integrity is violated, reimporting...")
-				}
 			}
 		}
 	}
