@@ -41,12 +41,11 @@ func listener(ctx context.Context, srv *server.Server, interval time.Duration) {
 				srv.Logger.Error("Listener: Failed to get latest block number", zap.Error(err))
 				continue
 			}
+			lgr := srv.Logger.With(zap.Uint64("block", latest))
 			if latest <= prevHeader {
-				srv.Logger.Debug("Listener: No new block from RPC")
+				srv.Logger.Debug("Listener: No new block from RPC", zap.Uint64("prevHeader", prevHeader))
 				continue
 			}
-			lgr := srv.Logger.With(zap.Uint64("block", latest))
-
 			// todo @longnd: this check quite bad, since its require us to keep backfill running
 			if prevHeader != latest {
 				startTime = time.Now()

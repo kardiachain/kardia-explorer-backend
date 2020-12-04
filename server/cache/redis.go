@@ -108,7 +108,6 @@ func (c *Redis) IsRequestToCoinMarket(ctx context.Context) bool {
 
 func (c *Redis) TotalTxs(ctx context.Context) uint64 {
 	result, err := c.client.Get(ctx, KeyTotalTxs).Result()
-	c.logger.Debug("TotalTxs", zap.String("Total", result))
 	if err != nil {
 		// Handle error here
 		c.logger.Warn("cannot get total txs values")
@@ -214,7 +213,6 @@ func (c *Redis) InsertBlock(ctx context.Context, block *types.Block) error {
 		c.logger.Debug("cannot get size of #blocks", zap.Error(err))
 		return err
 	}
-	c.logger.Debug("redis block buffer size: ", zap.Int64("size", size), zap.Int64("c.cfg.BlockBuffer", c.cfg.BlockBuffer))
 	// Size over buffer then
 	if size >= c.cfg.BlockBuffer && size != 0 {
 		// Get last
@@ -258,7 +256,7 @@ func (c *Redis) InsertBlock(ctx context.Context, block *types.Block) error {
 		c.logger.Debug("Error set block height by hash", zap.Error(err))
 		return err
 	}
-	c.logger.Debug("Push new block success", zap.Uint64("height", block.Height))
+	c.logger.Debug("Push new block to cache success", zap.Uint64("height", block.Height))
 	if err := c.client.Set(ctx, KeyLatestBlockHeight, block.Height, 0).Err(); err != nil {
 		c.logger.Debug("Error set latest block height", zap.Error(err))
 		return err
@@ -362,7 +360,7 @@ func (c *Redis) LatestTransactions(ctx context.Context, pagination *types.Pagina
 		return nil, errors.New("indexes of latest txs out of range in cache")
 	}
 
-	c.logger.Debug("Get latest txs from block in cache", zap.String("Key", KeyLatestTxs), zap.Int64("startIndex", startIndex), zap.Int64("endIndex", endIndex), zap.Int64("cache length", length))
+	c.logger.Debug("Getting latest txs from block in cache", zap.String("Key", KeyLatestTxs), zap.Int64("startIndex", startIndex), zap.Int64("endIndex", endIndex), zap.Int64("cache length", length))
 	marshalledTxs, err = c.client.LRange(ctx, KeyLatestTxs, startIndex, endIndex).Result()
 	if err != nil {
 		return nil, err
@@ -560,16 +558,16 @@ func (c *Redis) deleteKeysOfBlock(ctx context.Context, block *types.Block) error
 		c.logger.Debug("cannot delete keys", zap.Strings("Keys", keys))
 		return err
 	}
-	c.logger.Debug("deleted block info in cache", zap.Any("height", block.Height))
+	c.logger.Debug("Deleted block in cache", zap.Any("height", block.Height))
 	return nil
 }
 
 func (c *Redis) getBlockInCache(ctx context.Context, height uint64, hash string) (*types.Block, error) {
-	len, err := c.ListSize(ctx, KeyBlocks)
+	length, err := c.ListSize(ctx, KeyBlocks)
 	if err != nil {
 		return nil, err
 	}
-	blockStrList, err := c.client.LRange(ctx, KeyBlocks, 0, len-1).Result()
+	blockStrList, err := c.client.LRange(ctx, KeyBlocks, 0, length-1).Result()
 	if err != nil {
 		return nil, err
 	}

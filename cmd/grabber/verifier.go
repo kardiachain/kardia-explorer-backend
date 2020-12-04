@@ -18,7 +18,6 @@ func verify(ctx context.Context, srv *server.Server, interval time.Duration) {
 			}
 		}
 		if srv.VerifyBlockParam.VerifyBlockHash {
-
 			return true
 		}
 		return true
@@ -31,7 +30,7 @@ func verify(ctx context.Context, srv *server.Server, interval time.Duration) {
 		case <-t.C:
 			blockHeight, err := srv.InfoServer().PopUnverifiedBlockHeight(ctx)
 			if err != nil {
-				srv.Logger.Warn("Verifier: Cannot pop unverified block height", zap.Error(err))
+				srv.Logger.Debug("Verifier: Cannot pop unverified block height from cache", zap.Error(err))
 				continue
 			}
 			lgr := srv.Logger.With(zap.Uint64("block", blockHeight))

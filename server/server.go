@@ -64,7 +64,7 @@ type Server struct {
 
 	VerifyBlockParam *types.VerifyBlockParam
 
-	infoServer *infoServer
+	infoServer
 }
 
 func (s *Server) Metrics() *metrics.Provider { return s.metrics }
@@ -108,7 +108,7 @@ func New(cfg Config) (*Server, error) {
 	}
 	avgMetrics := metrics.New()
 
-	infoServer := &infoServer{
+	infoServer := infoServer{
 		dbClient:          dbClient,
 		cacheClient:       cacheClient,
 		kaiClient:         kaiClient,
@@ -125,4 +125,4 @@ func New(cfg Config) (*Server, error) {
 	}, nil
 }
 
-func (s *Server) InfoServer() InfoServer { return s.infoServer }
+func (s *Server) InfoServer() InfoServer { return s }

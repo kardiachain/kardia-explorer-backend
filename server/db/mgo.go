@@ -177,6 +177,9 @@ func (m *mongoDB) IsBlockExist(ctx context.Context, blockHeight uint64) (bool, e
 	var dbBlock types.Block
 	err := m.wrapper.C(cBlocks).FindOne(bson.M{"height": blockHeight}, options.FindOne().SetProjection(bson.M{"txs": 0, "receipts": 0})).Decode(&dbBlock)
 	if err != nil {
+		if err == mongo.ErrNoDocuments {
+			return false, nil
+		}
 		return false, err
 	}
 	return true, nil
@@ -377,7 +380,6 @@ func (m *mongoDB) TxByNonce(ctx context.Context, nonce int64) (*types.Transactio
 
 // InsertTxs create bulk writer
 func (m *mongoDB) InsertTxs(ctx context.Context, txs []*types.Transaction) error {
-	m.logger.Debug("Start insert txs", zap.Int("TxSize", len(txs)))
 	var (
 		txsBulkWriter []mongo.WriteModel
 	)

@@ -232,7 +232,6 @@ func (s *infoServer) ImportBlock(ctx context.Context, block *types.Block, writeT
 	s.logger.Debug("Total time for import block", zap.Duration("TimeConsumed", endTime), zap.String("Avg", s.metrics.GetInsertBlockTime()))
 
 	if writeToCache {
-		s.logger.Debug("Insert block txs to cache")
 		if err := s.cacheClient.InsertTxsOfBlock(ctx, block); err != nil {
 			s.logger.Debug("cannot import txs to cache", zap.Error(err))
 			return err
@@ -388,7 +387,6 @@ func (s *infoServer) ImportReceipts(ctx context.Context, block *types.Block) err
 				}
 
 				if address == nil || address.IsContract {
-
 					for _, l := range receipt.Logs {
 						addresses[l.Address] = true
 					}
