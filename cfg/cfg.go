@@ -20,6 +20,7 @@
 package cfg
 
 import (
+	"github.com/kardiachain/explorer-backend/types"
 	"os"
 	"strconv"
 	"strings"
@@ -62,6 +63,12 @@ type ExplorerConfig struct {
 	StorageMinConn int
 	StorageMaxConn int
 	StorageIsFlush bool
+
+	ListenerInterval time.Duration
+	BackfillInterval time.Duration
+	VerifierInterval time.Duration
+
+	VerifyBlockParam *types.VerifyBlockParam
 }
 
 func New() (ExplorerConfig, error) {
@@ -118,6 +125,22 @@ func New() (ExplorerConfig, error) {
 		panic("missing RPC URLs in config")
 	}
 
+	listenerIntervalStr := os.Getenv("LISTENER_INTERVAL")
+	listenerInterval, err := time.ParseDuration(listenerIntervalStr)
+	if err != nil {
+		listenerInterval = 1 * time.Second
+	}
+	backfillIntervalStr := os.Getenv("BACKFILL_INTERVAL")
+	backfillInterval, err := time.ParseDuration(backfillIntervalStr)
+	if err != nil {
+		backfillInterval = 2 * time.Second
+	}
+	verifierIntervalStr := os.Getenv("VERIFIER_INTERVAL")
+	verifierInterval, err := time.ParseDuration(verifierIntervalStr)
+	if err != nil {
+		verifierInterval = 2 * time.Second
+	}
+
 	storageMinConnStr := os.Getenv("STORAGE_MIN_CONN")
 	storageMinConn, err := strconv.Atoi(storageMinConnStr)
 	if err != nil {
@@ -134,6 +157,17 @@ func New() (ExplorerConfig, error) {
 	storageIsFLush, err := strconv.ParseBool(storageIsFlushStr)
 	if err != nil {
 		storageIsFLush = false
+	}
+
+	verifyTxCountStr := os.Getenv("VERIFY_TX_COUNT")
+	verifyTxCount, err := strconv.ParseBool(verifyTxCountStr)
+	if err != nil {
+		verifyTxCount = true
+	}
+	verifyBlockHashStr := os.Getenv("VERIFY_BLOCK_HASH")
+	verifyBlockHash, err := strconv.ParseBool(verifyBlockHashStr)
+	if err != nil {
+		verifyBlockHash = true
 	}
 
 	cfg := ExplorerConfig{
@@ -163,6 +197,15 @@ func New() (ExplorerConfig, error) {
 		StorageMinConn: storageMinConn,
 		StorageMaxConn: storageMaxConn,
 		StorageIsFlush: storageIsFLush,
+
+		ListenerInterval: listenerInterval,
+		BackfillInterval: backfillInterval,
+		VerifierInterval: verifierInterval,
+
+		VerifyBlockParam: &types.VerifyBlockParam{
+			VerifyTxCount:   verifyTxCount,
+			VerifyBlockHash: verifyBlockHash,
+		},
 	}
 
 	return cfg, nil

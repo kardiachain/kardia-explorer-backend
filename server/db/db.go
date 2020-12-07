@@ -33,20 +33,19 @@ type Client interface {
 	dropCollection(collectionName string)
 	dropDatabase(ctx context.Context) error
 
-	// Blocks
-	Blocks(ctx context.Context, pagination *types.Pagination) ([]*types.Block, error)
-
 	// Block details
 	BlockByHeight(ctx context.Context, blockHeight uint64) (*types.Block, error)
 	BlockByHash(ctx context.Context, blockHash string) (*types.Block, error)
-	IsBlockExist(ctx context.Context, block *types.Block) (bool, error)
-
+	IsBlockExist(ctx context.Context, blockHeight uint64) (bool, error)
 	BlockTxCount(ctx context.Context, hash string) (int64, error)
 
-	// Interact with block
+	// Interact with blocks
+	Blocks(ctx context.Context, pagination *types.Pagination) ([]*types.Block, error)
 	InsertBlock(ctx context.Context, block *types.Block) error
 	UpsertBlock(ctx context.Context, block *types.Block) error
 	DeleteLatestBlock(ctx context.Context) (uint64, error)
+	// TODO(trinhdn): Replace delete+insert operation with upsert instead
+	DeleteBlockByHeight(ctx context.Context, blockHeight uint64) error
 
 	// Txs
 	Txs(ctx context.Context, pagination *types.Pagination) ([]*types.Transaction, error)
@@ -63,10 +62,6 @@ type Client interface {
 	InsertTxs(ctx context.Context, txs []*types.Transaction) error
 	UpsertTxs(ctx context.Context, txs []*types.Transaction) error
 	InsertListTxByAddress(ctx context.Context, list []*types.TransactionByAddress) error
-
-	// Interact with receipts
-	InsertReceipts(ctx context.Context, block *types.Block) error
-	UpsertReceipts(ctx context.Context, block *types.Block) error
 
 	// Token
 	TokenHolders(ctx context.Context, tokenAddress string, pagination *types.Pagination) ([]*types.TokenHolder, uint64, error)

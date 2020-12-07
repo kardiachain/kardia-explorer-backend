@@ -29,6 +29,7 @@ type Provider struct {
 	scrapingTime            AverageDuration
 	insertTxsTime           AverageDuration
 	insertActiveAddressTime AverageDuration
+	upsertBlockTime         AverageDuration
 
 	latestBlock   int64
 	todoLength    int64
@@ -78,6 +79,13 @@ func (p *Provider) RecordInsertActiveAddressTime(duration time.Duration) {
 	defer p.mu.Unlock()
 
 	p.insertActiveAddressTime.Add(duration)
+}
+
+func (p *Provider) RecordUpsertBlockTime(duration time.Duration) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+
+	p.upsertBlockTime.Add(duration)
 }
 
 func (p *Provider) RecordLatestBlock(block int64) {
