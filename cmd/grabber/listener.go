@@ -20,7 +20,7 @@ func listener(ctx context.Context, srv *server.Server, interval time.Duration) {
 		endTime   time.Duration
 	)
 	// delete current latest block in db
-	deletedHeight, err := srv.InfoServer().DeleteLatestBlock(ctx)
+	deletedHeight, err := srv.DeleteLatestBlock(ctx)
 	if err != nil {
 		srv.Logger.Warn("Cannot remove old latest block", zap.Error(err))
 	}
@@ -35,7 +35,7 @@ func listener(ctx context.Context, srv *server.Server, interval time.Duration) {
 		case <-ctx.Done():
 			return
 		case <-t.C:
-			latest, err := srv.InfoServer().LatestBlockHeight(ctx)
+			latest, err := srv.LatestBlockHeight(ctx)
 			srv.Logger.Debug("Listener: Get block height from network", zap.Uint64("BlockHeight", latest), zap.Uint64("PrevHeader", prevHeader))
 			if err != nil {
 				srv.Logger.Error("Listener: Failed to get latest block number", zap.Error(err))
@@ -49,7 +49,7 @@ func listener(ctx context.Context, srv *server.Server, interval time.Duration) {
 			// todo @longnd: this check quite bad, since its require us to keep backfill running
 			if prevHeader != latest {
 				startTime = time.Now()
-				block, err := srv.InfoServer().BlockByHeight(ctx, latest)
+				block, err := srv.BlockByHeight(ctx, latest)
 				if err != nil {
 					lgr.Error("Listener: Failed to get block from RPC", zap.Error(err))
 					continue
@@ -62,18 +62,18 @@ func listener(ctx context.Context, srv *server.Server, interval time.Duration) {
 					continue
 				}
 				// insert current block height to cache for re-verifying later
-				err = srv.InfoServer().InsertUnverifiedBlocks(ctx, latest)
+				err = srv.InsertUnverifiedBlocks(ctx, latest)
 				if err != nil {
 					lgr.Error("Listener: Failed to insert unverified block", zap.Error(err))
 				}
 				// import this latest block to cache and database
-				if err := srv.InfoServer().ImportBlock(ctx, block, true); err != nil {
+				if err := srv.ImportBlock(ctx, block, true); err != nil {
 					lgr.Error("Listener: Failed to import block", zap.Error(err))
 					continue
 				}
 				if latest-1 > prevHeader {
 					lgr.Warn("Listener: We are behind network, inserting error blocks", zap.Uint64("from", prevHeader), zap.Uint64("to", latest))
-					err := srv.InfoServer().InsertErrorBlocks(ctx, prevHeader, latest)
+					err := srv.InsertErrorBlocks(ctx, prevHeader, latest)
 					if err != nil {
 						lgr.Error("Listener: Failed to insert error block height", zap.Error(err))
 						continue

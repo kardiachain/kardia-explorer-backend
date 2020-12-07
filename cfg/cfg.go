@@ -133,12 +133,12 @@ func New() (ExplorerConfig, error) {
 	backfillIntervalStr := os.Getenv("BACKFILL_INTERVAL")
 	backfillInterval, err := time.ParseDuration(backfillIntervalStr)
 	if err != nil {
-		backfillInterval = 1 * time.Second
+		backfillInterval = 2 * time.Second
 	}
 	verifierIntervalStr := os.Getenv("VERIFIER_INTERVAL")
 	verifierInterval, err := time.ParseDuration(verifierIntervalStr)
 	if err != nil {
-		verifierInterval = 1 * time.Second
+		verifierInterval = 2 * time.Second
 	}
 
 	storageMinConnStr := os.Getenv("STORAGE_MIN_CONN")
@@ -162,12 +162,12 @@ func New() (ExplorerConfig, error) {
 	verifyTxCountStr := os.Getenv("VERIFY_TX_COUNT")
 	verifyTxCount, err := strconv.ParseBool(verifyTxCountStr)
 	if err != nil {
-		verifyTxCount = false
+		verifyTxCount = true
 	}
 	verifyBlockHashStr := os.Getenv("VERIFY_BLOCK_HASH")
 	verifyBlockHash, err := strconv.ParseBool(verifyBlockHashStr)
 	if err != nil {
-		verifyBlockHash = false
+		verifyBlockHash = true
 	}
 
 	cfg := ExplorerConfig{

@@ -109,12 +109,12 @@ func Test_infoServer_VerifyBlock(t *testing.T) {
 		kaiClient         kardia.ClientInterface
 		metrics           *metrics.Provider
 		HttpRequestSecret string
+		verifyBlockParam  *types.VerifyBlockParam
 		logger            *zap.Logger
 	}
 	type args struct {
 		ctx               context.Context
 		blockHeight       uint64
-		verifier          VerifyBlockStrategy
 		needToInsertBlock *types.Block
 		compareBlock      *types.Block
 	}
@@ -128,24 +128,13 @@ func Test_infoServer_VerifyBlock(t *testing.T) {
 		kaiClient:         nil,
 		metrics:           avgMetrics,
 		HttpRequestSecret: secret,
-		logger:            logger,
+		verifyBlockParam: &types.VerifyBlockParam{
+			VerifyTxCount:   true,
+			VerifyBlockHash: true,
+		},
+		logger: logger,
 	}
 	ctx := context.Background()
-	verifyBlockParam := types.VerifyBlockParam{
-		VerifyBlockHash: false,
-		VerifyTxCount:   true,
-	}
-	verifier := func(db, network *types.Block) bool {
-		if verifyBlockParam.VerifyTxCount {
-			if db.NumTxs != network.NumTxs {
-				return false
-			}
-		}
-		if verifyBlockParam.VerifyBlockHash {
-			return true
-		}
-		return true
-	}
 	var (
 		corruptedBlock1 = &types.Block{
 			Height: 1,
@@ -153,7 +142,7 @@ func Test_infoServer_VerifyBlock(t *testing.T) {
 			NumTxs: 5,
 			Txs: []*types.Transaction{
 				{BlockNumber: 1, BlockHash: "0xhash1", Hash: "0", TransactionIndex: 0},
-			{BlockNumber: 1, BlockHash: "0xhash1", Hash: "1", TransactionIndex: 1},
+				{BlockNumber: 1, BlockHash: "0xhash1", Hash: "1", TransactionIndex: 1},
 				{BlockNumber: 1, BlockHash: "0xhash1", Hash: "3", TransactionIndex: 3},
 				{BlockNumber: 1, BlockHash: "0xhash1", Hash: "4", TransactionIndex: 4},
 			},
@@ -186,7 +175,6 @@ func Test_infoServer_VerifyBlock(t *testing.T) {
 			args: args{
 				ctx:               ctx,
 				blockHeight:       1,
-				verifier:          verifier,
 				needToInsertBlock: block1,
 				compareBlock:      block1,
 			},
@@ -200,7 +188,6 @@ func Test_infoServer_VerifyBlock(t *testing.T) {
 			args: args{
 				ctx:               ctx,
 				blockHeight:       2,
-				verifier:          verifier,
 				needToInsertBlock: block2,
 				compareBlock:      block2,
 			},
@@ -214,7 +201,6 @@ func Test_infoServer_VerifyBlock(t *testing.T) {
 			args: args{
 				ctx:               ctx,
 				blockHeight:       1,
-				verifier:          verifier,
 				needToInsertBlock: corruptedBlock1,
 				compareBlock:      block1,
 			},
@@ -228,7 +214,6 @@ func Test_infoServer_VerifyBlock(t *testing.T) {
 			args: args{
 				ctx:               ctx,
 				blockHeight:       2,
-				verifier:          verifier,
 				needToInsertBlock: corruptedBlock2,
 				compareBlock:      block2,
 			},
@@ -245,13 +230,14 @@ func Test_infoServer_VerifyBlock(t *testing.T) {
 				kaiClient:         tt.fields.kaiClient,
 				metrics:           tt.fields.metrics,
 				HttpRequestSecret: tt.fields.HttpRequestSecret,
+				verifyBlockParam:  tt.fields.verifyBlockParam,
 				logger:            tt.fields.logger,
 			}
 			err := s.ImportBlock(tt.args.ctx, tt.args.needToInsertBlock, false)
 			if (err != nil) != tt.wantInsertErr {
 				t.Errorf("ImportBlock() error = %v, wantErr %v", err, tt.wantInsertErr)
 			}
-			got, err := s.VerifyBlock(tt.args.ctx, tt.args.blockHeight, tt.args.compareBlock, tt.args.verifier)
+			got, err := s.VerifyBlock(tt.args.ctx, tt.args.blockHeight, tt.args.compareBlock)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("VerifyBlock() error = %v, wantErr %v", err, tt.wantErr)
 			}

@@ -46,7 +46,7 @@ type InfoServer interface {
 	InsertUnverifiedBlocks(ctx context.Context, height uint64) error
 	PopUnverifiedBlockHeight(ctx context.Context) (uint64, error)
 
-	VerifyBlock(ctx context.Context, blockHeight uint64, networkBlock *types.Block, verifier VerifyBlockStrategy) (bool, error)
+	VerifyBlock(ctx context.Context, blockHeight uint64, networkBlock *types.Block) (bool, error)
 }
 
 // infoServer handle how data was retrieved, stored without interact with other network excluded dbClient
@@ -58,6 +58,7 @@ type infoServer struct {
 	metrics *metrics.Provider
 
 	HttpRequestSecret string
+	verifyBlockParam  *types.VerifyBlockParam
 
 	logger *zap.Logger
 }
@@ -462,11 +463,20 @@ func (s *infoServer) ImportReceipts(ctx context.Context, block *types.Block) err
 	return nil
 }
 
-// VerifyBlock make a simple cache for block
-type VerifyBlockStrategy func(db, network *types.Block) bool
+func (s *infoServer) blockVerifier(db, network *types.Block) bool {
+	if s.verifyBlockParam.VerifyTxCount {
+		if db.NumTxs != network.NumTxs {
+			return false
+		}
+	}
+	if s.verifyBlockParam.VerifyBlockHash {
+		return true
+	}
+	return true
+}
 
 // VerifyBlock called by verifier. It returns `true` if the block is upserted; otherwise it return `false`
-func (s *infoServer) VerifyBlock(ctx context.Context, blockHeight uint64, networkBlock *types.Block, verifier VerifyBlockStrategy) (bool, error) {
+func (s *infoServer) VerifyBlock(ctx context.Context, blockHeight uint64, networkBlock *types.Block) (bool, error) {
 	isBlockImported, err := s.dbClient.IsBlockExist(ctx, blockHeight)
 	if err != nil || !isBlockImported {
 		startTime := time.Now()
@@ -492,7 +502,7 @@ func (s *infoServer) VerifyBlock(ctx context.Context, blockHeight uint64, networ
 		}
 		dbBlock.NumTxs = total
 	}
-	if !verifier(dbBlock, networkBlock) {
+	if !s.blockVerifier(dbBlock, networkBlock) {
 		s.logger.Warn("Block in database is corrupted, upserting...", zap.Error(err))
 		// Force dbBlock with new information from network block
 		startTime := time.Now()
@@ -547,7 +557,7 @@ func mergeReceipts(txs []*types.Transaction, receipts []*types.Receipt) []*types
 	var (
 		gasPrice    *big.Int
 		gasUsed     *big.Int
-		txFeeInGwei *big.Int
+		txFeeInOxy *big.Int
 	)
 	for _, tx := range txs {
 		if (receiptIndex > len(receipts)-1) || !(receipts[receiptIndex].TransactionHash == tx.Hash) {
@@ -563,8 +573,8 @@ func mergeReceipts(txs []*types.Transaction, receipts []*types.Receipt) []*types
 		// update txFee
 		gasPrice = new(big.Int).SetUint64(tx.GasPrice)
 		gasUsed = new(big.Int).SetUint64(tx.GasUsed)
-		txFeeInGwei = new(big.Int).Mul(gasPrice, gasUsed)
-		tx.TxFee = new(big.Int).Mul(txFeeInGwei, big.NewInt(int64(math.Pow10(9)))).String()
+		txFeeInOxy = new(big.Int).Mul(gasPrice, gasUsed)
+		tx.TxFee = new(big.Int).Mul(txFeeInOxy, big.NewInt(int64(math.Pow10(9)))).String()
 
 		receiptIndex++
 	}

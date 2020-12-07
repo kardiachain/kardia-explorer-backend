@@ -113,16 +113,14 @@ func New(cfg Config) (*Server, error) {
 		cacheClient:       cacheClient,
 		kaiClient:         kaiClient,
 		HttpRequestSecret: cfg.HttpRequestSecret,
+		verifyBlockParam:  cfg.VerifyBlockParam,
 		logger:            cfg.Logger,
 		metrics:           avgMetrics,
 	}
 
 	return &Server{
-		Logger:           cfg.Logger,
-		metrics:          avgMetrics,
-		VerifyBlockParam: cfg.VerifyBlockParam,
-		infoServer:       infoServer,
+		Logger:     cfg.Logger,
+		metrics:    avgMetrics,
+		infoServer: infoServer,
 	}, nil
 }
-
-func (s *Server) InfoServer() InfoServer { return s }

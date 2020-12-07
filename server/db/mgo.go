@@ -146,6 +146,12 @@ func (m *mongoDB) Blocks(ctx context.Context, pagination *types.Pagination) ([]*
 	if err != nil {
 		return nil, fmt.Errorf("failed to get latest blocks: %v", err)
 	}
+	defer func() {
+		err = cursor.Close(ctx)
+		if err != nil {
+			m.logger.Warn("Error when close cursor", zap.Error(err))
+		}
+	}()
 	for cursor.Next(ctx) {
 		block := &types.Block{}
 		if err := cursor.Decode(&block); err != nil {
@@ -268,8 +274,11 @@ func (m *mongoDB) TxsByBlockHash(ctx context.Context, blockHash string, paginati
 	}
 	cursor, err := m.wrapper.C(cTxs).
 		Find(bson.M{"blockHash": blockHash}, opts...)
-	defer func(){
-		_ = cursor.Close(ctx)
+	defer func() {
+		err = cursor.Close(ctx)
+		if err != nil {
+			m.logger.Warn("Error when close cursor", zap.Error(err))
+		}
 	}()
 	if err != nil {
 		if err == mgo.ErrNotFound {
@@ -304,8 +313,11 @@ func (m *mongoDB) TxsByBlockHeight(ctx context.Context, blockHeight uint64, pagi
 
 	cursor, err := m.wrapper.C(cTxs).
 		Find(bson.M{"blockNumber": blockHeight}, opts...)
-	defer func(){
-		_ = cursor.Close(ctx)
+	defer func() {
+		err = cursor.Close(ctx)
+		if err != nil {
+			m.logger.Warn("Error when close cursor", zap.Error(err))
+		}
 	}()
 	if err != nil {
 		if err == mgo.ErrNotFound {
@@ -338,8 +350,11 @@ func (m *mongoDB) TxsByAddress(ctx context.Context, address string, pagination *
 	}
 	cursor, err := m.wrapper.C(cTxs).
 		Find(bson.M{"$or": []bson.M{{"from": address}, {"to": address}}}, opts...)
-	defer func(){
-		_ = cursor.Close(ctx)
+	defer func() {
+		err = cursor.Close(ctx)
+		if err != nil {
+			m.logger.Warn("Error when close cursor", zap.Error(err))
+		}
 	}()
 	if err != nil {
 		if err == mgo.ErrNotFound {
@@ -447,8 +462,11 @@ func (m *mongoDB) LatestTxs(ctx context.Context, pagination *types.Pagination) (
 	if err != nil {
 		return nil, err
 	}
-	defer func(){
-		_ = cursor.Close(ctx)
+	defer func() {
+		err = cursor.Close(ctx)
+		if err != nil {
+			m.logger.Warn("Error when close cursor", zap.Error(err))
+		}
 	}()
 	queryTime := time.Since(start)
 	m.logger.Debug("Total time for query tx", zap.Any("TimeConsumed", queryTime))
@@ -502,8 +520,11 @@ func (m *mongoDB) UpdateActiveAddresses(ctx context.Context, addressesMap map[st
 	if err != nil {
 		return fmt.Errorf("failed to get active addresses: %v", err)
 	}
-	defer func(){
-		_ = cursor.Close(ctx)
+	defer func() {
+		err = cursor.Close(ctx)
+		if err != nil {
+			m.logger.Warn("Error when close cursor", zap.Error(err))
+		}
 	}()
 	for cursor.Next(ctx) {
 		addr := &types.ActiveAddress{}
