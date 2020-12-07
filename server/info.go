@@ -209,8 +209,8 @@ func (s *infoServer) BlockByHeightFromRPC(ctx context.Context, blockHeight uint6
 
 // ImportBlock handle workflow of import block into system
 func (s *infoServer) ImportBlock(ctx context.Context, block *types.Block, writeToCache bool) error {
-	s.logger.Info("Importing block:", zap.Uint64("Height", block.Height), zap.Int("Txs length", len(block.Txs)), zap.Int("Receipts length", len(block.Receipts)))
-	// Update cacheClient with simple struct for tracking
+	s.logger.Info("Importing block:", zap.Uint64("Height", block.Height),
+		zap.Int("Txs length", len(block.Txs)), zap.Int("Receipts length", len(block.Receipts)))
 	if isExist, err := s.dbClient.IsBlockExist(ctx, block.Height); err != nil || isExist {
 		return types.ErrRecordExist
 	}
@@ -555,8 +555,8 @@ func mergeReceipts(txs []*types.Transaction, receipts []*types.Receipt) []*types
 	}
 	receiptIndex := 0
 	var (
-		gasPrice    *big.Int
-		gasUsed     *big.Int
+		gasPrice   *big.Int
+		gasUsed    *big.Int
 		txFeeInOxy *big.Int
 	)
 	for _, tx := range txs {
