@@ -494,9 +494,9 @@ func TestRedis_ErrorBlocks(t *testing.T) {
 		logger *zap.Logger
 	}
 	type args struct {
-		ctx     context.Context
+		ctx   context.Context
 		start uint64
-		end uint64
+		end   uint64
 	}
 	client, logger, err := setup()
 	if err != nil {
@@ -519,9 +519,9 @@ func TestRedis_ErrorBlocks(t *testing.T) {
 			name:   "Test_UnverifiedBlocks_ValidInput_1",
 			fields: r,
 			args: args{
-				ctx:     ctx,
+				ctx:   ctx,
 				start: 5,
-				end: 9,
+				end:   9,
 			},
 			want:            []uint64{8, 7, 6},
 			wantInsertErr:   false,
@@ -531,9 +531,9 @@ func TestRedis_ErrorBlocks(t *testing.T) {
 			name:   "Test_UnverifiedBlocks_InvalidInput_1",
 			fields: r,
 			args: args{
-				ctx:     ctx,
+				ctx:   ctx,
 				start: 9,
-				end: 5,
+				end:   5,
 			},
 			want:            []uint64(nil),
 			wantInsertErr:   false,
@@ -543,9 +543,9 @@ func TestRedis_ErrorBlocks(t *testing.T) {
 			name:   "Test_UnverifiedBlocks_InvalidInput_2",
 			fields: r,
 			args: args{
-				ctx:     ctx,
+				ctx:   ctx,
 				start: 5,
-				end: 5,
+				end:   5,
 			},
 			want:            []uint64(nil),
 			wantInsertErr:   false,
@@ -563,7 +563,7 @@ func TestRedis_ErrorBlocks(t *testing.T) {
 				t.Errorf("InsertErrorBlocks() error = %v, wantErr %v", err, tt.wantInsertErr)
 			}
 			var got []uint64
-			for i := 0; i < int(tt.args.end) - int(tt.args.start) - 1; i++ {
+			for i := 0; i < int(tt.args.end)-int(tt.args.start)-1; i++ {
 				height, err := c.PopErrorBlockHeight(tt.args.ctx)
 				if (err != nil) != tt.wantRetrieveErr {
 					t.Errorf("PopErrorBlockHeight() error = %v, wantErr %v", err, tt.wantRetrieveErr)

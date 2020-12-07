@@ -147,7 +147,7 @@ func (s *Server) ValidatorStats(c echo.Context) error {
 	limitParams := c.QueryParam("limit")
 	page, err = strconv.Atoi(pageParams)
 	if err != nil {
-		page = 1
+		page = 0
 	}
 	limit, err = strconv.Atoi(limitParams)
 	if err != nil {
@@ -222,7 +222,7 @@ func (s *Server) Blocks(c echo.Context) error {
 	limitParams := c.QueryParam("limit")
 	page, err = strconv.Atoi(pageParams)
 	if err != nil {
-		page = 1
+		page = 0
 	}
 	limit, err = strconv.Atoi(limitParams)
 	if err != nil {
@@ -340,7 +340,7 @@ func (s *Server) BlockTxs(c echo.Context) error {
 	limitParams := c.QueryParam("limit")
 	page, err = strconv.Atoi(pageParams)
 	if err != nil {
-		page = 1
+		page = 0
 	}
 	limit, err = strconv.Atoi(limitParams)
 	if err != nil {
@@ -442,7 +442,7 @@ func (s *Server) Txs(c echo.Context) error {
 	limitParams := c.QueryParam("limit")
 	page, err = strconv.Atoi(pageParams)
 	if err != nil {
-		page = 1
+		page = 0
 	}
 	limit, err = strconv.Atoi(limitParams)
 	if err != nil {
@@ -485,7 +485,7 @@ func (s *Server) Addresses(c echo.Context) error {
 	limitParams := c.QueryParam("limit")
 	page, err = strconv.Atoi(pageParams)
 	if err != nil {
-		page = 1
+		page = 0
 	}
 	limit, err = strconv.Atoi(limitParams)
 	if err != nil {
@@ -530,7 +530,7 @@ func (s *Server) AddressTxs(c echo.Context) error {
 	limitParams := c.QueryParam("limit")
 	page, err = strconv.Atoi(pageParams)
 	if err != nil {
-		page = 1
+		page = 0
 	}
 	limit, err = strconv.Atoi(limitParams)
 	if err != nil {
@@ -565,7 +565,7 @@ func (s *Server) AddressHolders(c echo.Context) error {
 	limitParams := c.QueryParam("limit")
 	page, err = strconv.Atoi(pageParams)
 	if err != nil {
-		page = 1
+		page = 0
 	}
 	limit, err = strconv.Atoi(limitParams)
 	if err != nil {

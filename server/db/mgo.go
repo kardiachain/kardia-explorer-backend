@@ -80,7 +80,7 @@ func newMongoDB(cfg Config) (*mongoDB, error) {
 			return nil, err
 		}
 	}
-	createIndexes(dbClient)
+	_ = createIndexes(dbClient)
 
 	return dbClient, nil
 }
@@ -92,8 +92,10 @@ func createIndexes(dbClient *mongoDB) error {
 	}
 
 	for _, cIdx := range []CIndex{
+		// Add index to improve querying transactions by hash, block hash and block height
 		{c: cTxs, model: []mongo.IndexModel{{Keys: bson.M{"hash": -1}, Options: options.Index().SetUnique(true).SetBackground(true).SetSparse(true)}}},
 		{c: cTxs, model: []mongo.IndexModel{{Keys: bson.M{"blockNumber": -1}, Options: options.Index().SetBackground(true).SetSparse(true)}}},
+		{c: cTxs, model: []mongo.IndexModel{{Keys: bson.M{"blockHash": 1}, Options: options.Index().SetBackground(true).SetSparse(true)}}},
 		// Add index in `from` and `to` fields to improve get txs of address, considering if memory is increasing rapidly
 		{c: cTxs, model: []mongo.IndexModel{{Keys: bson.D{{Key: "from", Value: 1}, {Key: "time", Value: -1}}, Options: options.Index().SetBackground(true).SetSparse(true)}}},
 		{c: cTxs, model: []mongo.IndexModel{{Keys: bson.D{{Key: "to", Value: 1}, {Key: "time", Value: -1}}, Options: options.Index().SetBackground(true).SetSparse(true)}}},
@@ -157,11 +159,11 @@ func (m *mongoDB) Blocks(ctx context.Context, pagination *types.Pagination) ([]*
 }
 
 func (m *mongoDB) BlockByHeight(ctx context.Context, blockNumber uint64) (*types.Block, error) {
-	var c types.Block
-	if err := m.wrapper.C(cBlocks).FindOne(bson.M{"height": blockNumber}, options.FindOne().SetProjection(bson.M{"txs": 0, "receipts": 0})).Decode(&c); err != nil {
+	var block types.Block
+	if err := m.wrapper.C(cBlocks).FindOne(bson.M{"height": blockNumber}, options.FindOne().SetProjection(bson.M{"txs": 0, "receipts": 0})).Decode(&block); err != nil {
 		return nil, err
 	}
-	return &c, nil
+	return &block, nil
 }
 
 func (m *mongoDB) BlockByHash(ctx context.Context, blockHash string) (*types.Block, error) {
@@ -257,13 +259,18 @@ func (m *mongoDB) BlockTxCount(ctx context.Context, hash string) (int64, error) 
 
 func (m *mongoDB) TxsByBlockHash(ctx context.Context, blockHash string, pagination *types.Pagination) ([]*types.Transaction, uint64, error) {
 	var txs []*types.Transaction
-	opts := []*options.FindOptions{
-		options.Find().SetSkip(int64(pagination.Skip)),
-		options.Find().SetLimit(int64(pagination.Limit)),
+	opts := []*options.FindOptions(nil)
+	if pagination != nil {
+		opts = []*options.FindOptions{
+			options.Find().SetSkip(int64(pagination.Skip)),
+			options.Find().SetLimit(int64(pagination.Limit)),
+		}
 	}
 	cursor, err := m.wrapper.C(cTxs).
 		Find(bson.M{"blockHash": blockHash}, opts...)
-	defer cursor.Close(ctx)
+	defer func(){
+		_ = cursor.Close(ctx)
+	}()
 	if err != nil {
 		if err == mgo.ErrNotFound {
 			return nil, 0, nil
@@ -277,27 +284,29 @@ func (m *mongoDB) TxsByBlockHash(ctx context.Context, blockHash string, paginati
 		}
 		txs = append(txs, tx)
 	}
-	findOneOpts := []*options.FindOneOptions{
-		options.FindOne().SetProjection(bson.M{"numTxs": 1}),
-	}
-	var block types.Block
-	err = m.wrapper.C(cBlocks).FindOne(bson.M{"hash": blockHash}, findOneOpts...).Decode(&block)
+	// get total transaction in block in database
+	total, err := m.wrapper.C(cTxs).Count(bson.M{"blockHash": blockHash})
 	if err != nil {
 		return nil, 0, err
 	}
-	return txs, block.NumTxs, nil
+	return txs, uint64(total), nil
 }
 
 func (m *mongoDB) TxsByBlockHeight(ctx context.Context, blockHeight uint64, pagination *types.Pagination) ([]*types.Transaction, uint64, error) {
 	var txs []*types.Transaction
-	opts := []*options.FindOptions{
-		options.Find().SetSkip(int64(pagination.Skip)),
-		options.Find().SetLimit(int64(pagination.Limit)),
+	opts := []*options.FindOptions(nil)
+	if pagination != nil {
+		opts = []*options.FindOptions{
+			options.Find().SetSkip(int64(pagination.Skip)),
+			options.Find().SetLimit(int64(pagination.Limit)),
+		}
 	}
 
 	cursor, err := m.wrapper.C(cTxs).
 		Find(bson.M{"blockNumber": blockHeight}, opts...)
-	defer cursor.Close(ctx)
+	defer func(){
+		_ = cursor.Close(ctx)
+	}()
 	if err != nil {
 		if err == mgo.ErrNotFound {
 			return nil, 0, nil
@@ -311,15 +320,12 @@ func (m *mongoDB) TxsByBlockHeight(ctx context.Context, blockHeight uint64, pagi
 		}
 		txs = append(txs, tx)
 	}
-	findOneOpts := []*options.FindOneOptions{
-		options.FindOne().SetProjection(bson.M{"numTxs": 1}),
-	}
-	var block types.Block
-	err = m.wrapper.C(cBlocks).FindOne(bson.M{"height": blockHeight}, findOneOpts...).Decode(&block)
+	// get total transaction in block in database
+	total, err := m.wrapper.C(cTxs).Count(bson.M{"blockNumber": blockHeight})
 	if err != nil {
 		return nil, 0, err
 	}
-	return txs, block.NumTxs, nil
+	return txs, uint64(total), nil
 }
 
 // TxsByAddress return txs match input address in FROM/TO field
@@ -332,7 +338,9 @@ func (m *mongoDB) TxsByAddress(ctx context.Context, address string, pagination *
 	}
 	cursor, err := m.wrapper.C(cTxs).
 		Find(bson.M{"$or": []bson.M{{"from": address}, {"to": address}}}, opts...)
-	defer cursor.Close(ctx)
+	defer func(){
+		_ = cursor.Close(ctx)
+	}()
 	if err != nil {
 		if err == mgo.ErrNotFound {
 			return nil, 0, nil
@@ -439,7 +447,9 @@ func (m *mongoDB) LatestTxs(ctx context.Context, pagination *types.Pagination) (
 	if err != nil {
 		return nil, err
 	}
-	defer cursor.Close(ctx)
+	defer func(){
+		_ = cursor.Close(ctx)
+	}()
 	queryTime := time.Since(start)
 	m.logger.Debug("Total time for query tx", zap.Any("TimeConsumed", queryTime))
 	for cursor.Next(ctx) {
@@ -492,7 +502,9 @@ func (m *mongoDB) UpdateActiveAddresses(ctx context.Context, addressesMap map[st
 	if err != nil {
 		return fmt.Errorf("failed to get active addresses: %v", err)
 	}
-	defer cursor.Close(ctx)
+	defer func(){
+		_ = cursor.Close(ctx)
+	}()
 	for cursor.Next(ctx) {
 		addr := &types.ActiveAddress{}
 		if err := cursor.Decode(&addr); err != nil {

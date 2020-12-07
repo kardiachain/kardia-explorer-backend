@@ -128,17 +128,17 @@ func New() (ExplorerConfig, error) {
 	listenerIntervalStr := os.Getenv("LISTENER_INTERVAL")
 	listenerInterval, err := time.ParseDuration(listenerIntervalStr)
 	if err != nil {
-		listenerInterval = 2 * time.Second
+		listenerInterval = 1 * time.Second
 	}
 	backfillIntervalStr := os.Getenv("BACKFILL_INTERVAL")
 	backfillInterval, err := time.ParseDuration(backfillIntervalStr)
 	if err != nil {
-		backfillInterval = 4 * time.Second
+		backfillInterval = 1 * time.Second
 	}
 	verifierIntervalStr := os.Getenv("VERIFIER_INTERVAL")
 	verifierInterval, err := time.ParseDuration(verifierIntervalStr)
 	if err != nil {
-		verifierInterval = 2 * time.Second
+		verifierInterval = 1 * time.Second
 	}
 
 	storageMinConnStr := os.Getenv("STORAGE_MIN_CONN")

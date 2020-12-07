@@ -27,7 +27,7 @@ const (
 	KeyPersistentErrorBlocks = "#blocks#persistentError" // List
 	KeyUnverifiedBlocks      = "#blocks#unverified"      // List
 
-	KeyLatestTxs   = "#txs#latest" // List
+	KeyLatestTxs = "#txs#latest" // List
 
 	KeyTokenInfo         = "#token#info"
 	KeyCirculatingSupply = "#token#circulating"

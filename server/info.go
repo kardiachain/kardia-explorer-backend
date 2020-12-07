@@ -33,6 +33,7 @@ type InfoServer interface {
 	// Share interface
 	BlockByHeight(ctx context.Context, blockHeight uint64) (*types.Block, error)
 	BlockByHash(ctx context.Context, blockHash string) (*types.Block, error)
+	BlockByHeightFromRPC(ctx context.Context, blockHeight uint64) (*types.Block, error)
 
 	ImportBlock(ctx context.Context, block *types.Block, writeToCache bool) error
 	DeleteLatestBlock(ctx context.Context) (uint64, error)
@@ -45,7 +46,7 @@ type InfoServer interface {
 	InsertUnverifiedBlocks(ctx context.Context, height uint64) error
 	PopUnverifiedBlockHeight(ctx context.Context) (uint64, error)
 
-	VerifyBlock(ctx context.Context, blockHeight uint64, verifier VerifyBlockStrategy) error
+	VerifyBlock(ctx context.Context, blockHeight uint64, networkBlock *types.Block, verifier VerifyBlockStrategy) (bool, error)
 }
 
 // infoServer handle how data was retrieved, stored without interact with other network excluded dbClient
@@ -197,6 +198,11 @@ func (s *infoServer) BlockByHeight(ctx context.Context, blockHeight uint64) (*ty
 	// Something wrong or we stay behind the network
 	lgr.Warn("cannot find block in db")
 
+	return s.kaiClient.BlockByHeight(ctx, blockHeight)
+}
+
+// BlockByHeightFromRPC get block from RPC based on block number
+func (s *infoServer) BlockByHeightFromRPC(ctx context.Context, blockHeight uint64) (*types.Block, error) {
 	return s.kaiClient.BlockByHeight(ctx, blockHeight)
 }
 
@@ -459,42 +465,47 @@ func (s *infoServer) ImportReceipts(ctx context.Context, block *types.Block) err
 // VerifyBlock make a simple cache for block
 type VerifyBlockStrategy func(db, network *types.Block) bool
 
-// VerifyBlock called by verifier
-func (s *infoServer) VerifyBlock(ctx context.Context, blockHeight uint64, verifier VerifyBlockStrategy) error {
-	networkBlock, err := s.kaiClient.BlockByHeight(ctx, blockHeight)
-	if err != nil {
-		s.logger.Warn("Cannot fetch block from network", zap.Uint64("height", blockHeight))
-		return err
-	}
-
+// VerifyBlock called by verifier. It returns `true` if the block is upserted; otherwise it return `false`
+func (s *infoServer) VerifyBlock(ctx context.Context, blockHeight uint64, networkBlock *types.Block, verifier VerifyBlockStrategy) (bool, error) {
 	isBlockImported, err := s.dbClient.IsBlockExist(ctx, blockHeight)
 	if err != nil || !isBlockImported {
 		startTime := time.Now()
 		if err := s.dbClient.InsertBlock(ctx, networkBlock); err != nil {
 			s.logger.Warn("Cannot import block", zap.Uint64("height", blockHeight))
-			return err
+			return false, err
 		}
 		endTime := time.Since(startTime)
 		s.metrics.RecordInsertBlockTime(endTime)
 		s.logger.Debug("Total time for import block", zap.Duration("TimeConsumed", endTime), zap.String("Avg", s.metrics.GetInsertBlockTime()))
-		return nil
+		return true, nil
 	}
 
 	dbBlock, err := s.dbClient.BlockByHeight(ctx, blockHeight)
-	if err != nil || !verifier(dbBlock, networkBlock) {
+	if err != nil {
+		s.logger.Warn("Cannot get block by height from database", zap.Uint64("height", blockHeight))
+		return false, err
+	} else {
+		_, total, err := s.dbClient.TxsByBlockHeight(ctx, blockHeight, nil)
+		if err != nil {
+			s.logger.Warn("Cannot get total transactions in block by height from database", zap.Uint64("height", blockHeight))
+			return false, err
+		}
+		dbBlock.NumTxs = total
+	}
+	if !verifier(dbBlock, networkBlock) {
 		s.logger.Warn("Block in database is corrupted, upserting...", zap.Error(err))
 		// Force dbBlock with new information from network block
 		startTime := time.Now()
 		if err := s.UpsertBlock(ctx, networkBlock); err != nil {
 			s.logger.Warn("Cannot upsert block", zap.Uint64("height", blockHeight))
-			return err
+			return false, err
 		}
 		endTime := time.Since(startTime)
 		s.metrics.RecordUpsertBlockTime(endTime)
 		s.logger.Debug("Upsert block time", zap.Duration("TimeConsumed", endTime), zap.String("Avg", s.metrics.GetUpsertBlockTime()))
+		return true, nil
 	}
-
-	return nil
+	return false, nil
 }
 
 // calculateTPS return TPS per each [10, 20, 50] blocks
@@ -529,6 +540,9 @@ func filterAddrSet(txs []*types.Transaction) (addr map[string]bool, contractAddr
 }
 
 func mergeReceipts(txs []*types.Transaction, receipts []*types.Receipt) []*types.Transaction {
+	if receipts == nil || len(receipts) == 0 {
+		return txs
+	}
 	receiptIndex := 0
 	var (
 		gasPrice    *big.Int

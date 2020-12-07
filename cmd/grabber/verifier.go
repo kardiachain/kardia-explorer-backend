@@ -13,7 +13,7 @@ import (
 func verify(ctx context.Context, srv *server.Server, interval time.Duration) {
 	verifyFunc := func(db, network *types.Block) bool {
 		if srv.VerifyBlockParam.VerifyTxCount {
-			if db.NumTxs != uint64(len(db.Txs)) {
+			if db.NumTxs != network.NumTxs {
 				return false
 			}
 		}
@@ -35,10 +35,19 @@ func verify(ctx context.Context, srv *server.Server, interval time.Duration) {
 			}
 			lgr := srv.Logger.With(zap.Uint64("block", blockHeight))
 			lgr.Debug("Verifier: Checking block integrity...")
-			err = srv.InfoServer().VerifyBlock(ctx, blockHeight, verifyFunc)
+			networkBlock, err := srv.InfoServer().BlockByHeightFromRPC(ctx, blockHeight)
+			if err != nil {
+				lgr.Warn("Verifier: Error while get compare block from RPC, re-inserting this block to unverified list...", zap.Error(err))
+				_ = srv.InfoServer().InsertUnverifiedBlocks(ctx, blockHeight)
+				continue
+			}
+			result, err := srv.InfoServer().VerifyBlock(ctx, blockHeight, networkBlock, verifyFunc)
 			if err != nil {
 				lgr.Warn("Verifier: Error while verifying block", zap.Error(err))
 				continue
+			}
+			if result {
+				lgr.Warn("Verifier: Block in database is corrupted and successfully replaced")
 			}
 		}
 	}
