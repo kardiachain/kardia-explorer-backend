@@ -153,7 +153,7 @@ func Test_infoServer_VerifyBlock(t *testing.T) {
 			NumTxs: 5,
 			Txs: []*types.Transaction{
 				{BlockNumber: 1, BlockHash: "0xhash1", Hash: "0", TransactionIndex: 0},
-			{BlockNumber: 1, BlockHash: "0xhash1", Hash: "1", TransactionIndex: 1},
+				{BlockNumber: 1, BlockHash: "0xhash1", Hash: "1", TransactionIndex: 1},
 				{BlockNumber: 1, BlockHash: "0xhash1", Hash: "3", TransactionIndex: 3},
 				{BlockNumber: 1, BlockHash: "0xhash1", Hash: "4", TransactionIndex: 4},
 			},

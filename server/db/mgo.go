@@ -136,7 +136,7 @@ func (m *mongoDB) Blocks(ctx context.Context, pagination *types.Pagination) ([]*
 	var blocks []*types.Block
 	opts := []*options.FindOptions{
 		m.wrapper.FindSetSort("-height"),
-		options.Find().SetProjection(bson.M{"hash": 1, "height": 1, "time": 1, "proposerAddress": 1, "numTxs": 1, "gasLimit": 1, "rewards": 1}),
+		options.Find().SetProjection(bson.M{"txs": 0, "receipts": 0}),
 		options.Find().SetSkip(int64(pagination.Skip)),
 		options.Find().SetLimit(int64(pagination.Limit)),
 	}
@@ -268,7 +268,7 @@ func (m *mongoDB) TxsByBlockHash(ctx context.Context, blockHash string, paginati
 	}
 	cursor, err := m.wrapper.C(cTxs).
 		Find(bson.M{"blockHash": blockHash}, opts...)
-	defer func(){
+	defer func() {
 		_ = cursor.Close(ctx)
 	}()
 	if err != nil {
@@ -304,7 +304,7 @@ func (m *mongoDB) TxsByBlockHeight(ctx context.Context, blockHeight uint64, pagi
 
 	cursor, err := m.wrapper.C(cTxs).
 		Find(bson.M{"blockNumber": blockHeight}, opts...)
-	defer func(){
+	defer func() {
 		_ = cursor.Close(ctx)
 	}()
 	if err != nil {
@@ -338,7 +338,7 @@ func (m *mongoDB) TxsByAddress(ctx context.Context, address string, pagination *
 	}
 	cursor, err := m.wrapper.C(cTxs).
 		Find(bson.M{"$or": []bson.M{{"from": address}, {"to": address}}}, opts...)
-	defer func(){
+	defer func() {
 		_ = cursor.Close(ctx)
 	}()
 	if err != nil {
@@ -447,7 +447,7 @@ func (m *mongoDB) LatestTxs(ctx context.Context, pagination *types.Pagination) (
 	if err != nil {
 		return nil, err
 	}
-	defer func(){
+	defer func() {
 		_ = cursor.Close(ctx)
 	}()
 	queryTime := time.Since(start)
@@ -502,7 +502,7 @@ func (m *mongoDB) UpdateActiveAddresses(ctx context.Context, addressesMap map[st
 	if err != nil {
 		return fmt.Errorf("failed to get active addresses: %v", err)
 	}
-	defer func(){
+	defer func() {
 		_ = cursor.Close(ctx)
 	}()
 	for cursor.Next(ctx) {
