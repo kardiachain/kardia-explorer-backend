@@ -250,7 +250,6 @@ func (c *Redis) InsertBlock(ctx context.Context, block *types.Block) error {
 		c.logger.Debug("Error set block height by hash", zap.Error(err))
 		return err
 	}
-	c.logger.Debug("Push new block to cache success", zap.Uint64("height", block.Height))
 	if err := c.client.Set(ctx, KeyLatestBlockHeight, block.Height, 0).Err(); err != nil {
 		c.logger.Debug("Error set latest block height", zap.Error(err))
 		return err
@@ -552,7 +551,6 @@ func (c *Redis) deleteKeysOfBlock(ctx context.Context, block *types.Block) error
 		c.logger.Debug("cannot delete keys", zap.Strings("Keys", keys))
 		return err
 	}
-	c.logger.Debug("Deleted block in cache", zap.Any("height", block.Height))
 	return nil
 }
 
