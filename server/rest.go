@@ -254,14 +254,12 @@ func (s *Server) Blocks(c echo.Context) error {
 		}
 		result = append(result, b)
 	}
-	return api.OK.SetData(struct {
-		Page  int         `json:"page"`
-		Limit int         `json:"limit"`
-		Data  interface{} `json:"data"`
-	}{
+	total := s.cacheClient.LatestBlockHeight(ctx)
+	return api.OK.SetData(PagingResponse{
 		Page:  page,
 		Limit: limit,
 		Data:  result,
+		Total: total,
 	}).Build(c)
 }
 
