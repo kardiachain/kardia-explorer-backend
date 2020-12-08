@@ -42,7 +42,6 @@ type Client interface {
 	TxByHash(ctx context.Context, txHash string) (*types.Transaction, error)
 
 	ListSize(ctx context.Context, key string) (int64, error)
-	PopReceipt(ctx context.Context) (*types.Receipt, error)
 
 	LatestBlocks(ctx context.Context, pagination *types.Pagination) ([]*types.Block, error)
 	LatestTransactions(ctx context.Context, pagination *types.Pagination) ([]*types.Transaction, error)
@@ -51,6 +50,8 @@ type Client interface {
 	PopErrorBlockHeight(ctx context.Context) (uint64, error)
 	InsertPersistentErrorBlocks(ctx context.Context, blockHeight uint64) error
 	PersistentErrorBlockHeights(ctx context.Context) ([]uint64, error)
+	InsertUnverifiedBlocks(ctx context.Context, height uint64) error
+	PopUnverifiedBlockHeight(ctx context.Context) (uint64, error)
 
 	UpdateTotalTxs(ctx context.Context, blockTxs uint64) (uint64, error)
 	TotalTxs(ctx context.Context) uint64
@@ -68,7 +69,7 @@ type Client interface {
 	UpdateCirculatingSupply(ctx context.Context, cirSup int64) error
 
 	Validators(ctx context.Context) (*types.Validators, error)
-	UpdateValidators(ctx context.Context, vals *types.Validators) error
+	UpdateValidators(ctx context.Context, validators *types.Validators) error
 
 	NodesInfo(ctx context.Context) ([]*types.NodeInfo, error)
 	UpdateNodesInfo(ctx context.Context, nodes []*types.NodeInfo) error

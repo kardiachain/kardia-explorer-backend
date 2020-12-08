@@ -66,6 +66,11 @@ type Block struct {
 	Receipts []*Receipt     `json:"receipts,omitempty" bson:"-"`
 }
 
+type VerifyBlockParam struct {
+	VerifyTxCount   bool
+	VerifyBlockHash bool
+}
+
 func (b *Block) String() string {
 	data, err := json.Marshal(b)
 	if err != nil {

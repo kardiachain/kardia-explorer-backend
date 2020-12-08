@@ -19,6 +19,7 @@
 package server
 
 import (
+	"github.com/kardiachain/explorer-backend/types"
 	"go.uber.org/zap"
 
 	"github.com/kardiachain/explorer-backend/kardia"
@@ -48,6 +49,8 @@ type Config struct {
 
 	HttpRequestSecret string
 
+	VerifyBlockParam *types.VerifyBlockParam
+
 	Metrics *metrics.Provider
 	Logger  *zap.Logger
 }
@@ -58,6 +61,8 @@ type Server struct {
 	Logger *zap.Logger
 
 	metrics *metrics.Provider
+
+	VerifyBlockParam *types.VerifyBlockParam
 
 	infoServer
 }
@@ -101,20 +106,21 @@ func New(cfg Config) (*Server, error) {
 	if err != nil {
 		return nil, err
 	}
-	metrics := metrics.New()
+	avgMetrics := metrics.New()
 
 	infoServer := infoServer{
 		dbClient:          dbClient,
 		cacheClient:       cacheClient,
 		kaiClient:         kaiClient,
 		HttpRequestSecret: cfg.HttpRequestSecret,
+		verifyBlockParam:  cfg.VerifyBlockParam,
 		logger:            cfg.Logger,
-		metrics:     metrics,
+		metrics:           avgMetrics,
 	}
 
 	return &Server{
 		Logger:     cfg.Logger,
-		metrics:    metrics,
+		metrics:    avgMetrics,
 		infoServer: infoServer,
 	}, nil
 }

@@ -15,13 +15,6 @@ import (
 	"github.com/kardiachain/explorer-backend/types"
 )
 
-type PagingResponse struct {
-	Page  int         `json:"page"`
-	Limit int         `json:"limit"`
-	Total uint64      `json:"total"`
-	Data  interface{} `json:"data"`
-}
-
 func (s *Server) Ping(c echo.Context) error {
 	return api.OK.Build(c)
 }
@@ -147,7 +140,7 @@ func (s *Server) ValidatorStats(c echo.Context) error {
 	limitParams := c.QueryParam("limit")
 	page, err = strconv.Atoi(pageParams)
 	if err != nil {
-		page = 1
+		page = 0
 	}
 	limit, err = strconv.Atoi(limitParams)
 	if err != nil {
@@ -222,7 +215,7 @@ func (s *Server) Blocks(c echo.Context) error {
 	limitParams := c.QueryParam("limit")
 	page, err = strconv.Atoi(pageParams)
 	if err != nil {
-		page = 1
+		page = 0
 	}
 	limit, err = strconv.Atoi(limitParams)
 	if err != nil {
@@ -248,6 +241,19 @@ func (s *Server) Blocks(c echo.Context) error {
 		s.logger.Debug("Got latest blocks from cache")
 	}
 
+	var result Blocks
+	for _, block := range blocks {
+		b := SimpleBlock{
+			Height:          block.Height,
+			Time:            block.Time,
+			ProposerAddress: block.ProposerAddress,
+			NumTxs:          block.NumTxs,
+			GasLimit:        block.GasLimit,
+			GasUsed:         block.GasUsed,
+			Rewards:         block.Rewards,
+		}
+		result = append(result, b)
+	}
 	return api.OK.SetData(struct {
 		Page  int         `json:"page"`
 		Limit int         `json:"limit"`
@@ -255,7 +261,7 @@ func (s *Server) Blocks(c echo.Context) error {
 	}{
 		Page:  page,
 		Limit: limit,
-		Data:  blocks,
+		Data:  result,
 	}).Build(c)
 }
 
@@ -340,7 +346,7 @@ func (s *Server) BlockTxs(c echo.Context) error {
 	limitParams := c.QueryParam("limit")
 	page, err = strconv.Atoi(pageParams)
 	if err != nil {
-		page = 1
+		page = 0
 	}
 	limit, err = strconv.Atoi(limitParams)
 	if err != nil {
@@ -424,11 +430,25 @@ func (s *Server) BlockTxs(c echo.Context) error {
 		}
 	}
 
+	var result Transactions
+	for _, tx := range txs {
+		t := SimpleTransaction{
+			Hash:        tx.Hash,
+			BlockNumber: tx.BlockNumber,
+			Time:        tx.Time,
+			From:        tx.From,
+			To:          tx.To,
+			Value:       tx.Value,
+			TxFee:       tx.TxFee,
+		}
+		result = append(result, t)
+	}
+
 	return api.OK.SetData(PagingResponse{
 		Page:  page,
 		Limit: limit,
 		Total: total,
-		Data:  txs,
+		Data:  result,
 	}).Build(c)
 }
 
@@ -442,7 +462,7 @@ func (s *Server) Txs(c echo.Context) error {
 	limitParams := c.QueryParam("limit")
 	page, err = strconv.Atoi(pageParams)
 	if err != nil {
-		page = 1
+		page = 0
 	}
 	limit, err = strconv.Atoi(limitParams)
 	if err != nil {
@@ -469,11 +489,25 @@ func (s *Server) Txs(c echo.Context) error {
 		s.logger.Debug("Got latest txs from cached")
 	}
 
+	var result Transactions
+	for _, tx := range txs {
+		t := SimpleTransaction{
+			Hash:        tx.Hash,
+			BlockNumber: tx.BlockNumber,
+			Time:        tx.Time,
+			From:        tx.From,
+			To:          tx.To,
+			Value:       tx.Value,
+			TxFee:       tx.TxFee,
+		}
+		result = append(result, t)
+	}
+
 	return api.OK.SetData(PagingResponse{
 		Page:  page,
 		Limit: limit,
 		Total: s.cacheClient.TotalTxs(ctx),
-		Data:  txs,
+		Data:  result,
 	}).Build(c)
 }
 
@@ -485,7 +519,7 @@ func (s *Server) Addresses(c echo.Context) error {
 	limitParams := c.QueryParam("limit")
 	page, err = strconv.Atoi(pageParams)
 	if err != nil {
-		page = 1
+		page = 0
 	}
 	limit, err = strconv.Atoi(limitParams)
 	if err != nil {
@@ -530,7 +564,7 @@ func (s *Server) AddressTxs(c echo.Context) error {
 	limitParams := c.QueryParam("limit")
 	page, err = strconv.Atoi(pageParams)
 	if err != nil {
-		page = 1
+		page = 0
 	}
 	limit, err = strconv.Atoi(limitParams)
 	if err != nil {
@@ -548,12 +582,26 @@ func (s *Server) AddressTxs(c echo.Context) error {
 		return err
 	}
 
+	var result Transactions
+	for _, tx := range txs {
+		t := SimpleTransaction{
+			Hash:        tx.Hash,
+			BlockNumber: tx.BlockNumber,
+			Time:        tx.Time,
+			From:        tx.From,
+			To:          tx.To,
+			Value:       tx.Value,
+			TxFee:       tx.TxFee,
+		}
+		result = append(result, t)
+	}
+
 	s.logger.Info("address txs:", zap.String("address", address))
 	return api.OK.SetData(PagingResponse{
 		Page:  page,
 		Limit: limit,
 		Total: total,
-		Data:  txs,
+		Data:  result,
 	}).Build(c)
 }
 
@@ -565,7 +613,7 @@ func (s *Server) AddressHolders(c echo.Context) error {
 	limitParams := c.QueryParam("limit")
 	page, err = strconv.Atoi(pageParams)
 	if err != nil {
-		page = 1
+		page = 0
 	}
 	limit, err = strconv.Atoi(limitParams)
 	if err != nil {

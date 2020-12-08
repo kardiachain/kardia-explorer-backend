@@ -3,12 +3,9 @@ package main
 
 import (
 	"context"
-	"errors"
 	"time"
 
 	"github.com/kardiachain/explorer-backend/server"
-	"github.com/kardiachain/explorer-backend/types"
-
 	"go.uber.org/zap"
 )
 
@@ -27,9 +24,9 @@ func IsSkip() bool {
 	return processCounter >= counterLimit
 }
 
-func backfill(ctx context.Context, srv *server.Server) {
+func backfill(ctx context.Context, srv *server.Server, interval time.Duration) {
 	srv.Logger.Info("Start refilling...")
-	t := time.NewTicker(time.Second * 1)
+	t := time.NewTicker(interval)
 	defer t.Stop()
 	for {
 		select {
@@ -38,7 +35,7 @@ func backfill(ctx context.Context, srv *server.Server) {
 			if blockHeight == currentProcessBlock && blockHeight != 0 {
 				processCounter++
 				if IsSkip() {
-					srv.Logger.Warn("Skip block since several error attemps, inserting to persistent error blocks list", zap.Uint64("BlockHeight", blockHeight))
+					srv.Logger.Warn("Refilling: Skip block since several error attempts, inserting to persistent error blocks list", zap.Uint64("BlockHeight", blockHeight))
 					_ = srv.InsertPersistentErrorBlocks(ctx, blockHeight)
 					// Reset counter
 					processCounter = 0
@@ -48,33 +45,29 @@ func backfill(ctx context.Context, srv *server.Server) {
 			currentProcessBlock = blockHeight
 			lgr := srv.Logger.With(zap.Uint64("block", blockHeight))
 			if err != nil {
-				lgr.Info("Refilling: Failed to pop error block number", zap.Error(err))
+				lgr.Debug("Refilling: Failed to pop error block number", zap.Error(err))
 				_ = srv.InsertErrorBlocks(ctx, blockHeight-1, blockHeight+1)
 				continue
 			}
 			if blockHeight == 0 {
 				continue
 			}
-			startTime = time.Now()
+			lgr.Info("Refilling:")
+			// insert current block height to cache for re-verifying later
+			err = srv.InsertUnverifiedBlocks(ctx, blockHeight)
+			if err != nil {
+				lgr.Error("Refilling: Failed to insert unverified block", zap.Error(err))
+			}
+			// try to get block
 			block, err := srv.BlockByHeight(ctx, blockHeight)
 			if err != nil {
 				lgr.Error("Refilling: Failed to get block", zap.Error(err))
 				_ = srv.InsertErrorBlocks(ctx, blockHeight-1, blockHeight+1)
 				continue
 			}
-			endTime = time.Since(startTime)
-			srv.Metrics().RecordScrapingTime(endTime)
-			lgr.Info("Refilling: Scraping block time", zap.Duration("TimeConsumed", endTime), zap.String("Avg", srv.Metrics().GetScrapingTime()))
-			if block == nil {
-				lgr.Error("Refilling: Block not found")
-				_ = srv.InsertErrorBlocks(ctx, blockHeight-1, blockHeight+1)
-				continue
-			}
-			if err := srv.ImportBlock(ctx, block, false); err != nil {
-				if !errors.Is(err, types.ErrRecordExist) {
-					lgr.Error("Record exist")
-				}
-				lgr.Error("Refilling: Failed to import block", zap.Error(err))
+			// upsert this block to database only
+			if err := srv.UpsertBlock(ctx, block); err != nil {
+				lgr.Error("Refilling: Failed to upsert block", zap.Error(err))
 				_ = srv.InsertErrorBlocks(ctx, blockHeight-1, blockHeight+1)
 				continue
 			}

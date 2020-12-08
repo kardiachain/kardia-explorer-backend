@@ -254,38 +254,6 @@ func Test_mongoDB_InsertListTxByAddress(t *testing.T) {
 	}
 }
 
-func Test_mongoDB_InsertReceipts(t *testing.T) {
-	type fields struct {
-		logger  *zap.Logger
-		wrapper *KaiMgo
-		db      *mongo.Database
-	}
-	type args struct {
-		ctx   context.Context
-		block *types.Block
-	}
-	tests := []struct {
-		name    string
-		fields  fields
-		args    args
-		wantErr bool
-	}{
-		// TODO: Add test cases.
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			m := &mongoDB{
-				logger:  tt.fields.logger,
-				wrapper: tt.fields.wrapper,
-				db:      tt.fields.db,
-			}
-			if err := m.InsertReceipts(tt.args.ctx, tt.args.block); (err != nil) != tt.wantErr {
-				t.Errorf("InsertReceipts() error = %v, wantErr %v", err, tt.wantErr)
-			}
-		})
-	}
-}
-
 func Test_mongoDB_InsertTxs(t *testing.T) {
 	type fields struct {
 		logger  *zap.Logger
@@ -325,8 +293,8 @@ func Test_mongoDB_IsBlockExist(t *testing.T) {
 		db      *mongo.Database
 	}
 	type args struct {
-		ctx   context.Context
-		block *types.Block
+		ctx    context.Context
+		height uint64
 	}
 	tests := []struct {
 		name    string
@@ -344,7 +312,7 @@ func Test_mongoDB_IsBlockExist(t *testing.T) {
 				wrapper: tt.fields.wrapper,
 				db:      tt.fields.db,
 			}
-			got, err := m.IsBlockExist(tt.args.ctx, tt.args.block)
+			got, err := m.IsBlockExist(tt.args.ctx, tt.args.height)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("IsBlockExist() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -651,38 +619,6 @@ func Test_mongoDB_TxsByBlockHeight(t *testing.T) {
 	}
 }
 
-func Test_mongoDB_UpdateActiveAddresses(t *testing.T) {
-	type fields struct {
-		logger  *zap.Logger
-		wrapper *KaiMgo
-		db      *mongo.Database
-	}
-	type args struct {
-		ctx       context.Context
-		addresses []string
-	}
-	tests := []struct {
-		name    string
-		fields  fields
-		args    args
-		wantErr bool
-	}{
-		// TODO: Add test cases.
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			m := &mongoDB{
-				logger:  tt.fields.logger,
-				wrapper: tt.fields.wrapper,
-				db:      tt.fields.db,
-			}
-			if err := m.UpdateActiveAddresses(tt.args.ctx, tt.args.addresses); (err != nil) != tt.wantErr {
-				t.Errorf("UpdateActiveAddresses() error = %v, wantErr %v", err, tt.wantErr)
-			}
-		})
-	}
-}
-
 func Test_mongoDB_UpsertBlock(t *testing.T) {
 	type fields struct {
 		logger  *zap.Logger
@@ -710,38 +646,6 @@ func Test_mongoDB_UpsertBlock(t *testing.T) {
 			}
 			if err := m.UpsertBlock(tt.args.ctx, tt.args.block); (err != nil) != tt.wantErr {
 				t.Errorf("UpsertBlock() error = %v, wantErr %v", err, tt.wantErr)
-			}
-		})
-	}
-}
-
-func Test_mongoDB_UpsertReceipts(t *testing.T) {
-	type fields struct {
-		logger  *zap.Logger
-		wrapper *KaiMgo
-		db      *mongo.Database
-	}
-	type args struct {
-		ctx   context.Context
-		block *types.Block
-	}
-	tests := []struct {
-		name    string
-		fields  fields
-		args    args
-		wantErr bool
-	}{
-		// TODO: Add test cases.
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			m := &mongoDB{
-				logger:  tt.fields.logger,
-				wrapper: tt.fields.wrapper,
-				db:      tt.fields.db,
-			}
-			if err := m.UpsertReceipts(tt.args.ctx, tt.args.block); (err != nil) != tt.wantErr {
-				t.Errorf("UpsertReceipts() error = %v, wantErr %v", err, tt.wantErr)
 			}
 		})
 	}

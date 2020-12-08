@@ -28,18 +28,25 @@ type InfoServer interface {
 	LatestBlockHeight(ctx context.Context) (uint64, error)
 
 	// DB
-	LatestInsertBlockHeight(ctx context.Context) (uint64, error)
+	//LatestInsertBlockHeight(ctx context.Context) (uint64, error)
 
 	// Share interface
 	BlockByHeight(ctx context.Context, blockHeight uint64) (*types.Block, error)
 	BlockByHash(ctx context.Context, blockHash string) (*types.Block, error)
+	BlockByHeightFromRPC(ctx context.Context, blockHeight uint64) (*types.Block, error)
 
-	ImportBlock(ctx context.Context, block *types.Block, writeToCache bool) (*types.Block, error)
-	DeleteLatestBlock(ctx context.Context) error
+	ImportBlock(ctx context.Context, block *types.Block, writeToCache bool) error
+	DeleteLatestBlock(ctx context.Context) (uint64, error)
+	DeleteBlockByHeight(ctx context.Context, height uint64) error
+	UpsertBlock(ctx context.Context, block *types.Block) error
 
 	InsertErrorBlocks(ctx context.Context, start uint64, end uint64) error
 	PopErrorBlockHeight(ctx context.Context) (uint64, error)
 	InsertPersistentErrorBlocks(ctx context.Context, blockHeight uint64) error
+	InsertUnverifiedBlocks(ctx context.Context, height uint64) error
+	PopUnverifiedBlockHeight(ctx context.Context) (uint64, error)
+
+	VerifyBlock(ctx context.Context, blockHeight uint64, networkBlock *types.Block) (bool, error)
 }
 
 // infoServer handle how data was retrieved, stored without interact with other network excluded dbClient
@@ -51,6 +58,7 @@ type infoServer struct {
 	metrics *metrics.Provider
 
 	HttpRequestSecret string
+	verifyBlockParam  *types.VerifyBlockParam
 
 	logger *zap.Logger
 }
@@ -194,11 +202,16 @@ func (s *infoServer) BlockByHeight(ctx context.Context, blockHeight uint64) (*ty
 	return s.kaiClient.BlockByHeight(ctx, blockHeight)
 }
 
+// BlockByHeightFromRPC get block from RPC based on block number
+func (s *infoServer) BlockByHeightFromRPC(ctx context.Context, blockHeight uint64) (*types.Block, error) {
+	return s.kaiClient.BlockByHeight(ctx, blockHeight)
+}
+
 // ImportBlock handle workflow of import block into system
 func (s *infoServer) ImportBlock(ctx context.Context, block *types.Block, writeToCache bool) error {
-	s.logger.Info("Importing block:", zap.Uint64("Height", block.Height), zap.Int("Txs length", len(block.Txs)), zap.Int("Receipts length", len(block.Receipts)))
-	// Update cacheClient with simple struct for tracking
-	if isExist, err := s.dbClient.IsBlockExist(ctx, block); err != nil || isExist {
+	s.logger.Info("Importing block:", zap.Uint64("Height", block.Height),
+		zap.Int("Txs length", len(block.Txs)), zap.Int("Receipts length", len(block.Receipts)))
+	if isExist, err := s.dbClient.IsBlockExist(ctx, block.Height); err != nil || isExist {
 		return types.ErrRecordExist
 	}
 
@@ -206,10 +219,6 @@ func (s *infoServer) ImportBlock(ctx context.Context, block *types.Block, writeT
 		if err := s.cacheClient.InsertBlock(ctx, block); err != nil {
 			s.logger.Debug("cannot import block to cache", zap.Error(err))
 		}
-	}
-
-	if _, err := s.cacheClient.UpdateTotalTxs(ctx, block.NumTxs); err != nil {
-		return err
 	}
 
 	// merge receipts into corresponding transactions
@@ -230,7 +239,6 @@ func (s *infoServer) ImportBlock(ctx context.Context, block *types.Block, writeT
 	s.logger.Debug("Total time for import block", zap.Duration("TimeConsumed", endTime), zap.String("Avg", s.metrics.GetInsertBlockTime()))
 
 	if writeToCache {
-		s.logger.Debug("Insert block txs to cache")
 		if err := s.cacheClient.InsertTxsOfBlock(ctx, block); err != nil {
 			s.logger.Debug("cannot import txs to cache", zap.Error(err))
 			return err
@@ -238,7 +246,6 @@ func (s *infoServer) ImportBlock(ctx context.Context, block *types.Block, writeT
 	}
 
 	startTime = time.Now()
-	// todo @trinh: Consider using avgTime metric for reporting/monitor
 	if err := s.dbClient.InsertTxs(ctx, block.Txs); err != nil {
 		return err
 	}
@@ -277,6 +284,9 @@ func (s *infoServer) ImportBlock(ctx context.Context, block *types.Block, writeT
 	}
 	s.logger.Debug("Total time for getting active addresses", zap.Duration("TimeConsumed", time.Since(startTime)))
 
+	if _, err := s.cacheClient.UpdateTotalTxs(ctx, block.NumTxs); err != nil {
+		return err
+	}
 	return nil
 }
 
@@ -287,6 +297,23 @@ func (s *infoServer) DeleteLatestBlock(ctx context.Context) (uint64, error) {
 		return 0, err
 	}
 	return height, nil
+}
+
+func (s *infoServer) DeleteBlockByHeight(ctx context.Context, height uint64) error {
+	err := s.dbClient.DeleteBlockByHeight(ctx, height)
+	if err != nil {
+		s.logger.Warn("cannot remove block in database by height", zap.Error(err))
+		return err
+	}
+	return nil
+}
+
+func (s *infoServer) UpsertBlock(ctx context.Context, block *types.Block) error {
+	s.logger.Info("Upserting block:", zap.Uint64("Height", block.Height), zap.Int("Txs length", len(block.Txs)), zap.Int("Receipts length", len(block.Receipts)))
+	if err := s.dbClient.DeleteBlockByHeight(ctx, block.Height); err != nil {
+		return err
+	}
+	return s.ImportBlock(ctx, block, false)
 }
 
 func (s *infoServer) InsertErrorBlocks(ctx context.Context, start uint64, end uint64) error {
@@ -313,6 +340,22 @@ func (s *infoServer) InsertPersistentErrorBlocks(ctx context.Context, blockHeigh
 		return err
 	}
 	return nil
+}
+
+func (s *infoServer) InsertUnverifiedBlocks(ctx context.Context, height uint64) error {
+	err := s.cacheClient.InsertUnverifiedBlocks(ctx, height)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (s *infoServer) PopUnverifiedBlockHeight(ctx context.Context) (uint64, error) {
+	height, err := s.cacheClient.PopUnverifiedBlockHeight(ctx)
+	if err != nil {
+		return 0, err
+	}
+	return height, nil
 }
 
 func (s *infoServer) ImportReceipts(ctx context.Context, block *types.Block) error {
@@ -361,7 +404,6 @@ func (s *infoServer) ImportReceipts(ctx context.Context, block *types.Block) err
 				}
 
 				if address == nil || address.IsContract {
-
 					for _, l := range receipt.Logs {
 						addresses[l.Address] = true
 					}
@@ -431,35 +473,60 @@ func (s *infoServer) ImportReceipts(ctx context.Context, block *types.Block) err
 	return nil
 }
 
-// ValidateBlock make a simple cache for block
-type ValidateBlockStrategy func(db, network *types.Block) bool
-
-// ValidateBlock called by backfill
-func (s *infoServer) ValidateBlock(ctx context.Context, block *types.Block, validator ValidateBlockStrategy) error {
-	networkBlock, err := s.kaiClient.BlockByHeight(ctx, block.Height)
-	if err != nil {
-		s.logger.Warn("cannot fetch block from network", zap.Uint64("height", block.Height))
-		return err
+func (s *infoServer) blockVerifier(db, network *types.Block) bool {
+	if s.verifyBlockParam.VerifyTxCount {
+		if db.NumTxs != network.NumTxs {
+			return false
+		}
 	}
+	if s.verifyBlockParam.VerifyBlockHash {
+		return true
+	}
+	return true
+}
 
-	isBlockImported, err := s.dbClient.IsBlockExist(ctx, block)
+// VerifyBlock called by verifier. It returns `true` if the block is upserted; otherwise it return `false`
+func (s *infoServer) VerifyBlock(ctx context.Context, blockHeight uint64, networkBlock *types.Block) (bool, error) {
+	isBlockImported, err := s.dbClient.IsBlockExist(ctx, blockHeight)
 	if err != nil || !isBlockImported {
+		startTime := time.Now()
 		if err := s.dbClient.InsertBlock(ctx, networkBlock); err != nil {
-			s.logger.Warn("cannot import block", zap.String("bHash", block.Hash))
-			return err
+			s.logger.Warn("Cannot import block", zap.Uint64("height", blockHeight))
+			return false, err
 		}
+		endTime := time.Since(startTime)
+		if endTime > time.Second {
+			s.logger.Warn("Unexpected long import block time, over 1s", zap.Duration("TimeConsumed", endTime))
+		}
+		return true, nil
 	}
 
-	dbBlock, err := s.dbClient.BlockByHeight(ctx, block.Height)
-	if err != nil || !validator(dbBlock, networkBlock) {
+	dbBlock, err := s.dbClient.BlockByHeight(ctx, blockHeight)
+	if err != nil {
+		s.logger.Warn("Cannot get block by height from database", zap.Uint64("height", blockHeight))
+		return false, err
+	}
+	_, total, err := s.dbClient.TxsByBlockHeight(ctx, blockHeight, nil)
+	if err != nil {
+		s.logger.Warn("Cannot get total transactions in block by height from database", zap.Uint64("height", blockHeight))
+		return false, err
+	}
+	dbBlock.NumTxs = total
+
+	if !s.blockVerifier(dbBlock, networkBlock) {
+		s.logger.Warn("Block in database is corrupted, upserting...", zap.Error(err))
 		// Force dbBlock with new information from network block
-		if err := s.dbClient.UpsertBlock(ctx, networkBlock); err != nil {
-			s.logger.Warn("cannot import block", zap.String("bHash", block.Hash))
-			return err
+		startTime := time.Now()
+		if err := s.UpsertBlock(ctx, networkBlock); err != nil {
+			s.logger.Warn("Cannot upsert block", zap.Uint64("height", blockHeight))
+			return false, err
 		}
+		endTime := time.Since(startTime)
+		s.metrics.RecordUpsertBlockTime(endTime)
+		s.logger.Debug("Upsert block time", zap.Duration("TimeConsumed", endTime), zap.String("Avg", s.metrics.GetUpsertBlockTime()))
+		return true, nil
 	}
-
-	return nil
+	return false, nil
 }
 
 // calculateTPS return TPS per each [10, 20, 50] blocks
@@ -494,11 +561,14 @@ func filterAddrSet(txs []*types.Transaction) (addr map[string]bool, contractAddr
 }
 
 func mergeReceipts(txs []*types.Transaction, receipts []*types.Receipt) []*types.Transaction {
+	if receipts == nil || len(receipts) == 0 {
+		return txs
+	}
 	receiptIndex := 0
 	var (
-		gasPrice *big.Int
-		gasUsed *big.Int
-		txFeeInGwei *big.Int
+		gasPrice   *big.Int
+		gasUsed    *big.Int
+		txFeeInOxy *big.Int
 	)
 	for _, tx := range txs {
 		if (receiptIndex > len(receipts)-1) || !(receipts[receiptIndex].TransactionHash == tx.Hash) {
@@ -514,8 +584,8 @@ func mergeReceipts(txs []*types.Transaction, receipts []*types.Receipt) []*types
 		// update txFee
 		gasPrice = new(big.Int).SetUint64(tx.GasPrice)
 		gasUsed = new(big.Int).SetUint64(tx.GasUsed)
-		txFeeInGwei = new(big.Int).Mul(gasPrice, gasUsed)
-		tx.TxFee = new(big.Int).Mul(txFeeInGwei, big.NewInt(int64(math.Pow10(9)))).String()
+		txFeeInOxy = new(big.Int).Mul(gasPrice, gasUsed)
+		tx.TxFee = new(big.Int).Mul(txFeeInOxy, big.NewInt(int64(math.Pow10(9)))).String()
 
 		receiptIndex++
 	}
