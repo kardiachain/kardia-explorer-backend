@@ -136,7 +136,7 @@ func (m *mongoDB) Blocks(ctx context.Context, pagination *types.Pagination) ([]*
 	m.logger.Debug("get blocks from db", zap.Any("pagination", pagination))
 	var blocks []*types.Block
 	opts := []*options.FindOptions{
-		options.Find().SetHint(bson.M{"height" : -1}),
+		options.Find().SetHint(bson.M{"height": -1}),
 		options.Find().SetProjection(bson.M{"txs": 0, "receipts": 0}),
 		options.Find().SetSkip(int64(pagination.Skip)),
 		options.Find().SetLimit(int64(pagination.Limit)),
