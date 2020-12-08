@@ -209,8 +209,8 @@ func (s *infoServer) BlockByHeightFromRPC(ctx context.Context, blockHeight uint6
 
 // ImportBlock handle workflow of import block into system
 func (s *infoServer) ImportBlock(ctx context.Context, block *types.Block, writeToCache bool) error {
-	s.logger.Info("Importing block:", zap.Uint64("Height", block.Height), zap.Int("Txs length", len(block.Txs)), zap.Int("Receipts length", len(block.Receipts)))
-	// Update cacheClient with simple struct for tracking
+	s.logger.Info("Importing block:", zap.Uint64("Height", block.Height),
+		zap.Int("Txs length", len(block.Txs)), zap.Int("Receipts length", len(block.Receipts)))
 	if isExist, err := s.dbClient.IsBlockExist(ctx, block.Height); err != nil || isExist {
 		return types.ErrRecordExist
 	}
@@ -485,8 +485,9 @@ func (s *infoServer) VerifyBlock(ctx context.Context, blockHeight uint64, networ
 			return false, err
 		}
 		endTime := time.Since(startTime)
-		s.metrics.RecordInsertBlockTime(endTime)
-		s.logger.Debug("Total time for import block", zap.Duration("TimeConsumed", endTime), zap.String("Avg", s.metrics.GetInsertBlockTime()))
+		if endTime > time.Second {
+			s.logger.Warn("Unexpected long import block time, over 1s", zap.Duration("TimeConsumed", endTime))
+		}
 		return true, nil
 	}
 
@@ -494,14 +495,14 @@ func (s *infoServer) VerifyBlock(ctx context.Context, blockHeight uint64, networ
 	if err != nil {
 		s.logger.Warn("Cannot get block by height from database", zap.Uint64("height", blockHeight))
 		return false, err
-	} else {
-		_, total, err := s.dbClient.TxsByBlockHeight(ctx, blockHeight, nil)
-		if err != nil {
-			s.logger.Warn("Cannot get total transactions in block by height from database", zap.Uint64("height", blockHeight))
-			return false, err
-		}
-		dbBlock.NumTxs = total
 	}
+	_, total, err := s.dbClient.TxsByBlockHeight(ctx, blockHeight, nil)
+	if err != nil {
+		s.logger.Warn("Cannot get total transactions in block by height from database", zap.Uint64("height", blockHeight))
+		return false, err
+	}
+	dbBlock.NumTxs = total
+
 	if !s.blockVerifier(dbBlock, networkBlock) {
 		s.logger.Warn("Block in database is corrupted, upserting...", zap.Error(err))
 		// Force dbBlock with new information from network block
@@ -555,8 +556,8 @@ func mergeReceipts(txs []*types.Transaction, receipts []*types.Receipt) []*types
 	}
 	receiptIndex := 0
 	var (
-		gasPrice    *big.Int
-		gasUsed     *big.Int
+		gasPrice   *big.Int
+		gasUsed    *big.Int
 		txFeeInOxy *big.Int
 	)
 	for _, tx := range txs {

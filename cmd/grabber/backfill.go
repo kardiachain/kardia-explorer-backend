@@ -66,15 +66,11 @@ func backfill(ctx context.Context, srv *server.Server, interval time.Duration) {
 				continue
 			}
 			// upsert this block to database only
-			startTime = time.Now()
 			if err := srv.UpsertBlock(ctx, block); err != nil {
 				lgr.Error("Refilling: Failed to upsert block", zap.Error(err))
 				_ = srv.InsertErrorBlocks(ctx, blockHeight-1, blockHeight+1)
 				continue
 			}
-			endTime = time.Since(startTime)
-			srv.Metrics().RecordUpsertBlockTime(endTime)
-			lgr.Debug("Refilling: Upsert block time", zap.Duration("TimeConsumed", endTime), zap.String("Avg", srv.Metrics().GetUpsertBlockTime()))
 		}
 	}
 }
