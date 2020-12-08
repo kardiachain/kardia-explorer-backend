@@ -440,6 +440,7 @@ func (s *Server) BlockTxs(c echo.Context) error {
 			To:          tx.To,
 			Value:       tx.Value,
 			TxFee:       tx.TxFee,
+			Status:      tx.Status,
 		}
 		result = append(result, t)
 	}
@@ -499,6 +500,7 @@ func (s *Server) Txs(c echo.Context) error {
 			To:          tx.To,
 			Value:       tx.Value,
 			TxFee:       tx.TxFee,
+			Status:      tx.Status,
 		}
 		result = append(result, t)
 	}
@@ -592,6 +594,7 @@ func (s *Server) AddressTxs(c echo.Context) error {
 			To:          tx.To,
 			Value:       tx.Value,
 			TxFee:       tx.TxFee,
+			Status:      tx.Status,
 		}
 		result = append(result, t)
 	}

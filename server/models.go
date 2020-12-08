@@ -31,4 +31,5 @@ type SimpleTransaction struct {
 	To          string    `json:"to" bson:"to"`
 	Value       string    `json:"value" bson:"value"`
 	TxFee       string    `json:"txFee"`
+	Status      uint      `json:"status" bson:"status"`
 }

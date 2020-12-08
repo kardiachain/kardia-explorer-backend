@@ -99,6 +99,7 @@ func createIndexes(dbClient *mongoDB) error {
 		// Add index in `from` and `to` fields to improve get txs of address, considering if memory is increasing rapidly
 		{c: cTxs, model: []mongo.IndexModel{{Keys: bson.D{{Key: "from", Value: 1}, {Key: "time", Value: -1}}, Options: options.Index().SetBackground(true).SetSparse(true)}}},
 		{c: cTxs, model: []mongo.IndexModel{{Keys: bson.D{{Key: "to", Value: 1}, {Key: "time", Value: -1}}, Options: options.Index().SetBackground(true).SetSparse(true)}}},
+		{c: cTxs, model: []mongo.IndexModel{{Keys: bson.M{"time": -1}, Options: options.Index().SetBackground(true).SetSparse(true)}}},
 		// Add index to improve querying blocks by proposer, hash and height
 		{c: cBlocks, model: []mongo.IndexModel{{Keys: bson.M{"height": -1}, Options: options.Index().SetUnique(true).SetBackground(true).SetSparse(true)}}},
 		{c: cBlocks, model: []mongo.IndexModel{{Keys: bson.M{"hash": 1}, Options: options.Index().SetUnique(true).SetBackground(true).SetSparse(true)}}},
@@ -135,7 +136,7 @@ func (m *mongoDB) Blocks(ctx context.Context, pagination *types.Pagination) ([]*
 	m.logger.Debug("get blocks from db", zap.Any("pagination", pagination))
 	var blocks []*types.Block
 	opts := []*options.FindOptions{
-		m.wrapper.FindSetSort("-height"),
+		options.Find().SetHint(bson.M{"height": -1}),
 		options.Find().SetProjection(bson.M{"txs": 0, "receipts": 0}),
 		options.Find().SetSkip(int64(pagination.Skip)),
 		options.Find().SetLimit(int64(pagination.Limit)),
@@ -166,7 +167,9 @@ func (m *mongoDB) Blocks(ctx context.Context, pagination *types.Pagination) ([]*
 
 func (m *mongoDB) BlockByHeight(ctx context.Context, blockNumber uint64) (*types.Block, error) {
 	var block types.Block
-	if err := m.wrapper.C(cBlocks).FindOne(bson.M{"height": blockNumber}, options.FindOne().SetProjection(bson.M{"txs": 0, "receipts": 0})).Decode(&block); err != nil {
+	if err := m.wrapper.C(cBlocks).FindOne(bson.M{"height": blockNumber},
+		options.FindOne().SetProjection(bson.M{"txs": 0, "receipts": 0}),
+		options.FindOne().SetHint(bson.M{"height": -1})).Decode(&block); err != nil {
 		return nil, err
 	}
 	return &block, nil
@@ -174,7 +177,9 @@ func (m *mongoDB) BlockByHeight(ctx context.Context, blockNumber uint64) (*types
 
 func (m *mongoDB) BlockByHash(ctx context.Context, blockHash string) (*types.Block, error) {
 	var block types.Block
-	err := m.wrapper.C(cBlocks).FindOne(bson.M{"hash": blockHash}, options.FindOne().SetProjection(bson.M{"txs": 0, "receipts": 0})).Decode(&block)
+	err := m.wrapper.C(cBlocks).FindOne(bson.M{"hash": blockHash},
+		options.FindOne().SetProjection(bson.M{"txs": 0, "receipts": 0}),
+		options.FindOne().SetHint(bson.M{"hash": 1})).Decode(&block)
 	if err != nil {
 		return nil, err
 	}
@@ -268,6 +273,7 @@ func (m *mongoDB) TxsByBlockHash(ctx context.Context, blockHash string, paginati
 	opts := []*options.FindOptions(nil)
 	if pagination != nil {
 		opts = []*options.FindOptions{
+			options.Find().SetHint(bson.M{"blockHash": 1}),
 			options.Find().SetSkip(int64(pagination.Skip)),
 			options.Find().SetLimit(int64(pagination.Limit)),
 		}
@@ -306,6 +312,7 @@ func (m *mongoDB) TxsByBlockHeight(ctx context.Context, blockHeight uint64, pagi
 	opts := []*options.FindOptions(nil)
 	if pagination != nil {
 		opts = []*options.FindOptions{
+			options.Find().SetHint(bson.M{"blockNumber": -1}),
 			options.Find().SetSkip(int64(pagination.Skip)),
 			options.Find().SetLimit(int64(pagination.Limit)),
 		}
@@ -344,7 +351,8 @@ func (m *mongoDB) TxsByBlockHeight(ctx context.Context, blockHeight uint64, pagi
 func (m *mongoDB) TxsByAddress(ctx context.Context, address string, pagination *types.Pagination) ([]*types.Transaction, uint64, error) {
 	var txs []*types.Transaction
 	opts := []*options.FindOptions{
-		m.wrapper.FindSetSort("-time"),
+		options.Find().SetHint(bson.D{{Key: "from", Value: 1}, {Key: "time", Value: -1}}),
+		options.Find().SetHint(bson.D{{Key: "to", Value: 1}, {Key: "time", Value: -1}}),
 		options.Find().SetSkip(int64(pagination.Skip)),
 		options.Find().SetLimit(int64(pagination.Limit)),
 	}
@@ -379,7 +387,7 @@ func (m *mongoDB) TxsByAddress(ctx context.Context, address string, pagination *
 
 func (m *mongoDB) TxByHash(ctx context.Context, txHash string) (*types.Transaction, error) {
 	var tx *types.Transaction
-	err := m.wrapper.C(cTxs).FindOne(bson.M{"hash": txHash}).Decode(&tx)
+	err := m.wrapper.C(cTxs).FindOne(bson.M{"hash": txHash}, options.FindOne().SetHint(bson.M{"hash": -1})).Decode(&tx)
 	if err != nil {
 		if err == mgo.ErrNotFound {
 			return nil, nil
@@ -449,10 +457,8 @@ func (m *mongoDB) InsertListTxByAddress(ctx context.Context, list []*types.Trans
 
 func (m *mongoDB) LatestTxs(ctx context.Context, pagination *types.Pagination) ([]*types.Transaction, error) {
 	start := time.Now()
-
 	opts := []*options.FindOptions{
-		m.wrapper.FindSetSort("-time"),
-		options.Find().SetProjection(bson.M{"ReceiptReceived": 0}),
+		options.Find().SetHint(bson.M{"time": -1}),
 		options.Find().SetSkip(int64(pagination.Skip)),
 		options.Find().SetLimit(int64(pagination.Limit)),
 	}
