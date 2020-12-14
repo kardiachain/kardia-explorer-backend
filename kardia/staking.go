@@ -188,6 +188,12 @@ func (ec *Client) GetUDBEntries(ctx context.Context, valSmcAddr common.Address, 
 			withdrawableAmount = new(big.Int).Add(withdrawableAmount, balance)
 		}
 	}
+	if totalAmount == nil || len(totalAmount.Bits()) == 0 {
+		totalAmount = new(big.Int).SetInt64(0)
+	}
+	if withdrawableAmount == nil || len(withdrawableAmount.Bits()) == 0 {
+		withdrawableAmount = new(big.Int).SetInt64(0)
+	}
 	return totalAmount, withdrawableAmount, nil
 }
 
