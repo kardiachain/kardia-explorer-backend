@@ -171,10 +171,12 @@ func (s *Server) ValidatorStats(c echo.Context) error {
 			if validator == nil {
 				validator = val
 			}
+			// update validator
 			validator.CommissionRate = val.CommissionRate
 			validator.MaxRate = val.MaxRate
 			validator.MaxChangeRate = val.MaxChangeRate
 			validator.VotingPowerPercentage = val.VotingPowerPercentage
+			validator.IsProposer = val.IsProposer
 			break
 		}
 	}

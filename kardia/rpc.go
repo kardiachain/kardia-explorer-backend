@@ -26,14 +26,13 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/kardiachain/explorer-backend/cfg"
-
 	"go.uber.org/zap"
 
-	kardia "github.com/kardiachain/go-kardiamain"
-	"github.com/kardiachain/go-kardiamain/lib/common"
-	"github.com/kardiachain/go-kardiamain/rpc"
+	kardia "github.com/kardiachain/go-kardia"
+	"github.com/kardiachain/go-kardia/lib/common"
+	"github.com/kardiachain/go-kardia/rpc"
 
+	"github.com/kardiachain/explorer-backend/cfg"
 	"github.com/kardiachain/explorer-backend/types"
 )
 

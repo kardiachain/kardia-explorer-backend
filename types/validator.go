@@ -2,7 +2,7 @@
 package types
 
 import (
-	"github.com/kardiachain/go-kardiamain/lib/common"
+	"github.com/kardiachain/go-kardia/lib/common"
 )
 
 type Validators struct {
@@ -17,6 +17,7 @@ type Validators struct {
 
 type Validator struct {
 	Address               common.Address `json:"address"`
+	IsProposer            bool           `json:"isProposer"`
 	Name                  string         `json:"name,omitempty"`
 	VotingPowerPercentage string         `json:"votingPowerPercentage"`
 	StakedAmount          string         `json:"stakedAmount"`
