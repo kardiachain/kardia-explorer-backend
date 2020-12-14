@@ -23,13 +23,19 @@ import (
 	"errors"
 	"fmt"
 	"math/big"
+	"os"
 	"sort"
 	"strings"
+
+	"github.com/kardiachain/go-kardia/configs"
+	"github.com/labstack/gommon/log"
 
 	"go.uber.org/zap"
 
 	kardia "github.com/kardiachain/go-kardia"
+	"github.com/kardiachain/go-kardia/lib/abi"
 	"github.com/kardiachain/go-kardia/lib/common"
+	"github.com/kardiachain/go-kardia/mainchain/staking"
 	"github.com/kardiachain/go-kardia/rpc"
 
 	"github.com/kardiachain/explorer-backend/cfg"
@@ -56,7 +62,11 @@ type Client struct {
 	trustedClientList []*RPCClient
 	defaultClient     *RPCClient
 	numRequest        int
-	lgr               *zap.Logger
+
+	stakingUtil   *staking.StakingSmcUtil
+	validatorUtil *staking.ValidatorSmcUtil
+
+	lgr *zap.Logger
 }
 
 // NewKaiClient creates a client that uses the given RPC client.
@@ -97,7 +107,35 @@ func NewKaiClient(cfg *Config) (ClientInterface, error) {
 	// set default RPC client as one of our trusted ones
 	defaultClient = trustedClientList[0]
 
-	return &Client{clientList, trustedClientList, defaultClient, 0, cfg.lgr}, nil
+	stakingABI, err := os.Open("kardia/abi/staking.json")
+	if err != nil {
+		panic("cannot read staking ABI file")
+	}
+	stakingSmcABI, err := abi.JSON(stakingABI)
+	if err != nil {
+		log.Error("Error reading staking contract abi", "err", err)
+		return nil, err
+	}
+	stakingUtil := &staking.StakingSmcUtil{
+		Abi:             &stakingSmcABI,
+		ContractAddress: common.HexToAddress(configs.StakingContract.Address),
+		Bytecode:        configs.StakingContract.ByteCode,
+	}
+	validatorABI, err := os.Open("kardia/abi/validator.json")
+	if err != nil {
+		panic("cannot read staking ABI file")
+	}
+	validatorSmcAbi, err := abi.JSON(validatorABI)
+	if err != nil {
+		log.Error("Error reading validator contract abi", "err", err)
+		return nil, err
+	}
+	validatorUtil := &staking.ValidatorSmcUtil{
+		Abi:      &validatorSmcAbi,
+		Bytecode: configs.ValidatorContract.ByteCode,
+	}
+
+	return &Client{clientList, trustedClientList, defaultClient, 0, stakingUtil, validatorUtil, cfg.lgr}, nil
 }
 
 func (ec *Client) chooseClient() *RPCClient {
@@ -210,6 +248,15 @@ func (ec *Client) NonceAt(ctx context.Context, account string) (uint64, error) {
 // contract address after the transaction has been mined.
 func (ec *Client) SendRawTransaction(ctx context.Context, tx string) error {
 	return ec.chooseClient().c.CallContext(ctx, nil, "tx_sendRawTransaction", tx)
+}
+
+func (ec *Client) KardiaCall(ctx context.Context, args types.CallArgsJSON) (common.Bytes, error) {
+	var result common.Bytes
+	err := ec.chooseClient().c.CallContext(ctx, &result, "kai_kardiaCall", args, "latest")
+	if err != nil {
+		return nil, err
+	}
+	return result, nil
 }
 
 func (ec *Client) Peers(ctx context.Context, client *RPCClient) ([]*types.PeerInfo, error) {

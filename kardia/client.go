@@ -39,11 +39,15 @@ type ClientInterface interface {
 	GetCode(ctx context.Context, account string) (common.Bytes, error)
 	NonceAt(ctx context.Context, account string) (uint64, error)
 	SendRawTransaction(ctx context.Context, tx string) error
+	KardiaCall(ctx context.Context, args types.CallArgsJSON) (common.Bytes, error)
 	Peers(ctx context.Context, client *RPCClient) ([]*types.PeerInfo, error)
 	NodesInfo(ctx context.Context) ([]*types.NodeInfo, error)
 	Datadir(ctx context.Context) (string, error)
 	Validator(ctx context.Context, address string) (*types.Validator, error)
 	Validators(ctx context.Context) (*types.Validators, error)
+
+	// staking related methods
+	GetValidatorsByDelegator(ctx context.Context, delAddr common.Address) ([]*types.ValidatorsByDelegator, error)
 }
 
 type Config struct {

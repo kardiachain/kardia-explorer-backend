@@ -66,3 +66,12 @@ type NodeInfo struct {
 	Peers           []*PeerInfo          `json:"peers,omitempty"` // peers details
 	Other           DefaultNodeInfoOther `json:"other"`           // other application specific data
 }
+
+type ValidatorsByDelegator struct {
+	Validator             common.Address `json:"validator"`
+	ValidatorContractAddr common.Address `json:"validatorContractAddr"`
+	StakedAmount          string         `json:"stakedAmount"`
+	ClaimableRewards      string         `json:"claimableRewards"`
+	UnbondedAmount        string         `json:"unbondedAmount"`
+	WithdrawableAmount    string         `json:"withdrawableAmount"`
+}

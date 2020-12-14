@@ -7,6 +7,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/kardiachain/go-kardia/lib/common"
+
 	"github.com/bxcodec/faker/v3"
 	"github.com/labstack/echo"
 	"go.uber.org/zap"
@@ -216,7 +218,13 @@ func (s *Server) Validators(c echo.Context) error {
 }
 
 func (s *Server) GetValidatorsByDelegator(c echo.Context) error {
-	return nil
+	ctx := context.Background()
+	delAddr := c.Param("address")
+	valsList, err := s.kaiClient.GetValidatorsByDelegator(ctx, common.HexToAddress(delAddr))
+	if err != nil {
+		return api.Invalid.Build(c)
+	}
+	return api.OK.SetData(valsList).Build(c)
 }
 
 func (s *Server) Blocks(c echo.Context) error {
