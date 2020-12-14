@@ -17,6 +17,7 @@ type Validators struct {
 
 type Validator struct {
 	Address               common.Address `json:"address"`
+	SmcAddress            common.Address `json:"smcAddress"`
 	IsProposer            bool           `json:"isProposer"`
 	Name                  string         `json:"name,omitempty"`
 	VotingPowerPercentage string         `json:"votingPowerPercentage"`
