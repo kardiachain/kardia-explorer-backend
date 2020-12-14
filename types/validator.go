@@ -18,10 +18,8 @@ type Validators struct {
 type Validator struct {
 	Address               common.Address `json:"address"`
 	Name                  string         `json:"name,omitempty"`
-	VotingPower           int64          `json:"votingPower"`
 	VotingPowerPercentage string         `json:"votingPowerPercentage"`
 	StakedAmount          string         `json:"stakedAmount"`
-	Commission            string         `json:"commission"`
 	CommissionRate        string         `json:"commissionRate"`
 	TotalDelegators       int            `json:"totalDelegators"`
 	MaxRate               string         `json:"maxRate"`

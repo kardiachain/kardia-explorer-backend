@@ -153,7 +153,7 @@ func (s *Server) ValidatorStats(c echo.Context) error {
 	pagination.Sanitize()
 
 	// get validator list from cache
-	valsList, err := s.getValidatorsListFromCache(ctx)
+	valsList, err := s.getValidatorsList(ctx)
 	if err != nil {
 		return api.Invalid.Build(c)
 	}
@@ -163,15 +163,25 @@ func (s *Server) ValidatorStats(c echo.Context) error {
 	if err != nil {
 		s.logger.Warn("cannot get validators list from RPC, use cached validator info instead", zap.Error(err))
 	}
+	s.logger.Debug("validator from RPC", zap.Any("validator", validator))
 	// get validator additional info such as commission rate
 	for _, val := range valsList.Validators {
 		if strings.ToLower(val.Address.Hex()) == strings.ToLower(c.Param("address")) {
+			s.logger.Info("found validator in cache")
 			if validator == nil {
 				validator = val
 			}
 			validator.CommissionRate = val.CommissionRate
+			validator.MaxRate = val.MaxRate
+			validator.MaxChangeRate = val.MaxChangeRate
+			validator.VotingPowerPercentage = val.VotingPowerPercentage
 			break
 		}
+	}
+	s.logger.Debug("validator after modifying from cache", zap.Any("validator", validator))
+	if validator == nil {
+		// address in param is not a validator
+		return api.Invalid.Build(c)
 	}
 	var delegators []*types.Delegator
 	if pagination.Skip > len(validator.Delegators) {
@@ -196,11 +206,15 @@ func (s *Server) ValidatorStats(c echo.Context) error {
 
 func (s *Server) Validators(c echo.Context) error {
 	ctx := context.Background()
-	valsList, err := s.getValidatorsListFromCache(ctx)
+	valsList, err := s.getValidatorsList(ctx)
 	if err != nil {
 		return api.Invalid.Build(c)
 	}
 	return api.OK.SetData(valsList).Build(c)
+}
+
+func (s *Server) GetValidatorsByDelegator(c echo.Context) error {
+	return nil
 }
 
 func (s *Server) Blocks(c echo.Context) error {
@@ -707,7 +721,7 @@ func (s *Server) BlockTime(c echo.Context) error {
 	panic("implement me")
 }
 
-func (s *Server) getValidatorsListFromCache(ctx context.Context) (*types.Validators, error) {
+func (s *Server) getValidatorsList(ctx context.Context) (*types.Validators, error) {
 	valsList, err := s.cacheClient.Validators(ctx)
 	if err == nil {
 		s.logger.Debug("got validators list from cache", zap.Error(err))

@@ -43,9 +43,10 @@ type EchoServer interface {
 	TPS(c echo.Context) error
 	BlockTime(c echo.Context) error
 
-	// Validators
+	// Staking-related
 	ValidatorStats(c echo.Context) error
 	Validators(c echo.Context) error
+	GetValidatorsByDelegator(c echo.Context) error
 
 	// Blocks
 	Blocks(c echo.Context) error
@@ -189,6 +190,12 @@ func bind(gr *echo.Group, srv EchoServer) {
 			method:      echo.GET,
 			path:        "/validators/:address",
 			fn:          srv.ValidatorStats,
+			middlewares: nil,
+		},
+		{
+			method:      echo.GET,
+			path:        "/delegators/:address/validators",
+			fn:          srv.GetValidatorsByDelegator,
 			middlewares: nil,
 		},
 	}

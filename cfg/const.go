@@ -29,4 +29,6 @@ const (
 	ValidatorsListExpTime = 5 * time.Minute
 	NodesInfoListExpTime  = 1 * time.Hour
 	BlockInfoExpTime      = 30 * time.Minute
+
+	TotalProposers = 20 // TODO(trinhdn): follow core API updates
 )

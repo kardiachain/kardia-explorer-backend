@@ -26,6 +26,8 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/kardiachain/explorer-backend/cfg"
+
 	"go.uber.org/zap"
 
 	kardia "github.com/kardiachain/go-kardiamain"
@@ -300,10 +302,14 @@ func (ec *Client) Validators(ctx context.Context) (*types.Validators, error) {
 		jAmount, _ := new(big.Int).SetString(validators[j].StakedAmount, 10)
 		return iAmount.Cmp(jAmount) == 1
 	})
-	for _, val := range validators {
+	for i, val := range validators {
+		if i < cfg.TotalProposers {
+			val.IsProposer = true
+		}
 		if val, err = convertValidatorInfo(val, totalStakedAmount); err != nil {
 			return nil, err
 		}
+
 	}
 	result := &types.Validators{
 		TotalValidators:            len(validators),
@@ -311,7 +317,7 @@ func (ec *Client) Validators(ctx context.Context) (*types.Validators, error) {
 		TotalStakedAmount:          totalStakedAmount.String(),
 		TotalValidatorStakedAmount: new(big.Int).Sub(totalStakedAmount, totalDelegatorStakedAmount).String(),
 		TotalDelegatorStakedAmount: totalDelegatorStakedAmount.String(),
-		TotalProposer:              21, // TODO(trinhdn): follow core API updates
+		TotalProposer:              cfg.TotalProposers,
 		Validators:                 validators,
 	}
 	return result, nil
@@ -337,7 +343,6 @@ func (ec *Client) getBlockHeader(ctx context.Context, method string, args ...int
 
 func convertValidatorInfo(val *types.Validator, totalStakedAmount *big.Int) (*types.Validator, error) {
 	var err error
-	val.Commission = ""
 	if val.CommissionRate, err = convertBigIntToPercentage(val.CommissionRate); err != nil {
 		return nil, err
 	}
