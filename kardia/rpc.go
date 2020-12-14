@@ -24,6 +24,8 @@ import (
 	"fmt"
 	"math/big"
 	"os"
+	"path"
+	"runtime"
 	"sort"
 	"strings"
 
@@ -107,7 +109,8 @@ func NewKaiClient(cfg *Config) (ClientInterface, error) {
 	// set default RPC client as one of our trusted ones
 	defaultClient = trustedClientList[0]
 
-	stakingABI, err := os.Open("kardia/abi/staking.json")
+	_, filename, _, _ := runtime.Caller(1)
+	stakingABI, err := os.Open(path.Join(path.Dir(filename), "../kardia/abi/staking.json"))
 	if err != nil {
 		panic("cannot read staking ABI file")
 	}
@@ -121,7 +124,7 @@ func NewKaiClient(cfg *Config) (ClientInterface, error) {
 		ContractAddress: common.HexToAddress(configs.StakingContract.Address),
 		Bytecode:        configs.StakingContract.ByteCode,
 	}
-	validatorABI, err := os.Open("kardia/abi/validator.json")
+	validatorABI, err := os.Open(path.Join(path.Dir(filename), "../kardia/abi/validator.json"))
 	if err != nil {
 		panic("cannot read staking ABI file")
 	}
