@@ -47,6 +47,7 @@ type EchoServer interface {
 	ValidatorStats(c echo.Context) error
 	Validators(c echo.Context) error
 	GetValidatorsByDelegator(c echo.Context) error
+	GetWaitingValidatorsList(c echo.Context) error
 
 	// Blocks
 	Blocks(c echo.Context) error
@@ -196,6 +197,12 @@ func bind(gr *echo.Group, srv EchoServer) {
 			method:      echo.GET,
 			path:        "/delegators/:address/validators",
 			fn:          srv.GetValidatorsByDelegator,
+			middlewares: nil,
+		},
+		{
+			method:      echo.GET,
+			path:        "/validators/waiting",
+			fn:          srv.GetWaitingValidatorsList,
 			middlewares: nil,
 		},
 	}

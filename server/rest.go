@@ -178,7 +178,7 @@ func (s *Server) ValidatorStats(c echo.Context) error {
 			validator.MaxRate = val.MaxRate
 			validator.MaxChangeRate = val.MaxChangeRate
 			validator.VotingPowerPercentage = val.VotingPowerPercentage
-			validator.IsProposer = val.IsProposer
+			validator.Status = val.Status
 			break
 		}
 	}
@@ -214,6 +214,12 @@ func (s *Server) Validators(c echo.Context) error {
 	if err != nil {
 		return api.Invalid.Build(c)
 	}
+	for i, val := range valsList.Validators {
+		if val.Status == 0 {
+			valsList.Validators = valsList.Validators[0 : i+1]
+			return api.OK.SetData(valsList).Build(c)
+		}
+	}
 	return api.OK.SetData(valsList).Build(c)
 }
 
@@ -224,6 +230,23 @@ func (s *Server) GetValidatorsByDelegator(c echo.Context) error {
 	if err != nil {
 		return api.Invalid.Build(c)
 	}
+	return api.OK.SetData(valsList).Build(c)
+}
+
+func (s *Server) GetWaitingValidatorsList(c echo.Context) error {
+	ctx := context.Background()
+	valsList, err := s.getValidatorsList(ctx)
+	if err != nil {
+		return api.Invalid.Build(c)
+	}
+
+	for i, val := range valsList.Validators {
+		if val.Status == 0 {
+			valsList.Validators = valsList.Validators[i:len(valsList.Validators)]
+			return api.OK.SetData(valsList).Build(c)
+		}
+	}
+	valsList.Validators = []*types.Validator(nil)
 	return api.OK.SetData(valsList).Build(c)
 }
 

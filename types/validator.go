@@ -18,7 +18,7 @@ type Validators struct {
 type Validator struct {
 	Address               common.Address `json:"address"`
 	SmcAddress            common.Address `json:"smcAddress"`
-	IsProposer            bool           `json:"isProposer"`
+	Status                int            `json:"status"`
 	Name                  string         `json:"name,omitempty"`
 	VotingPowerPercentage string         `json:"votingPowerPercentage"`
 	StakedAmount          string         `json:"stakedAmount"`
@@ -68,6 +68,7 @@ type NodeInfo struct {
 }
 
 type ValidatorsByDelegator struct {
+	Name                  string         `json:"name"`
 	Validator             common.Address `json:"validator"`
 	ValidatorContractAddr common.Address `json:"validatorContractAddr"`
 	StakedAmount          string         `json:"stakedAmount"`

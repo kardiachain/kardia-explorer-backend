@@ -19,7 +19,9 @@
 // Package cfg
 package cfg
 
-import "time"
+import (
+	"time"
+)
 
 const (
 	// redis list length
@@ -30,5 +32,7 @@ const (
 	NodesInfoListExpTime  = 1 * time.Hour
 	BlockInfoExpTime      = 30 * time.Minute
 
-	TotalProposers = 20 // TODO(trinhdn): follow core API updates
+	// TODO(trinhdn): follow core API updates
+	TotalProposers  = 20
+	MinStakedAmount = "12500000000000000000000000"
 )

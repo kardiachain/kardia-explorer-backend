@@ -27,6 +27,7 @@ import (
 
 	"github.com/kardiachain/explorer-backend/types"
 	"github.com/kardiachain/go-kardia/lib/common"
+	staking "github.com/kardiachain/go-kardia/mainchain/staking"
 )
 
 func (ec *Client) GetValidatorsByDelegator(ctx context.Context, delAddr common.Address) ([]*types.ValidatorsByDelegator, error) {
@@ -53,6 +54,16 @@ func (ec *Client) GetValidatorsByDelegator(ctx context.Context, delAddr common.A
 	// gather additional information about validators
 	var valsList []*types.ValidatorsByDelegator
 	for _, val := range valAddrs.ValAddrs {
+		valInfo, err := ec.GetValidatorInfo(ctx, val)
+		if err != nil {
+			return nil, err
+		}
+		var name []byte
+		for _, b := range valInfo.Name {
+			if b != 0 {
+				name = append(name, byte(b))
+			}
+		}
 		owner, err := ec.GetValidatorContractFromOwner(ctx, val)
 		if err != nil {
 			return nil, err
@@ -70,6 +81,7 @@ func (ec *Client) GetValidatorsByDelegator(ctx context.Context, delAddr common.A
 			return nil, err
 		}
 		validator := &types.ValidatorsByDelegator{
+			Name:                  string(name),
 			Validator:             owner,
 			ValidatorContractAddr: val,
 			StakedAmount:          stakedAmount.String(),
@@ -82,6 +94,29 @@ func (ec *Client) GetValidatorsByDelegator(ctx context.Context, delAddr common.A
 	return valsList, nil
 }
 
+// GetValidatorInfo returns information of this validator
+func (ec *Client) GetValidatorInfo(ctx context.Context, valSmcAddr common.Address) (*staking.Validator, error) {
+	payload, err := ec.validatorUtil.Abi.Pack("inforValidator")
+	if err != nil {
+		ec.lgr.Error("Error packing validator info payload: ", zap.Error(err))
+		return nil, err
+	}
+	res, err := ec.KardiaCall(ctx, ec.contructCallArgs(valSmcAddr.Hex(), payload))
+	if err != nil {
+		ec.lgr.Error("GetValidatorInfo KardiaCall error: ", zap.Error(err))
+		return nil, err
+	}
+	var valInfo staking.Validator
+	// unpack result
+	err = ec.validatorUtil.Abi.UnpackIntoInterface(&valInfo, "inforValidator", res)
+	if err != nil {
+		ec.lgr.Error("Error unpacking validator info: ", zap.Error(err))
+		return nil, err
+	}
+	return &valInfo, nil
+}
+
+// GetValidatorContractFromOwner returns validator contract address from owner address
 func (ec *Client) GetValidatorContractFromOwner(ctx context.Context, valAddr common.Address) (common.Address, error) {
 	payload, err := ec.stakingUtil.Abi.Pack("valOf", valAddr)
 	if err != nil {

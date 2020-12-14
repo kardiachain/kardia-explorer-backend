@@ -351,14 +351,19 @@ func (ec *Client) Validators(ctx context.Context) (*types.Validators, error) {
 		jAmount, _ := new(big.Int).SetString(validators[j].StakedAmount, 10)
 		return iAmount.Cmp(jAmount) == 1
 	})
+	// compare staked amount of validator to determine their status
+	minStakedAmount, _ := new(big.Int).SetString(cfg.MinStakedAmount, 10)
 	for i, val := range validators {
 		if i < cfg.TotalProposers {
-			val.IsProposer = true
+			val.Status = 2
+		} else if stakedAmount, _ := new(big.Int).SetString(validators[i].StakedAmount, 10); stakedAmount.Cmp(minStakedAmount) == -1 {
+			val.Status = 0
+		} else {
+			val.Status = 1
 		}
 		if val, err = convertValidatorInfo(val, totalStakedAmount); err != nil {
 			return nil, err
 		}
-
 	}
 	result := &types.Validators{
 		TotalValidators:            len(validators),
