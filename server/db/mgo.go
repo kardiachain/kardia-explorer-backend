@@ -353,6 +353,7 @@ func (m *mongoDB) TxsByAddress(ctx context.Context, address string, pagination *
 	opts := []*options.FindOptions{
 		options.Find().SetHint(bson.D{{Key: "from", Value: 1}, {Key: "time", Value: -1}}),
 		options.Find().SetHint(bson.D{{Key: "to", Value: 1}, {Key: "time", Value: -1}}),
+		options.Find().SetSort(bson.M{"time": -1}),
 		options.Find().SetSkip(int64(pagination.Skip)),
 		options.Find().SetLimit(int64(pagination.Limit)),
 	}
