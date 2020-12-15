@@ -351,15 +351,22 @@ func (ec *Client) Validators(ctx context.Context) (*types.Validators, error) {
 		jAmount, _ := new(big.Int).SetString(validators[j].StakedAmount, 10)
 		return iAmount.Cmp(jAmount) == 1
 	})
-	// compare staked amount of validator to determine their status
-	minStakedAmount, _ := new(big.Int).SetString(cfg.MinStakedAmount, 10)
+	// compare staked amount btw validators to determine their status
+	minStakedAmount, ok := new(big.Int).SetString(cfg.MinStakedAmount, 10)
+	if !ok {
+		ec.lgr.Error("error parsing MinStakedAmount to big.Int:", zap.String("MinStakedAmount", cfg.MinStakedAmount), zap.Any("value", minStakedAmount))
+	}
+
 	for i, val := range validators {
-		if i < cfg.TotalProposers {
-			val.Status = 2
-		} else if stakedAmount, _ := new(big.Int).SetString(validators[i].StakedAmount, 10); stakedAmount.Cmp(minStakedAmount) == -1 {
-			val.Status = 0
-		} else {
-			val.Status = 1
+		if stakedAmount, ok := new(big.Int).SetString(validators[i].StakedAmount, 10); ok {
+			ec.lgr.Debug("setting validator status:", zap.String("validators[i].StakedAmount", validators[i].StakedAmount), zap.String("cfg.MinStakedAmount", cfg.MinStakedAmount))
+			if stakedAmount.Cmp(minStakedAmount) == -1 {
+				val.Status = 0 // validator who has staked under 12.5M KAI is considers a registered one
+			} else if i < cfg.TotalProposers {
+				val.Status = 2 // validator who has staked over 12.5M KAI and belong to top 20 of validator based on voting power is considered a proposer
+			} else {
+				val.Status = 1 // validator who has staked over 12.5M KAI and not belong to top 20 of validator based on voting power is considered a normal validator
+			}
 		}
 		if val, err = convertValidatorInfo(val, totalStakedAmount); err != nil {
 			return nil, err
