@@ -215,7 +215,8 @@ func (ec *Client) GetUDBEntries(ctx context.Context, valSmcAddr common.Address, 
 		ec.lgr.Error("Error unpacking UDB entry: ", zap.Error(err))
 		return nil, nil, err
 	}
-	var totalAmount, withdrawableAmount *big.Int
+	totalAmount := new(big.Int).SetInt64(0)
+	withdrawableAmount := new(big.Int).SetInt64(0)
 	now := new(big.Int).SetInt64(time.Now().Unix())
 	for i, balance := range udbEntry.Balances {
 		totalAmount = new(big.Int).Add(totalAmount, balance)
