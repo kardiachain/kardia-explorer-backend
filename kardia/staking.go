@@ -84,6 +84,7 @@ func (ec *Client) GetValidatorsByDelegator(ctx context.Context, delAddr common.A
 			Name:                  string(name),
 			Validator:             owner,
 			ValidatorContractAddr: val,
+			ValidatorStatus:       valInfo.Status,
 			StakedAmount:          stakedAmount.String(),
 			ClaimableRewards:      reward.String(),
 			UnbondedAmount:        unbondedAmount.String(),

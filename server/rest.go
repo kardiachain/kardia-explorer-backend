@@ -214,12 +214,14 @@ func (s *Server) Validators(c echo.Context) error {
 	if err != nil {
 		return api.Invalid.Build(c)
 	}
-	for i, val := range valsList.Validators {
-		if val.Status == 0 {
-			valsList.Validators = valsList.Validators[0:i]
-			return api.OK.SetData(valsList).Build(c)
+	var result []*types.Validator
+	for _, val := range valsList.Validators {
+		if val.Role != 0 {
+			result = append(result, val)
 		}
 	}
+	valsList.Validators = result
+	valsList.TotalValidators = len(valsList.Validators)
 	return api.OK.SetData(valsList).Build(c)
 }
 
@@ -239,14 +241,19 @@ func (s *Server) GetRegisteredValidatorsList(c echo.Context) error {
 	if err != nil {
 		return api.Invalid.Build(c)
 	}
-
-	for i, val := range valsList.Validators {
-		if val.Status == 0 {
-			valsList.Validators = valsList.Validators[i:len(valsList.Validators)]
-			return api.OK.SetData(valsList).Build(c)
+	var (
+		result    []*types.Validator
+		valsCount = 0
+	)
+	for _, val := range valsList.Validators {
+		if val.Role == 0 {
+			result = append(result, val)
+		} else {
+			valsCount++
 		}
 	}
-	valsList.Validators = []*types.Validator(nil)
+	valsList.Validators = result
+	valsList.TotalValidators = valsCount
 	return api.OK.SetData(valsList).Build(c)
 }
 

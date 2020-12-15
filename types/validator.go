@@ -18,7 +18,8 @@ type Validators struct {
 type Validator struct {
 	Address               common.Address `json:"address"`
 	SmcAddress            common.Address `json:"smcAddress"`
-	Status                int            `json:"status"`
+	Status                uint8          `json:"status"`
+	Role                  int            `json:"role"`
 	Name                  string         `json:"name,omitempty"`
 	VotingPowerPercentage string         `json:"votingPowerPercentage"`
 	StakedAmount          string         `json:"stakedAmount"`
@@ -71,6 +72,7 @@ type ValidatorsByDelegator struct {
 	Name                  string         `json:"name"`
 	Validator             common.Address `json:"validator"`
 	ValidatorContractAddr common.Address `json:"validatorContractAddr"`
+	ValidatorStatus       uint8          `json:"validatorStatus"`
 	StakedAmount          string         `json:"stakedAmount"`
 	ClaimableRewards      string         `json:"claimableRewards"`
 	UnbondedAmount        string         `json:"unbondedAmount"`

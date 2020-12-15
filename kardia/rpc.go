@@ -356,16 +356,22 @@ func (ec *Client) Validators(ctx context.Context) (*types.Validators, error) {
 	if !ok {
 		ec.lgr.Error("error parsing MinStakedAmount to big.Int:", zap.String("MinStakedAmount", cfg.MinStakedAmount), zap.Any("value", minStakedAmount))
 	}
-
+	totalProposers := 0
 	for i, val := range validators {
+		valInfo, err := ec.GetValidatorInfo(ctx, val.SmcAddress)
+		if err != nil {
+			return nil, err
+		}
+		val.Status = valInfo.Status
 		if stakedAmount, ok := new(big.Int).SetString(validators[i].StakedAmount, 10); ok {
 			ec.lgr.Debug("setting validator status:", zap.String("validators[i].StakedAmount", validators[i].StakedAmount), zap.String("cfg.MinStakedAmount", cfg.MinStakedAmount))
-			if stakedAmount.Cmp(minStakedAmount) == -1 {
-				val.Status = 0 // validator who has staked under 12.5M KAI is considers a registered one
-			} else if i < cfg.TotalProposers {
-				val.Status = 2 // validator who has staked over 12.5M KAI and belong to top 20 of validator based on voting power is considered a proposer
+			if stakedAmount.Cmp(minStakedAmount) == -1 || val.Status < 2 {
+				val.Role = 0 // validator who has staked under 12.5M KAI is considers a registered one
+			} else if totalProposers < cfg.TotalProposers {
+				val.Role = 2 // validator who has staked over 12.5M KAI and belong to top 20 of validator based on voting power is considered a proposer
+				totalProposers++
 			} else {
-				val.Status = 1 // validator who has staked over 12.5M KAI and not belong to top 20 of validator based on voting power is considered a normal validator
+				val.Role = 1 // validator who has staked over 12.5M KAI and not belong to top 20 of validator based on voting power is considered a normal validator
 			}
 		}
 		if val, err = convertValidatorInfo(val, totalStakedAmount); err != nil {
@@ -378,7 +384,7 @@ func (ec *Client) Validators(ctx context.Context) (*types.Validators, error) {
 		TotalStakedAmount:          totalStakedAmount.String(),
 		TotalValidatorStakedAmount: new(big.Int).Sub(totalStakedAmount, totalDelegatorStakedAmount).String(),
 		TotalDelegatorStakedAmount: totalDelegatorStakedAmount.String(),
-		TotalProposer:              cfg.TotalProposers,
+		TotalProposer:              totalProposers,
 		Validators:                 validators,
 	}
 	return result, nil
