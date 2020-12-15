@@ -364,7 +364,6 @@ func (ec *Client) Validators(ctx context.Context) (*types.Validators, error) {
 		}
 		val.Status = valInfo.Status
 		if stakedAmount, ok := new(big.Int).SetString(validators[i].StakedAmount, 10); ok {
-			ec.lgr.Debug("setting validator status:", zap.String("validators[i].StakedAmount", validators[i].StakedAmount), zap.String("cfg.MinStakedAmount", cfg.MinStakedAmount))
 			if stakedAmount.Cmp(minStakedAmount) == -1 || val.Status < 2 {
 				val.Role = 0 // validator who has staked under 12.5M KAI is considers a registered one
 			} else if totalProposers < cfg.TotalProposers {
