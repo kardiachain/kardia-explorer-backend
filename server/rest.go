@@ -216,7 +216,7 @@ func (s *Server) Validators(c echo.Context) error {
 	}
 	for i, val := range valsList.Validators {
 		if val.Status == 0 {
-			valsList.Validators = valsList.Validators[0 : i+1]
+			valsList.Validators = valsList.Validators[0:i]
 			return api.OK.SetData(valsList).Build(c)
 		}
 	}
@@ -233,7 +233,7 @@ func (s *Server) GetValidatorsByDelegator(c echo.Context) error {
 	return api.OK.SetData(valsList).Build(c)
 }
 
-func (s *Server) GetWaitingValidatorsList(c echo.Context) error {
+func (s *Server) GetRegisteredValidatorsList(c echo.Context) error {
 	ctx := context.Background()
 	valsList, err := s.getValidatorsList(ctx)
 	if err != nil {
