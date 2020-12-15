@@ -179,6 +179,7 @@ func (s *Server) ValidatorStats(c echo.Context) error {
 			validator.MaxChangeRate = val.MaxChangeRate
 			validator.VotingPowerPercentage = val.VotingPowerPercentage
 			validator.Status = val.Status
+			validator.Role = val.Role
 			break
 		}
 	}
