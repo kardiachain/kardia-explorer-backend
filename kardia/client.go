@@ -50,6 +50,7 @@ type ClientInterface interface {
 	Validators(ctx context.Context) (*types.Validators, error)
 
 	// staking related methods
+	GetValidatorSets(ctx context.Context) ([]common.Address, error)
 	GetValidatorsByDelegator(ctx context.Context, delAddr common.Address) ([]*types.ValidatorsByDelegator, error)
 
 	// validator related methods

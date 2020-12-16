@@ -310,6 +310,29 @@ func (ec *Client) Validator(ctx context.Context, address string) (*types.Validat
 	if err != nil {
 		return nil, err
 	}
+	// update validator's role. If he's in validators set, he is a proposer
+	valsSet, err := ec.GetValidatorSets(ctx)
+	if err != nil {
+		return nil, err
+	}
+	for _, val := range valsSet {
+		if val.Equal(common.HexToAddress(address)) {
+			validator.Role = 2
+			return validator, nil
+		}
+	}
+	// else if his staked amount is enough, he is a normal validator
+	stakedAmount, ok1 := new(big.Int).SetString(validator.StakedAmount, 10)
+	minStakedAmount, ok2 := new(big.Int).SetString(cfg.MinStakedAmount, 10)
+	if !ok1 || !ok2 {
+		ec.lgr.Error("error parsing MinStakedAmount to big.Int:", zap.String("MinStakedAmount", cfg.MinStakedAmount), zap.Any("value", minStakedAmount))
+	}
+	if stakedAmount.Cmp(minStakedAmount) == -1 {
+		validator.Role = 1
+		return validator, nil
+	}
+	// otherwise he is a registered validator
+	validator.Role = 0
 	return validator, nil
 }
 

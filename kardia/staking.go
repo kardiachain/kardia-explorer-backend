@@ -116,6 +116,33 @@ func (ec *Client) GetValidatorContractFromOwner(ctx context.Context, valAddr com
 	return result.ValSmcAddr, nil
 }
 
+// GetValidatorSets returns current proposers set of network
+func (ec *Client) GetValidatorSets(ctx context.Context) ([]common.Address, error) {
+	payload, err := ec.stakingUtil.Abi.Pack("getValidatorSets")
+	if err != nil {
+		ec.lgr.Error("Error packing proposers list payload: ", zap.Error(err))
+		return nil, err
+	}
+	res, err := ec.KardiaCall(ctx, ec.contructCallArgs(ec.stakingUtil.ContractAddress.Hex(), payload))
+	if err != nil {
+		ec.lgr.Error("GetValidatorSets KardiaCall error: ", zap.Error(err))
+		return nil, err
+	}
+	if len(res) == 0 {
+		return nil, nil
+	}
+	var result struct {
+		ValAddrs []common.Address
+		Powers   []*big.Int
+	}
+	err = ec.stakingUtil.Abi.UnpackIntoInterface(&result, "getValidatorSets", res)
+	if err != nil {
+		ec.lgr.Error("Error unpacking proposers list error: ", zap.Error(err))
+		return nil, err
+	}
+	return result.ValAddrs, nil
+}
+
 func (ec *Client) contructCallArgs(address string, payload []byte) types.CallArgsJSON {
 	return types.CallArgsJSON{
 		From:     address,

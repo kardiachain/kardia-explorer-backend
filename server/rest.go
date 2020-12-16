@@ -164,8 +164,14 @@ func (s *Server) ValidatorStats(c echo.Context) error {
 			validator.MaxRate = val.MaxRate
 			validator.MaxChangeRate = val.MaxChangeRate
 			validator.VotingPowerPercentage = val.VotingPowerPercentage
-			validator.Status = val.Status
-			validator.Role = val.Role
+			if validator.Status != val.Status || validator.Role != val.Role {
+				val.Status = validator.Status
+				val.Role = validator.Role
+				err = s.cacheClient.UpdateValidators(ctx, valsList)
+				if err != nil {
+					s.logger.Warn("cannot store validators list to cache", zap.Error(err))
+				}
+			}
 			break
 		}
 	}
