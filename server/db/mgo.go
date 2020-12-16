@@ -288,7 +288,7 @@ func (m *mongoDB) BlocksByProposer(ctx context.Context, proposer string, paginat
 		blocks = append(blocks, block)
 	}
 	// get total transaction in block in database
-	total, err := m.wrapper.C(cTxs).Count(bson.M{"proposerAddress": proposer})
+	total, err := m.wrapper.C(cBlocks).Count(bson.M{"proposerAddress": proposer})
 	if err != nil {
 		return nil, 0, err
 	}
