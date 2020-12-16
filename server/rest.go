@@ -138,21 +138,7 @@ func (s *Server) ValidatorStats(c echo.Context) error {
 		page, limit int
 		err         error
 	)
-	pageParams := c.QueryParam("page")
-	limitParams := c.QueryParam("limit")
-	page, err = strconv.Atoi(pageParams)
-	if err != nil {
-		page = 0
-	}
-	limit, err = strconv.Atoi(limitParams)
-	if err != nil {
-		limit = 20
-	}
-	pagination := &types.Pagination{
-		Skip:  page * limit,
-		Limit: limit,
-	}
-	pagination.Sanitize()
+	pagination, page, limit := getPagingOption(c)
 
 	// get validator list from cache
 	valsList, err := s.getValidatorsList(ctx)
@@ -262,25 +248,10 @@ func (s *Server) Blocks(c echo.Context) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancel()
 	var (
-		page, limit int
-		err         error
-		blocks      []*types.Block
+		err    error
+		blocks []*types.Block
 	)
-	pageParams := c.QueryParam("page")
-	limitParams := c.QueryParam("limit")
-	page, err = strconv.Atoi(pageParams)
-	if err != nil {
-		page = 0
-	}
-	limit, err = strconv.Atoi(limitParams)
-	if err != nil {
-		limit = 20
-	}
-	pagination := &types.Pagination{
-		Skip:  page * limit,
-		Limit: limit,
-	}
-	pagination.Sanitize()
+	pagination, page, limit := getPagingOption(c)
 
 	// todo @londnd: implement read from cache,
 	blocks, err = s.cacheClient.LatestBlocks(ctx, pagination)
@@ -392,29 +363,15 @@ func (s *Server) BlockExist(c echo.Context) error {
 
 func (s *Server) BlockTxs(c echo.Context) error {
 	ctx := context.Background()
-	var page, limit int
-	var err error
 	block := c.Param("block")
-	pageParams := c.QueryParam("page")
-	limitParams := c.QueryParam("limit")
-	page, err = strconv.Atoi(pageParams)
-	if err != nil {
-		page = 0
-	}
-	limit, err = strconv.Atoi(limitParams)
-	if err != nil {
-		limit = 20
-	}
+	pagination, page, limit := getPagingOption(c)
 
 	var (
 		txs   []*types.Transaction
 		total uint64
+		err   error
 	)
-	pagination := &types.Pagination{
-		Skip:  page * limit,
-		Limit: limit,
-	}
-	pagination.Sanitize()
+
 	if strings.HasPrefix(block, "0x") {
 		// get block txs in block if exist
 		txs, total, err = s.cacheClient.TxsByBlockHash(ctx, block, pagination)
@@ -506,29 +463,29 @@ func (s *Server) BlockTxs(c echo.Context) error {
 	}).Build(c)
 }
 
+func (s *Server) BlocksByProposer(c echo.Context) error {
+	ctx := context.Background()
+	pagination, page, limit := getPagingOption(c)
+	blocks, total, err := s.dbClient.BlocksByProposer(ctx, c.Param("address"), pagination)
+	if err != nil {
+		s.logger.Debug("Cannot get blocks by proposer from db", zap.Error(err))
+		return api.Invalid.Build(c)
+	}
+	return api.OK.SetData(PagingResponse{
+		Page:  page,
+		Limit: limit,
+		Total: total,
+		Data:  blocks,
+	}).Build(c)
+}
+
 func (s *Server) Txs(c echo.Context) error {
 	ctx := context.Background()
+	pagination, page, limit := getPagingOption(c)
 	var (
-		page, limit int
-		err         error
+		err error
+		txs []*types.Transaction
 	)
-	pageParams := c.QueryParam("page")
-	limitParams := c.QueryParam("limit")
-	page, err = strconv.Atoi(pageParams)
-	if err != nil {
-		page = 0
-	}
-	limit, err = strconv.Atoi(limitParams)
-	if err != nil {
-		limit = 20
-	}
-
-	var txs []*types.Transaction
-	pagination := &types.Pagination{
-		Skip:  page * limit,
-		Limit: limit,
-	}
-	pagination.Sanitize()
 
 	txs, err = s.cacheClient.LatestTransactions(ctx, pagination)
 	if err != nil || txs == nil || len(txs) < limit {
@@ -567,8 +524,11 @@ func (s *Server) Txs(c echo.Context) error {
 }
 
 func (s *Server) Addresses(c echo.Context) error {
-	var page, limit int
-	var err error
+	var (
+		page, limit int
+		err         error
+	)
+
 	//blockHash := c.Param("blockHash")
 	pageParams := c.QueryParam("page")
 	limitParams := c.QueryParam("limit")
@@ -612,24 +572,9 @@ func (s *Server) Balance(c echo.Context) error {
 
 func (s *Server) AddressTxs(c echo.Context) error {
 	ctx := context.Background()
-	var page, limit int
 	var err error
 	address := c.Param("address")
-	pageParams := c.QueryParam("page")
-	limitParams := c.QueryParam("limit")
-	page, err = strconv.Atoi(pageParams)
-	if err != nil {
-		page = 0
-	}
-	limit, err = strconv.Atoi(limitParams)
-	if err != nil {
-		limit = 20
-	}
-	pagination := &types.Pagination{
-		Skip:  page * limit,
-		Limit: limit,
-	}
-	pagination.Sanitize()
+	pagination, page, limit := getPagingOption(c)
 
 	txs, total, err := s.dbClient.TxsByAddress(ctx, address, pagination)
 	if err != nil {
@@ -662,8 +607,10 @@ func (s *Server) AddressTxs(c echo.Context) error {
 }
 
 func (s *Server) AddressHolders(c echo.Context) error {
-	var page, limit int
-	var err error
+	var (
+		page, limit int
+		err         error
+	)
 	//blockHash := c.Param("blockHash")
 	pageParams := c.QueryParam("page")
 	limitParams := c.QueryParam("limit")
@@ -780,4 +727,23 @@ func (s *Server) getValidatorsList(ctx context.Context) (*types.Validators, erro
 		s.logger.Warn("cannot store validators list to cache", zap.Error(err))
 	}
 	return valsList, nil
+}
+
+func getPagingOption(c echo.Context) (*types.Pagination, int, int) {
+	pageParams := c.QueryParam("page")
+	limitParams := c.QueryParam("limit")
+	page, err := strconv.Atoi(pageParams)
+	if err != nil {
+		page = 0
+	}
+	limit, err := strconv.Atoi(limitParams)
+	if err != nil {
+		limit = 10
+	}
+	pagination := &types.Pagination{
+		Skip:  page * limit,
+		Limit: limit,
+	}
+	pagination.Sanitize()
+	return pagination, page, limit
 }

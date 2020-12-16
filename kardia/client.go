@@ -60,15 +60,17 @@ type ClientInterface interface {
 }
 
 type Config struct {
-	rpcURL            []string
-	trustedNodeRPCURL []string
-	lgr               *zap.Logger
+	rpcURL             []string
+	trustedNodeRPCURL  []string
+	maxTotalValidators int
+	lgr                *zap.Logger
 }
 
-func NewConfig(rpcURL []string, trustedNodeRPCURL []string, lgr *zap.Logger) *Config {
+func NewConfig(rpcURL []string, trustedNodeRPCURL []string, maxTotalValidators int, lgr *zap.Logger) *Config {
 	return &Config{
-		rpcURL:            rpcURL,
-		trustedNodeRPCURL: trustedNodeRPCURL,
-		lgr:               lgr,
+		rpcURL:             rpcURL,
+		trustedNodeRPCURL:  trustedNodeRPCURL,
+		maxTotalValidators: maxTotalValidators,
+		lgr:                lgr,
 	}
 }

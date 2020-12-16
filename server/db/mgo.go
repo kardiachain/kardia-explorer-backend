@@ -255,6 +255,46 @@ func (m *mongoDB) DeleteBlockByHeight(ctx context.Context, blockHeight uint64) e
 	return nil
 }
 
+func (m *mongoDB) BlocksByProposer(ctx context.Context, proposer string, pagination *types.Pagination) ([]*types.Block, uint64, error) {
+	var blocks []*types.Block
+	opts := []*options.FindOptions(nil)
+	if pagination != nil {
+		opts = []*options.FindOptions{
+			options.Find().SetHint(bson.D{{Key: "proposerAddress", Value: 1}, {Key: "time", Value: -1}}),
+			options.Find().SetSort(bson.M{"time": -1}),
+			options.Find().SetSkip(int64(pagination.Skip)),
+			options.Find().SetLimit(int64(pagination.Limit)),
+		}
+	}
+	cursor, err := m.wrapper.C(cBlocks).
+		Find(bson.M{"proposerAddress": proposer}, opts...)
+	defer func() {
+		err = cursor.Close(ctx)
+		if err != nil {
+			m.logger.Warn("Error when close cursor", zap.Error(err))
+		}
+	}()
+	if err != nil {
+		if err == mgo.ErrNotFound {
+			return nil, 0, nil
+		}
+		return nil, 0, fmt.Errorf("failed to get txs for block: %v", err)
+	}
+	for cursor.Next(ctx) {
+		block := &types.Block{}
+		if err := cursor.Decode(block); err != nil {
+			return nil, 0, err
+		}
+		blocks = append(blocks, block)
+	}
+	// get total transaction in block in database
+	total, err := m.wrapper.C(cTxs).Count(bson.M{"proposerAddress": proposer})
+	if err != nil {
+		return nil, 0, err
+	}
+	return blocks, uint64(total), nil
+}
+
 //endregion Blocks
 
 //region Txs
@@ -264,7 +304,6 @@ func (m *mongoDB) Txs(ctx context.Context, pagination *types.Pagination) ([]*typ
 }
 
 func (m *mongoDB) BlockTxCount(ctx context.Context, hash string) (int64, error) {
-
 	return 0, nil
 }
 

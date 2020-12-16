@@ -54,6 +54,7 @@ type EchoServer interface {
 	Block(c echo.Context) error
 	BlockExist(c echo.Context) error
 	BlockTxs(c echo.Context) error
+	BlocksByProposer(c echo.Context) error
 	PersistentErrorBlocks(c echo.Context) error
 
 	// Addresses
@@ -123,7 +124,7 @@ func bind(gr *echo.Group, srv EchoServer) {
 		// Blocks
 		{
 			method: echo.GET,
-			// Query params: ?page=1&limit=10
+			// Query params: ?page=0&limit=10
 			path: "/blocks",
 			fn:   srv.Blocks,
 		},
@@ -139,8 +140,16 @@ func bind(gr *echo.Group, srv EchoServer) {
 		},
 		{
 			method: echo.GET,
+			// Params: proposer address
+			// Query params: ?page=0&limit=10
+			path:        "/blocks/proposer/:address",
+			fn:          srv.BlocksByProposer,
+			middlewares: nil,
+		},
+		{
+			method: echo.GET,
 			// Params: block's hash
-			// Query params: ?page=1&limit=10
+			// Query params: ?page=0&limit=10
 			path:        "/block/:block/txs",
 			fn:          srv.BlockTxs,
 			middlewares: []echo.MiddlewareFunc{checkPagination()},
@@ -152,7 +161,7 @@ func bind(gr *echo.Group, srv EchoServer) {
 		},
 		{
 			method: echo.GET,
-			// Query params: ?page=1&limit=10
+			// Query params: ?page=0&limit=10
 			path:        "/txs",
 			fn:          srv.Txs,
 			middlewares: []echo.MiddlewareFunc{checkPagination()},

@@ -33,6 +33,5 @@ const (
 	BlockInfoExpTime      = 30 * time.Minute
 
 	// TODO(trinhdn): follow core API updates
-	TotalProposers  = 20
 	MinStakedAmount = "12500000000000000000000000"
 )

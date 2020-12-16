@@ -65,8 +65,9 @@ type Client struct {
 	defaultClient     *RPCClient
 	numRequest        int
 
-	stakingUtil   *staking.StakingSmcUtil
-	validatorUtil *staking.ValidatorSmcUtil
+	stakingUtil        *staking.StakingSmcUtil
+	validatorUtil      *staking.ValidatorSmcUtil
+	maxTotalValidators int
 
 	lgr *zap.Logger
 }
@@ -138,7 +139,7 @@ func NewKaiClient(cfg *Config) (ClientInterface, error) {
 		Bytecode: configs.ValidatorContract.ByteCode,
 	}
 
-	return &Client{clientList, trustedClientList, defaultClient, 0, stakingUtil, validatorUtil, cfg.lgr}, nil
+	return &Client{clientList, trustedClientList, defaultClient, 0, stakingUtil, validatorUtil, cfg.maxTotalValidators, cfg.lgr}, nil
 }
 
 func (ec *Client) chooseClient() *RPCClient {
@@ -313,11 +314,20 @@ func (ec *Client) Validator(ctx context.Context, address string) (*types.Validat
 }
 
 func (ec *Client) Validators(ctx context.Context) (*types.Validators, error) {
-	var validators []*types.Validator
+	var (
+		proposersStakedAmount = big.NewInt(0)
+		validators            []*types.Validator
+	)
 	err := ec.defaultClient.c.CallContext(ctx, &validators, "kai_validators", true)
 	if err != nil {
 		return nil, err
 	}
+	// compare staked amount btw validators to determine their status
+	sort.Slice(validators, func(i, j int) bool {
+		iAmount, _ := new(big.Int).SetString(validators[i].StakedAmount, 10)
+		jAmount, _ := new(big.Int).SetString(validators[j].StakedAmount, 10)
+		return iAmount.Cmp(jAmount) == 1
+	})
 	var (
 		delegators                 = make(map[string]bool)
 		totalStakedAmount          = big.NewInt(0)
@@ -346,12 +356,6 @@ func (ec *Client) Validators(ctx context.Context) (*types.Validators, error) {
 		}
 		totalStakedAmount = new(big.Int).Add(totalStakedAmount, valStakedAmount)
 	}
-	sort.Slice(validators, func(i, j int) bool {
-		iAmount, _ := new(big.Int).SetString(validators[i].StakedAmount, 10)
-		jAmount, _ := new(big.Int).SetString(validators[j].StakedAmount, 10)
-		return iAmount.Cmp(jAmount) == 1
-	})
-	// compare staked amount btw validators to determine their status
 	minStakedAmount, ok := new(big.Int).SetString(cfg.MinStakedAmount, 10)
 	if !ok {
 		ec.lgr.Error("error parsing MinStakedAmount to big.Int:", zap.String("MinStakedAmount", cfg.MinStakedAmount), zap.Any("value", minStakedAmount))
@@ -366,14 +370,19 @@ func (ec *Client) Validators(ctx context.Context) (*types.Validators, error) {
 		if stakedAmount, ok := new(big.Int).SetString(validators[i].StakedAmount, 10); ok {
 			if stakedAmount.Cmp(minStakedAmount) == -1 || val.Status < 2 {
 				val.Role = 0 // validator who has staked under 12.5M KAI is considers a registered one
-			} else if totalProposers < cfg.TotalProposers {
+			} else if totalProposers < ec.maxTotalValidators {
 				val.Role = 2 // validator who has staked over 12.5M KAI and belong to top 20 of validator based on voting power is considered a proposer
 				totalProposers++
+				valStakedAmount, ok = new(big.Int).SetString(val.StakedAmount, 10)
+				if !ok {
+					return nil, err
+				}
+				proposersStakedAmount = new(big.Int).Add(proposersStakedAmount, valStakedAmount)
 			} else {
 				val.Role = 1 // validator who has staked over 12.5M KAI and not belong to top 20 of validator based on voting power is considered a normal validator
 			}
 		}
-		if val, err = convertValidatorInfo(val, totalStakedAmount); err != nil {
+		if val, err = convertValidatorInfo(val, proposersStakedAmount, val.Role); err != nil {
 			return nil, err
 		}
 	}
@@ -407,7 +416,7 @@ func (ec *Client) getBlockHeader(ctx context.Context, method string, args ...int
 	return &raw, nil
 }
 
-func convertValidatorInfo(val *types.Validator, totalStakedAmount *big.Int) (*types.Validator, error) {
+func convertValidatorInfo(val *types.Validator, totalStakedAmount *big.Int, role int) (*types.Validator, error) {
 	var err error
 	if val.CommissionRate, err = convertBigIntToPercentage(val.CommissionRate); err != nil {
 		return nil, err
@@ -418,10 +427,12 @@ func convertValidatorInfo(val *types.Validator, totalStakedAmount *big.Int) (*ty
 	if val.MaxChangeRate, err = convertBigIntToPercentage(val.MaxChangeRate); err != nil {
 		return nil, err
 	}
-	if totalStakedAmount != nil {
+	if totalStakedAmount != nil && role == 2 {
 		if val.VotingPowerPercentage, err = calculateVotingPower(val.StakedAmount, totalStakedAmount); err != nil {
 			return nil, err
 		}
+	} else {
+		val.VotingPowerPercentage = ""
 	}
 	return val, nil
 }
