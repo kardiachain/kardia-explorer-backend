@@ -432,7 +432,7 @@ func convertValidatorInfo(val *types.Validator, totalStakedAmount *big.Int, role
 			return nil, err
 		}
 	} else {
-		val.VotingPowerPercentage = ""
+		val.VotingPowerPercentage = "0"
 	}
 	return val, nil
 }
