@@ -57,7 +57,7 @@ type ExplorerConfig struct {
 	KardiaProtocol     string
 	KardiaURLs         []string
 	KardiaTrustedNodes []string
-	MaxTotalValidators int
+	TotalValidators    int
 
 	StorageDriver  string
 	StorageURI     string
@@ -143,10 +143,10 @@ func New() (ExplorerConfig, error) {
 		verifierInterval = 2 * time.Second
 	}
 
-	maxTotalValidatorsStr := os.Getenv("MAX_TOTAL_VALIDATORS")
-	maxTotalValidators, err := strconv.Atoi(maxTotalValidatorsStr)
+	totalValidatorsStr := os.Getenv("TOTAL_VALIDATORS")
+	totalValidators, err := strconv.Atoi(totalValidatorsStr)
 	if err != nil {
-		maxTotalValidators = 20
+		totalValidators = 20
 	}
 	storageMinConnStr := os.Getenv("STORAGE_MIN_CONN")
 	storageMinConn, err := strconv.Atoi(storageMinConnStr)
@@ -197,7 +197,7 @@ func New() (ExplorerConfig, error) {
 		KardiaProtocol:     os.Getenv("KARDIA_PROTOCOL"),
 		KardiaURLs:         kardiaURLs,
 		KardiaTrustedNodes: kardiaTrustedNodes,
-		MaxTotalValidators: maxTotalValidators,
+		TotalValidators:    totalValidators,
 
 		StorageDriver:  os.Getenv("STORAGE_DRIVER"),
 		StorageURI:     os.Getenv("STORAGE_URI"),

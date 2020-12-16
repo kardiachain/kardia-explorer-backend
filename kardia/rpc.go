@@ -65,9 +65,9 @@ type Client struct {
 	defaultClient     *RPCClient
 	numRequest        int
 
-	stakingUtil        *staking.StakingSmcUtil
-	validatorUtil      *staking.ValidatorSmcUtil
-	maxTotalValidators int
+	stakingUtil     *staking.StakingSmcUtil
+	validatorUtil   *staking.ValidatorSmcUtil
+	totalValidators int
 
 	lgr *zap.Logger
 }
@@ -127,7 +127,7 @@ func NewKaiClient(cfg *Config) (ClientInterface, error) {
 	}
 	validatorABI, err := os.Open(path.Join(path.Dir(filename), "../kardia/abi/validator.json"))
 	if err != nil {
-		panic("cannot read staking ABI file")
+		panic("cannot read validator ABI file")
 	}
 	validatorSmcAbi, err := abi.JSON(validatorABI)
 	if err != nil {
@@ -139,7 +139,7 @@ func NewKaiClient(cfg *Config) (ClientInterface, error) {
 		Bytecode: configs.ValidatorContract.ByteCode,
 	}
 
-	return &Client{clientList, trustedClientList, defaultClient, 0, stakingUtil, validatorUtil, cfg.maxTotalValidators, cfg.lgr}, nil
+	return &Client{clientList, trustedClientList, defaultClient, 0, stakingUtil, validatorUtil, cfg.totalValidators, cfg.lgr}, nil
 }
 
 func (ec *Client) chooseClient() *RPCClient {
@@ -370,7 +370,7 @@ func (ec *Client) Validators(ctx context.Context) (*types.Validators, error) {
 		if stakedAmount, ok := new(big.Int).SetString(validators[i].StakedAmount, 10); ok {
 			if stakedAmount.Cmp(minStakedAmount) == -1 || val.Status < 2 {
 				val.Role = 0 // validator who has staked under 12.5M KAI is considers a registered one
-			} else if totalProposers < ec.maxTotalValidators {
+			} else if totalProposers < ec.totalValidators {
 				val.Role = 2 // validator who has staked over 12.5M KAI and belong to top 20 of validator based on voting power is considered a proposer
 				totalProposers++
 				valStakedAmount, ok = new(big.Int).SetString(val.StakedAmount, 10)
