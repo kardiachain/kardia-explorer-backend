@@ -57,6 +57,7 @@ type ClientInterface interface {
 	GetDelegationRewards(ctx context.Context, valSmcAddr common.Address, delegatorAddr common.Address) (*big.Int, error)
 	GetDelegatorStakedAmount(ctx context.Context, valSmcAddr common.Address, delegatorAddr common.Address) (*big.Int, error)
 	GetUDBEntries(ctx context.Context, valSmcAddr common.Address, delegatorAddr common.Address) (*big.Int, *big.Int, error)
+	GetMissedBlock(ctx context.Context, valSmcAddr common.Address) ([]bool, error)
 }
 
 type Config struct {

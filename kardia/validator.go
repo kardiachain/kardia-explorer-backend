@@ -62,16 +62,16 @@ func (ec *Client) GetDelegationRewards(ctx context.Context, valSmcAddr common.Ad
 		ec.lgr.Error("GetDelegationRewards KardiaCall error: ", zap.Error(err))
 		return nil, err
 	}
-	var rewards struct {
+	var result struct {
 		Rewards *big.Int
 	}
 	// unpack result
-	err = ec.validatorUtil.Abi.UnpackIntoInterface(&rewards, "getDelegationRewards", res)
+	err = ec.validatorUtil.Abi.UnpackIntoInterface(&result, "getDelegationRewards", res)
 	if err != nil {
 		ec.lgr.Error("Error unpacking delegation rewards: ", zap.Error(err))
 		return nil, err
 	}
-	return rewards.Rewards, nil
+	return result.Rewards, nil
 }
 
 // GetDelegatorStakedAmount returns staked amount of a delegator to current validator
@@ -87,7 +87,7 @@ func (ec *Client) GetDelegatorStakedAmount(ctx context.Context, valSmcAddr commo
 		return nil, err
 	}
 
-	var delegation struct {
+	var result struct {
 		Stake          *big.Int
 		PreviousPeriod *big.Int
 		Height         *big.Int
@@ -95,12 +95,12 @@ func (ec *Client) GetDelegatorStakedAmount(ctx context.Context, valSmcAddr commo
 		Owner          common.Address
 	}
 	// unpack result
-	err = ec.validatorUtil.Abi.UnpackIntoInterface(&delegation, "delegationByAddr", res)
+	err = ec.validatorUtil.Abi.UnpackIntoInterface(&result, "delegationByAddr", res)
 	if err != nil {
 		ec.lgr.Error("Error unpacking delegator's staked amount: ", zap.Error(err))
 		return nil, err
 	}
-	return delegation.Stake, nil
+	return result.Stake, nil
 }
 
 // GetUDBEntry returns unbonded amount and withdrawable amount of a delegation
@@ -116,12 +116,12 @@ func (ec *Client) GetUDBEntries(ctx context.Context, valSmcAddr common.Address, 
 		return nil, nil, err
 	}
 
-	var udbEntry struct {
+	var result struct {
 		Balances        []*big.Int
 		CompletionTimes []*big.Int
 	}
 	// unpack result
-	err = ec.validatorUtil.Abi.UnpackIntoInterface(&udbEntry, "getUBDEntries", res)
+	err = ec.validatorUtil.Abi.UnpackIntoInterface(&result, "getUBDEntries", res)
 	if err != nil {
 		ec.lgr.Error("Error unpacking UDB entry: ", zap.Error(err))
 		return nil, nil, err
@@ -129,10 +129,11 @@ func (ec *Client) GetUDBEntries(ctx context.Context, valSmcAddr common.Address, 
 	totalAmount := new(big.Int).SetInt64(0)
 	withdrawableAmount := new(big.Int).SetInt64(0)
 	now := new(big.Int).SetInt64(time.Now().Unix())
-	for i, balance := range udbEntry.Balances {
-		totalAmount = new(big.Int).Add(totalAmount, balance)
-		if udbEntry.CompletionTimes[i].Cmp(now) == -1 {
+	for i, balance := range result.Balances {
+		if result.CompletionTimes[i].Cmp(now) == -1 {
 			withdrawableAmount = new(big.Int).Add(withdrawableAmount, balance)
+		} else {
+			totalAmount = new(big.Int).Add(totalAmount, balance)
 		}
 	}
 	if totalAmount == nil || len(totalAmount.Bits()) == 0 {
@@ -142,4 +143,28 @@ func (ec *Client) GetUDBEntries(ctx context.Context, valSmcAddr common.Address, 
 		withdrawableAmount = new(big.Int).SetInt64(0)
 	}
 	return totalAmount, withdrawableAmount, nil
+}
+
+// GetMissedBlock returns missed block of this validator
+func (ec *Client) GetMissedBlock(ctx context.Context, valSmcAddr common.Address) ([]bool, error) {
+	payload, err := ec.validatorUtil.Abi.Pack("getMissedBlock")
+	if err != nil {
+		ec.lgr.Error("Error packing get missed blocks payload: ", zap.Error(err))
+		return nil, err
+	}
+	res, err := ec.KardiaCall(ctx, ec.contructCallArgs(valSmcAddr.Hex(), payload))
+	if err != nil {
+		ec.lgr.Error("GetUDBEntry KardiaCall error: ", zap.Error(err))
+		return nil, err
+	}
+	var result struct {
+		MissedBlock []bool
+	}
+	// unpack result
+	err = ec.validatorUtil.Abi.UnpackIntoInterface(&result, "getMissedBlock", res)
+	if err != nil {
+		ec.lgr.Error("Error unlock get missed blocks: ", zap.Error(err))
+		return nil, err
+	}
+	return result.MissedBlock, nil
 }

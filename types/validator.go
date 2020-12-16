@@ -20,9 +20,11 @@ type Validator struct {
 	SmcAddress            common.Address `json:"smcAddress"`
 	Status                uint8          `json:"status"`
 	Role                  int            `json:"role"`
+	Jailed                bool           `json:"jailed"`
 	Name                  string         `json:"name,omitempty"`
 	VotingPowerPercentage string         `json:"votingPowerPercentage"`
 	StakedAmount          string         `json:"stakedAmount"`
+	AccumulatedCommission string         `json:"accumulatedCommission"`
 	CommissionRate        string         `json:"commissionRate"`
 	TotalDelegators       int            `json:"totalDelegators"`
 	MaxRate               string         `json:"maxRate"`

@@ -367,7 +367,7 @@
     "outputs": [
       {
         "internalType": "bool[]",
-        "name": "",
+        "name": "missedBlock",
         "type": "bool[]"
       }
     ],

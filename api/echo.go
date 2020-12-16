@@ -48,6 +48,7 @@ type EchoServer interface {
 	Validators(c echo.Context) error
 	GetValidatorsByDelegator(c echo.Context) error
 	GetRegisteredValidatorsList(c echo.Context) error
+	GetMissedBlock(c echo.Context) error
 
 	// Blocks
 	Blocks(c echo.Context) error
@@ -212,6 +213,12 @@ func bind(gr *echo.Group, srv EchoServer) {
 			method:      echo.GET,
 			path:        "/validators/registered",
 			fn:          srv.GetRegisteredValidatorsList,
+			middlewares: nil,
+		},
+		{
+			method:      echo.GET,
+			path:        "/validators/:valSmcAddress/missed",
+			fn:          srv.GetMissedBlock,
 			middlewares: nil,
 		},
 	}

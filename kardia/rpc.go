@@ -366,6 +366,8 @@ func (ec *Client) Validators(ctx context.Context) (*types.Validators, error) {
 			return nil, err
 		}
 		val.Status = valInfo.Status
+		val.AccumulatedCommission = valInfo.AccumulatedCommission.String()
+		val.Jailed = valInfo.Jailed
 		if stakedAmount, ok := new(big.Int).SetString(validators[i].StakedAmount, 10); ok {
 			if stakedAmount.Cmp(minStakedAmount) == -1 || val.Status < 2 {
 				val.Role = 0 // validator who has staked under 12.5M KAI is considers a registered one

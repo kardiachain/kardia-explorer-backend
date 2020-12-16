@@ -105,15 +105,15 @@ func (ec *Client) GetValidatorContractFromOwner(ctx context.Context, valAddr com
 		ec.lgr.Error("GetDelegationRewards KardiaCall error: ", zap.Error(err))
 		return common.Address{}, err
 	}
-	var owner struct {
+	var result struct {
 		ValSmcAddr common.Address
 	}
-	err = ec.stakingUtil.Abi.UnpackIntoInterface(&owner, "valOf", res)
+	err = ec.stakingUtil.Abi.UnpackIntoInterface(&result, "valOf", res)
 	if err != nil {
 		ec.lgr.Error("Error unpacking owner of validator SMC error: ", zap.Error(err))
 		return common.Address{}, err
 	}
-	return owner.ValSmcAddr, nil
+	return result.ValSmcAddr, nil
 }
 
 func (ec *Client) contructCallArgs(address string, payload []byte) types.CallArgsJSON {

@@ -244,6 +244,15 @@ func (s *Server) GetRegisteredValidatorsList(c echo.Context) error {
 	return api.OK.SetData(valsList).Build(c)
 }
 
+func (s *Server) GetMissedBlock(c echo.Context) error {
+	ctx := context.Background()
+	missedBlock, err := s.kaiClient.GetMissedBlock(ctx, common.HexToAddress(c.Param("valSmcAddress")))
+	if err != nil {
+		return api.Invalid.Build(c)
+	}
+	return api.OK.SetData(missedBlock).Build(c)
+}
+
 func (s *Server) Blocks(c echo.Context) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancel()
