@@ -330,6 +330,7 @@ func (ec *Client) Validators(ctx context.Context) (*types.Validators, error) {
 	})
 	var (
 		delegators                 = make(map[string]bool)
+		totalProposers             = 0
 		totalStakedAmount          = big.NewInt(0)
 		totalDelegatorStakedAmount = big.NewInt(0)
 
@@ -337,7 +338,11 @@ func (ec *Client) Validators(ctx context.Context) (*types.Validators, error) {
 		delStakedAmount *big.Int
 		ok              bool
 	)
-	for _, val := range validators {
+	minStakedAmount, ok := new(big.Int).SetString(cfg.MinStakedAmount, 10)
+	if !ok {
+		ec.lgr.Error("error parsing MinStakedAmount to big.Int:", zap.String("MinStakedAmount", cfg.MinStakedAmount), zap.Any("value", minStakedAmount))
+	}
+	for i, val := range validators {
 		for _, del := range val.Delegators {
 			delegators[del.Address.Hex()] = true
 			// exclude validator self delegation
@@ -355,13 +360,7 @@ func (ec *Client) Validators(ctx context.Context) (*types.Validators, error) {
 			return nil, err
 		}
 		totalStakedAmount = new(big.Int).Add(totalStakedAmount, valStakedAmount)
-	}
-	minStakedAmount, ok := new(big.Int).SetString(cfg.MinStakedAmount, 10)
-	if !ok {
-		ec.lgr.Error("error parsing MinStakedAmount to big.Int:", zap.String("MinStakedAmount", cfg.MinStakedAmount), zap.Any("value", minStakedAmount))
-	}
-	totalProposers := 0
-	for i, val := range validators {
+
 		valInfo, err := ec.GetValidatorInfo(ctx, val.SmcAddress)
 		if err != nil {
 			return nil, err
@@ -382,6 +381,9 @@ func (ec *Client) Validators(ctx context.Context) (*types.Validators, error) {
 				val.Role = 1 // validator who has staked over 12.5M KAI and not belong to top 20 of validator based on voting power is considered a normal validator
 			}
 		}
+	}
+
+	for _, val := range validators {
 		if val, err = convertValidatorInfo(val, proposersStakedAmount, val.Role); err != nil {
 			return nil, err
 		}
