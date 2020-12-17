@@ -140,42 +140,36 @@ func (s *Server) ValidatorStats(c echo.Context) error {
 	)
 	pagination, page, limit := getPagingOption(c)
 
-	// get validator list from cache
-	valsList, err := s.getValidatorsList(ctx)
+	// get validators list from cache
+	valsList, err := s.cacheClient.Validators(ctx)
 	if err != nil {
-		return api.Invalid.Build(c)
+		s.logger.Debug("cannot get validators list from cache", zap.Error(err))
+		valsList, err = s.getValidatorsList(ctx)
+		if err != nil {
+			return api.Invalid.Build(c)
+		}
 	}
 
 	// get delegation details
 	validator, err := s.kaiClient.Validator(ctx, c.Param("address"))
 	if err != nil {
-		s.logger.Warn("cannot get validators list from RPC, use cached validator info instead", zap.Error(err))
+		s.logger.Warn("cannot get validator info from RPC, use cached validator info instead", zap.Error(err))
 	}
-	s.logger.Debug("validator from RPC", zap.Any("validator", validator))
 	// get validator additional info such as commission rate
 	for _, val := range valsList.Validators {
 		if strings.ToLower(val.Address.Hex()) == strings.ToLower(c.Param("address")) {
-			s.logger.Info("found validator in cache")
 			if validator == nil {
 				validator = val
+				break
 			}
 			// update validator
 			validator.CommissionRate = val.CommissionRate
 			validator.MaxRate = val.MaxRate
 			validator.MaxChangeRate = val.MaxChangeRate
 			validator.VotingPowerPercentage = val.VotingPowerPercentage
-			if validator.Status != val.Status || validator.Role != val.Role {
-				val.Status = validator.Status
-				val.Role = validator.Role
-				err = s.cacheClient.UpdateValidators(ctx, valsList)
-				if err != nil {
-					s.logger.Warn("cannot store validators list to cache", zap.Error(err))
-				}
-			}
 			break
 		}
 	}
-	s.logger.Debug("validator after modifying from cache", zap.Any("validator", validator))
 	if validator == nil {
 		// address in param is not a validator
 		return api.Invalid.Build(c)
@@ -192,7 +186,6 @@ func (s *Server) ValidatorStats(c echo.Context) error {
 	total := uint64(len(validator.Delegators))
 	validator.Delegators = delegators
 
-	s.logger.Debug("Got validator info from RPC", zap.Any("ValidatorInfo", validator))
 	return api.OK.SetData(PagingResponse{
 		Page:  page,
 		Limit: limit,
@@ -209,7 +202,7 @@ func (s *Server) Validators(c echo.Context) error {
 	}
 	var result []*types.Validator
 	for _, val := range valsList.Validators {
-		if val.Role != 0 {
+		if val.Status != 0 {
 			result = append(result, val)
 		}
 	}
@@ -239,7 +232,7 @@ func (s *Server) GetRegisteredValidatorsList(c echo.Context) error {
 		valsCount = 0
 	)
 	for _, val := range valsList.Validators {
-		if val.Role == 0 {
+		if val.Status == 0 {
 			result = append(result, val)
 		} else {
 			valsCount++
@@ -725,13 +718,7 @@ func (s *Server) BlockTime(c echo.Context) error {
 }
 
 func (s *Server) getValidatorsList(ctx context.Context) (*types.Validators, error) {
-	valsList, err := s.cacheClient.Validators(ctx)
-	if err == nil {
-		s.logger.Debug("got validators list from cache", zap.Error(err))
-		return valsList, nil
-	}
-	s.logger.Warn("cannot get validators list from cache", zap.Error(err))
-	valsList, err = s.kaiClient.Validators(ctx)
+	valsList, err := s.kaiClient.Validators(ctx)
 	if err != nil {
 		s.logger.Warn("cannot get validators list from RPC", zap.Error(err))
 		return nil, err

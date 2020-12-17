@@ -347,12 +347,12 @@
     "outputs": [
       {
         "internalType": "address[]",
-        "name": "",
+        "name": "delAddrs",
         "type": "address[]"
       },
       {
         "internalType": "uint256[]",
-        "name": "",
+        "name": "shares",
         "type": "uint256[]"
       }
     ],

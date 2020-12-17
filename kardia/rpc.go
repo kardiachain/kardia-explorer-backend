@@ -305,8 +305,7 @@ func (ec *Client) Datadir(ctx context.Context) (string, error) {
 }
 
 func (ec *Client) Validator(ctx context.Context, address string) (*types.Validator, error) {
-	var validator *types.Validator
-	err := ec.defaultClient.c.CallContext(ctx, &validator, "kai_validator", address, true)
+	validator, err := ec.getValidatorFromSMC(ctx, common.HexToAddress(address))
 	if err != nil {
 		return nil, err
 	}
@@ -317,39 +316,36 @@ func (ec *Client) Validator(ctx context.Context, address string) (*types.Validat
 	}
 	for _, val := range valsSet {
 		if val.Equal(common.HexToAddress(address)) {
-			validator.Role = 2
-			return validator, nil
+			validator.Status = 2
+			return convertValidator(validator), nil
 		}
 	}
 	// else if his staked amount is enough, he is a normal validator
-	stakedAmount, ok1 := new(big.Int).SetString(validator.StakedAmount, 10)
-	minStakedAmount, ok2 := new(big.Int).SetString(cfg.MinStakedAmount, 10)
-	if !ok1 || !ok2 {
+	minStakedAmount, ok := new(big.Int).SetString(cfg.MinStakedAmount, 10)
+	if !ok {
 		ec.lgr.Error("error parsing MinStakedAmount to big.Int:", zap.String("MinStakedAmount", cfg.MinStakedAmount), zap.Any("value", minStakedAmount))
 	}
-	if stakedAmount.Cmp(minStakedAmount) == -1 {
-		validator.Role = 1
-		return validator, nil
+	if validator.Tokens.Cmp(minStakedAmount) == -1 {
+		validator.Status = 1
+		return convertValidator(validator), nil
 	}
 	// otherwise he is a registered validator
-	validator.Role = 0
-	return validator, nil
+	validator.Status = 0
+	return convertValidator(validator), nil
 }
 
 func (ec *Client) Validators(ctx context.Context) (*types.Validators, error) {
 	var (
 		proposersStakedAmount = big.NewInt(0)
-		validators            []*types.Validator
+		validators            []*staking.Validator
 	)
-	err := ec.defaultClient.c.CallContext(ctx, &validators, "kai_validators", true)
+	validators, err := ec.getValidatorsFromSMC(ctx)
 	if err != nil {
 		return nil, err
 	}
 	// compare staked amount btw validators to determine their status
 	sort.Slice(validators, func(i, j int) bool {
-		iAmount, _ := new(big.Int).SetString(validators[i].StakedAmount, 10)
-		jAmount, _ := new(big.Int).SetString(validators[j].StakedAmount, 10)
-		return iAmount.Cmp(jAmount) == 1
+		return validators[i].Tokens.Cmp(validators[j].Tokens) == 1
 	})
 	var (
 		delegators                 = make(map[string]bool)
@@ -357,9 +353,7 @@ func (ec *Client) Validators(ctx context.Context) (*types.Validators, error) {
 		totalStakedAmount          = big.NewInt(0)
 		totalDelegatorStakedAmount = big.NewInt(0)
 
-		valStakedAmount *big.Int
-		delStakedAmount *big.Int
-		ok              bool
+		ok bool
 	)
 	minStakedAmount, ok := new(big.Int).SetString(cfg.MinStakedAmount, 10)
 	if !ok {
@@ -369,49 +363,29 @@ func (ec *Client) Validators(ctx context.Context) (*types.Validators, error) {
 		for _, del := range val.Delegators {
 			delegators[del.Address.Hex()] = true
 			// exclude validator self delegation
-			if del.Address.Equal(val.Address) {
+			if del.Address.Equal(val.ValAddr) {
 				continue
 			}
-			delStakedAmount, ok = new(big.Int).SetString(del.StakedAmount, 10)
-			if !ok {
-				return nil, err
-			}
-			totalDelegatorStakedAmount = new(big.Int).Add(totalDelegatorStakedAmount, delStakedAmount)
+			totalDelegatorStakedAmount = new(big.Int).Add(totalDelegatorStakedAmount, del.StakedAmount)
 		}
-		valStakedAmount, ok = new(big.Int).SetString(val.StakedAmount, 10)
-		if !ok {
-			return nil, err
+		totalStakedAmount = new(big.Int).Add(totalStakedAmount, val.Tokens)
+		if validators[i].Tokens.Cmp(minStakedAmount) == -1 || val.Status < 2 {
+			val.Status = 0 // validator who has staked under 12.5M KAI is considers a registered one
+		} else if totalProposers < ec.totalValidators {
+			val.Status = 2 // validator who has staked over 12.5M KAI and belong to top 20 of validator based on voting power is considered a proposer
+			totalProposers++
+			proposersStakedAmount = new(big.Int).Add(proposersStakedAmount, validators[i].Tokens)
+		} else {
+			val.Status = 1 // validator who has staked over 12.5M KAI and not belong to top 20 of validator based on voting power is considered a normal validator
 		}
-		totalStakedAmount = new(big.Int).Add(totalStakedAmount, valStakedAmount)
-
-		valInfo, err := ec.GetValidatorInfo(ctx, val.SmcAddress)
+	}
+	var returnValsList []*types.Validator
+	for _, val := range validators {
+		convertedVal, err := convertValidatorInfo(val, proposersStakedAmount, val.Status)
 		if err != nil {
 			return nil, err
 		}
-		val.Status = valInfo.Status
-		val.AccumulatedCommission = valInfo.AccumulatedCommission.String()
-		val.Jailed = valInfo.Jailed
-		if stakedAmount, ok := new(big.Int).SetString(validators[i].StakedAmount, 10); ok {
-			if stakedAmount.Cmp(minStakedAmount) == -1 || val.Status < 2 {
-				val.Role = 0 // validator who has staked under 12.5M KAI is considers a registered one
-			} else if totalProposers < ec.totalValidators {
-				val.Role = 2 // validator who has staked over 12.5M KAI and belong to top 20 of validator based on voting power is considered a proposer
-				totalProposers++
-				valStakedAmount, ok = new(big.Int).SetString(val.StakedAmount, 10)
-				if !ok {
-					return nil, err
-				}
-				proposersStakedAmount = new(big.Int).Add(proposersStakedAmount, valStakedAmount)
-			} else {
-				val.Role = 1 // validator who has staked over 12.5M KAI and not belong to top 20 of validator based on voting power is considered a normal validator
-			}
-		}
-	}
-
-	for _, val := range validators {
-		if val, err = convertValidatorInfo(val, proposersStakedAmount, val.Role); err != nil {
-			return nil, err
-		}
+		returnValsList = append(returnValsList, convertedVal)
 	}
 	result := &types.Validators{
 		TotalValidators:            len(validators),
@@ -420,7 +394,7 @@ func (ec *Client) Validators(ctx context.Context) (*types.Validators, error) {
 		TotalValidatorStakedAmount: new(big.Int).Sub(totalStakedAmount, totalDelegatorStakedAmount).String(),
 		TotalDelegatorStakedAmount: totalDelegatorStakedAmount.String(),
 		TotalProposer:              totalProposers,
-		Validators:                 validators,
+		Validators:                 returnValsList,
 	}
 	return result, nil
 }
@@ -443,19 +417,20 @@ func (ec *Client) getBlockHeader(ctx context.Context, method string, args ...int
 	return &raw, nil
 }
 
-func convertValidatorInfo(val *types.Validator, totalStakedAmount *big.Int, role int) (*types.Validator, error) {
+func convertValidatorInfo(srcVal *staking.Validator, totalStakedAmount *big.Int, status uint8) (*types.Validator, error) {
 	var err error
-	if val.CommissionRate, err = convertBigIntToPercentage(val.CommissionRate); err != nil {
+	val := convertValidator(srcVal)
+	if val.CommissionRate, err = convertBigIntToPercentage(srcVal.CommissionRate); err != nil {
 		return nil, err
 	}
-	if val.MaxRate, err = convertBigIntToPercentage(val.MaxRate); err != nil {
+	if val.MaxRate, err = convertBigIntToPercentage(srcVal.MaxRate); err != nil {
 		return nil, err
 	}
-	if val.MaxChangeRate, err = convertBigIntToPercentage(val.MaxChangeRate); err != nil {
+	if val.MaxChangeRate, err = convertBigIntToPercentage(srcVal.MaxChangeRate); err != nil {
 		return nil, err
 	}
-	if totalStakedAmount != nil && role == 2 {
-		if val.VotingPowerPercentage, err = calculateVotingPower(val.StakedAmount, totalStakedAmount); err != nil {
+	if totalStakedAmount != nil && status == 2 {
+		if val.VotingPowerPercentage, err = calculateVotingPower(srcVal.Tokens, totalStakedAmount); err != nil {
 			return nil, err
 		}
 	} else {
@@ -464,11 +439,7 @@ func convertValidatorInfo(val *types.Validator, totalStakedAmount *big.Int, role
 	return val, nil
 }
 
-func convertBigIntToPercentage(raw string) (string, error) {
-	input, ok := new(big.Int).SetString(raw, 10)
-	if !ok {
-		return "", ErrParsingBigIntFromString
-	}
+func convertBigIntToPercentage(input *big.Int) (string, error) {
 	tmp := new(big.Int).Mul(input, tenPoweredBy18)
 	result := new(big.Int).Div(tmp, tenPoweredBy18).String()
 	result = fmt.Sprintf("%020s", result)
@@ -479,11 +450,7 @@ func convertBigIntToPercentage(raw string) (string, error) {
 	return result, nil
 }
 
-func calculateVotingPower(raw string, total *big.Int) (string, error) {
-	valStakedAmount, ok := new(big.Int).SetString(raw, 10)
-	if !ok {
-		return "", ErrParsingBigIntFromString
-	}
+func calculateVotingPower(valStakedAmount *big.Int, total *big.Int) (string, error) {
 	tmp := new(big.Int).Mul(valStakedAmount, tenPoweredBy5)
 	result := new(big.Int).Div(tmp, total).String()
 	result = fmt.Sprintf("%020s", result)
@@ -492,4 +459,81 @@ func calculateVotingPower(raw string, total *big.Int) (string, error) {
 		result = "0" + result
 	}
 	return result, nil
+}
+
+func (ec *Client) getValidatorsFromSMC(ctx context.Context) ([]*staking.Validator, error) {
+	allValsLen, err := ec.GetAllValsLength(ctx)
+	if err != nil {
+		return nil, err
+	}
+	var (
+		one      = big.NewInt(1)
+		valsInfo []*staking.Validator
+	)
+	for i := new(big.Int).SetInt64(0); i.Cmp(allValsLen) < 0; i.Add(i, one) {
+		valContractAddr, err := ec.GetValSmcAddr(ctx, i)
+		if err != nil {
+			return nil, err
+		}
+		valInfo, err := ec.GetInforValidator(ctx, valContractAddr)
+		if err != nil {
+			return nil, err
+		}
+		valInfo.Delegators, err = ec.GetDelegators(ctx, valContractAddr)
+		if err != nil {
+			return nil, err
+		}
+		valInfo.ValStakingSmc = valContractAddr
+		valsInfo = append(valsInfo, valInfo)
+	}
+	return valsInfo, nil
+}
+
+func (ec *Client) getValidatorFromSMC(ctx context.Context, valAddr common.Address) (*staking.Validator, error) {
+	valContractAddr, err := ec.GetValFromOwner(ctx, valAddr)
+	if err != nil {
+		return nil, err
+	}
+	val, err := ec.GetInforValidator(ctx, valContractAddr)
+	if err != nil {
+		return nil, err
+	}
+	val.Delegators, err = ec.GetDelegators(ctx, valContractAddr)
+	if err != nil {
+		return nil, err
+	}
+	val.ValStakingSmc = valContractAddr
+	return val, nil
+}
+
+func convertValidator(src *staking.Validator) *types.Validator {
+	var name []byte
+	for _, b := range src.Name {
+		if b != 0 {
+			name = append(name, byte(b))
+		}
+	}
+	var delegators []*types.Delegator
+	for _, del := range src.Delegators {
+		delegators = append(delegators, &types.Delegator{
+			Address:      del.Address,
+			StakedAmount: del.StakedAmount.String(),
+			Reward:       del.Reward.String(),
+		})
+	}
+	return &types.Validator{
+		Address:               src.ValAddr,
+		SmcAddress:            src.ValStakingSmc,
+		Status:                src.Status,
+		Jailed:                src.Jailed,
+		Name:                  string(name),
+		VotingPowerPercentage: "",
+		StakedAmount:          src.Tokens.String(),
+		AccumulatedCommission: src.AccumulatedCommission.String(),
+		CommissionRate:        "",
+		TotalDelegators:       len(src.Delegators),
+		MaxRate:               "",
+		MaxChangeRate:         "",
+		Delegators:            delegators,
+	}
 }

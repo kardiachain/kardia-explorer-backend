@@ -168,3 +168,96 @@ func (ec *Client) GetMissedBlock(ctx context.Context, valSmcAddr common.Address)
 	}
 	return result.MissedBlock, nil
 }
+
+// GetValidator show info of a validator based on address
+func (ec *Client) GetInforValidator(ctx context.Context, valSmcAddr common.Address) (*staking.Validator, error) {
+	payload, err := ec.validatorUtil.Abi.Pack("inforValidator")
+	if err != nil {
+		return nil, err
+	}
+	res, err := ec.KardiaCall(ctx, ec.contructCallArgs(valSmcAddr.Hex(), payload))
+	if err != nil {
+		return nil, err
+	}
+
+	var validator staking.Validator
+	// unpack result
+	err = ec.validatorUtil.Abi.UnpackIntoInterface(&validator, "inforValidator", res)
+	if err != nil {
+		ec.lgr.Error("Error unpacking validator info", zap.Error(err))
+		return nil, err
+	}
+	rate, maxRate, maxChangeRate, err := ec.GetCommissionValidator(ctx, valSmcAddr)
+	if err != nil {
+		return nil, err
+	}
+	validator.CommissionRate = rate
+	validator.MaxRate = maxRate
+	validator.MaxChangeRate = maxChangeRate
+	return &validator, nil
+}
+
+// GetValidator show info of a validator based on address
+func (ec *Client) GetCommissionValidator(ctx context.Context, valSmcAddr common.Address) (*big.Int, *big.Int, *big.Int, error) {
+	payload, err := ec.validatorUtil.Abi.Pack("commission")
+	if err != nil {
+		return nil, nil, nil, err
+	}
+	res, err := ec.KardiaCall(ctx, ec.contructCallArgs(valSmcAddr.Hex(), payload))
+	if err != nil {
+		return nil, nil, nil, err
+	}
+
+	var result struct {
+		Rate          *big.Int
+		MaxRate       *big.Int
+		MaxChangeRate *big.Int
+	}
+	// unpack result
+	err = ec.validatorUtil.Abi.UnpackIntoInterface(&result, "commission", res)
+	if err != nil {
+		ec.lgr.Error("Error unpacking validator commission info", zap.Error(err))
+		return nil, nil, nil, err
+	}
+	return result.Rate, result.MaxRate, result.MaxChangeRate, nil
+}
+
+// GetDelegators returns all delegators of a validator
+func (ec *Client) GetDelegators(ctx context.Context, valSmcAddr common.Address) ([]*staking.Delegator, error) {
+	payload, err := ec.validatorUtil.Abi.Pack("getDelegations")
+	if err != nil {
+		return nil, err
+	}
+	res, err := ec.KardiaCall(ctx, ec.contructCallArgs(valSmcAddr.Hex(), payload))
+	if err != nil {
+		return nil, err
+	}
+
+	var result struct {
+		DelAddrs []common.Address
+		Shares   []*big.Int
+	}
+	// unpack result
+	err = ec.validatorUtil.Abi.UnpackIntoInterface(&result, "getDelegations", res)
+	if err != nil {
+		ec.lgr.Error("Error unpacking delegation details", zap.Error(err))
+		return nil, err
+	}
+	var delegators []*staking.Delegator
+	for _, delAddr := range result.DelAddrs {
+		reward, err := ec.GetDelegationRewards(ctx, valSmcAddr, delAddr)
+		if err != nil {
+			return nil, err
+		}
+		stakedAmount, err := ec.GetDelegatorStakedAmount(ctx, valSmcAddr, delAddr)
+		if err != nil {
+			return nil, err
+		}
+		delegators = append(delegators, &staking.Delegator{
+			Address:      delAddr,
+			StakedAmount: stakedAmount,
+			Reward:       reward,
+		})
+	}
+	return delegators, nil
+}
