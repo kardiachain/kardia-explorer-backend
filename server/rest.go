@@ -207,7 +207,6 @@ func (s *Server) Validators(c echo.Context) error {
 		}
 	}
 	valsList.Validators = result
-	valsList.TotalValidators = len(valsList.Validators)
 	return api.OK.SetData(valsList).Build(c)
 }
 
@@ -221,7 +220,7 @@ func (s *Server) GetValidatorsByDelegator(c echo.Context) error {
 	return api.OK.SetData(valsList).Build(c)
 }
 
-func (s *Server) GetRegisteredValidatorsList(c echo.Context) error {
+func (s *Server) GetNominatorsList(c echo.Context) error {
 	ctx := context.Background()
 	valsList, err := s.getValidatorsList(ctx)
 	if err != nil {
@@ -239,7 +238,6 @@ func (s *Server) GetRegisteredValidatorsList(c echo.Context) error {
 		}
 	}
 	valsList.Validators = result
-	valsList.TotalValidators = valsCount
 	return api.OK.SetData(valsList).Build(c)
 }
 
@@ -250,6 +248,15 @@ func (s *Server) GetMissedBlock(c echo.Context) error {
 		return api.Invalid.Build(c)
 	}
 	return api.OK.SetData(missedBlock).Build(c)
+}
+
+func (s *Server) GetSlashEvents(c echo.Context) error {
+	ctx := context.Background()
+	slashEvents, err := s.kaiClient.GetSlashEvents(ctx, common.HexToAddress(c.Param("valSmcAddress")))
+	if err != nil {
+		return api.Invalid.Build(c)
+	}
+	return api.OK.SetData(slashEvents).Build(c)
 }
 
 func (s *Server) Blocks(c echo.Context) error {

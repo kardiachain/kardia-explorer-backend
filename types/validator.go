@@ -9,6 +9,8 @@ import (
 
 type Validators struct {
 	TotalValidators            int          `json:"totalValidators"`
+	TotalProposers             int          `json:"totalProposers"`
+	TotalNominators            int          `json:"totalNominators"`
 	TotalDelegators            int          `json:"totalDelegators"`
 	TotalStakedAmount          string       `json:"totalStakedAmount"`
 	TotalValidatorStakedAmount string       `json:"totalValidatorStakedAmount"`
@@ -63,6 +65,12 @@ type Delegator struct {
 	Name         string         `json:"name,omitempty"`
 	StakedAmount string         `json:"stakedAmount"`
 	Reward       string         `json:"reward"`
+}
+
+type SlashEvents struct {
+	Period   string `json:"period"`
+	Fraction string `json:"fraction"`
+	Height   string `json:"height"`
 }
 
 type PeerInfo struct {

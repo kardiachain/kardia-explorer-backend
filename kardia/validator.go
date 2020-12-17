@@ -21,6 +21,7 @@ package kardia
 import (
 	"context"
 	"math/big"
+	"strings"
 	"time"
 
 	"github.com/kardiachain/explorer-backend/types"
@@ -239,4 +240,42 @@ func (ec *Client) GetDelegators(ctx context.Context, valSmcAddr common.Address) 
 		})
 	}
 	return delegators, nil
+}
+
+// GetSlashEvents returns detailed all slash events of this validator
+func (ec *Client) GetSlashEvents(ctx context.Context, valSmcAddr common.Address) ([]*types.SlashEvents, error) {
+	var (
+		one         = big.NewInt(1)
+		slashEvents []*types.SlashEvents
+	)
+	for i := new(big.Int).SetInt64(0); ; i.Add(i, one) {
+		payload, err := ec.validatorUtil.Abi.Pack("slashEvents", i)
+		if err != nil {
+			return nil, err
+		}
+		res, err := ec.KardiaCall(ctx, ec.contructCallArgs(valSmcAddr.Hex(), payload))
+		if err != nil {
+			return nil, err
+		}
+		if strings.TrimRight(res.String(), "0") == "0x" {
+			break
+		}
+		var result struct {
+			Period   *big.Int
+			Fraction *big.Int
+			Height   *big.Int
+		}
+		// unpack result
+		err = ec.validatorUtil.Abi.UnpackIntoInterface(&result, "slashEvents", res)
+		if err != nil {
+			ec.lgr.Error("Error unpacking slash event", zap.Error(err))
+			return nil, err
+		}
+		slashEvents = append(slashEvents, &types.SlashEvents{
+			Period:   result.Period.String(),
+			Fraction: result.Fraction.String(),
+			Height:   result.Height.String(),
+		})
+	}
+	return slashEvents, nil
 }

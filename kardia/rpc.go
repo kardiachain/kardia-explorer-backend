@@ -329,7 +329,7 @@ func (ec *Client) Validator(ctx context.Context, address string) (*types.Validat
 		validator.Status = 1
 		return convertValidator(validator), nil
 	}
-	// otherwise he is a registered validator
+	// otherwise he is a nominator
 	validator.Status = 0
 	return convertValidator(validator), nil
 }
@@ -349,9 +349,11 @@ func (ec *Client) Validators(ctx context.Context) (*types.Validators, error) {
 	})
 	var (
 		delegators                 = make(map[string]bool)
-		totalProposers             = 0
 		totalStakedAmount          = big.NewInt(0)
 		totalDelegatorStakedAmount = big.NewInt(0)
+		totalProposers             = 0
+		totalValidators            = 0
+		totalNominators            = 0
 
 		ok bool
 	)
@@ -370,13 +372,15 @@ func (ec *Client) Validators(ctx context.Context) (*types.Validators, error) {
 		}
 		totalStakedAmount = new(big.Int).Add(totalStakedAmount, val.Tokens)
 		if validators[i].Tokens.Cmp(minStakedAmount) == -1 || val.Status < 2 {
-			val.Status = 0 // validator who has staked under 12.5M KAI is considers a registered one
+			val.Status = 0 // validator who has staked under 12.5M KAI is considers a nominator
+			totalNominators++
 		} else if totalProposers < ec.totalValidators {
 			val.Status = 2 // validator who has staked over 12.5M KAI and belong to top 20 of validator based on voting power is considered a proposer
 			totalProposers++
 			proposersStakedAmount = new(big.Int).Add(proposersStakedAmount, validators[i].Tokens)
 		} else {
 			val.Status = 1 // validator who has staked over 12.5M KAI and not belong to top 20 of validator based on voting power is considered a normal validator
+			totalValidators++
 		}
 	}
 	var returnValsList []*types.Validator
@@ -388,12 +392,13 @@ func (ec *Client) Validators(ctx context.Context) (*types.Validators, error) {
 		returnValsList = append(returnValsList, convertedVal)
 	}
 	result := &types.Validators{
-		TotalValidators:            len(validators),
+		TotalValidators:            totalValidators,
+		TotalProposers:             totalProposers,
+		TotalNominators:            totalNominators,
 		TotalDelegators:            len(delegators),
 		TotalStakedAmount:          totalStakedAmount.String(),
 		TotalValidatorStakedAmount: new(big.Int).Sub(totalStakedAmount, totalDelegatorStakedAmount).String(),
 		TotalDelegatorStakedAmount: totalDelegatorStakedAmount.String(),
-		TotalProposer:              totalProposers,
 		Validators:                 returnValsList,
 	}
 	return result, nil
