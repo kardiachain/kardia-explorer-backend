@@ -327,7 +327,11 @@ func (ec *Client) Validator(ctx context.Context, address string) (*types.Validat
 		ec.lgr.Error("error parsing MinStakedAmount to big.Int:", zap.String("MinStakedAmount", cfg.MinStakedAmount), zap.Any("value", minStakedAmount))
 	}
 	if validator.Tokens.Cmp(minStakedAmount) >= 0 {
-		validator.Status = 1
+		if validator.Status < 2 {
+			validator.Status = 1
+		} else {
+			validator.Status = 2
+		}
 		return convertValidator(validator), nil
 	}
 	// otherwise he is a nominator
@@ -372,6 +376,7 @@ func (ec *Client) Validators(ctx context.Context) (*types.Validators, error) {
 			totalDelegatorStakedAmount = new(big.Int).Add(totalDelegatorStakedAmount, del.StakedAmount)
 		}
 		totalStakedAmount = new(big.Int).Add(totalStakedAmount, val.Tokens)
+		// TODO(trinhdn): currently hardcoding for testing, evaluate this status later
 		if validators[i].Tokens.Cmp(minStakedAmount) == -1 || val.Status < 2 {
 			val.Status = 0 // validator who has staked under 12.5M KAI is considers a nominator
 			totalNominators++
