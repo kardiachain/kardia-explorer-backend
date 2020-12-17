@@ -154,7 +154,11 @@ func (ec *Client) GetUDBEntries(ctx context.Context, valSmcAddr common.Address, 
 }
 
 // GetMissedBlock returns missed block of this validator
-func (ec *Client) GetMissedBlock(ctx context.Context, valSmcAddr common.Address) ([]bool, error) {
+func (ec *Client) GetMissedBlock(ctx context.Context, valAddr common.Address) ([]bool, error) {
+	valSmcAddr, err := ec.GetValidatorContractFromOwner(ctx, valAddr)
+	if err != nil {
+		return nil, err
+	}
 	payload, err := ec.validatorUtil.Abi.Pack("getMissedBlock")
 	if err != nil {
 		ec.lgr.Error("Error packing get missed blocks payload: ", zap.Error(err))
@@ -165,13 +169,16 @@ func (ec *Client) GetMissedBlock(ctx context.Context, valSmcAddr common.Address)
 		ec.lgr.Error("GetUDBEntry KardiaCall error: ", zap.Error(err))
 		return nil, err
 	}
+	if len(res) == 0 {
+		return nil, nil
+	}
 	var result struct {
 		MissedBlock []bool
 	}
 	// unpack result
 	err = ec.validatorUtil.Abi.UnpackIntoInterface(&result, "getMissedBlock", res)
 	if err != nil {
-		ec.lgr.Error("Error unlock get missed blocks: ", zap.Error(err))
+		ec.lgr.Error("Error unpack get missed blocks: ", zap.Error(err))
 		return nil, err
 	}
 	return result.MissedBlock, nil
@@ -243,11 +250,15 @@ func (ec *Client) GetDelegators(ctx context.Context, valSmcAddr common.Address) 
 }
 
 // GetSlashEvents returns detailed all slash events of this validator
-func (ec *Client) GetSlashEvents(ctx context.Context, valSmcAddr common.Address) ([]*types.SlashEvents, error) {
+func (ec *Client) GetSlashEvents(ctx context.Context, valAddr common.Address) ([]*types.SlashEvents, error) {
 	var (
 		one         = big.NewInt(1)
 		slashEvents []*types.SlashEvents
 	)
+	valSmcAddr, err := ec.GetValidatorContractFromOwner(ctx, valAddr)
+	if err != nil {
+		return nil, err
+	}
 	for i := new(big.Int).SetInt64(0); ; i.Add(i, one) {
 		payload, err := ec.validatorUtil.Abi.Pack("slashEvents", i)
 		if err != nil {

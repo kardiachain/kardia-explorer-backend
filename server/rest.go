@@ -243,7 +243,7 @@ func (s *Server) GetNominatorsList(c echo.Context) error {
 
 func (s *Server) GetMissedBlock(c echo.Context) error {
 	ctx := context.Background()
-	missedBlock, err := s.kaiClient.GetMissedBlock(ctx, common.HexToAddress(c.Param("valSmcAddress")))
+	missedBlock, err := s.kaiClient.GetMissedBlock(ctx, common.HexToAddress(c.Param("address")))
 	if err != nil {
 		return api.Invalid.Build(c)
 	}
@@ -252,7 +252,7 @@ func (s *Server) GetMissedBlock(c echo.Context) error {
 
 func (s *Server) GetSlashEvents(c echo.Context) error {
 	ctx := context.Background()
-	slashEvents, err := s.kaiClient.GetSlashEvents(ctx, common.HexToAddress(c.Param("valSmcAddress")))
+	slashEvents, err := s.kaiClient.GetSlashEvents(ctx, common.HexToAddress(c.Param("address")))
 	if err != nil {
 		return api.Invalid.Build(c)
 	}

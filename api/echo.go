@@ -218,13 +218,13 @@ func bind(gr *echo.Group, srv EchoServer) {
 		},
 		{
 			method:      echo.GET,
-			path:        "/validators/:valSmcAddress/missed",
+			path:        "/validators/:address/missed",
 			fn:          srv.GetMissedBlock,
 			middlewares: nil,
 		},
 		{
 			method:      echo.GET,
-			path:        "/validators/:valSmcAddress/slash",
+			path:        "/validators/:address/slash",
 			fn:          srv.GetSlashEvents,
 			middlewares: nil,
 		},

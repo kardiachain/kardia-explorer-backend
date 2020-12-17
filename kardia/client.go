@@ -50,14 +50,20 @@ type ClientInterface interface {
 	// staking related methods
 	GetValidatorSets(ctx context.Context) ([]common.Address, error)
 	GetValidatorsByDelegator(ctx context.Context, delAddr common.Address) ([]*types.ValidatorsByDelegator, error)
+	GetValidatorContractFromOwner(ctx context.Context, valAddr common.Address) (common.Address, error)
+	GetAllValsLength(ctx context.Context) (*big.Int, error)
+	GetValSmcAddr(ctx context.Context, index *big.Int) (common.Address, error)
+	GetValFromOwner(ctx context.Context, valAddr common.Address) (common.Address, error)
 
 	// validator related methods
 	GetValidatorInfo(ctx context.Context, valSmcAddr common.Address) (*types.RPCValidator, error)
 	GetDelegationRewards(ctx context.Context, valSmcAddr common.Address, delegatorAddr common.Address) (*big.Int, error)
 	GetDelegatorStakedAmount(ctx context.Context, valSmcAddr common.Address, delegatorAddr common.Address) (*big.Int, error)
 	GetUDBEntries(ctx context.Context, valSmcAddr common.Address, delegatorAddr common.Address) (*big.Int, *big.Int, error)
-	GetMissedBlock(ctx context.Context, valSmcAddr common.Address) ([]bool, error)
-	GetSlashEvents(ctx context.Context, valSmcAddr common.Address) ([]*types.SlashEvents, error)
+	GetMissedBlock(ctx context.Context, valAddr common.Address) ([]bool, error)
+	GetCommissionValidator(ctx context.Context, valSmcAddr common.Address) (*big.Int, *big.Int, *big.Int, error)
+	GetDelegators(ctx context.Context, valSmcAddr common.Address) ([]*types.RPCDelegator, error)
+	GetSlashEvents(ctx context.Context, valAddr common.Address) ([]*types.SlashEvents, error)
 }
 
 type Config struct {

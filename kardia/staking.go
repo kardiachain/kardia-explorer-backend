@@ -105,6 +105,9 @@ func (ec *Client) GetValidatorContractFromOwner(ctx context.Context, valAddr com
 		ec.lgr.Error("GetDelegationRewards KardiaCall error: ", zap.Error(err))
 		return common.Address{}, err
 	}
+	if len(res) == 0 {
+		return common.Address{}, ErrNotAValidatorAddress
+	}
 	var result struct {
 		ValSmcAddr common.Address
 	}

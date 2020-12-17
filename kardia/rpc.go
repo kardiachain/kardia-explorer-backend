@@ -28,6 +28,7 @@ import (
 	"runtime"
 	"sort"
 	"strings"
+	"time"
 
 	"github.com/kardiachain/go-kardia/configs"
 	"github.com/labstack/gommon/log"
@@ -46,7 +47,7 @@ import (
 
 var (
 	ErrParsingBigIntFromString = errors.New("cannot parse string to big.Int")
-	ErrValidatorNotFound       = errors.New("validator address not found")
+	ErrNotAValidatorAddress    = errors.New("address is not a validator")
 
 	tenPoweredBy5  = new(big.Int).Exp(big.NewInt(10), big.NewInt(5), nil)
 	tenPoweredBy18 = new(big.Int).Exp(big.NewInt(10), big.NewInt(18), nil)
@@ -377,6 +378,7 @@ func (ec *Client) Validators(ctx context.Context) (*types.Validators, error) {
 		} else if totalProposers < ec.totalValidators {
 			val.Status = 2 // validator who has staked over 12.5M KAI and belong to top 20 of validator based on voting power is considered a proposer
 			totalProposers++
+			totalValidators++
 			proposersStakedAmount = new(big.Int).Add(proposersStakedAmount, validators[i].Tokens)
 		} else {
 			val.Status = 1 // validator who has staked over 12.5M KAI and not belong to top 20 of validator based on voting power is considered a normal validator
@@ -535,6 +537,7 @@ func convertValidator(src *types.RPCValidator) *types.Validator {
 		VotingPowerPercentage: "",
 		StakedAmount:          src.Tokens.String(),
 		AccumulatedCommission: src.AccumulatedCommission.String(),
+		UpdateTime:            time.Unix(src.UpdateTime.Int64(), 0),
 		CommissionRate:        "",
 		TotalDelegators:       len(src.Delegators),
 		MaxRate:               "",

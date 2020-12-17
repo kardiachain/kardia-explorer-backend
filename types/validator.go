@@ -3,6 +3,7 @@ package types
 
 import (
 	"math/big"
+	"time"
 
 	"github.com/kardiachain/go-kardia/lib/common"
 )
@@ -15,7 +16,6 @@ type Validators struct {
 	TotalStakedAmount          string       `json:"totalStakedAmount"`
 	TotalValidatorStakedAmount string       `json:"totalValidatorStakedAmount"`
 	TotalDelegatorStakedAmount string       `json:"totalDelegatorStakedAmount"`
-	TotalProposer              int          `json:"totalProposer"`
 	Validators                 []*Validator `json:"validators"`
 }
 
@@ -28,6 +28,7 @@ type Validator struct {
 	VotingPowerPercentage string         `json:"votingPowerPercentage"`
 	StakedAmount          string         `json:"stakedAmount"`
 	AccumulatedCommission string         `json:"accumulatedCommission"`
+	UpdateTime            time.Time      `json:"updateTime"`
 	CommissionRate        string         `json:"commissionRate"`
 	TotalDelegators       int            `json:"totalDelegators"`
 	MaxRate               string         `json:"maxRate"`
