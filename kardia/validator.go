@@ -23,13 +23,13 @@ import (
 	"math/big"
 	"time"
 
+	"github.com/kardiachain/explorer-backend/types"
 	"github.com/kardiachain/go-kardia/lib/common"
-	"github.com/kardiachain/go-kardia/mainchain/staking"
 	"go.uber.org/zap"
 )
 
 // GetValidatorInfo returns information of this validator
-func (ec *Client) GetValidatorInfo(ctx context.Context, valSmcAddr common.Address) (*staking.Validator, error) {
+func (ec *Client) GetValidatorInfo(ctx context.Context, valSmcAddr common.Address) (*types.RPCValidator, error) {
 	payload, err := ec.validatorUtil.Abi.Pack("inforValidator")
 	if err != nil {
 		ec.lgr.Error("Error packing validator info payload: ", zap.Error(err))
@@ -40,13 +40,20 @@ func (ec *Client) GetValidatorInfo(ctx context.Context, valSmcAddr common.Addres
 		ec.lgr.Error("GetValidatorInfo KardiaCall error: ", zap.Error(err))
 		return nil, err
 	}
-	var valInfo staking.Validator
+	var valInfo types.RPCValidator
 	// unpack result
 	err = ec.validatorUtil.Abi.UnpackIntoInterface(&valInfo, "inforValidator", res)
 	if err != nil {
 		ec.lgr.Error("Error unpacking validator info: ", zap.Error(err))
 		return nil, err
 	}
+	rate, maxRate, maxChangeRate, err := ec.GetCommissionValidator(ctx, valSmcAddr)
+	if err != nil {
+		return nil, err
+	}
+	valInfo.CommissionRate = rate
+	valInfo.MaxRate = maxRate
+	valInfo.MaxChangeRate = maxChangeRate
 	return &valInfo, nil
 }
 
@@ -195,7 +202,7 @@ func (ec *Client) GetCommissionValidator(ctx context.Context, valSmcAddr common.
 }
 
 // GetDelegators returns all delegators of a validator
-func (ec *Client) GetDelegators(ctx context.Context, valSmcAddr common.Address) ([]*staking.Delegator, error) {
+func (ec *Client) GetDelegators(ctx context.Context, valSmcAddr common.Address) ([]*types.RPCDelegator, error) {
 	payload, err := ec.validatorUtil.Abi.Pack("getDelegations")
 	if err != nil {
 		return nil, err
@@ -215,7 +222,7 @@ func (ec *Client) GetDelegators(ctx context.Context, valSmcAddr common.Address) 
 		ec.lgr.Error("Error unpacking delegation details", zap.Error(err))
 		return nil, err
 	}
-	var delegators []*staking.Delegator
+	var delegators []*types.RPCDelegator
 	for _, delAddr := range result.DelAddrs {
 		reward, err := ec.GetDelegationRewards(ctx, valSmcAddr, delAddr)
 		if err != nil {
@@ -225,7 +232,7 @@ func (ec *Client) GetDelegators(ctx context.Context, valSmcAddr common.Address) 
 		if err != nil {
 			return nil, err
 		}
-		delegators = append(delegators, &staking.Delegator{
+		delegators = append(delegators, &types.RPCDelegator{
 			Address:      delAddr,
 			StakedAmount: stakedAmount,
 			Reward:       reward,

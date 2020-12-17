@@ -2,6 +2,8 @@
 package types
 
 import (
+	"math/big"
+
 	"github.com/kardiachain/go-kardia/lib/common"
 )
 
@@ -29,6 +31,31 @@ type Validator struct {
 	MaxRate               string         `json:"maxRate"`
 	MaxChangeRate         string         `json:"maxChangeRate"`
 	Delegators            []*Delegator   `json:"delegators,omitempty"`
+}
+
+type RPCValidator struct {
+	Name                  [32]uint8       `json:"name"`
+	ValAddr               common.Address  `json:"validatorAddress"`
+	ValStakingSmc         common.Address  `json:"valStakingSmc"`
+	Tokens                *big.Int        `json:"tokens"`
+	Jailed                bool            `json:"jailed"`
+	DelegationShares      *big.Int        `json:"delegationShares"`
+	AccumulatedCommission *big.Int        `json:"accumulatedCommission"`
+	UbdEntryCount         *big.Int        `json:"ubdEntryCount"`
+	UpdateTime            *big.Int        `json:"updateTime"`
+	Status                uint8           `json:"status"`
+	UnbondingTime         *big.Int        `json:"unbondingTime"`
+	UnbondingHeight       *big.Int        `json:"unbondingHeight"`
+	CommissionRate        *big.Int        `json:"commissionRate,omitempty"`
+	MaxRate               *big.Int        `json:"maxRate,omitempty"`
+	MaxChangeRate         *big.Int        `json:"maxChangeRate,omitempty"`
+	Delegators            []*RPCDelegator `json:"delegators,omitempty"`
+}
+
+type RPCDelegator struct {
+	Address      common.Address `json:"address"`
+	StakedAmount *big.Int       `json:"stakedAmount"`
+	Reward       *big.Int       `json:"reward"`
 }
 
 type Delegator struct {

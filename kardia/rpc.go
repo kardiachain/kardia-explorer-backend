@@ -337,7 +337,7 @@ func (ec *Client) Validator(ctx context.Context, address string) (*types.Validat
 func (ec *Client) Validators(ctx context.Context) (*types.Validators, error) {
 	var (
 		proposersStakedAmount = big.NewInt(0)
-		validators            []*staking.Validator
+		validators            []*types.RPCValidator
 	)
 	validators, err := ec.getValidatorsFromSMC(ctx)
 	if err != nil {
@@ -417,7 +417,7 @@ func (ec *Client) getBlockHeader(ctx context.Context, method string, args ...int
 	return &raw, nil
 }
 
-func convertValidatorInfo(srcVal *staking.Validator, totalStakedAmount *big.Int, status uint8) (*types.Validator, error) {
+func convertValidatorInfo(srcVal *types.RPCValidator, totalStakedAmount *big.Int, status uint8) (*types.Validator, error) {
 	var err error
 	val := convertValidator(srcVal)
 	if val.CommissionRate, err = convertBigIntToPercentage(srcVal.CommissionRate); err != nil {
@@ -461,14 +461,14 @@ func calculateVotingPower(valStakedAmount *big.Int, total *big.Int) (string, err
 	return result, nil
 }
 
-func (ec *Client) getValidatorsFromSMC(ctx context.Context) ([]*staking.Validator, error) {
+func (ec *Client) getValidatorsFromSMC(ctx context.Context) ([]*types.RPCValidator, error) {
 	allValsLen, err := ec.GetAllValsLength(ctx)
 	if err != nil {
 		return nil, err
 	}
 	var (
 		one      = big.NewInt(1)
-		valsInfo []*staking.Validator
+		valsInfo []*types.RPCValidator
 	)
 	for i := new(big.Int).SetInt64(0); i.Cmp(allValsLen) < 0; i.Add(i, one) {
 		valContractAddr, err := ec.GetValSmcAddr(ctx, i)
@@ -489,7 +489,7 @@ func (ec *Client) getValidatorsFromSMC(ctx context.Context) ([]*staking.Validato
 	return valsInfo, nil
 }
 
-func (ec *Client) getValidatorFromSMC(ctx context.Context, valAddr common.Address) (*staking.Validator, error) {
+func (ec *Client) getValidatorFromSMC(ctx context.Context, valAddr common.Address) (*types.RPCValidator, error) {
 	valContractAddr, err := ec.GetValFromOwner(ctx, valAddr)
 	if err != nil {
 		return nil, err
@@ -506,7 +506,7 @@ func (ec *Client) getValidatorFromSMC(ctx context.Context, valAddr common.Addres
 	return val, nil
 }
 
-func convertValidator(src *staking.Validator) *types.Validator {
+func convertValidator(src *types.RPCValidator) *types.Validator {
 	var name []byte
 	for _, b := range src.Name {
 		if b != 0 {

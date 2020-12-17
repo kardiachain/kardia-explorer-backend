@@ -22,8 +22,6 @@ import (
 	"context"
 	"math/big"
 
-	"github.com/kardiachain/go-kardia/mainchain/staking"
-
 	"github.com/kardiachain/explorer-backend/types"
 	"github.com/kardiachain/go-kardia/lib/common"
 	"go.uber.org/zap"
@@ -54,7 +52,7 @@ type ClientInterface interface {
 	GetValidatorsByDelegator(ctx context.Context, delAddr common.Address) ([]*types.ValidatorsByDelegator, error)
 
 	// validator related methods
-	GetValidatorInfo(ctx context.Context, valSmcAddr common.Address) (*staking.Validator, error)
+	GetValidatorInfo(ctx context.Context, valSmcAddr common.Address) (*types.RPCValidator, error)
 	GetDelegationRewards(ctx context.Context, valSmcAddr common.Address, delegatorAddr common.Address) (*big.Int, error)
 	GetDelegatorStakedAmount(ctx context.Context, valSmcAddr common.Address, delegatorAddr common.Address) (*big.Int, error)
 	GetUDBEntries(ctx context.Context, valSmcAddr common.Address, delegatorAddr common.Address) (*big.Int, *big.Int, error)

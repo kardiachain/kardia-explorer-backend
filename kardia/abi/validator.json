@@ -132,12 +132,6 @@
         "internalType": "uint256",
         "name": "_commissionRate",
         "type": "uint256"
-      },
-      {
-        "indexed": false,
-        "internalType": "uint256",
-        "name": "_minSelfDelegation",
-        "type": "uint256"
       }
     ],
     "name": "UpdateValidator",
@@ -428,11 +422,6 @@
       },
       {
         "internalType": "uint256",
-        "name": "minSelfDelegation",
-        "type": "uint256"
-      },
-      {
-        "internalType": "uint256",
         "name": "delegationShares",
         "type": "uint256"
       },
@@ -497,11 +486,6 @@
       {
         "internalType": "uint256",
         "name": "_maxChangeRate",
-        "type": "uint256"
-      },
-      {
-        "internalType": "uint256",
-        "name": "_minSelfDelegation",
         "type": "uint256"
       }
     ],
@@ -764,11 +748,6 @@
       {
         "internalType": "uint256",
         "name": "_commissionRate",
-        "type": "uint256"
-      },
-      {
-        "internalType": "uint256",
-        "name": "_minSelfDelegation",
         "type": "uint256"
       }
     ],

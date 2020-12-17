@@ -56,12 +56,6 @@
         "internalType": "uint256",
         "name": "_commissionMaxChangeRate",
         "type": "uint256"
-      },
-      {
-        "indexed": false,
-        "internalType": "uint256",
-        "name": "_minSelfDelegation",
-        "type": "uint256"
       }
     ],
     "name": "CreatedValidator",
@@ -207,11 +201,6 @@
       {
         "internalType": "uint256",
         "name": "maxChangeRate",
-        "type": "uint256"
-      },
-      {
-        "internalType": "uint256",
-        "name": "minSelfDelegation",
         "type": "uint256"
       }
     ],
