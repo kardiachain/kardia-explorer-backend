@@ -475,7 +475,7 @@ func (ec *Client) getValidatorsFromSMC(ctx context.Context) ([]*staking.Validato
 		if err != nil {
 			return nil, err
 		}
-		valInfo, err := ec.GetInforValidator(ctx, valContractAddr)
+		valInfo, err := ec.GetValidatorInfo(ctx, valContractAddr)
 		if err != nil {
 			return nil, err
 		}
@@ -494,7 +494,7 @@ func (ec *Client) getValidatorFromSMC(ctx context.Context, valAddr common.Addres
 	if err != nil {
 		return nil, err
 	}
-	val, err := ec.GetInforValidator(ctx, valContractAddr)
+	val, err := ec.GetValidatorInfo(ctx, valContractAddr)
 	if err != nil {
 		return nil, err
 	}

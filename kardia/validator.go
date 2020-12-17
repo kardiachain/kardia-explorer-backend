@@ -170,34 +170,6 @@ func (ec *Client) GetMissedBlock(ctx context.Context, valSmcAddr common.Address)
 }
 
 // GetValidator show info of a validator based on address
-func (ec *Client) GetInforValidator(ctx context.Context, valSmcAddr common.Address) (*staking.Validator, error) {
-	payload, err := ec.validatorUtil.Abi.Pack("inforValidator")
-	if err != nil {
-		return nil, err
-	}
-	res, err := ec.KardiaCall(ctx, ec.contructCallArgs(valSmcAddr.Hex(), payload))
-	if err != nil {
-		return nil, err
-	}
-
-	var validator staking.Validator
-	// unpack result
-	err = ec.validatorUtil.Abi.UnpackIntoInterface(&validator, "inforValidator", res)
-	if err != nil {
-		ec.lgr.Error("Error unpacking validator info", zap.Error(err))
-		return nil, err
-	}
-	rate, maxRate, maxChangeRate, err := ec.GetCommissionValidator(ctx, valSmcAddr)
-	if err != nil {
-		return nil, err
-	}
-	validator.CommissionRate = rate
-	validator.MaxRate = maxRate
-	validator.MaxChangeRate = maxChangeRate
-	return &validator, nil
-}
-
-// GetValidator show info of a validator based on address
 func (ec *Client) GetCommissionValidator(ctx context.Context, valSmcAddr common.Address) (*big.Int, *big.Int, *big.Int, error) {
 	payload, err := ec.validatorUtil.Abi.Pack("commission")
 	if err != nil {
