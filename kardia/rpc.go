@@ -325,7 +325,7 @@ func (ec *Client) Validator(ctx context.Context, address string) (*types.Validat
 	if !ok {
 		ec.lgr.Error("error parsing MinStakedAmount to big.Int:", zap.String("MinStakedAmount", cfg.MinStakedAmount), zap.Any("value", minStakedAmount))
 	}
-	if validator.Tokens.Cmp(minStakedAmount) == -1 {
+	if validator.Tokens.Cmp(minStakedAmount) >= 0 {
 		validator.Status = 1
 		return convertValidator(validator), nil
 	}
