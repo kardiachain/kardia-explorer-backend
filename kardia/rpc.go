@@ -41,7 +41,6 @@ import (
 	"github.com/kardiachain/go-kardia/mainchain/staking"
 	"github.com/kardiachain/go-kardia/rpc"
 
-	"github.com/kardiachain/explorer-backend/cfg"
 	"github.com/kardiachain/explorer-backend/types"
 )
 
@@ -355,12 +354,10 @@ func (ec *Client) Validators(ctx context.Context) (*types.Validators, error) {
 		totalProposers             = 0
 		totalValidators            = 0
 		totalCandidates            = 0
-
-		ok bool
 	)
-	minStakedAmount, ok := new(big.Int).SetString(cfg.MinStakedAmount, 10)
-	if !ok {
-		ec.lgr.Error("error parsing MinStakedAmount to big.Int:", zap.String("MinStakedAmount", cfg.MinStakedAmount), zap.Any("value", minStakedAmount))
+	valsSet, err := ec.GetValidatorSets(ctx)
+	if err != nil {
+		return nil, err
 	}
 	for i, val := range validators {
 		for _, del := range val.Delegators {
@@ -372,18 +369,22 @@ func (ec *Client) Validators(ctx context.Context) (*types.Validators, error) {
 			totalDelegatorStakedAmount = new(big.Int).Add(totalDelegatorStakedAmount, del.StakedAmount)
 		}
 		totalStakedAmount = new(big.Int).Add(totalStakedAmount, val.Tokens)
-		// TODO(trinhdn): currently hardcoding for testing, evaluate this status later
-		if validators[i].Tokens.Cmp(minStakedAmount) == -1 || val.Status < 2 {
-			val.Status = 0 // validator who has staked under 12.5M KAI is considers a candidate
-			totalCandidates++
-		} else if totalProposers < ec.totalValidators {
-			val.Status = 2 // validator who has staked over 12.5M KAI and belong to top 20 of validator based on voting power is considered a proposer
-			totalProposers++
+		// validator who started a node and not in validators set is a normal validator
+		if val.Status == 2 {
+			val.Status = 1
 			totalValidators++
-			proposersStakedAmount = new(big.Int).Add(proposersStakedAmount, validators[i].Tokens)
 		} else {
-			val.Status = 1 // validator who has staked over 12.5M KAI and not belong to top 20 of validator based on voting power is considered a normal validator
-			totalValidators++
+			val.Status = 0
+			totalCandidates++
+		}
+		// validator who is in current validators set is a proposer
+		for _, valInSet := range valsSet {
+			if val.ValAddr.Equal(valInSet) {
+				val.Status = 2
+				totalProposers++
+				proposersStakedAmount = new(big.Int).Add(proposersStakedAmount, validators[i].Tokens)
+				break
+			}
 		}
 	}
 	var returnValsList []*types.Validator
@@ -533,7 +534,7 @@ func convertValidator(src *types.RPCValidator, signingInfo *types.SigningInfo) *
 			Reward:       del.Reward.String(),
 		})
 	}
-	indicatorRate := float64(signingInfo.MissedBlockCounter) / 10000 * 100
+	indicatorRate := 100 - float64(signingInfo.MissedBlockCounter)/100
 	return &types.Validator{
 		Address:               src.ValAddr,
 		SmcAddress:            src.ValStakingSmc,
