@@ -11,7 +11,7 @@ import (
 type Validators struct {
 	TotalValidators            int          `json:"totalValidators"`
 	TotalProposers             int          `json:"totalProposers"`
-	TotalNominators            int          `json:"totalNominators"`
+	TotalCandidates            int          `json:"totalCandidates"`
 	TotalDelegators            int          `json:"totalDelegators"`
 	TotalStakedAmount          string       `json:"totalStakedAmount"`
 	TotalValidatorStakedAmount string       `json:"totalValidatorStakedAmount"`
@@ -33,6 +33,8 @@ type Validator struct {
 	TotalDelegators       int            `json:"totalDelegators"`
 	MaxRate               string         `json:"maxRate"`
 	MaxChangeRate         string         `json:"maxChangeRate"`
+	MissedBlocks          uint64         `json:"missedBlocks"`
+	IndicatorRate         float64        `json:"indicatorRate"`
 	Delegators            []*Delegator   `json:"delegators,omitempty"`
 }
 
@@ -72,6 +74,14 @@ type SlashEvents struct {
 	Period   string `json:"period"`
 	Fraction string `json:"fraction"`
 	Height   string `json:"height"`
+}
+
+type SigningInfo struct {
+	StartHeight        uint64
+	IndexOffset        uint64
+	Tombstoned         bool
+	MissedBlockCounter uint64
+	JailedUntil        uint64
 }
 
 type PeerInfo struct {

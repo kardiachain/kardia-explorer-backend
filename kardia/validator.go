@@ -153,35 +153,41 @@ func (ec *Client) GetUDBEntries(ctx context.Context, valSmcAddr common.Address, 
 	return totalAmount, withdrawableAmount, nil
 }
 
-// GetMissedBlock returns missed block of this validator
-func (ec *Client) GetMissedBlock(ctx context.Context, valAddr common.Address) ([]bool, error) {
-	valSmcAddr, err := ec.GetValidatorContractFromOwner(ctx, valAddr)
+// GetSigningInfo returns signing info of this validator
+func (ec *Client) GetSigningInfo(ctx context.Context, valSmcAddr common.Address) (*types.SigningInfo, error) {
+	payload, err := ec.validatorUtil.Abi.Pack("signingInfo")
 	if err != nil {
-		return nil, err
-	}
-	payload, err := ec.validatorUtil.Abi.Pack("getMissedBlock")
-	if err != nil {
-		ec.lgr.Error("Error packing get missed blocks payload: ", zap.Error(err))
+		ec.lgr.Error("Error packing get signingInfo payload: ", zap.Error(err))
 		return nil, err
 	}
 	res, err := ec.KardiaCall(ctx, ec.contructCallArgs(valSmcAddr.Hex(), payload))
 	if err != nil {
-		ec.lgr.Error("GetUDBEntry KardiaCall error: ", zap.Error(err))
+		ec.lgr.Error("GetSigningInfo KardiaCall error: ", zap.Error(err))
 		return nil, err
 	}
 	if len(res) == 0 {
 		return nil, nil
 	}
 	var result struct {
-		MissedBlock []bool
+		StartHeight        *big.Int
+		IndexOffset        *big.Int
+		Tombstoned         bool
+		MissedBlockCounter *big.Int
+		JailedUntil        *big.Int
 	}
 	// unpack result
-	err = ec.validatorUtil.Abi.UnpackIntoInterface(&result, "getMissedBlock", res)
+	err = ec.validatorUtil.Abi.UnpackIntoInterface(&result, "signingInfo", res)
 	if err != nil {
-		ec.lgr.Error("Error unpack get missed blocks: ", zap.Error(err))
+		ec.lgr.Error("Error unpack get signingInfo: ", zap.Error(err))
 		return nil, err
 	}
-	return result.MissedBlock, nil
+	return &types.SigningInfo{
+		StartHeight:        result.StartHeight.Uint64(),
+		IndexOffset:        result.IndexOffset.Uint64(),
+		Tombstoned:         result.Tombstoned,
+		MissedBlockCounter: result.MissedBlockCounter.Uint64(),
+		JailedUntil:        result.JailedUntil.Uint64(),
+	}, nil
 }
 
 // GetValidator show info of a validator based on address
@@ -255,8 +261,9 @@ func (ec *Client) GetSlashEvents(ctx context.Context, valAddr common.Address) ([
 		one         = big.NewInt(1)
 		slashEvents []*types.SlashEvents
 	)
-	valSmcAddr, err := ec.GetValidatorContractFromOwner(ctx, valAddr)
-	if err != nil {
+	valSmcAddr, err := ec.GetValidatorSMCFromOwner(ctx, valAddr)
+	if err != nil || valSmcAddr.Equal(common.Address{}) {
+		ec.lgr.Error("Error getting validator contract address: ", zap.Any("valSmcAddr", valSmcAddr), zap.Error(err))
 		return nil, err
 	}
 	for i := new(big.Int).SetInt64(0); ; i.Add(i, one) {
@@ -266,6 +273,11 @@ func (ec *Client) GetSlashEvents(ctx context.Context, valAddr common.Address) ([
 		}
 		res, err := ec.KardiaCall(ctx, ec.contructCallArgs(valSmcAddr.Hex(), payload))
 		if err != nil {
+			// SMC doesn't returns the length of slashEvents list. So if the returned error contains below string, we know that we've read all slash events of this validator
+			if strings.Contains(err.Error(), "invalid opcode: opcode 0xfe not defined") {
+				return slashEvents, nil
+			}
+			ec.lgr.Debug("GetSlashEvents KardiaCall Error: ", zap.String("i", i.String()), zap.String("payload", common.Bytes(payload).String()), zap.Error(err))
 			return nil, err
 		}
 		if strings.TrimRight(res.String(), "0") == "0x" {

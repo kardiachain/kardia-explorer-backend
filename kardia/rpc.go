@@ -310,6 +310,10 @@ func (ec *Client) Validator(ctx context.Context, address string) (*types.Validat
 	if err != nil {
 		return nil, err
 	}
+	signingInfo, err := ec.GetSigningInfo(ctx, validator.ValStakingSmc)
+	if err != nil {
+		return nil, err
+	}
 	// update validator's role. If he's in validators set, he is a proposer
 	valsSet, err := ec.GetValidatorSets(ctx)
 	if err != nil {
@@ -318,25 +322,17 @@ func (ec *Client) Validator(ctx context.Context, address string) (*types.Validat
 	for _, val := range valsSet {
 		if val.Equal(common.HexToAddress(address)) {
 			validator.Status = 2
-			return convertValidator(validator), nil
+			return convertValidator(validator, signingInfo), nil
 		}
 	}
-	// else if his staked amount is enough, he is a normal validator
-	minStakedAmount, ok := new(big.Int).SetString(cfg.MinStakedAmount, 10)
-	if !ok {
-		ec.lgr.Error("error parsing MinStakedAmount to big.Int:", zap.String("MinStakedAmount", cfg.MinStakedAmount), zap.Any("value", minStakedAmount))
+	// else if his node is started, he is a normal validator
+	if validator.Status == 2 {
+		validator.Status = 1
+	} else {
+		// otherwise he is a candidate
+		validator.Status = 0
 	}
-	if validator.Tokens.Cmp(minStakedAmount) >= 0 {
-		if validator.Status < 2 {
-			validator.Status = 1
-		} else {
-			validator.Status = 2
-		}
-		return convertValidator(validator), nil
-	}
-	// otherwise he is a nominator
-	validator.Status = 0
-	return convertValidator(validator), nil
+	return convertValidator(validator, signingInfo), nil
 }
 
 func (ec *Client) Validators(ctx context.Context) (*types.Validators, error) {
@@ -358,7 +354,7 @@ func (ec *Client) Validators(ctx context.Context) (*types.Validators, error) {
 		totalDelegatorStakedAmount = big.NewInt(0)
 		totalProposers             = 0
 		totalValidators            = 0
-		totalNominators            = 0
+		totalCandidates            = 0
 
 		ok bool
 	)
@@ -378,8 +374,8 @@ func (ec *Client) Validators(ctx context.Context) (*types.Validators, error) {
 		totalStakedAmount = new(big.Int).Add(totalStakedAmount, val.Tokens)
 		// TODO(trinhdn): currently hardcoding for testing, evaluate this status later
 		if validators[i].Tokens.Cmp(minStakedAmount) == -1 || val.Status < 2 {
-			val.Status = 0 // validator who has staked under 12.5M KAI is considers a nominator
-			totalNominators++
+			val.Status = 0 // validator who has staked under 12.5M KAI is considers a candidate
+			totalCandidates++
 		} else if totalProposers < ec.totalValidators {
 			val.Status = 2 // validator who has staked over 12.5M KAI and belong to top 20 of validator based on voting power is considered a proposer
 			totalProposers++
@@ -392,7 +388,11 @@ func (ec *Client) Validators(ctx context.Context) (*types.Validators, error) {
 	}
 	var returnValsList []*types.Validator
 	for _, val := range validators {
-		convertedVal, err := convertValidatorInfo(val, proposersStakedAmount, val.Status)
+		signingInfo, err := ec.GetSigningInfo(ctx, val.ValStakingSmc)
+		if err != nil {
+			return nil, err
+		}
+		convertedVal, err := convertValidatorInfo(val, signingInfo, proposersStakedAmount, val.Status)
 		if err != nil {
 			return nil, err
 		}
@@ -401,7 +401,7 @@ func (ec *Client) Validators(ctx context.Context) (*types.Validators, error) {
 	result := &types.Validators{
 		TotalValidators:            totalValidators,
 		TotalProposers:             totalProposers,
-		TotalNominators:            totalNominators,
+		TotalCandidates:            totalCandidates,
 		TotalDelegators:            len(delegators),
 		TotalStakedAmount:          totalStakedAmount.String(),
 		TotalValidatorStakedAmount: new(big.Int).Sub(totalStakedAmount, totalDelegatorStakedAmount).String(),
@@ -429,9 +429,9 @@ func (ec *Client) getBlockHeader(ctx context.Context, method string, args ...int
 	return &raw, nil
 }
 
-func convertValidatorInfo(srcVal *types.RPCValidator, totalStakedAmount *big.Int, status uint8) (*types.Validator, error) {
+func convertValidatorInfo(srcVal *types.RPCValidator, signingInfo *types.SigningInfo, totalStakedAmount *big.Int, status uint8) (*types.Validator, error) {
 	var err error
-	val := convertValidator(srcVal)
+	val := convertValidator(srcVal, signingInfo)
 	if val.CommissionRate, err = convertBigIntToPercentage(srcVal.CommissionRate); err != nil {
 		return nil, err
 	}
@@ -518,7 +518,7 @@ func (ec *Client) getValidatorFromSMC(ctx context.Context, valAddr common.Addres
 	return val, nil
 }
 
-func convertValidator(src *types.RPCValidator) *types.Validator {
+func convertValidator(src *types.RPCValidator, signingInfo *types.SigningInfo) *types.Validator {
 	var name []byte
 	for _, b := range src.Name {
 		if b != 0 {
@@ -533,6 +533,7 @@ func convertValidator(src *types.RPCValidator) *types.Validator {
 			Reward:       del.Reward.String(),
 		})
 	}
+	indicatorRate := float64(signingInfo.MissedBlockCounter) / 10000 * 100
 	return &types.Validator{
 		Address:               src.ValAddr,
 		SmcAddress:            src.ValStakingSmc,
@@ -547,6 +548,8 @@ func convertValidator(src *types.RPCValidator) *types.Validator {
 		TotalDelegators:       len(src.Delegators),
 		MaxRate:               "",
 		MaxChangeRate:         "",
+		MissedBlocks:          signingInfo.MissedBlockCounter,
+		IndicatorRate:         indicatorRate,
 		Delegators:            delegators,
 	}
 }

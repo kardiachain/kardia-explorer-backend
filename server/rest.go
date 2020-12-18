@@ -220,7 +220,7 @@ func (s *Server) GetValidatorsByDelegator(c echo.Context) error {
 	return api.OK.SetData(valsList).Build(c)
 }
 
-func (s *Server) GetNominatorsList(c echo.Context) error {
+func (s *Server) GetCandidatesList(c echo.Context) error {
 	ctx := context.Background()
 	valsList, err := s.getValidatorsList(ctx)
 	if err != nil {
@@ -241,19 +241,11 @@ func (s *Server) GetNominatorsList(c echo.Context) error {
 	return api.OK.SetData(valsList).Build(c)
 }
 
-func (s *Server) GetMissedBlock(c echo.Context) error {
-	ctx := context.Background()
-	missedBlock, err := s.kaiClient.GetMissedBlock(ctx, common.HexToAddress(c.Param("address")))
-	if err != nil {
-		return api.Invalid.Build(c)
-	}
-	return api.OK.SetData(missedBlock).Build(c)
-}
-
 func (s *Server) GetSlashEvents(c echo.Context) error {
 	ctx := context.Background()
 	slashEvents, err := s.kaiClient.GetSlashEvents(ctx, common.HexToAddress(c.Param("address")))
 	if err != nil {
+		s.logger.Warn("Cannot GetSlashEvents", zap.Error(err))
 		return api.Invalid.Build(c)
 	}
 	return api.OK.SetData(slashEvents).Build(c)

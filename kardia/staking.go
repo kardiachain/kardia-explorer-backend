@@ -62,7 +62,7 @@ func (ec *Client) GetValidatorsByDelegator(ctx context.Context, delAddr common.A
 				name = append(name, byte(b))
 			}
 		}
-		owner, err := ec.GetValidatorContractFromOwner(ctx, val)
+		owner, err := ec.GetOwnerFromValidatorSMC(ctx, val)
 		if err != nil {
 			return nil, err
 		}
@@ -93,19 +93,20 @@ func (ec *Client) GetValidatorsByDelegator(ctx context.Context, delAddr common.A
 	return valsList, nil
 }
 
-// GetValidatorContractFromOwner returns validator contract address from owner address
-func (ec *Client) GetValidatorContractFromOwner(ctx context.Context, valAddr common.Address) (common.Address, error) {
-	payload, err := ec.stakingUtil.Abi.Pack("valOf", valAddr)
+// GetOwnerFromValidatorSMC returns owner address from validator contract address
+func (ec *Client) GetOwnerFromValidatorSMC(ctx context.Context, valSmcAddr common.Address) (common.Address, error) {
+	payload, err := ec.stakingUtil.Abi.Pack("valOf", valSmcAddr)
 	if err != nil {
 		ec.lgr.Error("Error packing owner of validator SMC payload: ", zap.Error(err))
 		return common.Address{}, err
 	}
 	res, err := ec.KardiaCall(ctx, ec.contructCallArgs(ec.stakingUtil.ContractAddress.Hex(), payload))
 	if err != nil {
-		ec.lgr.Error("GetDelegationRewards KardiaCall error: ", zap.Error(err))
+		ec.lgr.Error("GetOwnerFromValidatorSMC KardiaCall error: ", zap.Error(err))
 		return common.Address{}, err
 	}
 	if len(res) == 0 {
+		ec.lgr.Error("GetOwnerFromValidatorSMC KardiaCall empty result")
 		return common.Address{}, ErrNotAValidatorAddress
 	}
 	var result struct {
@@ -114,6 +115,33 @@ func (ec *Client) GetValidatorContractFromOwner(ctx context.Context, valAddr com
 	err = ec.stakingUtil.Abi.UnpackIntoInterface(&result, "valOf", res)
 	if err != nil {
 		ec.lgr.Error("Error unpacking owner of validator SMC error: ", zap.Error(err))
+		return common.Address{}, err
+	}
+	return result.ValSmcAddr, nil
+}
+
+// GetOwnerFromValidatorSMC returns owner address from validator contract address
+func (ec *Client) GetValidatorSMCFromOwner(ctx context.Context, valAddr common.Address) (common.Address, error) {
+	payload, err := ec.stakingUtil.Abi.Pack("ownerOf", valAddr)
+	if err != nil {
+		ec.lgr.Error("Error packing validator SMC of owner payload: ", zap.Error(err))
+		return common.Address{}, err
+	}
+	res, err := ec.KardiaCall(ctx, ec.contructCallArgs(ec.stakingUtil.ContractAddress.Hex(), payload))
+	if err != nil {
+		ec.lgr.Error("GetValidatorSMCFromOwner KardiaCall error: ", zap.Error(err))
+		return common.Address{}, err
+	}
+	if len(res) == 0 {
+		ec.lgr.Error("GetValidatorSMCFromOwner KardiaCall empty result")
+		return common.Address{}, ErrNotAValidatorAddress
+	}
+	var result struct {
+		ValSmcAddr common.Address
+	}
+	err = ec.stakingUtil.Abi.UnpackIntoInterface(&result, "ownerOf", res)
+	if err != nil {
+		ec.lgr.Error("Error unpacking validator SMC of owner error: ", zap.Error(err))
 		return common.Address{}, err
 	}
 	return result.ValSmcAddr, nil
@@ -132,6 +160,7 @@ func (ec *Client) GetValidatorSets(ctx context.Context) ([]common.Address, error
 		return nil, err
 	}
 	if len(res) == 0 {
+		ec.lgr.Error("GetValidatorSets KardiaCall empty result")
 		return nil, nil
 	}
 	var result struct {
@@ -160,6 +189,7 @@ func (ec *Client) GetAllValsLength(ctx context.Context) (*big.Int, error) {
 		return nil, err
 	}
 	if len(res) == 0 {
+		ec.lgr.Error("GetAllValsLength KardiaCall empty result")
 		return nil, nil
 	}
 
@@ -186,6 +216,7 @@ func (ec *Client) GetValSmcAddr(ctx context.Context, index *big.Int) (common.Add
 		return common.Address{}, err
 	}
 	if len(res) == 0 {
+		ec.lgr.Error("GetOwnerFromValidatorSMC KardiaCall empty result")
 		return common.Address{}, nil
 	}
 
@@ -215,6 +246,7 @@ func (ec *Client) GetValFromOwner(ctx context.Context, valAddr common.Address) (
 		return common.Address{}, err
 	}
 	if len(res) == 0 {
+		ec.lgr.Error("GetValFromOwner KardiaCall empty result")
 		return common.Address{}, nil
 	}
 
