@@ -64,6 +64,7 @@ type ClientInterface interface {
 	GetSigningInfo(ctx context.Context, valSmcAddr common.Address) (*types.SigningInfo, error)
 	GetCommissionValidator(ctx context.Context, valSmcAddr common.Address) (*big.Int, *big.Int, *big.Int, error)
 	GetDelegators(ctx context.Context, valSmcAddr common.Address) ([]*types.RPCDelegator, error)
+	GetSlashEventsLength(ctx context.Context, valSmcAddr common.Address) (*big.Int, error)
 	GetSlashEvents(ctx context.Context, valAddr common.Address) ([]*types.SlashEvents, error)
 }
 

@@ -255,6 +255,34 @@ func (ec *Client) GetDelegators(ctx context.Context, valSmcAddr common.Address) 
 	return delegators, nil
 }
 
+// GetSlashEventsLength returns number of slash events of this validator
+func (ec *Client) GetSlashEventsLength(ctx context.Context, valSmcAddr common.Address) (*big.Int, error) {
+	payload, err := ec.validatorUtil.Abi.Pack("getSlashEventsLength")
+	if err != nil {
+		ec.lgr.Error("Error packing get slash events length payload: ", zap.Error(err))
+		return nil, err
+	}
+
+	res, err := ec.KardiaCall(ctx, ec.contructCallArgs(valSmcAddr.Hex(), payload))
+	if err != nil {
+		ec.lgr.Error("GetSlashEventsLength KardiaCall error: ", zap.Error(err))
+		return nil, err
+	}
+	if len(res) == 0 {
+		ec.lgr.Error("GetSlashEventsLength KardiaCall empty result")
+		return nil, nil
+	}
+
+	var slashEventsLength *big.Int
+	// unpack result
+	err = ec.validatorUtil.Abi.UnpackIntoInterface(&slashEventsLength, "getSlashEventsLength", res)
+	if err != nil {
+		ec.lgr.Error("Error unpacking get slash events length error: ", zap.Error(err))
+		return nil, err
+	}
+	return slashEventsLength, nil
+}
+
 // GetSlashEvents returns detailed all slash events of this validator
 func (ec *Client) GetSlashEvents(ctx context.Context, valAddr common.Address) ([]*types.SlashEvents, error) {
 	var (
@@ -266,7 +294,15 @@ func (ec *Client) GetSlashEvents(ctx context.Context, valAddr common.Address) ([
 		ec.lgr.Error("Error getting validator contract address: ", zap.Any("valSmcAddr", valSmcAddr), zap.Error(err))
 		return nil, err
 	}
-	for i := new(big.Int).SetInt64(0); ; i.Add(i, one) {
+	length, err := ec.GetSlashEventsLength(ctx, valSmcAddr)
+	if length == nil {
+		return nil, nil
+	}
+	if err != nil {
+		ec.lgr.Error("Error getting slash events length: ", zap.Any("valSmcAddr", valSmcAddr), zap.Error(err))
+		return nil, err
+	}
+	for i := new(big.Int).SetInt64(0); i.Cmp(length) < 0; i.Add(i, one) {
 		payload, err := ec.validatorUtil.Abi.Pack("slashEvents", i)
 		if err != nil {
 			return nil, err
