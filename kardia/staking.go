@@ -50,6 +50,10 @@ func (ec *Client) GetValidatorsByDelegator(ctx context.Context, delAddr common.A
 	}
 
 	// gather additional information about validators
+	valsSet, err := ec.GetValidatorSets(ctx)
+	if err != nil {
+		return nil, err
+	}
 	var valsList []*types.ValidatorsByDelegator
 	for _, val := range valAddrs.ValAddrs {
 		valInfo, err := ec.GetValidatorInfo(ctx, val)
@@ -75,6 +79,11 @@ func (ec *Client) GetValidatorsByDelegator(ctx context.Context, delAddr common.A
 			return nil, err
 		}
 		unbondedAmount, withdrawableAmount, err := ec.GetUDBEntries(ctx, val, delAddr)
+		if err != nil {
+			return nil, err
+		}
+		// re-update validator role based on his status
+		valInfo.Status, err = ec.getValidatorStatus(valsSet, valInfo)
 		if err != nil {
 			return nil, err
 		}

@@ -41,7 +41,6 @@ type ClientInterface interface {
 	NonceAt(ctx context.Context, account string) (uint64, error)
 	SendRawTransaction(ctx context.Context, tx string) error
 	KardiaCall(ctx context.Context, args types.CallArgsJSON) (common.Bytes, error)
-	Peers(ctx context.Context, client *RPCClient) ([]*types.PeerInfo, error)
 	NodesInfo(ctx context.Context) ([]*types.NodeInfo, error)
 	Datadir(ctx context.Context) (string, error)
 	Validator(ctx context.Context, address string) (*types.Validator, error)
@@ -71,15 +70,13 @@ type ClientInterface interface {
 type Config struct {
 	rpcURL            []string
 	trustedNodeRPCURL []string
-	totalValidators   int
 	lgr               *zap.Logger
 }
 
-func NewConfig(rpcURL []string, trustedNodeRPCURL []string, totalValidators int, lgr *zap.Logger) *Config {
+func NewConfig(rpcURL []string, trustedNodeRPCURL []string, lgr *zap.Logger) *Config {
 	return &Config{
 		rpcURL:            rpcURL,
 		trustedNodeRPCURL: trustedNodeRPCURL,
-		totalValidators:   totalValidators,
 		lgr:               lgr,
 	}
 }

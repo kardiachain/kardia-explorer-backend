@@ -64,7 +64,6 @@ func main() {
 		KardiaProtocol:     kardia.Protocol(serviceCfg.KardiaProtocol),
 		KardiaURLs:         serviceCfg.KardiaURLs,
 		KardiaTrustedNodes: serviceCfg.KardiaTrustedNodes,
-		TotalValidators:    serviceCfg.TotalValidators,
 
 		CacheAdapter: cache.Adapter(serviceCfg.CacheEngine),
 		CacheURL:     serviceCfg.CacheURL,
