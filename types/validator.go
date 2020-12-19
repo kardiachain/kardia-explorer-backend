@@ -84,13 +84,19 @@ type SigningInfo struct {
 	JailedUntil        uint64
 }
 
-type PeerInfo struct {
+type RPCPeerInfo struct {
 	NodeInfo         *NodeInfo `json:"node_info"`
 	IsOutbound       bool      `json:"is_outbound"`
 	ConnectionStatus struct {
 		Duration uint64 `json:"Duration"`
 	} `json:"connection_status"`
 	RemoteIP string `json:"remote_ip"`
+}
+
+type PeerInfo struct {
+	Duration uint64 `json:"Duration,omitempty"`
+	Moniker  string `json:"moniker,omitempty"` // arbitrary moniker
+	RemoteIP string `json:"remote_ip,omitempty"`
 }
 
 type ProtocolVersion struct {
@@ -111,7 +117,7 @@ type NodeInfo struct {
 	Network         string               `json:"network"`         // network/chain ID
 	Version         string               `json:"version"`         // major.minor.revision
 	Moniker         string               `json:"moniker"`         // arbitrary moniker
-	Peers           []*PeerInfo          `json:"peers,omitempty"` // peers details
+	Peers           map[string]*PeerInfo `json:"peers,omitempty"` // peers details
 	Other           DefaultNodeInfoOther `json:"other"`           // other application specific data
 }
 

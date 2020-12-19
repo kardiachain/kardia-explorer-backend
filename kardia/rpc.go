@@ -263,36 +263,58 @@ func (ec *Client) KardiaCall(ctx context.Context, args types.CallArgsJSON) (comm
 	return result, nil
 }
 
-func (ec *Client) Peers(ctx context.Context, client *RPCClient) ([]*types.PeerInfo, error) {
-	var result []*types.PeerInfo
-	err := client.c.CallContext(ctx, &result, "node_peers")
-	return result, err
-}
-
 func (ec *Client) NodesInfo(ctx context.Context) ([]*types.NodeInfo, error) {
 	var (
-		nodes = []*types.NodeInfo(nil)
+		nodes []*types.NodeInfo
 		err   error
 	)
 	clientList := append(ec.clientList, ec.trustedClientList...)
-	nodeMap := make(map[string]*types.NodeInfo, len(clientList))
+	nodeMap := make(map[string]*types.NodeInfo, len(clientList)) // list all nodes in network
+	peersMap := make(map[string]*types.RPCPeerInfo)              // list all peers details
 	for _, client := range clientList {
 		var (
 			node  *types.NodeInfo
-			peers []*types.PeerInfo
+			peers []*types.RPCPeerInfo
 		)
+		// get current node info then get it's peers
 		err = client.c.CallContext(ctx, &node, "node_nodeInfo")
 		if err != nil {
 			continue
 		}
-		peers, err = ec.Peers(ctx, client)
+		err := client.c.CallContext(ctx, &peers, "node_peers")
 		if err != nil {
 			continue
 		}
-		node.Peers = peers
+		node.Peers = make(map[string]*types.PeerInfo)
+		for _, peer := range peers {
+			// append current peer to this node
+			node.Peers[peer.NodeInfo.ID] = &types.PeerInfo{
+				Moniker:  peer.NodeInfo.Moniker,
+				Duration: peer.ConnectionStatus.Duration,
+				RemoteIP: peer.RemoteIP,
+			}
+			peersMap[peer.NodeInfo.ID] = peer
+			// try to discover new nodes through these peers
+			// init a new node info in list
+			if nodeMap[peer.NodeInfo.ID] == nil {
+				nodeMap[peer.NodeInfo.ID] = peer.NodeInfo
+			}
+			if nodeMap[peer.NodeInfo.ID].Peers == nil {
+				nodeMap[peer.NodeInfo.ID].Peers = make(map[string]*types.PeerInfo)
+			}
+			nodeMap[peer.NodeInfo.ID].Peers[node.ID] = &types.PeerInfo{} // mark this peer for re-updating later
+		}
 		nodeMap[node.ID] = node
 	}
 	for _, node := range nodeMap {
+		// re-update full peers info
+		for id := range node.Peers {
+			node.Peers[id] = &types.PeerInfo{
+				Duration: peersMap[id].ConnectionStatus.Duration,
+				Moniker:  peersMap[id].NodeInfo.Moniker,
+				RemoteIP: peersMap[id].RemoteIP,
+			}
+		}
 		nodes = append(nodes, node)
 	}
 	return nodes, nil
@@ -313,23 +335,14 @@ func (ec *Client) Validator(ctx context.Context, address string) (*types.Validat
 	if err != nil {
 		return nil, err
 	}
-	// update validator's role. If he's in validators set, he is a proposer
 	valsSet, err := ec.GetValidatorSets(ctx)
 	if err != nil {
 		return nil, err
 	}
-	for _, val := range valsSet {
-		if val.Equal(common.HexToAddress(address)) {
-			validator.Status = 2
-			return convertValidator(validator, signingInfo), nil
-		}
-	}
-	// else if his node is started, he is a normal validator
-	if validator.Status == 2 {
-		validator.Status = 1
-	} else {
-		// otherwise he is a candidate
-		validator.Status = 0
+	// update validator's role. If he's in validators set, he is a proposer
+	validator.Status, err = ec.getValidatorStatus(valsSet, validator)
+	if err != nil {
+		return nil, err
 	}
 	return convertValidator(validator, signingInfo), nil
 }
@@ -347,6 +360,10 @@ func (ec *Client) Validators(ctx context.Context) (*types.Validators, error) {
 	sort.Slice(validators, func(i, j int) bool {
 		return validators[i].Tokens.Cmp(validators[j].Tokens) == 1
 	})
+	valsSet, err := ec.GetValidatorSets(ctx)
+	if err != nil {
+		return nil, err
+	}
 	var (
 		delegators                 = make(map[string]bool)
 		totalStakedAmount          = big.NewInt(0)
@@ -355,10 +372,6 @@ func (ec *Client) Validators(ctx context.Context) (*types.Validators, error) {
 		totalValidators            = 0
 		totalCandidates            = 0
 	)
-	valsSet, err := ec.GetValidatorSets(ctx)
-	if err != nil {
-		return nil, err
-	}
 	for i, val := range validators {
 		for _, del := range val.Delegators {
 			delegators[del.Address.Hex()] = true
@@ -369,22 +382,19 @@ func (ec *Client) Validators(ctx context.Context) (*types.Validators, error) {
 			totalDelegatorStakedAmount = new(big.Int).Add(totalDelegatorStakedAmount, del.StakedAmount)
 		}
 		totalStakedAmount = new(big.Int).Add(totalStakedAmount, val.Tokens)
+		val.Status, err = ec.getValidatorStatus(valsSet, val)
+		if err != nil {
+			return nil, err
+		}
 		// validator who started a node and not in validators set is a normal validator
 		if val.Status == 2 {
-			val.Status = 1
+			totalProposers++
 			totalValidators++
-		} else {
-			val.Status = 0
+			proposersStakedAmount = new(big.Int).Add(proposersStakedAmount, validators[i].Tokens)
+		} else if val.Status == 1 {
+			totalValidators++
+		} else if val.Status == 0 {
 			totalCandidates++
-		}
-		// validator who is in current validators set is a proposer
-		for _, valInSet := range valsSet {
-			if val.ValAddr.Equal(valInSet) {
-				val.Status = 2
-				totalProposers++
-				proposersStakedAmount = new(big.Int).Add(proposersStakedAmount, validators[i].Tokens)
-				break
-			}
 		}
 	}
 	var returnValsList []*types.Validator
@@ -553,4 +563,19 @@ func convertValidator(src *types.RPCValidator, signingInfo *types.SigningInfo) *
 		IndicatorRate:         indicatorRate,
 		Delegators:            delegators,
 	}
+}
+
+func (ec *Client) getValidatorStatus(valsSet []common.Address, validator *types.RPCValidator) (uint8, error) {
+	// if he's in validators set, he is a proposer
+	for _, val := range valsSet {
+		if val.Equal(validator.ValAddr) {
+			return 2, nil
+		}
+	}
+	// else if his node is started, he is a normal validator
+	if validator.Status == 2 {
+		return 1, nil
+	}
+	// otherwise he is a candidate
+	return 0, nil
 }

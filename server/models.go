@@ -33,3 +33,9 @@ type SimpleTransaction struct {
 	TxFee       string    `json:"txFee"`
 	Status      uint      `json:"status" bson:"status"`
 }
+
+type NodeInfo struct {
+	ID         string `json:"id"`
+	Moniker    string `json:"moniker"`
+	PeersCount int    `json:"peersCount"`
+}

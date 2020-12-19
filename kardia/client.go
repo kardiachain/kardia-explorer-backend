@@ -41,7 +41,6 @@ type ClientInterface interface {
 	NonceAt(ctx context.Context, account string) (uint64, error)
 	SendRawTransaction(ctx context.Context, tx string) error
 	KardiaCall(ctx context.Context, args types.CallArgsJSON) (common.Bytes, error)
-	Peers(ctx context.Context, client *RPCClient) ([]*types.PeerInfo, error)
 	NodesInfo(ctx context.Context) ([]*types.NodeInfo, error)
 	Datadir(ctx context.Context) (string, error)
 	Validator(ctx context.Context, address string) (*types.Validator, error)
