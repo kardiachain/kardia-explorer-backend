@@ -244,22 +244,10 @@ func (s *echoServer) registerStakingService(gr *echo.Group) {
 	validatorGr.GET("/candidates", func(c echo.Context) error {
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
-		valsList, err := s.info.Validators(ctx)
+		valsList, err := s.info.CandidatesList(ctx)
 		if err != nil {
 			return api.Err(err, c)
 		}
-		var (
-			result    []*types.Validator
-			valsCount = 0
-		)
-		for _, val := range valsList.Validators {
-			if val.Status == 0 {
-				result = append(result, val)
-			} else {
-				valsCount++
-			}
-		}
-		valsList.Validators = result
 		return api.Success(valsList, c)
 
 	})
