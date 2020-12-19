@@ -19,14 +19,18 @@
 // Package cfg
 package cfg
 
-import "time"
+import (
+	"time"
+)
 
 const (
 	// redis list length
 	LatestTxsLength = 1000
 
 	// redis keys expiration time
-	ValidatorsListExpTime = 5 * time.Minute
-	NodesInfoListExpTime  = 1 * time.Hour
-	BlockInfoExpTime      = 30 * time.Minute
+	NodesInfoListExpTime = 1 * time.Hour
+	BlockInfoExpTime     = 30 * time.Minute
+
+	// TODO(trinhdn): follow core API updates
+	MinStakedAmount = "12500000000000000000000000"
 )

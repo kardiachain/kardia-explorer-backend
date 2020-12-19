@@ -34,8 +34,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/zap"
 
-	"github.com/kardiachain/go-kardiamain/lib/p2p"
-	coreTypes "github.com/kardiachain/go-kardiamain/types"
+	"github.com/kardiachain/go-kardia/lib/p2p"
+	coreTypes "github.com/kardiachain/go-kardia/types"
 
 	"github.com/kardiachain/explorer-backend/metrics"
 	"github.com/kardiachain/explorer-backend/types"
@@ -119,7 +119,7 @@ func setupTestSuite() *testSuite {
 		// ContractAddress:
 		Value:    "2",
 		GasPrice: 1,
-		GasFee:   21000,
+		Gas:      21000,
 		// GasLimit:
 		BlockNumber: 142,
 		Nonce:       1304,

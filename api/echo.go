@@ -43,14 +43,19 @@ type PublicAPI interface {
 	TokenInfo(c echo.Context) error
 	Nodes(c echo.Context) error
 
-	// Validators
+	// Staking-related
 	ValidatorStats(c echo.Context) error
 	Validators(c echo.Context) error
+	GetValidatorsByDelegator(c echo.Context) error
+	GetCandidatesList(c echo.Context) error
+	GetSlashEvents(c echo.Context) error
 
 	// Blocks
 	Blocks(c echo.Context) error
 	Block(c echo.Context) error
 	BlockTxs(c echo.Context) error
+	BlocksByProposer(c echo.Context) error
+	PersistentErrorBlocks(c echo.Context) error
 
 	// Addresses
 	Balance(c echo.Context) error
@@ -101,7 +106,7 @@ func bind(gr *echo.Group, srv EchoServer) {
 		// Blocks
 		{
 			method: echo.GET,
-			// Query params: ?page=1&limit=10
+			// Query params: ?page=0&limit=10
 			path: "/blocks",
 			fn:   srv.Blocks,
 		},
@@ -112,8 +117,21 @@ func bind(gr *echo.Group, srv EchoServer) {
 		},
 		{
 			method: echo.GET,
+			path:   "/blocks/error",
+			fn:     srv.PersistentErrorBlocks,
+		},
+		{
+			method: echo.GET,
+			// Params: proposer address
+			// Query params: ?page=0&limit=10
+			path:        "/blocks/proposer/:address",
+			fn:          srv.BlocksByProposer,
+			middlewares: nil,
+		},
+		{
+			method: echo.GET,
 			// Params: block's hash
-			// Query params: ?page=1&limit=10
+			// Query params: ?page=0&limit=10
 			path:        "/block/:block/txs",
 			fn:          srv.BlockTxs,
 			middlewares: []echo.MiddlewareFunc{checkPagination()},
@@ -125,7 +143,7 @@ func bind(gr *echo.Group, srv EchoServer) {
 		},
 		{
 			method: echo.GET,
-			// Query params: ?page=1&limit=10
+			// Query params: ?page=0&limit=10
 			path:        "/txs",
 			fn:          srv.Txs,
 			middlewares: []echo.MiddlewareFunc{checkPagination()},
@@ -159,6 +177,24 @@ func bind(gr *echo.Group, srv EchoServer) {
 			method:      echo.GET,
 			path:        "/validators/:address",
 			fn:          srv.ValidatorStats,
+			middlewares: nil,
+		},
+		{
+			method:      echo.GET,
+			path:        "/delegators/:address/validators",
+			fn:          srv.GetValidatorsByDelegator,
+			middlewares: nil,
+		},
+		{
+			method:      echo.GET,
+			path:        "/validators/candidates",
+			fn:          srv.GetCandidatesList,
+			middlewares: nil,
+		},
+		{
+			method:      echo.GET,
+			path:        "/validators/:address/slash",
+			fn:          srv.GetSlashEvents,
 			middlewares: nil,
 		},
 	}

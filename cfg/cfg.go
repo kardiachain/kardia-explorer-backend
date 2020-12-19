@@ -20,11 +20,12 @@
 package cfg
 
 import (
-	"github.com/kardiachain/explorer-backend/types"
 	"os"
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/kardiachain/explorer-backend/types"
 )
 
 const (
@@ -56,6 +57,7 @@ type ExplorerConfig struct {
 	KardiaProtocol     string
 	KardiaURLs         []string
 	KardiaTrustedNodes []string
+	TotalValidators    int
 
 	StorageDriver  string
 	StorageURI     string
@@ -141,6 +143,11 @@ func New() (ExplorerConfig, error) {
 		verifierInterval = 2 * time.Second
 	}
 
+	totalValidatorsStr := os.Getenv("TOTAL_VALIDATORS")
+	totalValidators, err := strconv.Atoi(totalValidatorsStr)
+	if err != nil {
+		totalValidators = 20
+	}
 	storageMinConnStr := os.Getenv("STORAGE_MIN_CONN")
 	storageMinConn, err := strconv.Atoi(storageMinConnStr)
 	if err != nil {
@@ -190,6 +197,7 @@ func New() (ExplorerConfig, error) {
 		KardiaProtocol:     os.Getenv("KARDIA_PROTOCOL"),
 		KardiaURLs:         kardiaURLs,
 		KardiaTrustedNodes: kardiaTrustedNodes,
+		TotalValidators:    totalValidators,
 
 		StorageDriver:  os.Getenv("STORAGE_DRIVER"),
 		StorageURI:     os.Getenv("STORAGE_URI"),

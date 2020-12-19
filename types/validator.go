@@ -2,31 +2,65 @@
 package types
 
 import (
-	"github.com/kardiachain/go-kardiamain/lib/common"
+	"math/big"
+	"time"
+
+	"github.com/kardiachain/go-kardia/lib/common"
 )
 
 type Validators struct {
 	TotalValidators            int          `json:"totalValidators"`
+	TotalProposers             int          `json:"totalProposers"`
+	TotalCandidates            int          `json:"totalCandidates"`
 	TotalDelegators            int          `json:"totalDelegators"`
 	TotalStakedAmount          string       `json:"totalStakedAmount"`
 	TotalValidatorStakedAmount string       `json:"totalValidatorStakedAmount"`
 	TotalDelegatorStakedAmount string       `json:"totalDelegatorStakedAmount"`
-	TotalProposer              int          `json:"totalProposer"`
 	Validators                 []*Validator `json:"validators"`
 }
 
 type Validator struct {
 	Address               common.Address `json:"address"`
+	SmcAddress            common.Address `json:"smcAddress"`
+	Status                uint8          `json:"status"`
+	Jailed                bool           `json:"jailed"`
 	Name                  string         `json:"name,omitempty"`
-	VotingPower           int64          `json:"votingPower"`
 	VotingPowerPercentage string         `json:"votingPowerPercentage"`
 	StakedAmount          string         `json:"stakedAmount"`
-	Commission            string         `json:"commission"`
+	AccumulatedCommission string         `json:"accumulatedCommission"`
+	UpdateTime            time.Time      `json:"updateTime"`
 	CommissionRate        string         `json:"commissionRate"`
 	TotalDelegators       int            `json:"totalDelegators"`
 	MaxRate               string         `json:"maxRate"`
 	MaxChangeRate         string         `json:"maxChangeRate"`
+	MissedBlocks          uint64         `json:"missedBlocks"`
+	IndicatorRate         float64        `json:"indicatorRate"`
 	Delegators            []*Delegator   `json:"delegators,omitempty"`
+}
+
+type RPCValidator struct {
+	Name                  [32]uint8       `json:"name"`
+	ValAddr               common.Address  `json:"validatorAddress"`
+	ValStakingSmc         common.Address  `json:"valStakingSmc"`
+	Tokens                *big.Int        `json:"tokens"`
+	Jailed                bool            `json:"jailed"`
+	DelegationShares      *big.Int        `json:"delegationShares"`
+	AccumulatedCommission *big.Int        `json:"accumulatedCommission"`
+	UbdEntryCount         *big.Int        `json:"ubdEntryCount"`
+	UpdateTime            *big.Int        `json:"updateTime"`
+	Status                uint8           `json:"status"`
+	UnbondingTime         *big.Int        `json:"unbondingTime"`
+	UnbondingHeight       *big.Int        `json:"unbondingHeight"`
+	CommissionRate        *big.Int        `json:"commissionRate,omitempty"`
+	MaxRate               *big.Int        `json:"maxRate,omitempty"`
+	MaxChangeRate         *big.Int        `json:"maxChangeRate,omitempty"`
+	Delegators            []*RPCDelegator `json:"delegators,omitempty"`
+}
+
+type RPCDelegator struct {
+	Address      common.Address `json:"address"`
+	StakedAmount *big.Int       `json:"stakedAmount"`
+	Reward       *big.Int       `json:"reward"`
 }
 
 type Delegator struct {
@@ -34,6 +68,20 @@ type Delegator struct {
 	Name         string         `json:"name,omitempty"`
 	StakedAmount string         `json:"stakedAmount"`
 	Reward       string         `json:"reward"`
+}
+
+type SlashEvents struct {
+	Period   string `json:"period"`
+	Fraction string `json:"fraction"`
+	Height   string `json:"height"`
+}
+
+type SigningInfo struct {
+	StartHeight        uint64
+	IndexOffset        uint64
+	Tombstoned         bool
+	MissedBlockCounter uint64
+	JailedUntil        uint64
 }
 
 type PeerInfo struct {
@@ -65,4 +113,15 @@ type NodeInfo struct {
 	Moniker         string               `json:"moniker"`         // arbitrary moniker
 	Peers           []*PeerInfo          `json:"peers,omitempty"` // peers details
 	Other           DefaultNodeInfoOther `json:"other"`           // other application specific data
+}
+
+type ValidatorsByDelegator struct {
+	Name                  string         `json:"name"`
+	Validator             common.Address `json:"validator"`
+	ValidatorContractAddr common.Address `json:"validatorContractAddr"`
+	ValidatorStatus       uint8          `json:"validatorStatus"`
+	StakedAmount          string         `json:"stakedAmount"`
+	ClaimableRewards      string         `json:"claimableRewards"`
+	UnbondedAmount        string         `json:"unbondedAmount"`
+	WithdrawableAmount    string         `json:"withdrawableAmount"`
 }
