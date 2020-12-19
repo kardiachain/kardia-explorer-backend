@@ -581,3 +581,11 @@ func mergeReceipts(txs []*types.Transaction, receipts []*types.Receipt) []*types
 	}
 	return txs
 }
+
+func (s *infoServer) LatestBlockHeight(ctx context.Context) (uint64, error) {
+	return s.kaiClient.LatestBlockNumber(ctx)
+}
+
+func (s *infoServer) BlockCacheSize(ctx context.Context) (int64, error) {
+	return s.cacheClient.ListSize(ctx, cache.KeyBlocks)
+}
