@@ -240,11 +240,11 @@ func (ec *Client) GetDelegators(ctx context.Context, valSmcAddr common.Address) 
 	for _, delAddr := range result.DelAddrs {
 		reward, err := ec.GetDelegationRewards(ctx, valSmcAddr, delAddr)
 		if err != nil {
-			return nil, err
+			continue
 		}
 		stakedAmount, err := ec.GetDelegatorStakedAmount(ctx, valSmcAddr, delAddr)
 		if err != nil {
-			return nil, err
+			continue
 		}
 		delegators = append(delegators, &types.RPCDelegator{
 			Address:      delAddr,
