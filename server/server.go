@@ -19,8 +19,9 @@
 package server
 
 import (
-	"github.com/kardiachain/explorer-backend/types"
 	"go.uber.org/zap"
+
+	"github.com/kardiachain/explorer-backend/types"
 
 	"github.com/kardiachain/explorer-backend/kardia"
 	"github.com/kardiachain/explorer-backend/metrics"
@@ -123,4 +124,56 @@ func New(cfg Config) (*Server, error) {
 		metrics:    avgMetrics,
 		infoServer: infoServer,
 	}, nil
+}
+
+func NewInfoServer(cfg Config) (InfoServer, error) {
+	cfg.Logger.Info("Create new server instance", zap.Any("config", cfg))
+	dbConfig := db.Config{
+		DbAdapter: cfg.StorageAdapter,
+		DbName:    cfg.StorageDB,
+		URL:       cfg.StorageURI,
+		Logger:    cfg.Logger,
+		MinConn:   cfg.MinConn,
+		MaxConn:   cfg.MaxConn,
+
+		FlushDB: cfg.StorageIsFlush,
+	}
+	dbClient, err := db.NewClient(dbConfig)
+	if err != nil {
+		cfg.Logger.Debug("cannot create db client", zap.Error(err))
+		return nil, err
+	}
+
+	kaiClientCfg := kardia.NewConfig(cfg.KardiaURLs, cfg.KardiaTrustedNodes, cfg.Logger)
+	kaiClient, err := kardia.NewKaiClient(kaiClientCfg)
+	if err != nil {
+		cfg.Logger.Debug("cannot create KaiClient", zap.Error(err))
+		return nil, err
+	}
+
+	cacheCfg := cache.Config{
+		Adapter:     cfg.CacheAdapter,
+		URL:         cfg.CacheURL,
+		DB:          cfg.CacheDB,
+		IsFlush:     cfg.CacheIsFlush,
+		BlockBuffer: cfg.BlockBuffer,
+		Logger:      cfg.Logger,
+	}
+	cacheClient, err := cache.New(cacheCfg)
+	if err != nil {
+		return nil, err
+	}
+	avgMetrics := metrics.New()
+
+	infoServer := infoServer{
+		dbClient:          dbClient,
+		cacheClient:       cacheClient,
+		kaiClient:         kaiClient,
+		HttpRequestSecret: cfg.HttpRequestSecret,
+		verifyBlockParam:  cfg.VerifyBlockParam,
+		logger:            cfg.Logger,
+		metrics:           avgMetrics,
+	}
+
+	return &infoServer, nil
 }

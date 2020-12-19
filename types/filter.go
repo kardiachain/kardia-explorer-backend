@@ -10,8 +10,9 @@ const (
 )
 
 type Pagination struct {
-	Skip  int
-	Limit int
+	Skip  int    `json:"skip"`
+	Limit int    `json:"limit"`
+	Total uint64 `json:"total"`
 }
 
 func (f *Pagination) Sanitize() {

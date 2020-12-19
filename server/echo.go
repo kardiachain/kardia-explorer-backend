@@ -2,11 +2,11 @@ package server
 
 import (
 	"context"
+	"errors"
 	"strconv"
 	"strings"
 	"time"
 
-	"github.com/bxcodec/faker/v3"
 	"github.com/labstack/echo"
 	"go.uber.org/zap"
 
@@ -19,227 +19,137 @@ type echoServer struct {
 	info   InfoServer
 }
 
+func (s *echoServer) Register(gr echo.Group) {
+
+}
+
+func (s *echoServer) registerDashboard(gr echo.Group) {
+	//dashboardGr := gr.Group("/dashboard")
+	//dashboardGr.GET("/", s.Stats)
+}
+
 func NewEchoServer(cfg Config) (api.EchoServer, error) {
-	return &echoServer{}, nil
+	infoServer, err := NewInfoServer(cfg)
+	if err != nil {
+		return nil, err
+
+	}
+	return &echoServer{
+		info: infoServer,
+	}, nil
 }
 
 func (s *echoServer) Stats(c echo.Context) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancel()
-	blocks, err := s.info.dbClient.Blocks(ctx, &types.Pagination{
-		Skip:  0,
-		Limit: 11,
-	})
+	stats, err := s.info.Stats(ctx)
 	if err != nil {
-		return api.InternalServer.Build(c)
+		return api.Err(err, c)
 	}
 
-	type Stat struct {
-		NumTxs uint64 `json:"numTxs"`
-		Time   uint64 `json:"time"`
-	}
-
-	var stats []*Stat
-	for _, b := range blocks {
-		stat := &Stat{
-			NumTxs: b.NumTxs,
-			Time:   uint64(b.Time.Unix()),
-		}
-		stats = append(stats, stat)
-	}
-
-	return api.OK.SetData(struct {
-		Data interface{} `json:"data"`
-	}{
-		Data: stats,
-	}).Build(c)
+	return api.Success(stats, c)
 }
 
 func (s *echoServer) TotalHolders(c echo.Context) error {
-	ctx := context.Background()
-	totalHolders, totalContracts := s.info.cacheClient.TotalHolders(ctx)
-	return api.OK.SetData(struct {
-		TotalHolders   uint64 `json:"totalHolders"`
-		TotalContracts uint64 `json:"totalContracts"`
-	}{
-		TotalHolders:   totalHolders,
-		TotalContracts: totalContracts,
-	}).Build(c)
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+
+	holders, err := s.info.TokenHolders(ctx)
+	if err != nil {
+		return api.Err(err, c)
+	}
+
+	return api.Success(holders, c)
 }
 
 func (s *echoServer) Nodes(c echo.Context) error {
-	ctx := context.Background()
-	nodes, err := s.info.cacheClient.NodesInfo(ctx)
-	if err == nil && nodes != nil {
-		s.info.logger.Debug("Got nodes info from cache")
-		return api.OK.SetData(nodes).Build(c)
-	}
-	s.info.logger.Debug("Cannot get nodes info from cache, getting from RPC", zap.Any("nodes info", nodes), zap.Error(err))
-	nodes, err = s.info.kaiClient.NodesInfo(ctx)
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+	nodes, err := s.info.Nodes(ctx)
 	if err != nil {
-		s.info.logger.Warn("cannot get nodes info from RPC", zap.Error(err))
-		return api.Invalid.Build(c)
+		return api.Err(err, c)
 	}
-	err = s.info.cacheClient.UpdateNodesInfo(ctx, nodes)
-	if err != nil {
-		s.info.logger.Warn("cannot set nodes info to cache", zap.Error(err))
-	}
-	s.info.logger.Debug("Got nodes info from RPC", zap.Any("nodes info", nodes))
-	return api.OK.SetData(nodes).Build(c)
+	return api.Success(nodes, c)
 }
 
 func (s *echoServer) TokenInfo(c echo.Context) error {
-	ctx := context.Background()
-	if !s.info.cacheClient.IsRequestToCoinMarket(ctx) {
-		tokenInfo, err := s.info.cacheClient.TokenInfo(ctx)
-		if err != nil {
-			tokenInfo, err = s.info.TokenInfo(ctx)
-			if err != nil {
-				return api.Invalid.Build(c)
-			}
-		}
-		tokenInfo.MarketCap = tokenInfo.Price * float64(tokenInfo.CirculatingSupply)
-		return api.OK.SetData(tokenInfo).Build(c)
-	}
+	// Request may delay, so lets timeout = 10s
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
 
 	tokenInfo, err := s.info.TokenInfo(ctx)
 	if err != nil {
-		return api.Invalid.Build(c)
+		return api.Err(err, c)
 	}
 
-	tokenInfo.MarketCap = tokenInfo.Price * float64(tokenInfo.CirculatingSupply)
-	return api.OK.SetData(tokenInfo).Build(c)
+	return api.Success(tokenInfo, c)
 }
 
 func (s *echoServer) UpdateCirculatingSupply(c echo.Context) error {
-	ctx := context.Background()
-	if !strings.Contains(c.Request().Header.Get("Authorization"), s.info.HttpRequestSecret) {
-		return api.Unauthorized.Build(c)
-	}
-	m := make(map[string]int64)
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+
+	m := struct {
+		CirculatingSupply int64 `json:"circulatingSupply"`
+	}{}
 	if err := c.Bind(&m); err != nil {
 		return api.Invalid.Build(c)
 	}
-	if err := s.info.cacheClient.UpdateCirculatingSupply(ctx, m["circulatingSupply"]); err != nil {
-		return api.Invalid.Build(c)
+
+	if err := s.info.UpdateCirculatingSupply(ctx, m.CirculatingSupply); err != nil {
+		return api.Err(err, c)
 	}
-	return api.OK.Build(c)
+
+	return api.Success(nil, c)
 }
 
 func (s *echoServer) ValidatorStats(c echo.Context) error {
 	ctx := context.Background()
-	var (
-		page, limit int
-		err         error
-	)
-	pageParams := c.QueryParam("page")
-	limitParams := c.QueryParam("limit")
-	page, err = strconv.Atoi(pageParams)
-	if err != nil {
-		page = 0
-	}
-	limit, err = strconv.Atoi(limitParams)
-	if err != nil {
-		limit = 20
-	}
-	pagination := &types.Pagination{
-		Skip:  page * limit,
-		Limit: limit,
-	}
-	pagination.Sanitize()
+	pagination := getPagination(c)
+	address := c.Param("address")
 
-	// get validator list from cache
-	valsList, err := s.info.getValidatorsListFromCache(ctx)
+	validators, err := s.info.ValidatorStats(ctx, address, pagination)
 	if err != nil {
-		return api.Invalid.Build(c)
+		return api.Err(err, c)
 	}
 
-	// get delegation details
-	validator, err := s.info.kaiClient.Validator(ctx, c.Param("address"))
-	if err != nil {
-		s.info.logger.Warn("cannot get validators list from RPC, use cached validator info instead", zap.Error(err))
-	}
-	// get validator additional info such as commission rate
-	for _, val := range valsList.Validators {
-		if strings.ToLower(val.Address.Hex()) == strings.ToLower(c.Param("address")) {
-			if validator == nil {
-				validator = val
-			}
-			validator.CommissionRate = val.CommissionRate
-			break
-		}
-	}
-	var delegators []*types.Delegator
-	if pagination.Skip > len(validator.Delegators) {
-		delegators = []*types.Delegator(nil)
-	} else if pagination.Skip+pagination.Limit > len(validator.Delegators) {
-		delegators = validator.Delegators[pagination.Skip:len(validator.Delegators)]
-	} else {
-		delegators = validator.Delegators[pagination.Skip : pagination.Skip+pagination.Limit]
-	}
-
-	total := uint64(len(validator.Delegators))
-	validator.Delegators = delegators
-
-	s.info.logger.Debug("Got validator info from RPC", zap.Any("ValidatorInfo", validator))
-	return api.OK.SetData(PagingResponse{
-		Page:  page,
-		Limit: limit,
-		Total: total,
-		Data:  validator,
-	}).Build(c)
+	return api.Success(validators, c)
 }
 
 func (s *echoServer) Validators(c echo.Context) error {
-	ctx := context.Background()
-	valsList, err := s.info.getValidatorsListFromCache(ctx)
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	validators, err := s.info.Validators(ctx)
 	if err != nil {
-		return api.Invalid.Build(c)
+		return api.Err(err, c)
 	}
-	return api.OK.SetData(valsList).Build(c)
+
+	return api.Success(validators, c)
 }
 
 func (s *echoServer) Blocks(c echo.Context) error {
-	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
-	var (
-		page, limit int
-		err         error
-		blocks      []*types.Block
-	)
-	pageParams := c.QueryParam("page")
-	limitParams := c.QueryParam("limit")
-	page, err = strconv.Atoi(pageParams)
-	if err != nil {
-		page = 0
-	}
-	limit, err = strconv.Atoi(limitParams)
-	if err != nil {
-		limit = 20
-	}
-	pagination := &types.Pagination{
-		Skip:  page * limit,
-		Limit: limit,
-	}
-	pagination.Sanitize()
+	pagination := getPagination(c)
 
-	// todo @londnd: implement read from cache,
-	blocks, err = s.info.cacheClient.LatestBlocks(ctx, pagination)
-	if err != nil || blocks == nil {
-		s.info.logger.Debug("Cannot get latest blocks from cache", zap.Error(err))
-		blocks, err = s.info.dbClient.Blocks(ctx, pagination)
-		if err != nil {
-			s.info.logger.Debug("Cannot get latest blocks from db", zap.Error(err))
-			return api.InternalServer.Build(c)
-		}
-		s.info.logger.Debug("Got latest blocks from db")
-	} else {
-		s.info.logger.Debug("Got latest blocks from cache")
+	blocks, err := s.info.Blocks(ctx, pagination)
+	if err != nil {
+		return api.Err(err, c)
 	}
 
-	var result Blocks
+	type rBlock struct {
+		Height          uint64    `json:"height,omitempty" bson:"height"`
+		Time            time.Time `json:"time,omitempty" bson:"time"`
+		ProposerAddress string    `json:"proposerAddress,omitempty" bson:"proposerAddress"`
+		NumTxs          uint64    `json:"numTxs" bson:"numTxs"`
+		GasLimit        uint64    `json:"gasLimit,omitempty" bson:"gasLimit"`
+		GasUsed         uint64    `json:"gasUsed" bson:"gasUsed"`
+		Rewards         string    `json:"rewards" bson:"rewards"`
+	}
+
+	var rBlocks []rBlock
 	for _, block := range blocks {
-		b := SimpleBlock{
+		b := rBlock{
 			Height:          block.Height,
 			Time:            block.Time,
 			ProposerAddress: block.ProposerAddress,
@@ -248,185 +158,103 @@ func (s *echoServer) Blocks(c echo.Context) error {
 			GasUsed:         block.GasUsed,
 			Rewards:         block.Rewards,
 		}
-		result = append(result, b)
+		rBlocks = append(rBlocks, b)
 	}
-	total := s.info.cacheClient.LatestBlockHeight(ctx)
-	return api.OK.SetData(PagingResponse{
-		Page:  page,
-		Limit: limit,
-		Data:  result,
-		Total: total,
-	}).Build(c)
+	latestBlock, err := s.info.LatestBlockHeight(ctx)
+	if err != nil {
+		return api.Err(err, c)
+	}
+	pagination.Total = latestBlock
+
+	return api.Pagination(pagination, blocks, c)
 }
 
 func (s *echoServer) Block(c echo.Context) error {
-	ctx := context.Background()
-	blockHashOrHeightStr := c.Param("block")
-	var (
-		block *types.Block
-		err   error
-	)
-	if strings.HasPrefix(blockHashOrHeightStr, "0x") {
-		// get block in cache if exist
-		block, err = s.info.cacheClient.BlockByHash(ctx, blockHashOrHeightStr)
-		if err != nil {
-			s.info.logger.Debug("got block by hash from cache error", zap.Any("block", block), zap.Error(err))
-			// otherwise, get from db
-			block, err = s.info.dbClient.BlockByHash(ctx, blockHashOrHeightStr)
-			if err != nil {
-				s.info.logger.Warn("got block by hash from db error", zap.Any("block", block), zap.Error(err))
-				// try to get from RPC at last
-				block, err = s.info.kaiClient.BlockByHash(ctx, blockHashOrHeightStr)
-				if err != nil {
-					s.info.logger.Warn("got block by hash from RPC error", zap.Any("block", block), zap.Error(err))
-					return api.Invalid.Build(c)
-				}
-				s.info.logger.Info("got block by hash from RPC:", zap.Any("block", block), zap.Error(err))
-			} else {
-				s.info.Logger.Info("got block by hash from db:", zap.String("blockHash", blockHashOrHeightStr))
-			}
-		} else {
-			s.info.Logger.Info("got block by hash from cache:", zap.String("blockHash", blockHashOrHeightStr))
-		}
-	} else {
-		blockHeight, err := strconv.ParseUint(blockHashOrHeightStr, 10, 64)
-		if err != nil || blockHeight <= 0 {
-			return api.Invalid.Build(c)
-		}
-		// get block in cache if exist
-		block, err = s.info.cacheClient.BlockByHeight(ctx, blockHeight)
-		if err != nil {
-			s.info.logger.Debug("got block by height from cache error", zap.Uint64("blockHeight", blockHeight), zap.Error(err))
-			// otherwise, get from db
-			block, err = s.info.dbClient.BlockByHeight(ctx, blockHeight)
-			if err != nil {
-				s.info.logger.Warn("got block by height from db error", zap.Uint64("blockHeight", blockHeight), zap.Error(err))
-				// try to get from RPC at last
-				block, err = s.info.kaiClient.BlockByHeight(ctx, blockHeight)
-				if err != nil {
-					s.info.logger.Warn("got block by height from RPC error", zap.Uint64("blockHeight", blockHeight), zap.Error(err))
-					return api.Invalid.Build(c)
-				}
-				s.info.logger.Info("got block by height from RPC:", zap.Uint64("blockHeight", blockHeight), zap.Error(err))
-			}
-			s.logger.Info("got block by height from db:", zap.Uint64("blockHeight", blockHeight))
-		} else {
-			s.logger.Info("got block by height from cache:", zap.Uint64("blockHeight", blockHeight))
-		}
+	blockInfo := c.Param("block")
+	if strings.HasPrefix(blockInfo, "0x") {
+		return s.blockByHash(c, blockInfo)
 	}
 
-	return api.OK.SetData(block).Build(c)
-}
-
-func (s *echoServer) PersistentErrorBlocks(c echo.Context) error {
-	ctx := context.Background()
-	heights, err := s.info.cacheClient.PersistentErrorBlockHeights(ctx)
-	if err != nil {
+	blockHeight, err := strconv.ParseUint(blockInfo, 10, 64)
+	if err != nil || blockHeight <= 0 {
 		return api.Invalid.Build(c)
 	}
-	return api.OK.SetData(heights).Build(c)
+
+	return s.blockByHeight(c, blockHeight)
 }
 
-func (s *echoServer) BlockExist(c echo.Context) error {
-	return api.OK.Build(c)
+func (s *echoServer) blockByHash(c echo.Context, hash string) error {
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	block, err := s.info.BlockByHash(ctx, hash)
+	if err != nil {
+		return api.Err(err, c)
+	}
+
+	return api.Success(block, c)
+}
+
+func (s *echoServer) blockByHeight(c echo.Context, height uint64) error {
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	block, err := s.info.BlockByHeight(ctx, height)
+	if err != nil {
+		return api.Err(err, c)
+	}
+
+	return api.Success(block, c)
 }
 
 func (s *echoServer) BlockTxs(c echo.Context) error {
-	ctx := context.Background()
-	var page, limit int
 	var err error
-	block := c.Param("block")
-	pageParams := c.QueryParam("page")
-	limitParams := c.QueryParam("limit")
-	page, err = strconv.Atoi(pageParams)
-	if err != nil {
-		page = 0
-	}
-	limit, err = strconv.Atoi(limitParams)
-	if err != nil {
-		limit = 20
-	}
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	blockInfo := c.Param("block")
+	pagination := getPagination(c)
 
-	var (
-		txs   []*types.Transaction
-		total uint64
-	)
-	pagination := &types.Pagination{
-		Skip:  page * limit,
-		Limit: limit,
-	}
-	pagination.Sanitize()
-	if strings.HasPrefix(block, "0x") {
-		// get block txs in block if exist
-		txs, total, err = s.info.cacheClient.TxsByBlockHash(ctx, block, pagination)
+	var block *types.Block
+
+	if strings.HasPrefix(blockInfo, "0x") {
+		block, err = s.info.BlockByHash(ctx, blockInfo)
 		if err != nil {
-			s.info.logger.Debug("cannot get block txs by hash from cache", zap.String("blockHash", block), zap.Error(err))
-			// otherwise, get from db
-			txs, total, err = s.info.dbClient.TxsByBlockHash(ctx, block, pagination)
-			if err != nil {
-				s.info.logger.Warn("cannot get block txs by hash from db", zap.String("blockHash", block), zap.Error(err))
-				// try to get block txs from RPC
-				blockRPC, err := s.info.kaiClient.BlockByHash(ctx, block)
-				if err != nil {
-					s.info.logger.Warn("cannot get block txs by hash from RPC", zap.String("blockHash", block), zap.Error(err))
-					return api.InternalServer.Build(c)
-				}
-				txs = blockRPC.Txs
-				if pagination.Skip > len(txs) {
-					txs = []*types.Transaction(nil)
-				} else if pagination.Skip+pagination.Limit > len(txs) {
-					txs = blockRPC.Txs[pagination.Skip:len(txs)]
-				} else {
-					txs = blockRPC.Txs[pagination.Skip : pagination.Skip+pagination.Limit]
-				}
-				total = blockRPC.NumTxs
-				s.logger.Debug("got block txs by hash from RPC:", zap.String("blockHash", block))
-			} else {
-				s.logger.Debug("got block txs by hash from db:", zap.String("blockHash", block))
-			}
-		} else {
-			s.logger.Debug("got block txs by hash from cache:", zap.String("blockHash", block))
+			return api.Err(err, c)
 		}
 	} else {
-		height, err := strconv.ParseUint(block, 10, 64)
-		if err != nil || height <= 0 {
+		blockHeight, err := strconv.ParseUint(blockInfo, 10, 64)
+		if err != nil || blockHeight <= 0 {
 			return api.Invalid.Build(c)
 		}
-		// get block txs in block if exist
-		txs, total, err = s.info.cacheClient.TxsByBlockHeight(ctx, height, pagination)
+
+		block, err = s.info.BlockByHeight(ctx, blockHeight)
 		if err != nil {
-			s.info.logger.Debug("cannot get block txs by height from cache", zap.String("blockHeight", block), zap.Error(err))
-			// otherwise, get from db
-			txs, total, err = s.info.dbClient.TxsByBlockHeight(ctx, height, pagination)
-			if err != nil {
-				s.info.logger.Warn("cannot get block txs by height from db", zap.String("blockHeight", block), zap.Error(err))
-				// try to get block txs from RPC
-				blockRPC, err := s.info.kaiClient.BlockByHeight(ctx, height)
-				if err != nil {
-					s.info.logger.Warn("cannot get block txs by height from RPC", zap.String("blockHeight", block), zap.Error(err))
-					return api.InternalServer.Build(c)
-				}
-				txs = blockRPC.Txs
-				if pagination.Skip > len(txs) {
-					txs = []*types.Transaction(nil)
-				} else if pagination.Skip+pagination.Limit > len(txs) {
-					txs = blockRPC.Txs[pagination.Skip:len(txs)]
-				} else {
-					txs = blockRPC.Txs[pagination.Skip : pagination.Skip+pagination.Limit]
-				}
-				total = blockRPC.NumTxs
-				s.info.Logger.Debug("got block txs by height from RPC:", zap.String("blockHeight", block))
-			} else {
-				s.info.Logger.Debug("got block txs by height from db:", zap.String("blockHeight", block))
-			}
-		} else {
-			s.info.Logger.Debug("got block txs by height from cache:", zap.String("blockHeight", block))
+			return api.Err(err, c)
 		}
 	}
 
-	var result Transactions
+	if block == nil {
+		return api.Err(errors.New("invalid block"), c)
+	}
+
+	txs, err := s.info.BlockTxs(ctx, block, pagination)
+	if err != nil {
+		return api.Err(err, c)
+	}
+	pagination.Total = block.NumTxs
+
+	type rTx struct {
+		Hash        string    `json:"hash" bson:"hash"`
+		BlockNumber uint64    `json:"blockNumber" bson:"blockNumber"`
+		Time        time.Time `json:"time" bson:"time"`
+		From        string    `json:"from" bson:"from"`
+		To          string    `json:"to" bson:"to"`
+		Value       string    `json:"value" bson:"value"`
+		TxFee       string    `json:"txFee"`
+		Status      uint      `json:"status" bson:"status"`
+	}
+
+	var rTxs []*rTx
 	for _, tx := range txs {
-		t := SimpleTransaction{
+		t := &rTx{
 			Hash:        tx.Hash,
 			BlockNumber: tx.BlockNumber,
 			Time:        tx.Time,
@@ -436,57 +264,37 @@ func (s *echoServer) BlockTxs(c echo.Context) error {
 			TxFee:       tx.TxFee,
 			Status:      tx.Status,
 		}
-		result = append(result, t)
+		rTxs = append(rTxs, t)
 	}
 
-	return api.OK.SetData(PagingResponse{
-		Page:  page,
-		Limit: limit,
-		Total: total,
-		Data:  result,
-	}).Build(c)
+	return api.Pagination(pagination, rTxs, c)
 }
 
 func (s *echoServer) Txs(c echo.Context) error {
-	ctx := context.Background()
-	var (
-		page, limit int
-		err         error
-	)
-	pageParams := c.QueryParam("page")
-	limitParams := c.QueryParam("limit")
-	page, err = strconv.Atoi(pageParams)
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	var err error
+	pagination := getPagination(c)
+
+	txs, err := s.info.Txs(ctx, pagination)
 	if err != nil {
-		page = 0
-	}
-	limit, err = strconv.Atoi(limitParams)
-	if err != nil {
-		limit = 20
+		return api.Err(err, c)
 	}
 
-	var txs []*types.Transaction
-	pagination := &types.Pagination{
-		Skip:  page * limit,
-		Limit: limit,
-	}
-	pagination.Sanitize()
-
-	txs, err = s.info.cacheClient.LatestTransactions(ctx, pagination)
-	if err != nil || txs == nil || len(txs) < limit {
-		s.info.logger.Debug("Cannot get latest txs from cache", zap.Error(err))
-		txs, err = s.info.dbClient.LatestTxs(ctx, pagination)
-		if err != nil {
-			s.info.logger.Debug("Cannot get latest txs from db", zap.Error(err))
-			return api.Invalid.Build(c)
-		}
-		s.info.logger.Debug("Got latest txs from db")
-	} else {
-		s.info.logger.Debug("Got latest txs from cached")
+	type rTx struct {
+		Hash        string    `json:"hash" bson:"hash"`
+		BlockNumber uint64    `json:"blockNumber" bson:"blockNumber"`
+		Time        time.Time `json:"time" bson:"time"`
+		From        string    `json:"from" bson:"from"`
+		To          string    `json:"to" bson:"to"`
+		Value       string    `json:"value" bson:"value"`
+		TxFee       string    `json:"txFee"`
+		Status      uint      `json:"status" bson:"status"`
 	}
 
-	var result Transactions
+	var result []rTx
 	for _, tx := range txs {
-		t := SimpleTransaction{
+		t := rTx{
 			Hash:        tx.Hash,
 			BlockNumber: tx.BlockNumber,
 			Time:        tx.Time,
@@ -499,88 +307,59 @@ func (s *echoServer) Txs(c echo.Context) error {
 		result = append(result, t)
 	}
 
-	return api.OK.SetData(PagingResponse{
-		Page:  page,
-		Limit: limit,
-		Total: s.info.cacheClient.TotalTxs(ctx),
-		Data:  result,
-	}).Build(c)
-}
-
-func (s *echoServer) Addresses(c echo.Context) error {
-	var page, limit int
-	var err error
-	//blockHash := c.Param("blockHash")
-	pageParams := c.QueryParam("page")
-	limitParams := c.QueryParam("limit")
-	page, err = strconv.Atoi(pageParams)
+	totalTxs, err := s.info.TotalTxs(ctx)
 	if err != nil {
-		page = 0
-	}
-	limit, err = strconv.Atoi(limitParams)
-	if err != nil {
-		limit = 20
+		return api.Err(err, c)
 	}
 
-	var addresses []*types.Address
-	for i := 0; i < limit; i++ {
-		address := &types.Address{}
-		if err := faker.FakeData(address); err != nil {
-			return err
-		}
-		addresses = append(addresses, address)
-	}
+	pagination.Total = totalTxs
 
-	return api.OK.SetData(PagingResponse{
-		Page:  page,
-		Limit: limit,
-		Total: uint64(limit * 10),
-		Data:  addresses,
-	}).Build(c)
+	return api.Pagination(pagination, result, c)
 }
 
 func (s *echoServer) Balance(c echo.Context) error {
-	ctx := context.Background()
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
 	address := c.Param("address")
-	balance, err := s.info.kaiClient.GetBalance(ctx, address)
-	if err != nil {
-		return err
-	}
-	s.info.logger.Debug("Balance", zap.String("address", address), zap.String("balance", balance))
 
-	return api.OK.SetData(balance).Build(c)
+	balance, err := s.info.Balance(ctx, address)
+	if err != nil {
+		return api.Err(err, c)
+	}
+
+	return api.Success(balance, c)
 }
 
 func (s *echoServer) AddressTxs(c echo.Context) error {
-	ctx := context.Background()
-	var page, limit int
-	var err error
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
 	address := c.Param("address")
-	pageParams := c.QueryParam("page")
-	limitParams := c.QueryParam("limit")
-	page, err = strconv.Atoi(pageParams)
-	if err != nil {
-		page = 0
-	}
-	limit, err = strconv.Atoi(limitParams)
-	if err != nil {
-		limit = 20
-	}
-	pagination := &types.Pagination{
-		Skip:  page * limit,
-		Limit: limit,
-	}
-	pagination.Sanitize()
 
-	txs, total, err := s.info.dbClient.TxsByAddress(ctx, address, pagination)
-	if err != nil {
-		s.info.logger.Debug("error while get address txs:", zap.Error(err))
-		return err
+	pagination := getPagination(c)
+
+	txs, err := s.info.AddressTxs(ctx, address, pagination)
+
+	type rTx struct {
+		Hash        string    `json:"hash" bson:"hash"`
+		BlockNumber uint64    `json:"blockNumber" bson:"blockNumber"`
+		Time        time.Time `json:"time" bson:"time"`
+		From        string    `json:"from" bson:"from"`
+		To          string    `json:"to" bson:"to"`
+		Value       string    `json:"value" bson:"value"`
+		TxFee       string    `json:"txFee"`
+		Status      uint      `json:"status" bson:"status"`
 	}
 
-	var result Transactions
+	totalTxs, err := s.info.TotalTxsOfAddress(ctx, address)
+	if err != nil {
+		return api.Err(err, c)
+	}
+
+	pagination.Total = totalTxs
+
+	var result []rTx
 	for _, tx := range txs {
-		t := SimpleTransaction{
+		t := rTx{
 			Hash:        tx.Hash,
 			BlockNumber: tx.BlockNumber,
 			Time:        tx.Time,
@@ -593,99 +372,42 @@ func (s *echoServer) AddressTxs(c echo.Context) error {
 		result = append(result, t)
 	}
 
-	s.info.logger.Info("address txs:", zap.String("address", address))
-	return api.OK.SetData(PagingResponse{
-		Page:  page,
-		Limit: limit,
-		Total: total,
-		Data:  result,
-	}).Build(c)
-}
-
-func (s *echoServer) AddressHolders(c echo.Context) error {
-	var page, limit int
-	var err error
-	//blockHash := c.Param("blockHash")
-	pageParams := c.QueryParam("page")
-	limitParams := c.QueryParam("limit")
-	page, err = strconv.Atoi(pageParams)
-	if err != nil {
-		page = 0
-	}
-	limit, err = strconv.Atoi(limitParams)
-	if err != nil {
-		limit = 20
-	}
-
-	var holders []*types.TokenHolder
-	for i := 0; i < limit; i++ {
-		holder := &types.TokenHolder{}
-		if err := faker.FakeData(&holder); err != nil {
-			return err
-		}
-		holders = append(holders, holder)
-	}
-
-	return api.OK.SetData(PagingResponse{
-		Page:  page,
-		Limit: limit,
-		Total: uint64(limit * 15),
-		Data:  holders,
-	}).Build(c)
+	return api.Pagination(pagination, result, c)
 }
 
 func (s *echoServer) TxByHash(c echo.Context) error {
-	ctx := context.Background()
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
 	txHash := c.Param("txHash")
 	if txHash == "" {
 		return api.Invalid.Build(c)
 	}
 
-	var tx *types.Transaction
-	tx, err := s.info.dbClient.TxByHash(ctx, txHash)
+	tx, err := s.info.TxByHash(ctx, txHash)
 	if err != nil {
-		// try to get tx by hash through RPC
-		s.logger.Debug("cannot get tx by hash from db:", zap.String("txHash", txHash))
-		tx, err = s.info.kaiClient.GetTransaction(ctx, txHash)
-		if err != nil {
-			s.logger.Warn("cannot get tx by hash from RPC:", zap.String("txHash", txHash))
-			return api.Invalid.Build(c)
-		}
-		receipt, err := s.info.kaiClient.GetTransactionReceipt(ctx, txHash)
-		if err != nil {
-			s.logger.Warn("cannot get receipt by hash from RPC:", zap.String("txHash", txHash))
-		}
-		s.logger.Debug("got tx by hash from RPC:", zap.String("txHash", txHash))
-		if receipt != nil {
-			tx.Logs = receipt.Logs
-			tx.Root = receipt.Root
-			tx.Status = receipt.Status
-			tx.GasUsed = receipt.GasUsed
-			tx.ContractAddress = receipt.ContractAddress
-		}
-	} else {
-		s.logger.Debug("got tx by hash from db:", zap.String("txHash", txHash))
+		return api.Err(err, c)
 	}
 
-	return api.OK.SetData(tx).Build(c)
+	return api.Success(tx, c)
 }
 
-func (s *echoServer) getValidatorsListFromCache(ctx context.Context) (*types.Validators, error) {
-	valsList, err := s.info.cacheClient.Validators(ctx)
-	if err == nil {
-		s.logger.Debug("got validators list from cache", zap.Error(err))
-		return valsList, nil
-	}
-	s.logger.Warn("cannot get validators list from cache", zap.Error(err))
-	valsList, err = s.info.kaiClient.Validators(ctx)
+func getPagination(c echo.Context) *types.Pagination {
+	var page, limit int
+	var err error
+	pageParams := c.QueryParam("page")
+	limitParams := c.QueryParam("limit")
+	page, err = strconv.Atoi(pageParams)
 	if err != nil {
-		s.info.logger.Warn("cannot get validators list from RPC", zap.Error(err))
-		return nil, err
+		page = 0
 	}
-	s.logger.Debug("Got validators list from RPC")
-	err = s.info.cacheClient.UpdateValidators(ctx, valsList)
+	limit, err = strconv.Atoi(limitParams)
 	if err != nil {
-		s.info.logger.Warn("cannot store validators list to cache", zap.Error(err))
+		limit = 20
 	}
-	return valsList, nil
+	pagination := &types.Pagination{
+		Skip:  page * limit,
+		Limit: limit,
+	}
+	pagination.Sanitize()
+	return pagination
 }

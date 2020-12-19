@@ -27,12 +27,14 @@ import (
 	"github.com/kardiachain/explorer-backend/cfg"
 )
 
+type EchoHandler interface {
+	Register(gr echo.Group)
+}
 type PrivateAPI interface {
 	UpdateCirculatingSupply(c echo.Context) error
 }
 
-// EchoServer define all API expose
-type EchoServer interface {
+type PublicAPI interface {
 	// General
 	Stats(c echo.Context) error
 	TotalHolders(c echo.Context) error
@@ -48,18 +50,21 @@ type EchoServer interface {
 	// Blocks
 	Blocks(c echo.Context) error
 	Block(c echo.Context) error
-	BlockExist(c echo.Context) error
 	BlockTxs(c echo.Context) error
-	PersistentErrorBlocks(c echo.Context) error
 
 	// Addresses
-	Addresses(c echo.Context) error
 	Balance(c echo.Context) error
 	AddressTxs(c echo.Context) error
-	AddressHolders(c echo.Context) error
 	// Tx
 	Txs(c echo.Context) error
 	TxByHash(c echo.Context) error
+}
+
+// EchoServer define all API expose
+type EchoServer interface {
+	EchoHandler
+
+	PublicAPI
 
 	PrivateAPI
 }
@@ -107,11 +112,6 @@ func bind(gr *echo.Group, srv EchoServer) {
 		},
 		{
 			method: echo.GET,
-			path:   "/blocks/error",
-			fn:     srv.PersistentErrorBlocks,
-		},
-		{
-			method: echo.GET,
 			// Params: block's hash
 			// Query params: ?page=1&limit=10
 			path:        "/block/:block/txs",
@@ -131,11 +131,6 @@ func bind(gr *echo.Group, srv EchoServer) {
 			middlewares: []echo.MiddlewareFunc{checkPagination()},
 		},
 		// Address
-		{
-			method: echo.GET,
-			path:   "/addresses",
-			fn:     srv.Addresses,
-		},
 		{
 			method: echo.GET,
 			path:   "/addresses/:address/balance",

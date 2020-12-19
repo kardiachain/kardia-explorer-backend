@@ -14,3 +14,13 @@ type TokenInfo struct {
 	Change7d          float64 `json:"change_7d"`
 	MarketCap         float64 `json:"market_cap"`
 }
+
+type TxStats struct {
+	NumTxs uint64 `json:"numTxs"`
+	Time   uint64 `json:"time"`
+}
+
+type HolderStats struct {
+	TotalHolders   uint64 `json:"totalHolders"`
+	TotalContracts uint64 `json:"totalContracts"`
+}
