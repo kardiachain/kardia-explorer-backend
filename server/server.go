@@ -39,7 +39,6 @@ type Config struct {
 	KardiaProtocol     kardia.Protocol
 	KardiaURLs         []string
 	KardiaTrustedNodes []string
-	TotalValidators    int
 
 	CacheAdapter cache.Adapter
 	CacheURL     string
@@ -88,7 +87,7 @@ func New(cfg Config) (*Server, error) {
 		return nil, err
 	}
 
-	kaiClientCfg := kardia.NewConfig(cfg.KardiaURLs, cfg.KardiaTrustedNodes, cfg.TotalValidators, cfg.Logger)
+	kaiClientCfg := kardia.NewConfig(cfg.KardiaURLs, cfg.KardiaTrustedNodes, cfg.Logger)
 	kaiClient, err := kardia.NewKaiClient(kaiClientCfg)
 	if err != nil {
 		cfg.Logger.Debug("cannot create KaiClient", zap.Error(err))

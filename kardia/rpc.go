@@ -65,9 +65,8 @@ type Client struct {
 	defaultClient     *RPCClient
 	numRequest        int
 
-	stakingUtil     *staking.StakingSmcUtil
-	validatorUtil   *staking.ValidatorSmcUtil
-	totalValidators int
+	stakingUtil   *staking.StakingSmcUtil
+	validatorUtil *staking.ValidatorSmcUtil
 
 	lgr *zap.Logger
 }
@@ -139,7 +138,7 @@ func NewKaiClient(cfg *Config) (ClientInterface, error) {
 		Bytecode: configs.ValidatorContract.ByteCode,
 	}
 
-	return &Client{clientList, trustedClientList, defaultClient, 0, stakingUtil, validatorUtil, cfg.totalValidators, cfg.lgr}, nil
+	return &Client{clientList, trustedClientList, defaultClient, 0, stakingUtil, validatorUtil, cfg.lgr}, nil
 }
 
 func (ec *Client) chooseClient() *RPCClient {
