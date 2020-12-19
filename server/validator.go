@@ -20,7 +20,20 @@ type Validator interface {
 }
 
 func (s *infoServer) Validators(ctx context.Context) (*types.Validators, error) {
-	return s.getValidatorsListFromCache(ctx)
+	valsList, err := s.getValidatorsList(ctx)
+	if err != nil {
+		return nil, err
+	}
+	var (
+		result []*types.Validator
+	)
+	for _, val := range valsList.Validators {
+		if val.Status > 0 {
+			result = append(result, val)
+		}
+	}
+	valsList.Validators = result
+	return valsList, nil
 }
 
 func (s *infoServer) ValidatorsOfDelegator(ctx context.Context, address string) ([]*types.ValidatorsByDelegator, error) {
@@ -33,14 +46,11 @@ func (s *infoServer) CandidatesList(ctx context.Context) (*types.Validators, err
 		return nil, err
 	}
 	var (
-		result    []*types.Validator
-		valsCount = 0
+		result []*types.Validator
 	)
 	for _, val := range valsList.Validators {
 		if val.Status == 0 {
 			result = append(result, val)
-		} else {
-			valsCount++
 		}
 	}
 	valsList.Validators = result

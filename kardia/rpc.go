@@ -499,7 +499,7 @@ func (ec *Client) getValidatorsFromSMC(ctx context.Context) ([]*types.RPCValidat
 		}
 		valInfo, err := ec.GetValidatorInfo(ctx, valContractAddr)
 		if err != nil {
-			return nil, err
+			continue
 		}
 		valInfo.Delegators, err = ec.GetDelegators(ctx, valContractAddr)
 		if err != nil {
