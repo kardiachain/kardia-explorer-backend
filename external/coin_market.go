@@ -58,6 +58,7 @@ func TokenInfo(ctx context.Context) (*types.TokenInfo, error) {
 		Data   map[string]CMTokenInfo `json:"data"`
 	}
 
+	// Maybe move to config
 	coinMarketUrl := "https://pro-api.coinmarketcap.com/v1/cryptocurrency/quotes/latest?id=5453"
 	var netTransport = &http.Transport{
 		Dial: (&net.Dialer{
