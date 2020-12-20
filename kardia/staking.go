@@ -58,7 +58,7 @@ func (ec *Client) GetValidatorsByDelegator(ctx context.Context, delAddr common.A
 	for _, val := range valAddrs.ValAddrs {
 		valInfo, err := ec.GetValidatorInfo(ctx, val)
 		if err != nil {
-			return nil, err
+			continue
 		}
 		var name []byte
 		for _, b := range valInfo.Name {
@@ -72,11 +72,11 @@ func (ec *Client) GetValidatorsByDelegator(ctx context.Context, delAddr common.A
 		}
 		reward, err := ec.GetDelegationRewards(ctx, val, delAddr)
 		if err != nil {
-			return nil, err
+			continue
 		}
 		stakedAmount, err := ec.GetDelegatorStakedAmount(ctx, val, delAddr)
 		if err != nil {
-			return nil, err
+			continue
 		}
 		unbondedAmount, withdrawableAmount, err := ec.GetUDBEntries(ctx, val, delAddr)
 		if err != nil {
