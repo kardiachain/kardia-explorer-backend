@@ -21,6 +21,7 @@ package kardia
 import (
 	"encoding/hex"
 	"fmt"
+	"math/big"
 	"reflect"
 	"strings"
 
@@ -111,6 +112,9 @@ func parseBytesArrayIntoString(v interface{}) interface{} {
 		} else {
 			return parseBytesArrayIntoString(v)
 		}
+	} else if reflect.TypeOf(v).Kind() == reflect.Ptr {
+		value := v.(*big.Int)
+		return value.String()
 	}
 	return v
 }
