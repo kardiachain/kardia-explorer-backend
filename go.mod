@@ -9,7 +9,7 @@ require (
 	github.com/go-redis/redis/v8 v8.2.3
 	github.com/jackc/pgx/v4 v4.9.0
 	github.com/joho/godotenv v1.3.0
-	github.com/kardiachain/go-kardia v0.11.1-0.20201215085026-03e5c51fc490
+	github.com/kardiachain/go-kardia v0.11.0
 	github.com/labstack/echo v3.3.10+incompatible
 	github.com/labstack/gommon v0.3.0
 	github.com/mattn/go-colorable v0.1.8 // indirect

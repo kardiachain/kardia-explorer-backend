@@ -1,6 +1,10 @@
 package server
 
-import "time"
+import (
+	"time"
+
+	"github.com/kardiachain/explorer-backend/types"
+)
 
 type PagingResponse struct {
 	Page  int         `json:"page"`
@@ -24,14 +28,15 @@ type SimpleBlock struct {
 type Transactions []SimpleTransaction
 
 type SimpleTransaction struct {
-	Hash        string    `json:"hash" bson:"hash"`
-	BlockNumber uint64    `json:"blockNumber" bson:"blockNumber"`
-	Time        time.Time `json:"time" bson:"time"`
-	From        string    `json:"from" bson:"from"`
-	To          string    `json:"to" bson:"to"`
-	Value       string    `json:"value" bson:"value"`
-	TxFee       string    `json:"txFee"`
-	Status      uint      `json:"status" bson:"status"`
+	Hash             string              `json:"hash" bson:"hash"`
+	BlockNumber      uint64              `json:"blockNumber" bson:"blockNumber"`
+	Time             time.Time           `json:"time" bson:"time"`
+	From             string              `json:"from" bson:"from"`
+	To               string              `json:"to" bson:"to"`
+	Value            string              `json:"value" bson:"value"`
+	TxFee            string              `json:"txFee"`
+	Status           uint                `json:"status" bson:"status"`
+	DecodedInputData *types.FunctionCall `json:"decodedInputData,omitempty"`
 }
 
 type NodeInfo struct {

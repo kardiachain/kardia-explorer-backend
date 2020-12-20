@@ -65,6 +65,9 @@ type ClientInterface interface {
 	GetDelegators(ctx context.Context, valSmcAddr common.Address) ([]*types.RPCDelegator, error)
 	GetSlashEventsLength(ctx context.Context, valSmcAddr common.Address) (*big.Int, error)
 	GetSlashEvents(ctx context.Context, valAddr common.Address) ([]*types.SlashEvents, error)
+
+	// ultilities methods
+	DecodeInputData(to string, input string) (*types.FunctionCall, error)
 }
 
 type Config struct {

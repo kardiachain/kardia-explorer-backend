@@ -45,9 +45,6 @@ import (
 )
 
 var (
-	ErrParsingBigIntFromString = errors.New("cannot parse string to big.Int")
-	ErrNotAValidatorAddress    = errors.New("address is not a validator")
-
 	tenPoweredBy5  = new(big.Int).Exp(big.NewInt(10), big.NewInt(5), nil)
 	tenPoweredBy18 = new(big.Int).Exp(big.NewInt(10), big.NewInt(18), nil)
 )
