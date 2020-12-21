@@ -3,6 +3,7 @@ package server
 
 import (
 	"context"
+	"fmt"
 	"strconv"
 	"strings"
 	"time"
@@ -533,6 +534,12 @@ func (s *Server) Txs(c echo.Context) error {
 			vals = nil
 		}
 	}
+
+	smcAddress := map[string]string{}
+	for _, v := range vals.Validators {
+		s.logger.Debug("Validators", zap.String("SMC addr", v.SmcAddress.String()))
+		smcAddress[v.SmcAddress.String()] = fmt.Sprintf("%s staking SMC", v.Name)
+	}
 	var result Transactions
 	for _, tx := range txs {
 		t := SimpleTransaction{
@@ -547,13 +554,13 @@ func (s *Server) Txs(c echo.Context) error {
 			Status:           tx.Status,
 			DecodedInputData: tx.DecodedInputData,
 		}
-		if tx.DecodedInputData != nil && vals != nil {
-			for _, val := range vals.Validators {
-				if val.SmcAddress.Equal(common.HexToAddress(tx.To)) {
-					t.ToName = val.Name
-					break
-				}
-			}
+
+		if smcAddress[tx.To] != "" {
+			t.ToName = smcAddress[tx.To]
+		}
+
+		if smcAddress[tx.From] != "" {
+			t.FromName = smcAddress[tx.From]
 		}
 		if tx.To == cfg.StakingContractAddr {
 			t.ToName = cfg.StakingContractName

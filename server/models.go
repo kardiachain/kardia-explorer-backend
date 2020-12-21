@@ -3,8 +3,9 @@ package server
 import (
 	"time"
 
-	"github.com/kardiachain/explorer-backend/types"
 	coreTypes "github.com/kardiachain/go-kardia/types"
+
+	"github.com/kardiachain/explorer-backend/types"
 )
 
 type PagingResponse struct {
@@ -33,6 +34,7 @@ type SimpleTransaction struct {
 	BlockNumber      uint64              `json:"blockNumber"`
 	Time             time.Time           `json:"time"`
 	From             string              `json:"from"`
+	FromName         string              `json:"fromName"`
 	To               string              `json:"to"`
 	ToName           string              `json:"toName"`
 	ContractAddress  string              `json:"contractAddress,omitempty"`
