@@ -107,14 +107,18 @@ func parseBytesArrayIntoString(v interface{}) interface{} {
 	if reflect.TypeOf(v).Kind() == reflect.Array {
 		arr := v.([32]byte)
 		slice := arr[:]
+		// convert any array of uint8 into a hex string
 		if reflect.TypeOf(slice).Elem().Kind() == reflect.Uint8 {
 			return common.Bytes(slice).String()
 		} else {
+			// otherwise recursively check other arguments
 			return parseBytesArrayIntoString(v)
 		}
 	} else if reflect.TypeOf(v).Kind() == reflect.Ptr {
-		value := v.(*big.Int)
-		return value.String()
+		// convert big.Int to string to avoid overflowing
+		if value, ok := v.(*big.Int); ok {
+			return value.String()
+		}
 	}
 	return v
 }
