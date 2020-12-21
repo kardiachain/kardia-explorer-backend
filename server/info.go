@@ -261,7 +261,7 @@ func filterAddrSet(txs []*types.Transaction) (addr map[string]bool, contractAddr
 	return addr, contractAddr
 }
 
-func mergeReceipts(txs []*types.Transaction, receipts []*types.Receipt) []*types.Transaction {
+func (s *infoServer) mergeAdditionalInfoToTxs(txs []*types.Transaction, receipts []*types.Receipt) []*types.Transaction {
 	if receipts == nil || len(receipts) == 0 {
 		return txs
 	}
@@ -272,6 +272,9 @@ func mergeReceipts(txs []*types.Transaction, receipts []*types.Receipt) []*types
 		txFeeInOxy *big.Int
 	)
 	for _, tx := range txs {
+		if decoded, err := s.kaiClient.DecodeInputData(tx.To, tx.InputData); err == nil {
+			tx.DecodedInputData = decoded
+		}
 		if (receiptIndex > len(receipts)-1) || !(receipts[receiptIndex].TransactionHash == tx.Hash) {
 			tx.Status = 0
 			continue
