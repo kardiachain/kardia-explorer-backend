@@ -1,5 +1,5 @@
 /*
- *  Copyright 2018 KardiaChain
+ *  Copyright 2020 KardiaChain
  *  This file is part of the go-kardia library.
  *
  *  The go-kardia library is free software: you can redistribute it and/or modify
@@ -16,23 +16,11 @@
  *  along with the go-kardia library. If not, see <http://www.gnu.org/licenses/>.
  */
 
-package server
+package kardia
 
-import (
-	"context"
-	"time"
+import "errors"
 
-	"github.com/kardiachain/explorer-backend/server/cache"
+var (
+	ErrNotAValidatorAddress = errors.New("address is not a validator")
+	ErrMethodNotFound       = errors.New("abi: could not locate named method or event")
 )
-
-const (
-	DefaultTimeout = 5 * time.Second
-)
-
-func (s *infoServer) LatestBlockHeight(ctx context.Context) (uint64, error) {
-	return s.kaiClient.LatestBlockNumber(ctx)
-}
-
-func (s *infoServer) BlockCacheSize(ctx context.Context) (int64, error) {
-	return s.cacheClient.ListSize(ctx, cache.KeyBlocks)
-}

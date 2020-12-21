@@ -84,7 +84,7 @@ func main() {
 		StorageAdapter: db.Adapter(serviceCfg.StorageDriver),
 		StorageURI:     serviceCfg.StorageURI,
 		StorageDB:      serviceCfg.StorageDB,
-		StorageIsFlush: serviceCfg.StorageIsFlush,
+		StorageIsFlush: false,
 
 		KardiaProtocol:     kardia.Protocol(serviceCfg.KardiaProtocol),
 		KardiaURLs:         serviceCfg.KardiaURLs,
@@ -108,7 +108,7 @@ func main() {
 		StorageAdapter: db.Adapter(serviceCfg.StorageDriver),
 		StorageURI:     serviceCfg.StorageURI,
 		StorageDB:      serviceCfg.StorageDB,
-		StorageIsFlush: serviceCfg.StorageIsFlush,
+		StorageIsFlush: false,
 
 		KardiaProtocol:     kardia.Protocol(serviceCfg.KardiaProtocol),
 		KardiaURLs:         serviceCfg.KardiaURLs,

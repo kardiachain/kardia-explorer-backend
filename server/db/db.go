@@ -46,6 +46,7 @@ type Client interface {
 	DeleteLatestBlock(ctx context.Context) (uint64, error)
 	// TODO(trinhdn): Replace delete+insert operation with upsert instead
 	DeleteBlockByHeight(ctx context.Context, blockHeight uint64) error
+	BlocksByProposer(ctx context.Context, proposer string, pagination *types.Pagination) ([]*types.Block, uint64, error)
 
 	// Txs
 	Txs(ctx context.Context, pagination *types.Pagination) ([]*types.Transaction, error)

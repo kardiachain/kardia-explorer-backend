@@ -58,9 +58,8 @@ func main() {
 		Metrics: nil,
 		Logger:  logger,
 	}
-	srv, err := server.New(srvConfig)
+	srv, err := server.NewEchoServer(srvConfig)
 	if err != nil {
-
 		log.Panicf("cannot create server instance %s", err.Error())
 	}
 

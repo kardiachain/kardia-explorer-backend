@@ -22,6 +22,8 @@ import (
 	"net/http"
 
 	"github.com/labstack/echo"
+
+	"github.com/kardiachain/explorer-backend/types"
 )
 
 var (
@@ -30,12 +32,6 @@ var (
 	Invalid        = EchoResponse{StatusCode: http.StatusBadRequest, Code: 1101, Msg: "Bad request"}
 	Unauthorized   = EchoResponse{StatusCode: http.StatusUnauthorized, Code: 401, Msg: "Unauthorized"}
 )
-
-type Pagination struct {
-	Page  int `json:"page"`
-	Limit int `json:"limit"`
-	Total int `json:"total"`
-}
 
 type EchoResponse struct {
 	StatusCode int         `json:"-"`
@@ -50,5 +46,35 @@ func (r *EchoResponse) SetData(data interface{}) *EchoResponse {
 }
 
 func (r *EchoResponse) Build(c echo.Context) error {
+	return c.JSON(r.StatusCode, r)
+}
+
+func Err(err error, c echo.Context) error {
+	switch err {
+
+	}
+	Invalid.Msg = err.Error()
+	return c.JSON(Invalid.StatusCode, Invalid)
+}
+
+func Success(data interface{}, c echo.Context) error {
+	r := OK
+	r.Data = data
+	return c.JSON(r.StatusCode, r)
+}
+
+func Pagination(pagination *types.Pagination, data interface{}, c echo.Context) error {
+	r := OK
+	r.Data = struct {
+		Skip  int         `json:"skip"`
+		Limit int         `json:"limit"`
+		Total uint64      `json:"total"`
+		Data  interface{} `json:"data"`
+	}{
+		Skip:  pagination.Skip,
+		Limit: pagination.Limit,
+		Total: pagination.Total,
+		Data:  data,
+	}
 	return c.JSON(r.StatusCode, r)
 }

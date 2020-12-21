@@ -20,9 +20,10 @@ package kardia
 
 import (
 	"context"
+	"math/big"
 
 	"github.com/kardiachain/explorer-backend/types"
-	"github.com/kardiachain/go-kardiamain/lib/common"
+	"github.com/kardiachain/go-kardia/lib/common"
 	"go.uber.org/zap"
 )
 
@@ -39,11 +40,34 @@ type ClientInterface interface {
 	GetCode(ctx context.Context, account string) (common.Bytes, error)
 	NonceAt(ctx context.Context, account string) (uint64, error)
 	SendRawTransaction(ctx context.Context, tx string) error
-	Peers(ctx context.Context, client *RPCClient) ([]*types.PeerInfo, error)
+	KardiaCall(ctx context.Context, args types.CallArgsJSON) (common.Bytes, error)
 	NodesInfo(ctx context.Context) ([]*types.NodeInfo, error)
 	Datadir(ctx context.Context) (string, error)
 	Validator(ctx context.Context, address string) (*types.Validator, error)
 	Validators(ctx context.Context) (*types.Validators, error)
+
+	// staking related methods
+	GetValidatorSets(ctx context.Context) ([]common.Address, error)
+	GetValidatorsByDelegator(ctx context.Context, delAddr common.Address) ([]*types.ValidatorsByDelegator, error)
+	GetOwnerFromValidatorSMC(ctx context.Context, valSmcAddr common.Address) (common.Address, error)
+	GetValidatorSMCFromOwner(ctx context.Context, valAddr common.Address) (common.Address, error)
+	GetAllValsLength(ctx context.Context) (*big.Int, error)
+	GetValSmcAddr(ctx context.Context, index *big.Int) (common.Address, error)
+	GetValFromOwner(ctx context.Context, valAddr common.Address) (common.Address, error)
+
+	// validator related methods
+	GetValidatorInfo(ctx context.Context, valSmcAddr common.Address) (*types.RPCValidator, error)
+	GetDelegationRewards(ctx context.Context, valSmcAddr common.Address, delegatorAddr common.Address) (*big.Int, error)
+	GetDelegatorStakedAmount(ctx context.Context, valSmcAddr common.Address, delegatorAddr common.Address) (*big.Int, error)
+	GetUDBEntries(ctx context.Context, valSmcAddr common.Address, delegatorAddr common.Address) (*big.Int, *big.Int, error)
+	GetSigningInfo(ctx context.Context, valSmcAddr common.Address) (*types.SigningInfo, error)
+	GetCommissionValidator(ctx context.Context, valSmcAddr common.Address) (*big.Int, *big.Int, *big.Int, error)
+	GetDelegators(ctx context.Context, valSmcAddr common.Address) ([]*types.RPCDelegator, error)
+	GetSlashEventsLength(ctx context.Context, valSmcAddr common.Address) (*big.Int, error)
+	GetSlashEvents(ctx context.Context, valAddr common.Address) ([]*types.SlashEvents, error)
+
+	// ultilities methods
+	DecodeInputData(to string, input string) (*types.FunctionCall, error)
 }
 
 type Config struct {
