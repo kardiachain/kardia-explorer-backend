@@ -3,7 +3,6 @@ package server
 
 import (
 	"context"
-	"time"
 
 	"go.uber.org/zap"
 
@@ -133,20 +132,12 @@ func (s *infoServer) ImportBlock(ctx context.Context, block *types.Block, writeT
 
 	// merge receipts into corresponding transactions
 	// because getBlockByHash/Height API returns 2 array contains txs and receipts separately
-	block.Txs = mergeReceipts(block.Txs, block.Receipts)
+	//block.Txs = mergeReceipts(block.Txs, block.Receipts)
 
-	// Start import block
-	// consider new routine here
-	// todo: add metrics
-	// todo @longnd: Use redis or leveldb as mem-write buffer for N blocks
-	startTime := time.Now()
 	if err := s.dbClient.InsertBlock(ctx, block); err != nil {
 		s.logger.Debug("cannot import block to db", zap.Error(err))
 		return err
 	}
-	endTime := time.Since(startTime)
-	s.metrics.RecordInsertBlockTime(endTime)
-	s.logger.Debug("Total time for import block", zap.Duration("TimeConsumed", endTime), zap.String("Avg", s.metrics.GetInsertBlockTime()))
 
 	if writeToCache {
 		if err := s.cacheClient.InsertTxsOfBlock(ctx, block); err != nil {
@@ -155,25 +146,16 @@ func (s *infoServer) ImportBlock(ctx context.Context, block *types.Block, writeT
 		}
 	}
 
-	startTime = time.Now()
 	if err := s.dbClient.InsertTxs(ctx, block.Txs); err != nil {
 		return err
 	}
-	endTime = time.Since(startTime)
-	s.metrics.RecordInsertTxsTime(endTime)
-	s.logger.Debug("Total time for import tx", zap.Duration("TimeConsumed", endTime), zap.String("Avg", s.metrics.GetInsertTxsTime()))
 
 	// update active addresses
-	startTime = time.Now()
 	addrList, contractList := filterAddrSet(block.Txs)
 	if err := s.dbClient.UpdateActiveAddresses(ctx, addrList, contractList); err != nil {
 		return err
 	}
 
-	endTime = time.Since(startTime)
-	s.metrics.RecordInsertActiveAddressTime(endTime)
-	s.logger.Debug("Total time for import active addresses", zap.Duration("TimeConsumed", endTime), zap.String("Avg", s.metrics.GetInsertActiveAddressTime()))
-	startTime = time.Now()
 	totalAddr, totalContractAddr, err := s.dbClient.GetTotalActiveAddresses(ctx)
 	if err != nil {
 		return err
@@ -182,7 +164,6 @@ func (s *infoServer) ImportBlock(ctx context.Context, block *types.Block, writeT
 	if err != nil {
 		return err
 	}
-	s.logger.Debug("Total time for getting active addresses", zap.Duration("TimeConsumed", time.Since(startTime)))
 
 	if _, err := s.cacheClient.UpdateTotalTxs(ctx, block.NumTxs); err != nil {
 		return err
@@ -209,7 +190,7 @@ func (s *infoServer) DeleteBlockByHeight(ctx context.Context, height uint64) err
 }
 
 func (s *infoServer) UpsertBlock(ctx context.Context, block *types.Block) error {
-	s.logger.Info("Upserting block:", zap.Uint64("Height", block.Height), zap.Int("Txs length", len(block.Txs)), zap.Int("Receipts length", len(block.Receipts)))
+	s.logger.Info("Upsert block:", zap.Uint64("Height", block.Height))
 	if err := s.dbClient.DeleteBlockByHeight(ctx, block.Height); err != nil {
 		return err
 	}
