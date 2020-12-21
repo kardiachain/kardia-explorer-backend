@@ -7,6 +7,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/kardiachain/explorer-backend/cfg"
+
 	"github.com/kardiachain/go-kardia/lib/common"
 
 	"github.com/bxcodec/faker/v3"
@@ -18,7 +20,12 @@ import (
 )
 
 func (s *Server) Ping(c echo.Context) error {
-	return api.OK.Build(c)
+	result, err := s.kaiClient.DecodeInputData(c.QueryParam("to"), c.QueryParam("input"))
+	if err != nil {
+		s.logger.Error("DecodeInputData err", zap.Error(err))
+		return api.Invalid.Build(c)
+	}
+	return api.OK.SetData(result).Build(c)
 }
 
 func (s *Server) Info(c echo.Context) error {
@@ -444,6 +451,13 @@ func (s *Server) BlockTxs(c echo.Context) error {
 		}
 	}
 
+	vals, err := s.kaiClient.Validators(ctx)
+	if err != nil {
+		vals, err = s.getValidatorsList(ctx)
+		if err != nil {
+			vals = nil
+		}
+	}
 	var result Transactions
 	for _, tx := range txs {
 		t := SimpleTransaction{
@@ -457,6 +471,17 @@ func (s *Server) BlockTxs(c echo.Context) error {
 			TxFee:            tx.TxFee,
 			Status:           tx.Status,
 			DecodedInputData: tx.DecodedInputData,
+		}
+		if tx.DecodedInputData != nil && vals != nil {
+			for _, val := range vals.Validators {
+				if val.SmcAddress.Equal(common.HexToAddress(tx.To)) {
+					t.ToName = val.Name
+					break
+				}
+			}
+		}
+		if tx.To == cfg.StakingContractAddr {
+			t.ToName = cfg.StakingContractName
 		}
 		result = append(result, t)
 	}
@@ -506,6 +531,13 @@ func (s *Server) Txs(c echo.Context) error {
 		s.logger.Debug("Got latest txs from cached")
 	}
 
+	vals, err := s.kaiClient.Validators(ctx)
+	if err != nil {
+		vals, err = s.getValidatorsList(ctx)
+		if err != nil {
+			vals = nil
+		}
+	}
 	var result Transactions
 	for _, tx := range txs {
 		t := SimpleTransaction{
@@ -519,6 +551,17 @@ func (s *Server) Txs(c echo.Context) error {
 			TxFee:            tx.TxFee,
 			Status:           tx.Status,
 			DecodedInputData: tx.DecodedInputData,
+		}
+		if tx.DecodedInputData != nil && vals != nil {
+			for _, val := range vals.Validators {
+				if val.SmcAddress.Equal(common.HexToAddress(tx.To)) {
+					t.ToName = val.Name
+					break
+				}
+			}
+		}
+		if tx.To == cfg.StakingContractAddr {
+			t.ToName = cfg.StakingContractName
 		}
 		result = append(result, t)
 	}
@@ -590,6 +633,14 @@ func (s *Server) AddressTxs(c echo.Context) error {
 		return err
 	}
 
+	vals, err := s.kaiClient.Validators(ctx)
+	if err != nil {
+		vals, err = s.getValidatorsList(ctx)
+		if err != nil {
+			vals = nil
+		}
+	}
+
 	var result Transactions
 	for _, tx := range txs {
 		t := SimpleTransaction{
@@ -603,6 +654,17 @@ func (s *Server) AddressTxs(c echo.Context) error {
 			TxFee:            tx.TxFee,
 			Status:           tx.Status,
 			DecodedInputData: tx.DecodedInputData,
+		}
+		if tx.DecodedInputData != nil && vals != nil {
+			for _, val := range vals.Validators {
+				if val.SmcAddress.Equal(common.HexToAddress(tx.To)) {
+					t.ToName = val.Name
+					break
+				}
+			}
+		}
+		if tx.To == cfg.StakingContractAddr {
+			t.ToName = cfg.StakingContractName
 		}
 		result = append(result, t)
 	}
@@ -702,6 +764,52 @@ func (s *Server) TxByHash(c echo.Context) error {
 		}
 	} else {
 		s.Logger.Debug("got tx by hash from db:", zap.String("txHash", txHash))
+	}
+
+	// add name of recipient, if any
+	if decoded, err := s.kaiClient.DecodeInputData(tx.To, tx.InputData); err == nil {
+		tx.DecodedInputData = decoded
+	}
+	if tx.DecodedInputData != nil {
+		result := &Transaction{
+			BlockHash:        tx.BlockHash,
+			BlockNumber:      tx.BlockNumber,
+			Hash:             tx.Hash,
+			From:             tx.From,
+			To:               tx.To,
+			Status:           tx.Status,
+			ContractAddress:  tx.ContractAddress,
+			Value:            tx.Value,
+			GasPrice:         tx.GasPrice,
+			GasLimit:         tx.GasPrice,
+			GasUsed:          tx.GasUsed,
+			TxFee:            tx.TxFee,
+			Nonce:            tx.Nonce,
+			Time:             tx.Time,
+			InputData:        tx.InputData,
+			DecodedInputData: tx.DecodedInputData,
+			Logs:             tx.Logs,
+			TransactionIndex: tx.TransactionIndex,
+			LogsBloom:        tx.LogsBloom,
+			Root:             tx.Root,
+		}
+		if tx.To == cfg.StakingContractAddr {
+			result.ToName = cfg.StakingContractName
+			return api.OK.SetData(result).Build(c)
+		}
+		vals, err := s.kaiClient.Validators(ctx)
+		if err != nil {
+			vals, err = s.getValidatorsList(ctx)
+			if err != nil {
+				return api.OK.SetData(tx).Build(c)
+			}
+		}
+		for _, val := range vals.Validators {
+			if val.SmcAddress.Equal(common.HexToAddress(tx.To)) {
+				result.ToName = val.Name
+				return api.OK.SetData(result).Build(c)
+			}
+		}
 	}
 
 	return api.OK.SetData(tx).Build(c)
