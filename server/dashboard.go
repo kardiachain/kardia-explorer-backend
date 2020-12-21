@@ -3,7 +3,6 @@ package server
 
 import (
 	"context"
-	"strings"
 
 	"go.uber.org/zap"
 
@@ -92,44 +91,4 @@ func (s *infoServer) UpdateCirculatingSupply(ctx context.Context, circulatingAmo
 		return err
 	}
 	return nil
-}
-
-func (s *infoServer) ValidatorStats(ctx context.Context, address string, pagination *types.Pagination) (*types.Validators, error) {
-
-	s.logger.Debug("Pagination", zap.Any("pagination", pagination))
-	valsList, err := s.cacheClient.Validators(ctx)
-	if err != nil {
-		return nil, err
-	}
-	// get delegation details
-	validator, err := s.kaiClient.Validator(ctx, address)
-	if err != nil {
-		s.logger.Warn("cannot get validators list from RPC, use cached validator info instead", zap.Error(err))
-		return nil, err
-	}
-
-	// get validator additional info such as commission rate
-	for _, val := range valsList.Validators {
-		if strings.ToLower(val.Address.Hex()) == strings.ToLower(address) {
-			if validator == nil {
-				validator = val
-			}
-			validator.CommissionRate = val.CommissionRate
-			break
-		}
-	}
-	var delegators []*types.Delegator
-	if pagination.Skip > len(validator.Delegators) {
-		delegators = []*types.Delegator(nil)
-	} else if pagination.Skip+pagination.Limit > len(validator.Delegators) {
-		delegators = validator.Delegators[pagination.Skip:len(validator.Delegators)]
-	} else {
-		delegators = validator.Delegators[pagination.Skip : pagination.Skip+pagination.Limit]
-	}
-
-	_ = uint64(len(validator.Delegators))
-	validator.Delegators = delegators
-
-	s.logger.Debug("Got validator info from RPC", zap.Any("ValidatorInfo", validator))
-	return valsList, nil
 }
