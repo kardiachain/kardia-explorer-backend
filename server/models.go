@@ -33,6 +33,7 @@ type SimpleTransaction struct {
 	Time             time.Time           `json:"time" bson:"time"`
 	From             string              `json:"from" bson:"from"`
 	To               string              `json:"to" bson:"to"`
+	ContractAddress  string              `json:"contractAddress,omitempty"`
 	Value            string              `json:"value" bson:"value"`
 	TxFee            string              `json:"txFee"`
 	Status           uint                `json:"status" bson:"status"`

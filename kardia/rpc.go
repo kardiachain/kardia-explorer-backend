@@ -30,12 +30,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/kardiachain/go-kardia/configs"
-	"github.com/labstack/gommon/log"
-
 	"go.uber.org/zap"
 
 	kardia "github.com/kardiachain/go-kardia"
+	"github.com/kardiachain/go-kardia/configs"
 	"github.com/kardiachain/go-kardia/lib/abi"
 	"github.com/kardiachain/go-kardia/lib/common"
 	"github.com/kardiachain/go-kardia/mainchain/staking"
@@ -75,8 +73,9 @@ func NewKaiClient(cfg *Config) (ClientInterface, error) {
 	}
 
 	var (
-		defaultClient *RPCClient = nil
-		clientList               = []*RPCClient{}
+		defaultClient     *RPCClient = nil
+		clientList        []*RPCClient
+		trustedClientList []*RPCClient
 	)
 	for _, u := range cfg.rpcURL {
 		rpcClient, err := rpc.Dial(u)
@@ -90,7 +89,6 @@ func NewKaiClient(cfg *Config) (ClientInterface, error) {
 		}
 		clientList = append(clientList, newClient)
 	}
-	var trustedClientList = []*RPCClient{}
 	for _, u := range cfg.trustedNodeRPCURL {
 		rpcClient, err := rpc.Dial(u)
 		if err != nil {
@@ -113,7 +111,7 @@ func NewKaiClient(cfg *Config) (ClientInterface, error) {
 	}
 	stakingSmcABI, err := abi.JSON(stakingABI)
 	if err != nil {
-		log.Error("Error reading staking contract abi", "err", err)
+		cfg.lgr.Error("Error reading staking contract abi", zap.Error(err))
 		return nil, err
 	}
 	stakingUtil := &staking.StakingSmcUtil{
@@ -127,7 +125,7 @@ func NewKaiClient(cfg *Config) (ClientInterface, error) {
 	}
 	validatorSmcAbi, err := abi.JSON(validatorABI)
 	if err != nil {
-		log.Error("Error reading validator contract abi", "err", err)
+		cfg.lgr.Error("Error reading validator contract abi", zap.Error(err))
 		return nil, err
 	}
 	validatorUtil := &staking.ValidatorSmcUtil{
