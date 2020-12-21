@@ -20,12 +20,7 @@ import (
 )
 
 func (s *Server) Ping(c echo.Context) error {
-	result, err := s.kaiClient.DecodeInputData(c.QueryParam("to"), c.QueryParam("input"))
-	if err != nil {
-		s.logger.Error("DecodeInputData err", zap.Error(err))
-		return api.Invalid.Build(c)
-	}
-	return api.OK.SetData(result).Build(c)
+	return api.OK.Build(c)
 }
 
 func (s *Server) Info(c echo.Context) error {

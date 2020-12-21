@@ -80,7 +80,7 @@ func (ec *Client) GetValidatorsByDelegator(ctx context.Context, delAddr common.A
 		}
 		unbondedAmount, withdrawableAmount, err := ec.GetUDBEntries(ctx, val, delAddr)
 		if err != nil {
-			return nil, err
+			continue
 		}
 		// re-update validator role based on his status
 		valInfo.Status, err = ec.getValidatorStatus(valsSet, valInfo)
@@ -115,7 +115,7 @@ func (ec *Client) GetOwnerFromValidatorSMC(ctx context.Context, valSmcAddr commo
 		return common.Address{}, err
 	}
 	if len(res) == 0 {
-		ec.lgr.Error("GetOwnerFromValidatorSMC KardiaCall empty result")
+		ec.lgr.Debug("GetOwnerFromValidatorSMC KardiaCall empty result")
 		return common.Address{}, ErrNotAValidatorAddress
 	}
 	var result struct {
@@ -142,7 +142,7 @@ func (ec *Client) GetValidatorSMCFromOwner(ctx context.Context, valAddr common.A
 		return common.Address{}, err
 	}
 	if len(res) == 0 {
-		ec.lgr.Error("GetValidatorSMCFromOwner KardiaCall empty result")
+		ec.lgr.Debug("GetValidatorSMCFromOwner KardiaCall empty result")
 		return common.Address{}, ErrNotAValidatorAddress
 	}
 	var result struct {
@@ -169,7 +169,7 @@ func (ec *Client) GetValidatorSets(ctx context.Context) ([]common.Address, error
 		return nil, err
 	}
 	if len(res) == 0 {
-		ec.lgr.Error("GetValidatorSets KardiaCall empty result")
+		ec.lgr.Debug("GetValidatorSets KardiaCall empty result")
 		return nil, nil
 	}
 	var result struct {
@@ -198,8 +198,8 @@ func (ec *Client) GetAllValsLength(ctx context.Context) (*big.Int, error) {
 		return nil, err
 	}
 	if len(res) == 0 {
-		ec.lgr.Error("GetAllValsLength KardiaCall empty result")
-		return nil, nil
+		ec.lgr.Debug("GetAllValsLength KardiaCall empty result")
+		return nil, ErrEmptyList
 	}
 
 	var valsLength *big.Int
@@ -225,7 +225,7 @@ func (ec *Client) GetValSmcAddr(ctx context.Context, index *big.Int) (common.Add
 		return common.Address{}, err
 	}
 	if len(res) == 0 {
-		ec.lgr.Error("GetOwnerFromValidatorSMC KardiaCall empty result")
+		ec.lgr.Debug("GetOwnerFromValidatorSMC KardiaCall empty result")
 		return common.Address{}, nil
 	}
 
@@ -255,7 +255,7 @@ func (ec *Client) GetValFromOwner(ctx context.Context, valAddr common.Address) (
 		return common.Address{}, err
 	}
 	if len(res) == 0 {
-		ec.lgr.Error("GetValFromOwner KardiaCall empty result")
+		ec.lgr.Debug("GetValFromOwner KardiaCall empty result")
 		return common.Address{}, nil
 	}
 

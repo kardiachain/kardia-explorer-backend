@@ -480,7 +480,7 @@ func calculateVotingPower(valStakedAmount *big.Int, total *big.Int) (string, err
 
 func (ec *Client) getValidatorsFromSMC(ctx context.Context) ([]*types.RPCValidator, error) {
 	allValsLen, err := ec.GetAllValsLength(ctx)
-	if err != nil || allValsLen == nil {
+	if err != nil {
 		return nil, err
 	}
 	var (

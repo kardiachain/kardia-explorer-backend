@@ -23,4 +23,5 @@ import "errors"
 var (
 	ErrNotAValidatorAddress = errors.New("address is not a validator")
 	ErrMethodNotFound       = errors.New("abi: could not locate named method or event")
+	ErrEmptyList            = errors.New("empty list")
 )
