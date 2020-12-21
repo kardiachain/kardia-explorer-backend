@@ -32,7 +32,7 @@ import (
 
 	"go.uber.org/zap"
 
-	kardia "github.com/kardiachain/go-kardia"
+	"github.com/kardiachain/go-kardia"
 	"github.com/kardiachain/go-kardia/configs"
 	"github.com/kardiachain/go-kardia/lib/abi"
 	"github.com/kardiachain/go-kardia/lib/common"
@@ -482,6 +482,10 @@ func (ec *Client) getValidatorsFromSMC(ctx context.Context) ([]*types.RPCValidat
 	allValsLen, err := ec.GetAllValsLength(ctx)
 	if err != nil {
 		return nil, err
+	}
+
+	if allValsLen == nil {
+		return nil, nil
 	}
 	var (
 		one      = big.NewInt(1)

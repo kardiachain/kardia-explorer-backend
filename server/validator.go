@@ -59,6 +59,7 @@ func (s *infoServer) ValidatorStats(ctx context.Context, address string, paginat
 func (s *infoServer) Validators(ctx context.Context) (*types.Validators, error) {
 	valsList, err := s.getValidatorsList(ctx)
 	if err != nil {
+		s.logger.Debug("cannot get validator list", zap.Error(err))
 		return nil, err
 	}
 	var (
