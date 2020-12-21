@@ -33,12 +33,12 @@ import (
 	"go.uber.org/zap"
 
 	kardia "github.com/kardiachain/go-kardia"
-	"github.com/kardiachain/go-kardia/configs"
 	"github.com/kardiachain/go-kardia/lib/abi"
 	"github.com/kardiachain/go-kardia/lib/common"
 	"github.com/kardiachain/go-kardia/mainchain/staking"
 	"github.com/kardiachain/go-kardia/rpc"
 
+	"github.com/kardiachain/explorer-backend/cfg"
 	"github.com/kardiachain/explorer-backend/types"
 )
 
@@ -67,8 +67,8 @@ type Client struct {
 }
 
 // NewKaiClient creates a client that uses the given RPC client.
-func NewKaiClient(cfg *Config) (ClientInterface, error) {
-	if len(cfg.rpcURL) == 0 && len(cfg.trustedNodeRPCURL) == 0 {
+func NewKaiClient(config *Config) (ClientInterface, error) {
+	if len(config.rpcURL) == 0 && len(config.trustedNodeRPCURL) == 0 {
 		return nil, errors.New("empty RPC URL")
 	}
 
@@ -77,7 +77,7 @@ func NewKaiClient(cfg *Config) (ClientInterface, error) {
 		clientList        []*RPCClient
 		trustedClientList []*RPCClient
 	)
-	for _, u := range cfg.rpcURL {
+	for _, u := range config.rpcURL {
 		rpcClient, err := rpc.Dial(u)
 		if err != nil {
 			return nil, err
@@ -89,7 +89,7 @@ func NewKaiClient(cfg *Config) (ClientInterface, error) {
 		}
 		clientList = append(clientList, newClient)
 	}
-	for _, u := range cfg.trustedNodeRPCURL {
+	for _, u := range config.trustedNodeRPCURL {
 		rpcClient, err := rpc.Dial(u)
 		if err != nil {
 			return nil, err
@@ -111,13 +111,13 @@ func NewKaiClient(cfg *Config) (ClientInterface, error) {
 	}
 	stakingSmcABI, err := abi.JSON(stakingABI)
 	if err != nil {
-		cfg.lgr.Error("Error reading staking contract abi", zap.Error(err))
+		config.lgr.Error("Error reading staking contract abi", zap.Error(err))
 		return nil, err
 	}
 	stakingUtil := &staking.StakingSmcUtil{
 		Abi:             &stakingSmcABI,
-		ContractAddress: common.HexToAddress(configs.StakingContract.Address),
-		Bytecode:        configs.StakingContract.ByteCode,
+		ContractAddress: common.HexToAddress(cfg.StakingContractAddr),
+		Bytecode:        cfg.StakingContractByteCode,
 	}
 	validatorABI, err := os.Open(path.Join(path.Dir(filename), "../kardia/abi/validator.json"))
 	if err != nil {
@@ -125,15 +125,15 @@ func NewKaiClient(cfg *Config) (ClientInterface, error) {
 	}
 	validatorSmcAbi, err := abi.JSON(validatorABI)
 	if err != nil {
-		cfg.lgr.Error("Error reading validator contract abi", zap.Error(err))
+		config.lgr.Error("Error reading validator contract abi", zap.Error(err))
 		return nil, err
 	}
 	validatorUtil := &staking.ValidatorSmcUtil{
 		Abi:      &validatorSmcAbi,
-		Bytecode: configs.ValidatorContract.ByteCode,
+		Bytecode: cfg.ValidatorContractByteCode,
 	}
 
-	return &Client{clientList, trustedClientList, defaultClient, 0, stakingUtil, validatorUtil, cfg.lgr}, nil
+	return &Client{clientList, trustedClientList, defaultClient, 0, stakingUtil, validatorUtil, config.lgr}, nil
 }
 
 func (ec *Client) chooseClient() *RPCClient {
