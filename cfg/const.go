@@ -32,5 +32,6 @@ const (
 	BlockInfoExpTime     = 30 * time.Minute
 
 	// TODO(trinhdn): follow core API updates
-	MinStakedAmount = "12500000000000000000000000"
+	StakingContractAddr = "0x0000000000000000000000000000000000001337"
+	StakingContractName = "Staking Contract"
 )

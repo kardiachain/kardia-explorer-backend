@@ -4,6 +4,7 @@ import (
 	"time"
 
 	"github.com/kardiachain/explorer-backend/types"
+	coreTypes "github.com/kardiachain/go-kardia/types"
 )
 
 type PagingResponse struct {
@@ -16,28 +17,54 @@ type PagingResponse struct {
 type Blocks []SimpleBlock
 
 type SimpleBlock struct {
-	Height          uint64    `json:"height,omitempty" bson:"height"`
-	Time            time.Time `json:"time,omitempty" bson:"time"`
-	ProposerAddress string    `json:"proposerAddress,omitempty" bson:"proposerAddress"`
-	NumTxs          uint64    `json:"numTxs" bson:"numTxs"`
-	GasLimit        uint64    `json:"gasLimit,omitempty" bson:"gasLimit"`
-	GasUsed         uint64    `json:"gasUsed" bson:"gasUsed"`
-	Rewards         string    `json:"rewards" bson:"rewards"`
+	Height          uint64    `json:"height,omitempty"`
+	Time            time.Time `json:"time,omitempty"`
+	ProposerAddress string    `json:"proposerAddress,omitempty"`
+	NumTxs          uint64    `json:"numTxs"`
+	GasLimit        uint64    `json:"gasLimit,omitempty"`
+	GasUsed         uint64    `json:"gasUsed"`
+	Rewards         string    `json:"rewards"`
 }
 
 type Transactions []SimpleTransaction
 
 type SimpleTransaction struct {
-	Hash             string              `json:"hash" bson:"hash"`
-	BlockNumber      uint64              `json:"blockNumber" bson:"blockNumber"`
-	Time             time.Time           `json:"time" bson:"time"`
-	From             string              `json:"from" bson:"from"`
-	To               string              `json:"to" bson:"to"`
+	Hash             string              `json:"hash"`
+	BlockNumber      uint64              `json:"blockNumber"`
+	Time             time.Time           `json:"time"`
+	From             string              `json:"from"`
+	To               string              `json:"to"`
+	ToName           string              `json:"toName"`
 	ContractAddress  string              `json:"contractAddress,omitempty"`
-	Value            string              `json:"value" bson:"value"`
+	Value            string              `json:"value"`
 	TxFee            string              `json:"txFee"`
-	Status           uint                `json:"status" bson:"status"`
+	Status           uint                `json:"status"`
 	DecodedInputData *types.FunctionCall `json:"decodedInputData,omitempty"`
+}
+
+type Transaction struct {
+	BlockHash   string `json:"blockHash"`
+	BlockNumber uint64 `json:"blockNumber"`
+
+	Hash             string              `json:"hash"`
+	From             string              `json:"from"`
+	To               string              `json:"to"`
+	ToName           string              `json:"toName"`
+	Status           uint                `json:"status"`
+	ContractAddress  string              `json:"contractAddress"`
+	Value            string              `json:"value"`
+	GasPrice         uint64              `json:"gasPrice"`
+	GasLimit         uint64              `json:"gas"`
+	GasUsed          uint64              `json:"gasUsed"`
+	TxFee            string              `json:"txFee"`
+	Nonce            uint64              `json:"nonce"`
+	Time             time.Time           `json:"time"`
+	InputData        string              `json:"input"`
+	DecodedInputData *types.FunctionCall `json:"decodedInputData,omitempty"`
+	Logs             []types.Log         `json:"logs"`
+	TransactionIndex uint                `json:"transactionIndex"`
+	LogsBloom        coreTypes.Bloom     `json:"logsBloom"`
+	Root             string              `json:"root"`
 }
 
 type NodeInfo struct {
