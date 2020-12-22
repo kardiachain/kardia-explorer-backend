@@ -35,7 +35,7 @@ func (ec *Client) GetValidatorInfo(ctx context.Context, valSmcAddr common.Addres
 		ec.lgr.Error("Error packing validator info payload: ", zap.Error(err))
 		return nil, err
 	}
-	res, err := ec.KardiaCall(ctx, ec.contructCallArgs(valSmcAddr.Hex(), payload))
+	res, err := ec.KardiaCall(ctx, contructCallArgs(valSmcAddr.Hex(), payload))
 	if err != nil {
 		ec.lgr.Error("GetValidatorInfo KardiaCall error: ", zap.Error(err))
 		return nil, err
@@ -64,7 +64,7 @@ func (ec *Client) GetDelegationRewards(ctx context.Context, valSmcAddr common.Ad
 		ec.lgr.Error("Error packing delegation rewards payload: ", zap.Error(err))
 		return nil, err
 	}
-	res, err := ec.KardiaCall(ctx, ec.contructCallArgs(valSmcAddr.Hex(), payload))
+	res, err := ec.KardiaCall(ctx, contructCallArgs(valSmcAddr.Hex(), payload))
 	if err != nil {
 		ec.lgr.Error("GetDelegationRewards KardiaCall error: ", zap.Error(err))
 		return nil, err
@@ -88,7 +88,7 @@ func (ec *Client) GetDelegatorStakedAmount(ctx context.Context, valSmcAddr commo
 		ec.lgr.Error("Error packing delegator staked amount payload: ", zap.Error(err))
 		return nil, err
 	}
-	res, err := ec.KardiaCall(ctx, ec.contructCallArgs(valSmcAddr.Hex(), payload))
+	res, err := ec.KardiaCall(ctx, contructCallArgs(valSmcAddr.Hex(), payload))
 	if err != nil {
 		ec.lgr.Error("GetDelegatorStakedAmount KardiaCall error: ", zap.Error(err))
 		return nil, err
@@ -117,7 +117,7 @@ func (ec *Client) GetUDBEntries(ctx context.Context, valSmcAddr common.Address, 
 		ec.lgr.Error("Error packing UDB entry payload: ", zap.Error(err))
 		return nil, nil, err
 	}
-	res, err := ec.KardiaCall(ctx, ec.contructCallArgs(valSmcAddr.Hex(), payload))
+	res, err := ec.KardiaCall(ctx, contructCallArgs(valSmcAddr.Hex(), payload))
 	if err != nil {
 		ec.lgr.Error("GetUDBEntry KardiaCall error: ", zap.Error(err))
 		return nil, nil, err
@@ -156,7 +156,7 @@ func (ec *Client) GetSigningInfo(ctx context.Context, valSmcAddr common.Address)
 		ec.lgr.Error("Error packing get signingInfo payload: ", zap.Error(err))
 		return nil, err
 	}
-	res, err := ec.KardiaCall(ctx, ec.contructCallArgs(valSmcAddr.Hex(), payload))
+	res, err := ec.KardiaCall(ctx, contructCallArgs(valSmcAddr.Hex(), payload))
 	if err != nil {
 		ec.lgr.Error("GetSigningInfo KardiaCall error: ", zap.Error(err))
 		return nil, err
@@ -189,7 +189,7 @@ func (ec *Client) GetCommissionValidator(ctx context.Context, valSmcAddr common.
 	if err != nil {
 		return nil, nil, nil, err
 	}
-	res, err := ec.KardiaCall(ctx, ec.contructCallArgs(valSmcAddr.Hex(), payload))
+	res, err := ec.KardiaCall(ctx, contructCallArgs(valSmcAddr.Hex(), payload))
 	if err != nil {
 		return nil, nil, nil, err
 	}
@@ -214,7 +214,7 @@ func (ec *Client) GetDelegators(ctx context.Context, valSmcAddr common.Address) 
 	if err != nil {
 		return nil, err
 	}
-	res, err := ec.KardiaCall(ctx, ec.contructCallArgs(valSmcAddr.Hex(), payload))
+	res, err := ec.KardiaCall(ctx, contructCallArgs(valSmcAddr.Hex(), payload))
 	if err != nil {
 		return nil, err
 	}
@@ -256,7 +256,7 @@ func (ec *Client) GetSlashEventsLength(ctx context.Context, valSmcAddr common.Ad
 		return nil, err
 	}
 
-	res, err := ec.KardiaCall(ctx, ec.contructCallArgs(valSmcAddr.Hex(), payload))
+	res, err := ec.KardiaCall(ctx, contructCallArgs(valSmcAddr.Hex(), payload))
 	if err != nil {
 		ec.lgr.Warn("GetSlashEventsLength KardiaCall error: ", zap.Error(err))
 		return nil, err
@@ -300,7 +300,7 @@ func (ec *Client) GetSlashEvents(ctx context.Context, valAddr common.Address) ([
 		if err != nil {
 			return nil, err
 		}
-		res, err := ec.KardiaCall(ctx, ec.contructCallArgs(valSmcAddr.Hex(), payload))
+		res, err := ec.KardiaCall(ctx, contructCallArgs(valSmcAddr.Hex(), payload))
 		if err != nil {
 			ec.lgr.Debug("GetSlashEvents KardiaCall Error: ", zap.String("i", i.String()), zap.String("payload", common.Bytes(payload).String()), zap.Error(err))
 			return nil, err

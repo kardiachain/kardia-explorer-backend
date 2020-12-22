@@ -34,7 +34,6 @@ import (
 	kardia "github.com/kardiachain/go-kardia"
 	"github.com/kardiachain/go-kardia/lib/abi"
 	"github.com/kardiachain/go-kardia/lib/common"
-	"github.com/kardiachain/go-kardia/mainchain/staking"
 	"github.com/kardiachain/go-kardia/rpc"
 
 	"github.com/kardiachain/explorer-backend/cfg"
@@ -52,6 +51,12 @@ type RPCClient struct {
 	ip     string
 }
 
+type SmcUtil struct {
+	Abi             *abi.ABI
+	ContractAddress common.Address
+	Bytecode        string
+}
+
 // Client return an *rpc.Client instance
 type Client struct {
 	clientList        []*RPCClient
@@ -59,8 +64,9 @@ type Client struct {
 	defaultClient     *RPCClient
 	numRequest        int
 
-	stakingUtil   *staking.StakingSmcUtil
-	validatorUtil *staking.ValidatorSmcUtil
+	stakingUtil   *SmcUtil
+	validatorUtil *SmcUtil
+	paramsUtil    *SmcUtil
 
 	lgr *zap.Logger
 }
@@ -113,7 +119,7 @@ func NewKaiClient(config *Config) (ClientInterface, error) {
 		config.lgr.Error("Error reading staking contract abi", zap.Error(err))
 		return nil, err
 	}
-	stakingUtil := &staking.StakingSmcUtil{
+	stakingUtil := &SmcUtil{
 		Abi:             &stakingSmcABI,
 		ContractAddress: common.HexToAddress(cfg.StakingContractAddr),
 		Bytecode:        cfg.StakingContractByteCode,
@@ -127,12 +133,32 @@ func NewKaiClient(config *Config) (ClientInterface, error) {
 		config.lgr.Error("Error reading validator contract abi", zap.Error(err))
 		return nil, err
 	}
-	validatorUtil := &staking.ValidatorSmcUtil{
+	validatorUtil := &SmcUtil{
 		Abi:      &validatorSmcAbi,
 		Bytecode: cfg.ValidatorContractByteCode,
 	}
+	paramsSmcAddr, err := GetParamsSMCAddress(stakingUtil, defaultClient)
+	if err != nil {
+		config.lgr.Error("Error getting params contract address", zap.Error(err))
+		return nil, err
+	}
+	fmt.Println("paramsSmcAddr", paramsSmcAddr)
+	paramsABI, err := os.Open(path.Join(path.Dir(filename), "../kardia/abi/params.json"))
+	if err != nil {
+		panic("cannot read params ABI file")
+	}
+	paramsSmcAbi, err := abi.JSON(paramsABI)
+	if err != nil {
+		config.lgr.Error("Error reading params contract abi", zap.Error(err))
+		return nil, err
+	}
+	paramsUtil := &SmcUtil{
+		Abi:             &paramsSmcAbi,
+		ContractAddress: paramsSmcAddr,
+		Bytecode:        cfg.ValidatorContractByteCode,
+	}
 
-	return &Client{clientList, trustedClientList, defaultClient, 0, stakingUtil, validatorUtil, config.lgr}, nil
+	return &Client{clientList, trustedClientList, defaultClient, 0, stakingUtil, validatorUtil, paramsUtil, config.lgr}, nil
 }
 
 func (ec *Client) chooseClient() *RPCClient {
@@ -410,10 +436,11 @@ func (ec *Client) Validators(ctx context.Context) (*types.Validators, error) {
 	result := &types.Validators{
 		TotalValidators:            len(validators),
 		TotalDelegators:            len(delegators),
+		TotalProposers:             totalProposers,
+		TotalCandidates:            totalCandidates,
 		TotalStakedAmount:          totalStakedAmount.String(),
 		TotalValidatorStakedAmount: new(big.Int).Sub(totalStakedAmount, totalDelegatorStakedAmount).String(),
 		TotalDelegatorStakedAmount: totalDelegatorStakedAmount.String(),
-		TotalProposers:             totalProposers,
 		Validators:                 returnValsList,
 	}
 	return result, nil

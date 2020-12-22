@@ -251,6 +251,15 @@ func (s *Server) GetSlashEvents(c echo.Context) error {
 	return api.OK.SetData(slashEvents).Build(c)
 }
 
+func (s *Server) GetSlashedTokens(c echo.Context) error {
+	ctx := context.Background()
+	result, err := s.kaiClient.GetTotalSlashedToken(ctx)
+	if err != nil {
+		return api.Invalid.Build(c)
+	}
+	return api.OK.SetData(result).Build(c)
+}
+
 func (s *Server) Blocks(c echo.Context) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancel()
@@ -783,7 +792,7 @@ func (s *Server) TxByHash(c echo.Context) error {
 			ContractAddress:  tx.ContractAddress,
 			Value:            tx.Value,
 			GasPrice:         tx.GasPrice,
-			GasLimit:         tx.GasPrice,
+			GasLimit:         tx.GasLimit,
 			GasUsed:          tx.GasUsed,
 			TxFee:            tx.TxFee,
 			Nonce:            tx.Nonce,

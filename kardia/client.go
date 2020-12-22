@@ -54,6 +54,7 @@ type ClientInterface interface {
 	GetAllValsLength(ctx context.Context) (*big.Int, error)
 	GetValSmcAddr(ctx context.Context, index *big.Int) (common.Address, error)
 	GetValFromOwner(ctx context.Context, valAddr common.Address) (common.Address, error)
+	GetTotalSlashedToken(ctx context.Context) (*big.Int, error)
 
 	// validator related methods
 	GetValidatorInfo(ctx context.Context, valSmcAddr common.Address) (*types.RPCValidator, error)
@@ -65,6 +66,9 @@ type ClientInterface interface {
 	GetDelegators(ctx context.Context, valSmcAddr common.Address) ([]*types.RPCDelegator, error)
 	GetSlashEventsLength(ctx context.Context, valSmcAddr common.Address) (*big.Int, error)
 	GetSlashEvents(ctx context.Context, valAddr common.Address) ([]*types.SlashEvents, error)
+
+	// params related methods
+	GetMaxProposers(ctx context.Context) (int64, error)
 
 	// ultilities methods
 	DecodeInputData(to string, input string) (*types.FunctionCall, error)

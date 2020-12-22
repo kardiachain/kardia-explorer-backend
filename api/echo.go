@@ -49,6 +49,7 @@ type EchoServer interface {
 	GetValidatorsByDelegator(c echo.Context) error
 	GetCandidatesList(c echo.Context) error
 	GetSlashEvents(c echo.Context) error
+	GetSlashedTokens(c echo.Context) error
 
 	// Blocks
 	Blocks(c echo.Context) error
@@ -219,6 +220,12 @@ func bind(gr *echo.Group, srv EchoServer) {
 			method:      echo.GET,
 			path:        "/validators/:address/slash",
 			fn:          srv.GetSlashEvents,
+			middlewares: nil,
+		},
+		{
+			method:      echo.GET,
+			path:        "/validators/slashed/tokens",
+			fn:          srv.GetSlashedTokens,
 			middlewares: nil,
 		},
 	}
