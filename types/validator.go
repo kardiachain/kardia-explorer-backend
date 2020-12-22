@@ -28,7 +28,7 @@ type Validator struct {
 	VotingPowerPercentage string         `json:"votingPowerPercentage"`
 	StakedAmount          string         `json:"stakedAmount"`
 	AccumulatedCommission string         `json:"accumulatedCommission"`
-	UpdateTime            string         `json:"updateTime"`
+	UpdateTime            uint64         `json:"updateTime"`
 	CommissionRate        string         `json:"commissionRate"`
 	TotalDelegators       int            `json:"totalDelegators"`
 	MaxRate               string         `json:"maxRate"`
