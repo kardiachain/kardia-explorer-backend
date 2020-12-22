@@ -302,11 +302,11 @@ func (ec *Client) NodesInfo(ctx context.Context) ([]*types.NodeInfo, error) {
 	}
 	for _, node := range nodeMap {
 		// re-update full peers info
-		for id := range node.Peers {
+		for id, peer := range node.Peers {
 			node.Peers[id] = &types.PeerInfo{
-				Duration: peersMap[id].ConnectionStatus.Duration,
-				Moniker:  peersMap[id].NodeInfo.Moniker,
-				RemoteIP: peersMap[id].RemoteIP,
+				Duration: peer.Duration,
+				Moniker:  peer.Moniker,
+				RemoteIP: peer.RemoteIP,
 			}
 		}
 		nodes = append(nodes, node)
