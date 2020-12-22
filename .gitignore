@@ -122,3 +122,7 @@ Temporary Items
 
 # Current .env files
 .env
+
+# Build files
+cmd/api/api
+cmd/grabber/grabber

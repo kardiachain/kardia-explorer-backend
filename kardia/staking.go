@@ -83,10 +83,7 @@ func (ec *Client) GetValidatorsByDelegator(ctx context.Context, delAddr common.A
 			continue
 		}
 		// re-update validator role based on his status
-		valInfo.Status, err = ec.getValidatorStatus(valsSet, valInfo)
-		if err != nil {
-			return nil, err
-		}
+		valInfo.Role = ec.getValidatorRole(valsSet, valInfo.ValAddr, valInfo.Status)
 		validator := &types.ValidatorsByDelegator{
 			Name:                  string(name),
 			Validator:             owner,

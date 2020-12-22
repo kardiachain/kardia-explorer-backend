@@ -202,7 +202,7 @@ func (s *Server) Validators(c echo.Context) error {
 	}
 	var result []*types.Validator
 	for _, val := range valsList.Validators {
-		if val.Status != 0 {
+		if val.Role != 0 {
 			result = append(result, val)
 		}
 	}
@@ -231,7 +231,7 @@ func (s *Server) GetCandidatesList(c echo.Context) error {
 		valsCount = 0
 	)
 	for _, val := range valsList.Validators {
-		if val.Status == 0 {
+		if val.Role == 0 {
 			result = append(result, val)
 		} else {
 			valsCount++
