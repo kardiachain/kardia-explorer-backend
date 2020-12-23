@@ -3,7 +3,6 @@ package server
 
 import (
 	"context"
-	"fmt"
 	"strconv"
 	"strings"
 	"time"
@@ -543,8 +542,7 @@ func (s *Server) Txs(c echo.Context) error {
 
 	smcAddress := map[string]string{}
 	for _, v := range vals.Validators {
-		s.logger.Debug("Validators", zap.String("SMC addr", v.SmcAddress.String()))
-		smcAddress[v.SmcAddress.String()] = fmt.Sprintf("%s staking SMC", v.Name)
+		smcAddress[v.SmcAddress.String()] = v.Name
 	}
 	var result Transactions
 	for _, tx := range txs {
@@ -599,7 +597,6 @@ func (s *Server) Addresses(c echo.Context) error {
 	for _, addr := range addrs {
 		result = append(result, SimpleAddress{
 			Address:       addr.Address,
-			BalanceFloat:  addr.BalanceFloat,
 			BalanceString: addr.BalanceString,
 			IsContract:    addr.IsContract,
 		})
@@ -612,16 +609,27 @@ func (s *Server) Addresses(c echo.Context) error {
 	}).Build(c)
 }
 
-func (s *Server) Balance(c echo.Context) error {
+func (s *Server) AddressInfo(c echo.Context) error {
 	ctx := context.Background()
 	address := c.Param("address")
+	addrInfo, err := s.dbClient.AddressByHash(ctx, address)
+	if err == nil {
+		return api.OK.SetData(SimpleAddress{
+			Address:       addrInfo.Address,
+			BalanceString: addrInfo.BalanceString,
+			IsContract:    addrInfo.IsContract,
+		}).Build(c)
+	}
+	s.logger.Warn("address not found in db, getting from RPC instead...", zap.Error(err))
 	balance, err := s.kaiClient.GetBalance(ctx, address)
 	if err != nil {
 		return err
 	}
-	s.logger.Debug("Balance", zap.String("address", address), zap.String("balance", balance))
-
-	return api.OK.SetData(balance).Build(c)
+	return api.OK.SetData(SimpleAddress{
+		Address:       address,
+		BalanceString: balance,
+		IsContract:    false,
+	}).Build(c)
 }
 
 func (s *Server) AddressTxs(c echo.Context) error {

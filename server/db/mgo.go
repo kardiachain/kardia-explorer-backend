@@ -554,13 +554,10 @@ func (m *mongoDB) TokenHolders(ctx context.Context, tokenAddress string, paginat
 
 //region Address
 
-func (m *mongoDB) AddressByHash(ctx context.Context, addressHash string) (*types.Address, error) {
+func (m *mongoDB) AddressByHash(ctx context.Context, address string) (*types.Address, error) {
 	var c types.Address
-	err := m.wrapper.C(cAddresses).FindOne(bson.M{"address": addressHash}).Decode(&c)
+	err := m.wrapper.C(cAddresses).FindOne(bson.M{"address": address}).Decode(&c)
 	if err != nil {
-		if err == mongo.ErrNoDocuments {
-			return nil, nil
-		}
 		return nil, fmt.Errorf("failed to get address: %v", err)
 	}
 	return &c, nil

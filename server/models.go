@@ -78,8 +78,7 @@ type NodeInfo struct {
 type Addresses []SimpleAddress
 
 type SimpleAddress struct {
-	Address       string  `json:"address" bson:"address"`
-	BalanceFloat  float64 `json:"-" bson:"balanceFloat"`        // low precise balance for sorting purposes
-	BalanceString string  `json:"balance" bson:"balanceString"` // high precise balance for API
-	IsContract    bool    `json:"isContract" bson:"isContract"`
+	Address       string `json:"address" bson:"address"` // low precise balance for sorting purposes
+	BalanceString string `json:"balance" bson:"balance"` // high precise balance for API
+	IsContract    bool   `json:"isContract" bson:"isContract"`
 }
