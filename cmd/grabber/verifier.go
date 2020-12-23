@@ -3,8 +3,9 @@ package main
 
 import (
 	"context"
-	"go.uber.org/zap"
 	"time"
+
+	"go.uber.org/zap"
 
 	"github.com/kardiachain/explorer-backend/server"
 )
@@ -22,7 +23,7 @@ func verify(ctx context.Context, srv *server.Server, interval time.Duration) {
 				continue
 			}
 			lgr := srv.Logger.With(zap.Uint64("block", blockHeight))
-			lgr.Debug("Verifier: Checking block integrity...")
+			lgr.Info("Verifier: Checking block integrity...")
 			// get block by height from RPC in order to verify database block at the same height
 			networkBlock, err := srv.BlockByHeightFromRPC(ctx, blockHeight)
 			if err != nil {

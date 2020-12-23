@@ -71,7 +71,7 @@ func listener(ctx context.Context, srv *server.Server, interval time.Duration) {
 				}
 				// import this latest block to cache and database
 				if err := srv.ImportBlock(ctx, block, true); err != nil {
-					lgr.Error("Listener: Failed to import block", zap.Error(err))
+					lgr.Debug("Listener: Failed to import block", zap.Error(err))
 					continue
 				}
 				if latest-1 > prevHeader {

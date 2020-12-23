@@ -573,6 +573,9 @@ func (m *mongoDB) OwnedTokensOfAddress(ctx context.Context, walletAddress string
 // UpdateAddresses update last time those addresses active
 // Just skip for now
 func (m *mongoDB) UpdateAddresses(ctx context.Context, addressesMap map[string]*big.Int, contractAddrMap map[string]*big.Int) error {
+	if len(addressesMap)+len(contractAddrMap) == 0 {
+		return nil
+	}
 	var updateAddressOperations []mongo.WriteModel
 	for addr, balance := range addressesMap {
 		updateAddressOperations = append(updateAddressOperations, appendUpdateAddressModels(addr, balance, false))
@@ -589,12 +592,15 @@ func (m *mongoDB) UpdateAddresses(ctx context.Context, addressesMap map[string]*
 func appendUpdateAddressModels(addr string, balance *big.Int, isContract bool) mongo.WriteModel {
 	balanceFloat, _ := new(big.Float).SetPrec(100).Quo(new(big.Float).SetInt(balance), new(big.Float).SetInt(hydro)).Float64() //converting to KAI from HYDRO
 	balanceString := balance.String()
-	updateAddressOperation := mongo.NewUpdateOneModel().SetUpsert(true).SetFilter(bson.M{"address": addr}).SetUpdate(bson.M{"$set": types.Address{
+	upsertAddr := types.Address{
 		Address:       addr,
 		BalanceFloat:  balanceFloat,
 		BalanceString: balanceString,
-		IsContract:    isContract,
-	}})
+	}
+	if isContract {
+		upsertAddr.IsContract = true
+	}
+	updateAddressOperation := mongo.NewUpdateOneModel().SetUpsert(true).SetFilter(bson.M{"address": addr}).SetUpdate(bson.M{"$set": upsertAddr})
 	return updateAddressOperation
 }
 

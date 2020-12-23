@@ -587,8 +587,8 @@ func (s *Server) Addresses(c echo.Context) error {
 	pagination, page, limit := getPagingOption(c)
 	sortDirectionStr := c.QueryParam("sort")
 	sortDirection, err := strconv.Atoi(sortDirectionStr)
-	if err != nil {
-		sortDirection = -1
+	if err != nil || (sortDirection != 1 && sortDirection != -1) {
+		sortDirection = -1 // DESC
 	}
 	addrs, err := s.dbClient.GetListAddresses(ctx, sortDirection, pagination)
 	if err != nil {

@@ -246,7 +246,7 @@ func (ec *Client) GetBalance(ctx context.Context, account string) (string, error
 // The block number can be nil, in which case the value is taken from the latest known block.
 func (ec *Client) GetStorageAt(ctx context.Context, account string, key string) (common.Bytes, error) {
 	var result common.Bytes
-	err := ec.chooseClient().c.CallContext(ctx, &result, "kai_getStorageAt", common.HexToAddress(account), key, "latest")
+	err := ec.chooseClient().c.CallContext(ctx, &result, "account_getStorageAt", common.HexToAddress(account), key, "latest")
 	return result, err
 }
 
@@ -254,7 +254,7 @@ func (ec *Client) GetStorageAt(ctx context.Context, account string, key string) 
 // The block number can be nil, in which case the code is taken from the latest known block.
 func (ec *Client) GetCode(ctx context.Context, account string) (common.Bytes, error) {
 	var result common.Bytes
-	err := ec.chooseClient().c.CallContext(ctx, &result, "kai_getCode", common.HexToAddress(account), "latest")
+	err := ec.chooseClient().c.CallContext(ctx, &result, "account_getCode", common.HexToAddress(account), "latest")
 	return result, err
 }
 
@@ -416,7 +416,7 @@ func (ec *Client) Validators(ctx context.Context) (*types.Validators, error) {
 		totalStakedAmount = new(big.Int).Add(totalStakedAmount, valStakedAmount)
 		val.Role = ec.getValidatorRole(valsSet, val.Address, val.Status)
 		// validator who started a node and not in validators set is a normal validator
-		if val.Status == 2 {
+		if val.Role == 2 {
 			totalProposers++
 			totalValidators++
 			valStakedAmount, ok = new(big.Int).SetString(val.StakedAmount, 10)
@@ -424,9 +424,9 @@ func (ec *Client) Validators(ctx context.Context) (*types.Validators, error) {
 				return nil, ErrParsingBigIntFromString
 			}
 			proposersStakedAmount = new(big.Int).Add(proposersStakedAmount, valStakedAmount)
-		} else if val.Status == 1 {
+		} else if val.Role == 1 {
 			totalValidators++
-		} else if val.Status == 0 {
+		} else if val.Role == 0 {
 			totalCandidates++
 		}
 	}

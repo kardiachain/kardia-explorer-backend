@@ -5,7 +5,6 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"io/ioutil"
 	"math"
 	"math/big"
@@ -21,6 +20,7 @@ import (
 	"github.com/kardiachain/explorer-backend/server/db"
 	"github.com/kardiachain/explorer-backend/types"
 	"github.com/kardiachain/explorer-backend/utils"
+	"github.com/kardiachain/go-kardia/lib/common"
 )
 
 type InfoServer interface {
@@ -136,8 +136,6 @@ func (s *infoServer) TokenInfo(ctx context.Context) (*types.TokenInfo, error) {
 		return nil, err
 	}
 
-	fmt.Println("CoinMarket Response", cmResponse)
-
 	if cmResponse.Status.ErrorCode != 0 {
 		return nil, errors.New("api failed")
 	}
@@ -199,7 +197,7 @@ func (s *infoServer) BlockByHash(ctx context.Context, hash string) (*types.Block
 		return dbBlock, nil
 	}
 	// Something wrong or we stay behind the network
-	lgr.Warn("cannot find block in db", zap.Error(err))
+	lgr.Debug("cannot find block in db", zap.Error(err))
 	return s.kaiClient.BlockByHash(ctx, hash)
 }
 
@@ -218,7 +216,7 @@ func (s *infoServer) BlockByHeight(ctx context.Context, blockHeight uint64) (*ty
 		return dbBlock, nil
 	}
 	// Something wrong or we stay behind the network
-	lgr.Warn("cannot find block in db")
+	lgr.Debug("cannot find block in db")
 
 	return s.kaiClient.BlockByHeight(ctx, blockHeight)
 }
@@ -525,11 +523,11 @@ func (s *infoServer) VerifyBlock(ctx context.Context, blockHeight uint64, networ
 	dbBlock.NumTxs = total
 
 	if !s.blockVerifier(dbBlock, networkBlock) {
-		s.logger.Warn("Block in database is corrupted, upserting...", zap.Error(err))
+		s.logger.Warn("Block in database is corrupted, upserting...", zap.Uint64("db numTxs", dbBlock.NumTxs), zap.Uint64("network numTxs", networkBlock.NumTxs), zap.Error(err))
 		// Force dbBlock with new information from network block
 		startTime := time.Now()
 		if err := s.UpsertBlock(ctx, networkBlock); err != nil {
-			s.logger.Warn("Cannot upsert block", zap.Uint64("height", blockHeight))
+			s.logger.Warn("Cannot upsert block", zap.Uint64("height", blockHeight), zap.Error(err))
 			return false, err
 		}
 		endTime := time.Since(startTime)
@@ -570,13 +568,20 @@ func filterAddrSet(txs []*types.Transaction) (addr map[string]*big.Int, contract
 	return addr, contractAddr
 }
 
-// need to use workers
+// TODO(trinhdn): need to use workers instead
 func (s *infoServer) getAddressBalances(ctx context.Context, addrs map[string]*big.Int, contractAddrs map[string]*big.Int) (map[string]*big.Int, map[string]*big.Int) {
 	var (
 		balanceStr string
+		code       common.Bytes
 		err        error
 	)
 	for addr := range addrs {
+		code, err = s.kaiClient.GetCode(ctx, addr)
+		if len(code) > 0 { // is contract
+			delete(addrs, addr)
+			contractAddrs[addr] = nil
+			continue
+		}
 		balanceStr, err = s.kaiClient.GetBalance(ctx, addr)
 		if err != nil {
 			continue
