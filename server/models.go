@@ -74,3 +74,12 @@ type NodeInfo struct {
 	Moniker    string `json:"moniker"`
 	PeersCount int    `json:"peersCount"`
 }
+
+type Addresses []SimpleAddress
+
+type SimpleAddress struct {
+	Address       string  `json:"address" bson:"address"`
+	BalanceFloat  float64 `json:"-" bson:"balanceFloat"`        // low precise balance for sorting purposes
+	BalanceString string  `json:"balance" bson:"balanceString"` // high precise balance for API
+	IsContract    bool    `json:"isContract" bson:"isContract"`
+}

@@ -231,14 +231,14 @@ func (ec *Client) GetTransactionReceipt(ctx context.Context, txHash string) (*ty
 	return r, err
 }
 
-// BalanceAt returns the wei balance of the given account.
+// BalanceAt returns balance (in HYDRO) of the given account.
 // The block number can be nil, in which case the balance is taken from the latest known block.
 func (ec *Client) GetBalance(ctx context.Context, account string) (string, error) {
 	var (
 		result string
 		err    error
 	)
-	err = ec.chooseClient().c.CallContext(ctx, &result, "account_balance", common.HexToAddress(account), "latest")
+	err = ec.defaultClient.c.CallContext(ctx, &result, "account_balance", common.HexToAddress(account), "latest")
 	return result, err
 }
 
@@ -470,7 +470,10 @@ func (ec *Client) getBlockHeader(ctx context.Context, method string, args ...int
 }
 
 func convertValidatorInfo(val *types.Validator, totalStakedAmount *big.Int, status int) (*types.Validator, error) {
-	var err error
+	var (
+		err  error
+		zero = new(big.Int).SetInt64(0)
+	)
 	if val.CommissionRate, err = convertBigIntToPercentage(val.CommissionRate); err != nil {
 		return nil, err
 	}
@@ -480,7 +483,7 @@ func convertValidatorInfo(val *types.Validator, totalStakedAmount *big.Int, stat
 	if val.MaxChangeRate, err = convertBigIntToPercentage(val.MaxChangeRate); err != nil {
 		return nil, err
 	}
-	if totalStakedAmount != nil && status == 2 {
+	if totalStakedAmount != nil && totalStakedAmount.Cmp(zero) == 1 && status == 2 {
 		if val.VotingPowerPercentage, err = calculateVotingPower(val.StakedAmount, totalStakedAmount); err != nil {
 			return nil, err
 		}

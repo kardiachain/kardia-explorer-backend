@@ -128,6 +128,7 @@ type ValidatorsByDelegator struct {
 	Validator             common.Address `json:"validator"`
 	ValidatorContractAddr common.Address `json:"validatorContractAddr"`
 	ValidatorStatus       uint8          `json:"validatorStatus"`
+	ValidatorRole         int            `json:"validatorRole"`
 	StakedAmount          string         `json:"stakedAmount"`
 	ClaimableRewards      string         `json:"claimableRewards"`
 	UnbondedAmount        string         `json:"unbondedAmount"`

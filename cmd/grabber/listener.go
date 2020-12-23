@@ -27,6 +27,9 @@ func listener(ctx context.Context, srv *server.Server, interval time.Duration) {
 	if deletedHeight > 0 {
 		prevHeader = deletedHeight - 1 // the highest persistent block in database now is deletedHeight - 1
 	}
+	// update current stats of network
+	_ = srv.UpdateCurrentStats(ctx)
+
 	srv.Logger.Info("Start listening...")
 	t := time.NewTicker(interval)
 	defer t.Stop()

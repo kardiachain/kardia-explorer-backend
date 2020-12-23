@@ -171,8 +171,9 @@ func bind(gr *echo.Group, srv EchoServer) {
 		// Address
 		{
 			method: echo.GET,
-			path:   "/addresses",
-			fn:     srv.Addresses,
+			// Query params: ?page=0&limit=10&sort=1
+			path: "/addresses",
+			fn:   srv.Addresses,
 		},
 		{
 			method: echo.GET,

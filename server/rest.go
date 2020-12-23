@@ -583,37 +583,32 @@ func (s *Server) Txs(c echo.Context) error {
 }
 
 func (s *Server) Addresses(c echo.Context) error {
-	var (
-		page, limit int
-		err         error
-	)
-
-	//blockHash := c.Param("blockHash")
-	pageParams := c.QueryParam("page")
-	limitParams := c.QueryParam("limit")
-	page, err = strconv.Atoi(pageParams)
+	ctx := context.Background()
+	pagination, page, limit := getPagingOption(c)
+	sortDirectionStr := c.QueryParam("sort")
+	sortDirection, err := strconv.Atoi(sortDirectionStr)
 	if err != nil {
-		page = 0
+		sortDirection = -1
 	}
-	limit, err = strconv.Atoi(limitParams)
+	addrs, err := s.dbClient.GetListAddresses(ctx, sortDirection, pagination)
 	if err != nil {
-		limit = 20
+		return api.Invalid.Build(c)
 	}
-
-	var addresses []*types.Address
-	for i := 0; i < limit; i++ {
-		address := &types.Address{}
-		if err := faker.FakeData(address); err != nil {
-			return err
-		}
-		addresses = append(addresses, address)
+	totalHolders, totalContracts := s.cacheClient.TotalHolders(ctx)
+	var result Addresses
+	for _, addr := range addrs {
+		result = append(result, SimpleAddress{
+			Address:       addr.Address,
+			BalanceFloat:  addr.BalanceFloat,
+			BalanceString: addr.BalanceString,
+			IsContract:    addr.IsContract,
+		})
 	}
-
 	return api.OK.SetData(PagingResponse{
 		Page:  page,
 		Limit: limit,
-		Total: uint64(limit * 10),
-		Data:  addresses,
+		Total: totalHolders + totalContracts,
+		Data:  result,
 	}).Build(c)
 }
 

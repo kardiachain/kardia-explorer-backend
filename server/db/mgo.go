@@ -22,6 +22,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"math/big"
 	"time"
 
 	"go.mongodb.org/mongo-driver/bson"
@@ -43,6 +44,7 @@ const (
 
 var (
 	ErrNotImplemented = errors.New("not implemented")
+	hydro             = big.NewInt(1000000000000000000)
 )
 
 type mongoDB struct {
@@ -93,17 +95,23 @@ func createIndexes(dbClient *mongoDB) error {
 
 	for _, cIdx := range []CIndex{
 		// Add index to improve querying transactions by hash, block hash and block height
-		{c: cTxs, model: []mongo.IndexModel{{Keys: bson.M{"hash": -1}, Options: options.Index().SetUnique(true).SetBackground(true).SetSparse(true)}}},
-		{c: cTxs, model: []mongo.IndexModel{{Keys: bson.M{"blockNumber": -1}, Options: options.Index().SetBackground(true).SetSparse(true)}}},
-		{c: cTxs, model: []mongo.IndexModel{{Keys: bson.M{"blockHash": 1}, Options: options.Index().SetBackground(true).SetSparse(true)}}},
+		{c: cTxs, model: []mongo.IndexModel{{Keys: bson.M{"hash": -1}, Options: options.Index().SetUnique(true).SetSparse(true)}}},
+		{c: cTxs, model: []mongo.IndexModel{{Keys: bson.M{"blockNumber": -1}, Options: options.Index().SetSparse(true)}}},
+		{c: cTxs, model: []mongo.IndexModel{{Keys: bson.M{"blockHash": 1}, Options: options.Index().SetSparse(true)}}},
 		// Add index in `from` and `to` fields to improve get txs of address, considering if memory is increasing rapidly
-		{c: cTxs, model: []mongo.IndexModel{{Keys: bson.D{{Key: "from", Value: 1}, {Key: "time", Value: -1}}, Options: options.Index().SetBackground(true).SetSparse(true)}}},
-		{c: cTxs, model: []mongo.IndexModel{{Keys: bson.D{{Key: "to", Value: 1}, {Key: "time", Value: -1}}, Options: options.Index().SetBackground(true).SetSparse(true)}}},
-		{c: cTxs, model: []mongo.IndexModel{{Keys: bson.M{"time": -1}, Options: options.Index().SetBackground(true).SetSparse(true)}}},
+		{c: cTxs, model: []mongo.IndexModel{{Keys: bson.D{{Key: "from", Value: 1}, {Key: "time", Value: -1}}, Options: options.Index().SetSparse(true)}}},
+		{c: cTxs, model: []mongo.IndexModel{{Keys: bson.D{{Key: "to", Value: 1}, {Key: "time", Value: -1}}, Options: options.Index().SetSparse(true)}}},
+		{c: cTxs, model: []mongo.IndexModel{{Keys: bson.M{"time": -1}, Options: options.Index().SetSparse(true)}}},
 		// Add index to improve querying blocks by proposer, hash and height
-		{c: cBlocks, model: []mongo.IndexModel{{Keys: bson.M{"height": -1}, Options: options.Index().SetUnique(true).SetBackground(true).SetSparse(true)}}},
-		{c: cBlocks, model: []mongo.IndexModel{{Keys: bson.M{"hash": 1}, Options: options.Index().SetUnique(true).SetBackground(true).SetSparse(true)}}},
-		{c: cBlocks, model: []mongo.IndexModel{{Keys: bson.D{{Key: "proposerAddress", Value: 1}, {Key: "time", Value: -1}}, Options: options.Index().SetBackground(true).SetSparse(true)}}},
+		{c: cBlocks, model: []mongo.IndexModel{{Keys: bson.M{"height": -1}, Options: options.Index().SetUnique(true).SetSparse(true)}}},
+		{c: cBlocks, model: []mongo.IndexModel{{Keys: bson.M{"hash": 1}, Options: options.Index().SetUnique(true).SetSparse(true)}}},
+		{c: cBlocks, model: []mongo.IndexModel{{Keys: bson.D{{Key: "proposerAddress", Value: 1}, {Key: "time", Value: -1}}, Options: options.Index().SetSparse(true)}}},
+		// indexing addresses collection
+		{c: cAddresses, model: []mongo.IndexModel{{Keys: bson.M{"address": 1}, Options: options.Index().SetUnique(true).SetSparse(true)}}},
+		{c: cAddresses, model: []mongo.IndexModel{{Keys: bson.M{"isContract": 1}}}},
+		{c: cAddresses, model: []mongo.IndexModel{{Keys: bson.M{"balanceFloat": -1}, Options: options.Index().SetSparse(true)}}},
+		{c: cAddresses, model: []mongo.IndexModel{{Keys: bson.M{"tokenName": 1}, Options: options.Index().SetSparse(true)}}},
+		{c: cAddresses, model: []mongo.IndexModel{{Keys: bson.M{"tokenSymbol": 1}, Options: options.Index().SetSparse(true)}}},
 	} {
 		if err := dbClient.wrapper.C(cIdx.c).EnsureIndex(cIdx.model); err != nil {
 			return err
@@ -299,8 +307,12 @@ func (m *mongoDB) BlocksByProposer(ctx context.Context, proposer string, paginat
 
 //region Txs
 
-func (m *mongoDB) Txs(ctx context.Context, pagination *types.Pagination) ([]*types.Transaction, error) {
-	panic("implement me")
+func (m *mongoDB) TxsCount(ctx context.Context) (uint64, error) {
+	total, err := m.wrapper.C(cTxs).Count(bson.M{})
+	if err != nil {
+		return 0, err
+	}
+	return uint64(total), nil
 }
 
 func (m *mongoDB) BlockTxCount(ctx context.Context, hash string) (int64, error) {
@@ -499,6 +511,7 @@ func (m *mongoDB) LatestTxs(ctx context.Context, pagination *types.Pagination) (
 	start := time.Now()
 	opts := []*options.FindOptions{
 		options.Find().SetHint(bson.M{"time": -1}),
+		options.Find().SetSort(bson.M{"time": -1}),
 		options.Find().SetSkip(int64(pagination.Skip)),
 		options.Find().SetLimit(int64(pagination.Limit)),
 	}
@@ -552,19 +565,63 @@ func (m *mongoDB) AddressByHash(ctx context.Context, addressHash string) (*types
 	}
 	return &c, nil
 }
+
 func (m *mongoDB) OwnedTokensOfAddress(ctx context.Context, walletAddress string, pagination *types.Pagination) ([]*types.TokenHolder, uint64, error) {
 	panic("implement me")
 }
 
-//endregion Address
-
-// UpdateActiveAddresses update last time those addresses active
+// UpdateAddresses update last time those addresses active
 // Just skip for now
-func (m *mongoDB) UpdateActiveAddresses(ctx context.Context, addressesMap map[string]bool, contractAddrMap map[string]bool) error {
-	var addrListFromDB []*types.ActiveAddress
-	cursor, err := m.wrapper.C(cActiveAddresses).Find(bson.D{})
+func (m *mongoDB) UpdateAddresses(ctx context.Context, addressesMap map[string]*big.Int, contractAddrMap map[string]*big.Int) error {
+	var updateAddressOperations []mongo.WriteModel
+	for addr, balance := range addressesMap {
+		updateAddressOperations = append(updateAddressOperations, appendUpdateAddressModels(addr, balance, false))
+	}
+	for addr, balance := range contractAddrMap {
+		updateAddressOperations = append(updateAddressOperations, appendUpdateAddressModels(addr, balance, true))
+	}
+	if _, err := m.wrapper.C(cAddresses).BulkWrite(updateAddressOperations); err != nil {
+		return err
+	}
+	return nil
+}
+
+func appendUpdateAddressModels(addr string, balance *big.Int, isContract bool) mongo.WriteModel {
+	balanceFloat, _ := new(big.Float).SetPrec(100).Quo(new(big.Float).SetInt(balance), new(big.Float).SetInt(hydro)).Float64() //converting to KAI from HYDRO
+	balanceString := balance.String()
+	updateAddressOperation := mongo.NewUpdateOneModel().SetUpsert(true).SetFilter(bson.M{"address": addr}).SetUpdate(bson.M{"$set": types.Address{
+		Address:       addr,
+		BalanceFloat:  balanceFloat,
+		BalanceString: balanceString,
+		IsContract:    isContract,
+	}})
+	return updateAddressOperation
+}
+
+func (m *mongoDB) GetTotalAddresses(ctx context.Context) (uint64, uint64, error) {
+	totalAddr, err := m.wrapper.C(cAddresses).Count(bson.M{"isContract": false})
 	if err != nil {
-		return fmt.Errorf("failed to get active addresses: %v", err)
+		return 0, 0, err
+	}
+	totalContractAddr, err := m.wrapper.C(cAddresses).Count(bson.M{"isContract": true})
+	if err != nil {
+		return 0, 0, err
+	}
+	return uint64(totalAddr), uint64(totalContractAddr), nil
+}
+
+func (m *mongoDB) GetListAddresses(ctx context.Context, sortDirection int, pagination *types.Pagination) ([]*types.Address, error) {
+	opts := []*options.FindOptions{
+		options.Find().SetHint(bson.M{"balanceFloat": -1}),
+		options.Find().SetSort(bson.M{"balanceFloat": sortDirection}),
+		options.Find().SetSkip(int64(pagination.Skip)),
+		options.Find().SetLimit(int64(pagination.Limit)),
+	}
+
+	var addrs []*types.Address
+	cursor, err := m.wrapper.C(cAddresses).Find(bson.D{}, opts...)
+	if err != nil {
+		return nil, err
 	}
 	defer func() {
 		err = cursor.Close(ctx)
@@ -573,55 +630,14 @@ func (m *mongoDB) UpdateActiveAddresses(ctx context.Context, addressesMap map[st
 		}
 	}()
 	for cursor.Next(ctx) {
-		addr := &types.ActiveAddress{}
+		addr := &types.Address{}
 		if err := cursor.Decode(&addr); err != nil {
-			return err
+			return nil, err
 		}
-		addrListFromDB = append(addrListFromDB, addr)
+		addrs = append(addrs, addr)
 	}
 
-	for _, addr := range addrListFromDB {
-		if addressesMap[addr.Address] {
-			delete(addressesMap, addr.Address)
-		}
-		if contractAddrMap[addr.Address] {
-			delete(contractAddrMap, addr.Address)
-		}
-	}
-
-	var addrBulkWriter []mongo.WriteModel
-	for addr := range addressesMap {
-		addrModel := mongo.NewInsertOneModel().SetDocument(types.ActiveAddress{
-			Address:    addr,
-			Balance:    "0",
-			IsContract: false,
-		})
-		addrBulkWriter = append(addrBulkWriter, addrModel)
-	}
-	for contractAddr := range contractAddrMap {
-		addrModel := mongo.NewInsertOneModel().SetDocument(types.ActiveAddress{
-			Address:    contractAddr,
-			Balance:    "0",
-			IsContract: true,
-		})
-		addrBulkWriter = append(addrBulkWriter, addrModel)
-	}
-	if len(addrBulkWriter) > 0 {
-		if _, err := m.wrapper.C(cActiveAddresses).BulkWrite(addrBulkWriter); err != nil {
-			return err
-		}
-	}
-	return nil
+	return addrs, nil
 }
 
-func (m *mongoDB) GetTotalActiveAddresses(ctx context.Context) (uint64, uint64, error) {
-	totalAddr, err := m.wrapper.C(cActiveAddresses).Count(bson.M{"isContract": false})
-	if err != nil {
-		return 0, 0, err
-	}
-	totalContractAddr, err := m.wrapper.C(cActiveAddresses).Count(bson.M{"isContract": true})
-	if err != nil {
-		return 0, 0, err
-	}
-	return uint64(totalAddr), uint64(totalContractAddr), nil
-}
+//endregion Address

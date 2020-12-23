@@ -26,6 +26,7 @@ import (
 type InfoServer interface {
 	// API
 	LatestBlockHeight(ctx context.Context) (uint64, error)
+	UpdateCurrentStats(ctx context.Context) error
 
 	// DB
 	//LatestInsertBlockHeight(ctx context.Context) (uint64, error)
@@ -164,6 +165,26 @@ func (s *infoServer) TokenInfo(ctx context.Context) (*types.TokenInfo, error) {
 	return tokenInfo, nil
 }
 
+func (s *infoServer) UpdateCurrentStats(ctx context.Context) error {
+	totalAddr, totalContractAddr, err := s.dbClient.GetTotalAddresses(ctx)
+	if err != nil {
+		return err
+	}
+	txsCount, err := s.dbClient.TxsCount(ctx)
+	if err != nil {
+		return err
+	}
+	_, err = s.cacheClient.UpdateTotalTxs(ctx, txsCount)
+	if err != nil {
+		return err
+	}
+	err = s.cacheClient.UpdateTotalHolders(ctx, totalAddr, totalContractAddr)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
 // BlockByHash return block by its hash
 func (s *infoServer) BlockByHash(ctx context.Context, hash string) (*types.Block, error) {
 	lgr := s.logger.With(zap.String("Hash", hash))
@@ -256,15 +277,15 @@ func (s *infoServer) ImportBlock(ctx context.Context, block *types.Block, writeT
 	// update active addresses
 	startTime = time.Now()
 	addrList, contractList := filterAddrSet(block.Txs)
-	if err := s.dbClient.UpdateActiveAddresses(ctx, addrList, contractList); err != nil {
+	addrList, contractList = s.getAddressBalances(ctx, addrList, contractList)
+	if err := s.dbClient.UpdateAddresses(ctx, addrList, contractList); err != nil {
 		return err
 	}
-
 	endTime = time.Since(startTime)
 	s.metrics.RecordInsertActiveAddressTime(endTime)
-	s.logger.Debug("Total time for import active addresses", zap.Duration("TimeConsumed", endTime), zap.String("Avg", s.metrics.GetInsertActiveAddressTime()))
+	s.logger.Debug("Total time for update addresses", zap.Duration("TimeConsumed", endTime), zap.String("Avg", s.metrics.GetInsertActiveAddressTime()))
 	startTime = time.Now()
-	totalAddr, totalContractAddr, err := s.dbClient.GetTotalActiveAddresses(ctx)
+	totalAddr, totalContractAddr, err := s.dbClient.GetTotalAddresses(ctx)
 	if err != nil {
 		return err
 	}
@@ -358,7 +379,7 @@ func (s *infoServer) ImportReceipts(ctx context.Context, block *types.Block) err
 		txByToAdd   *types.TransactionByAddress
 	}
 	results := make(chan response, block.NumTxs)
-	addresses := make(map[string]bool)
+	addresses := make(map[string]*big.Int)
 
 	//todo @longnd: Move this workers to config or dynamic settings
 	for w := 0; w <= 10; w++ {
@@ -395,9 +416,9 @@ func (s *infoServer) ImportReceipts(ctx context.Context, block *types.Block) err
 
 				if address == nil || address.IsContract {
 					for _, l := range receipt.Logs {
-						addresses[l.Address] = true
+						addresses[l.Address] = nil
 					}
-					if err := s.dbClient.UpdateActiveAddresses(ctx, addresses, nil); err != nil {
+					if err := s.dbClient.UpdateAddresses(ctx, addresses, nil); err != nil {
 						//todo: consider how we handle this err, just skip it now
 						s.logger.Warn("cannot update active address")
 						results <- response{
@@ -533,21 +554,51 @@ func (s *infoServer) getTxsByBlockNumber(blockNumber int64, filter *types.Pagina
 	return nil, nil
 }
 
-func filterAddrSet(txs []*types.Transaction) (addr map[string]bool, contractAddr map[string]bool) {
-	addr = make(map[string]bool)
-	contractAddr = make(map[string]bool)
+func filterAddrSet(txs []*types.Transaction) (addr map[string]*big.Int, contractAddr map[string]*big.Int) {
+	addr = make(map[string]*big.Int)
+	contractAddr = make(map[string]*big.Int)
+	zero := new(big.Int).SetInt64(0)
 	for _, tx := range txs {
-		if !addr[tx.From] {
-			addr[tx.From] = true
-		}
-		if !addr[tx.To] {
-			addr[tx.To] = true
-		}
-		if !contractAddr[tx.ContractAddress] {
-			contractAddr[tx.ContractAddress] = true
-		}
+		addr[tx.From] = zero
+		addr[tx.To] = zero
+		contractAddr[tx.ContractAddress] = zero
 	}
+	delete(contractAddr, "")
+	delete(contractAddr, "0x")
+	delete(addr, "")
+	delete(addr, "0x")
 	return addr, contractAddr
+}
+
+// need to use workers
+func (s *infoServer) getAddressBalances(ctx context.Context, addrs map[string]*big.Int, contractAddrs map[string]*big.Int) (map[string]*big.Int, map[string]*big.Int) {
+	var (
+		balanceStr string
+		err        error
+	)
+	for addr := range addrs {
+		balanceStr, err = s.kaiClient.GetBalance(ctx, addr)
+		if err != nil {
+			continue
+		}
+		balance, ok := new(big.Int).SetString(balanceStr, 10)
+		if !ok {
+			continue
+		}
+		addrs[addr] = balance
+	}
+	for contractAddr := range contractAddrs {
+		balanceStr, err = s.kaiClient.GetBalance(ctx, contractAddr)
+		if err != nil {
+			continue
+		}
+		balance, ok := new(big.Int).SetString(balanceStr, 10)
+		if !ok {
+			continue
+		}
+		contractAddrs[contractAddr] = balance
+	}
+	return addrs, contractAddrs
 }
 
 func (s *infoServer) mergeAdditionalInfoToTxs(txs []*types.Transaction, receipts []*types.Receipt) []*types.Transaction {
