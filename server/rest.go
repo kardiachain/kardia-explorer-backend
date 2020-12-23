@@ -162,10 +162,7 @@ func (s *Server) ValidatorStats(c echo.Context) error {
 				validator = val
 				break
 			}
-			// update validator
-			validator.CommissionRate = val.CommissionRate
-			validator.MaxRate = val.MaxRate
-			validator.MaxChangeRate = val.MaxChangeRate
+			// update validator VotingPowerPercentage
 			validator.VotingPowerPercentage = val.VotingPowerPercentage
 			break
 		}

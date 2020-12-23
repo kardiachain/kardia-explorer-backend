@@ -355,9 +355,14 @@ func (ec *Client) Validator(ctx context.Context, address string) (*types.Validat
 	if err != nil {
 		return nil, err
 	}
-	// update validator's role. If he's in validators set, he is a proposer
+	// update validator's role
 	validator.Role = ec.getValidatorRole(valsSet, validator.Address, validator.Status)
-	return validator, nil
+	// calculate his rate from big.Int
+	convertedVal, err := convertValidatorInfo(validator, nil, validator.Role)
+	if err != nil {
+		return nil, err
+	}
+	return convertedVal, nil
 }
 
 func (ec *Client) Validators(ctx context.Context) (*types.Validators, error) {
