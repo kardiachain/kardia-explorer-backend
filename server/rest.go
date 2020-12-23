@@ -3,6 +3,7 @@ package server
 
 import (
 	"context"
+	"math/big"
 	"strconv"
 	"strings"
 	"time"
@@ -625,10 +626,25 @@ func (s *Server) AddressInfo(c echo.Context) error {
 	if err != nil {
 		return err
 	}
-	return api.OK.SetData(SimpleAddress{
+	balanceInBigInt, _ := new(big.Int).SetString(balance, 10)
+	balanceFloat, _ := new(big.Float).SetPrec(100).Quo(new(big.Float).SetInt(balanceInBigInt), new(big.Float).SetInt(cfg.Hydro)).Float64() //converting to KAI from HYDRO
+	addrInfo = &types.Address{
 		Address:       address,
+		BalanceFloat:  balanceFloat,
 		BalanceString: balance,
 		IsContract:    false,
+	}
+	code, err := s.kaiClient.GetCode(ctx, address)
+	if err == nil && len(code) > 0 {
+		addrInfo.IsContract = true
+	}
+	if balance != "0" || addrInfo.IsContract {
+		_ = s.dbClient.InsertAddress(ctx, addrInfo) // insert this address to database
+	}
+	return api.OK.SetData(SimpleAddress{
+		Address:       addrInfo.Address,
+		BalanceString: addrInfo.BalanceString,
+		IsContract:    addrInfo.IsContract,
 	}).Build(c)
 }
 

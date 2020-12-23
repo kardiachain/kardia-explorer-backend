@@ -71,6 +71,7 @@ type Client interface {
 
 	// Address
 	AddressByHash(ctx context.Context, addressHash string) (*types.Address, error)
+	InsertAddress(ctx context.Context, address *types.Address) error
 	OwnedTokensOfAddress(ctx context.Context, address string, pagination *types.Pagination) ([]*types.TokenHolder, uint64, error)
 
 	// ActiveAddress

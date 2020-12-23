@@ -25,6 +25,8 @@ import (
 	"math/big"
 	"time"
 
+	"github.com/kardiachain/explorer-backend/cfg"
+
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
@@ -44,7 +46,6 @@ const (
 
 var (
 	ErrNotImplemented = errors.New("not implemented")
-	hydro             = big.NewInt(1000000000000000000)
 )
 
 type mongoDB struct {
@@ -563,6 +564,14 @@ func (m *mongoDB) AddressByHash(ctx context.Context, address string) (*types.Add
 	return &c, nil
 }
 
+func (m *mongoDB) InsertAddress(ctx context.Context, address *types.Address) error {
+	_, err := m.wrapper.C(cAddresses).Insert(address)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
 func (m *mongoDB) OwnedTokensOfAddress(ctx context.Context, walletAddress string, pagination *types.Pagination) ([]*types.TokenHolder, uint64, error) {
 	panic("implement me")
 }
@@ -587,7 +596,7 @@ func (m *mongoDB) UpdateAddresses(ctx context.Context, addressesMap map[string]*
 }
 
 func appendUpdateAddressModels(addr string, balance *big.Int, isContract bool) mongo.WriteModel {
-	balanceFloat, _ := new(big.Float).SetPrec(100).Quo(new(big.Float).SetInt(balance), new(big.Float).SetInt(hydro)).Float64() //converting to KAI from HYDRO
+	balanceFloat, _ := new(big.Float).SetPrec(100).Quo(new(big.Float).SetInt(balance), new(big.Float).SetInt(cfg.Hydro)).Float64() //converting to KAI from HYDRO
 	balanceString := balance.String()
 	upsertAddr := types.Address{
 		Address:       addr,
