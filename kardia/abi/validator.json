@@ -123,18 +123,25 @@
     "inputs": [
       {
         "indexed": false,
-        "internalType": "bytes32",
-        "name": "_name",
-        "type": "bytes32"
-      },
-      {
-        "indexed": false,
         "internalType": "uint256",
         "name": "_commissionRate",
         "type": "uint256"
       }
     ],
-    "name": "UpdateValidator",
+    "name": "UpdateCommissionRate",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": false,
+        "internalType": "bytes32",
+        "name": "_name",
+        "type": "bytes32"
+      }
+    ],
+    "name": "UpdateName",
     "type": "event"
   },
   {
@@ -516,44 +523,9 @@
     "name": "params",
     "outputs": [
       {
-        "internalType": "uint256",
-        "name": "downtimeJailDuration",
-        "type": "uint256"
-      },
-      {
-        "internalType": "uint256",
-        "name": "slashFractionDowntime",
-        "type": "uint256"
-      },
-      {
-        "internalType": "uint256",
-        "name": "unbondingTime",
-        "type": "uint256"
-      },
-      {
-        "internalType": "uint256",
-        "name": "slashFractionDoubleSign",
-        "type": "uint256"
-      },
-      {
-        "internalType": "uint256",
-        "name": "signedBlockWindow",
-        "type": "uint256"
-      },
-      {
-        "internalType": "uint256",
-        "name": "minSignedPerWindow",
-        "type": "uint256"
-      },
-      {
-        "internalType": "uint256",
-        "name": "minStake",
-        "type": "uint256"
-      },
-      {
-        "internalType": "uint256",
-        "name": "minValidatorBalance",
-        "type": "uint256"
+        "internalType": "address",
+        "name": "",
+        "type": "address"
       }
     ],
     "payable": false,
@@ -741,20 +713,30 @@
     "constant": false,
     "inputs": [
       {
-        "internalType": "bytes32",
-        "name": "_name",
-        "type": "bytes32"
-      },
-      {
         "internalType": "uint256",
         "name": "_commissionRate",
         "type": "uint256"
       }
     ],
-    "name": "update",
+    "name": "updateCommissionRate",
     "outputs": [],
     "payable": false,
     "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "constant": false,
+    "inputs": [
+      {
+        "internalType": "bytes32",
+        "name": "_name",
+        "type": "bytes32"
+      }
+    ],
+    "name": "updateName",
+    "outputs": [],
+    "payable": true,
+    "stateMutability": "payable",
     "type": "function"
   },
   {

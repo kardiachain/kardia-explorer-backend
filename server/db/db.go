@@ -49,7 +49,7 @@ type Client interface {
 	BlocksByProposer(ctx context.Context, proposer string, pagination *types.Pagination) ([]*types.Block, uint64, error)
 
 	// Txs
-	Txs(ctx context.Context, pagination *types.Pagination) ([]*types.Transaction, error)
+	TxsCount(ctx context.Context) (uint64, error)
 	TxsByBlockHash(ctx context.Context, blockHash string, pagination *types.Pagination) ([]*types.Transaction, uint64, error)
 	TxsByBlockHeight(ctx context.Context, blockNumber uint64, pagination *types.Pagination) ([]*types.Transaction, uint64, error)
 	TxsByAddress(ctx context.Context, address string, pagination *types.Pagination) ([]*types.Transaction, uint64, error)
@@ -70,11 +70,13 @@ type Client interface {
 
 	// Address
 	AddressByHash(ctx context.Context, addressHash string) (*types.Address, error)
+	InsertAddress(ctx context.Context, address *types.Address) error
 	OwnedTokensOfAddress(ctx context.Context, address string, pagination *types.Pagination) ([]*types.TokenHolder, uint64, error)
 
 	// ActiveAddress
-	UpdateActiveAddresses(ctx context.Context, addressesMap map[string]bool, contractAddrMap map[string]bool) error
-	GetTotalActiveAddresses(ctx context.Context) (uint64, uint64, error)
+	UpdateAddresses(ctx context.Context, addresses map[string]*types.Address) error
+	GetTotalAddresses(ctx context.Context) (uint64, uint64, error)
+	GetListAddresses(ctx context.Context, sortDirection int, pagination *types.Pagination) ([]*types.Address, error)
 }
 
 func NewClient(cfg Config) (Client, error) {

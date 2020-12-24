@@ -403,19 +403,9 @@
     "name": "params",
     "outputs": [
       {
-        "internalType": "uint256",
-        "name": "baseProposerReward",
-        "type": "uint256"
-      },
-      {
-        "internalType": "uint256",
-        "name": "bonusProposerReward",
-        "type": "uint256"
-      },
-      {
-        "internalType": "uint256",
-        "name": "maxValidator",
-        "type": "uint256"
+        "internalType": "address",
+        "name": "paramsSmcAddr",
+        "type": "address"
       }
     ],
     "payable": false,
@@ -599,6 +589,21 @@
     "outputs": [],
     "payable": false,
     "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "constant": true,
+    "inputs": [],
+    "name": "totalSlashedToken",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "totalSlashedToken",
+        "type": "uint256"
+      }
+    ],
+    "payable": false,
+    "stateMutability": "view",
     "type": "function"
   }
 ]

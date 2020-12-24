@@ -3,7 +3,6 @@ package types
 
 import (
 	"math/big"
-	"time"
 
 	"github.com/kardiachain/go-kardia/lib/common"
 )
@@ -23,18 +22,18 @@ type Validator struct {
 	Address               common.Address `json:"address"`
 	SmcAddress            common.Address `json:"smcAddress"`
 	Status                uint8          `json:"status"`
+	Role                  int            `json:"role"`
 	Jailed                bool           `json:"jailed"`
 	Name                  string         `json:"name,omitempty"`
 	VotingPowerPercentage string         `json:"votingPowerPercentage"`
 	StakedAmount          string         `json:"stakedAmount"`
 	AccumulatedCommission string         `json:"accumulatedCommission"`
-	UpdateTime            time.Time      `json:"updateTime"`
+	UpdateTime            uint64         `json:"updateTime"`
 	CommissionRate        string         `json:"commissionRate"`
 	TotalDelegators       int            `json:"totalDelegators"`
 	MaxRate               string         `json:"maxRate"`
 	MaxChangeRate         string         `json:"maxChangeRate"`
-	MissedBlocks          uint64         `json:"missedBlocks"`
-	IndicatorRate         float64        `json:"indicatorRate"`
+	SigningInfo           *SigningInfo   `json:"signingInfo"`
 	Delegators            []*Delegator   `json:"delegators,omitempty"`
 }
 
@@ -49,11 +48,13 @@ type RPCValidator struct {
 	UbdEntryCount         *big.Int        `json:"ubdEntryCount"`
 	UpdateTime            *big.Int        `json:"updateTime"`
 	Status                uint8           `json:"status"`
+	Role                  int             `json:"role"`
 	UnbondingTime         *big.Int        `json:"unbondingTime"`
 	UnbondingHeight       *big.Int        `json:"unbondingHeight"`
 	CommissionRate        *big.Int        `json:"commissionRate,omitempty"`
 	MaxRate               *big.Int        `json:"maxRate,omitempty"`
 	MaxChangeRate         *big.Int        `json:"maxChangeRate,omitempty"`
+	SigningInfo           *SigningInfo    `json:"signingInfo"`
 	Delegators            []*RPCDelegator `json:"delegators,omitempty"`
 }
 
@@ -77,11 +78,12 @@ type SlashEvents struct {
 }
 
 type SigningInfo struct {
-	StartHeight        uint64
-	IndexOffset        uint64
-	Tombstoned         bool
-	MissedBlockCounter uint64
-	JailedUntil        uint64
+	StartHeight        uint64  `json:"startHeight"`
+	IndexOffset        uint64  `json:"indexOffset"`
+	Tombstoned         bool    `json:"tombstoned"`
+	MissedBlockCounter uint64  `json:"missedBlockCounter"`
+	IndicatorRate      float64 `json:"indicatorRate"`
+	JailedUntil        uint64  `json:"jailedUntil"`
 }
 
 type RPCPeerInfo struct {
@@ -126,6 +128,7 @@ type ValidatorsByDelegator struct {
 	Validator             common.Address `json:"validator"`
 	ValidatorContractAddr common.Address `json:"validatorContractAddr"`
 	ValidatorStatus       uint8          `json:"validatorStatus"`
+	ValidatorRole         int            `json:"validatorRole"`
 	StakedAmount          string         `json:"stakedAmount"`
 	ClaimableRewards      string         `json:"claimableRewards"`
 	UnbondedAmount        string         `json:"unbondedAmount"`

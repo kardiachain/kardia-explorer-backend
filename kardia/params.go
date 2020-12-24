@@ -18,11 +18,32 @@
 
 package kardia
 
-import "errors"
+import (
+	"context"
+	"math/big"
 
-var (
-	ErrNotAValidatorAddress    = errors.New("address is not a validator")
-	ErrMethodNotFound          = errors.New("abi: could not locate named method or event")
-	ErrEmptyList               = errors.New("empty list")
-	ErrParsingBigIntFromString = errors.New("cannot parse big.Int from string")
+	"go.uber.org/zap"
 )
+
+// GetMaxProposers returns max number of proposers
+func (ec *Client) GetMaxProposers(ctx context.Context) (int64, error) {
+	payload, err := ec.paramsUtil.Abi.Pack("getMaxProposers")
+	if err != nil {
+		return 0, err
+	}
+	res, err := ec.KardiaCall(ctx, contructCallArgs(ec.paramsUtil.ContractAddress.Hex(), payload))
+	if err != nil {
+		return 0, err
+	}
+
+	var result struct {
+		MaxProposers *big.Int
+	}
+	// unpack result
+	err = ec.paramsUtil.Abi.UnpackIntoInterface(&result, "getMaxProposers", res)
+	if err != nil {
+		ec.lgr.Error("Error unpacking max proposers", zap.Error(err))
+		return 0, err
+	}
+	return result.MaxProposers.Int64(), nil
+}

@@ -21,7 +21,6 @@ package kardia
 import (
 	"context"
 	"math/big"
-	"strings"
 	"time"
 
 	"github.com/kardiachain/explorer-backend/types"
@@ -36,7 +35,7 @@ func (ec *Client) GetValidatorInfo(ctx context.Context, valSmcAddr common.Addres
 		ec.lgr.Error("Error packing validator info payload: ", zap.Error(err))
 		return nil, err
 	}
-	res, err := ec.KardiaCall(ctx, ec.contructCallArgs(valSmcAddr.Hex(), payload))
+	res, err := ec.KardiaCall(ctx, contructCallArgs(valSmcAddr.Hex(), payload))
 	if err != nil {
 		ec.lgr.Error("GetValidatorInfo KardiaCall error: ", zap.Error(err))
 		return nil, err
@@ -65,7 +64,7 @@ func (ec *Client) GetDelegationRewards(ctx context.Context, valSmcAddr common.Ad
 		ec.lgr.Error("Error packing delegation rewards payload: ", zap.Error(err))
 		return nil, err
 	}
-	res, err := ec.KardiaCall(ctx, ec.contructCallArgs(valSmcAddr.Hex(), payload))
+	res, err := ec.KardiaCall(ctx, contructCallArgs(valSmcAddr.Hex(), payload))
 	if err != nil {
 		ec.lgr.Error("GetDelegationRewards KardiaCall error: ", zap.Error(err))
 		return nil, err
@@ -89,7 +88,7 @@ func (ec *Client) GetDelegatorStakedAmount(ctx context.Context, valSmcAddr commo
 		ec.lgr.Error("Error packing delegator staked amount payload: ", zap.Error(err))
 		return nil, err
 	}
-	res, err := ec.KardiaCall(ctx, ec.contructCallArgs(valSmcAddr.Hex(), payload))
+	res, err := ec.KardiaCall(ctx, contructCallArgs(valSmcAddr.Hex(), payload))
 	if err != nil {
 		ec.lgr.Error("GetDelegatorStakedAmount KardiaCall error: ", zap.Error(err))
 		return nil, err
@@ -118,10 +117,13 @@ func (ec *Client) GetUDBEntries(ctx context.Context, valSmcAddr common.Address, 
 		ec.lgr.Error("Error packing UDB entry payload: ", zap.Error(err))
 		return nil, nil, err
 	}
-	res, err := ec.KardiaCall(ctx, ec.contructCallArgs(valSmcAddr.Hex(), payload))
+	res, err := ec.KardiaCall(ctx, contructCallArgs(valSmcAddr.Hex(), payload))
 	if err != nil {
 		ec.lgr.Error("GetUDBEntry KardiaCall error: ", zap.Error(err))
 		return nil, nil, err
+	}
+	if len(res) == 0 {
+		return nil, nil, ErrEmptyList
 	}
 
 	var result struct {
@@ -144,12 +146,6 @@ func (ec *Client) GetUDBEntries(ctx context.Context, valSmcAddr common.Address, 
 			totalAmount = new(big.Int).Add(totalAmount, balance)
 		}
 	}
-	if totalAmount == nil || len(totalAmount.Bits()) == 0 {
-		totalAmount = new(big.Int).SetInt64(0)
-	}
-	if withdrawableAmount == nil || len(withdrawableAmount.Bits()) == 0 {
-		withdrawableAmount = new(big.Int).SetInt64(0)
-	}
 	return totalAmount, withdrawableAmount, nil
 }
 
@@ -160,13 +156,10 @@ func (ec *Client) GetSigningInfo(ctx context.Context, valSmcAddr common.Address)
 		ec.lgr.Error("Error packing get signingInfo payload: ", zap.Error(err))
 		return nil, err
 	}
-	res, err := ec.KardiaCall(ctx, ec.contructCallArgs(valSmcAddr.Hex(), payload))
+	res, err := ec.KardiaCall(ctx, contructCallArgs(valSmcAddr.Hex(), payload))
 	if err != nil {
 		ec.lgr.Error("GetSigningInfo KardiaCall error: ", zap.Error(err))
 		return nil, err
-	}
-	if len(res) == 0 {
-		return nil, nil
 	}
 	var result struct {
 		StartHeight        *big.Int
@@ -196,7 +189,7 @@ func (ec *Client) GetCommissionValidator(ctx context.Context, valSmcAddr common.
 	if err != nil {
 		return nil, nil, nil, err
 	}
-	res, err := ec.KardiaCall(ctx, ec.contructCallArgs(valSmcAddr.Hex(), payload))
+	res, err := ec.KardiaCall(ctx, contructCallArgs(valSmcAddr.Hex(), payload))
 	if err != nil {
 		return nil, nil, nil, err
 	}
@@ -221,7 +214,7 @@ func (ec *Client) GetDelegators(ctx context.Context, valSmcAddr common.Address) 
 	if err != nil {
 		return nil, err
 	}
-	res, err := ec.KardiaCall(ctx, ec.contructCallArgs(valSmcAddr.Hex(), payload))
+	res, err := ec.KardiaCall(ctx, contructCallArgs(valSmcAddr.Hex(), payload))
 	if err != nil {
 		return nil, err
 	}
@@ -263,14 +256,14 @@ func (ec *Client) GetSlashEventsLength(ctx context.Context, valSmcAddr common.Ad
 		return nil, err
 	}
 
-	res, err := ec.KardiaCall(ctx, ec.contructCallArgs(valSmcAddr.Hex(), payload))
+	res, err := ec.KardiaCall(ctx, contructCallArgs(valSmcAddr.Hex(), payload))
 	if err != nil {
-		ec.lgr.Error("GetSlashEventsLength KardiaCall error: ", zap.Error(err))
+		ec.lgr.Warn("GetSlashEventsLength KardiaCall error: ", zap.Error(err))
 		return nil, err
 	}
 	if len(res) == 0 {
-		ec.lgr.Error("GetSlashEventsLength KardiaCall empty result")
-		return nil, nil
+		ec.lgr.Debug("GetSlashEventsLength KardiaCall empty result")
+		return nil, ErrEmptyList
 	}
 
 	var slashEventsLength *big.Int
@@ -307,17 +300,10 @@ func (ec *Client) GetSlashEvents(ctx context.Context, valAddr common.Address) ([
 		if err != nil {
 			return nil, err
 		}
-		res, err := ec.KardiaCall(ctx, ec.contructCallArgs(valSmcAddr.Hex(), payload))
+		res, err := ec.KardiaCall(ctx, contructCallArgs(valSmcAddr.Hex(), payload))
 		if err != nil {
-			// SMC doesn't returns the length of slashEvents list. So if the returned error contains below string, we know that we've read all slash events of this validator
-			if strings.Contains(err.Error(), "invalid opcode: opcode 0xfe not defined") {
-				return slashEvents, nil
-			}
 			ec.lgr.Debug("GetSlashEvents KardiaCall Error: ", zap.String("i", i.String()), zap.String("payload", common.Bytes(payload).String()), zap.Error(err))
 			return nil, err
-		}
-		if strings.TrimRight(res.String(), "0") == "0x" {
-			break
 		}
 		var result struct {
 			Period   *big.Int
