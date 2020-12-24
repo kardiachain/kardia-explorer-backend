@@ -439,7 +439,7 @@ func (ec *Client) Validators(ctx context.Context) (*types.Validators, error) {
 		returnValsList = append(returnValsList, convertedVal)
 	}
 	result := &types.Validators{
-		TotalValidators:            len(validators),
+		TotalValidators:            totalValidators,
 		TotalDelegators:            len(delegators),
 		TotalProposers:             totalProposers,
 		TotalCandidates:            totalCandidates,

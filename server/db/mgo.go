@@ -22,10 +22,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"math/big"
 	"time"
-
-	"github.com/kardiachain/explorer-backend/cfg"
 
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
@@ -109,6 +106,7 @@ func createIndexes(dbClient *mongoDB) error {
 		{c: cBlocks, model: []mongo.IndexModel{{Keys: bson.D{{Key: "proposerAddress", Value: 1}, {Key: "time", Value: -1}}, Options: options.Index().SetSparse(true)}}},
 		// indexing addresses collection
 		{c: cAddresses, model: []mongo.IndexModel{{Keys: bson.M{"address": 1}, Options: options.Index().SetUnique(true).SetSparse(true)}}},
+		{c: cAddresses, model: []mongo.IndexModel{{Keys: bson.M{"name": 1}, Options: options.Index().SetSparse(true)}}},
 		{c: cAddresses, model: []mongo.IndexModel{{Keys: bson.M{"isContract": 1}}}},
 		{c: cAddresses, model: []mongo.IndexModel{{Keys: bson.M{"balanceFloat": -1}, Options: options.Index().SetSparse(true)}}},
 		{c: cAddresses, model: []mongo.IndexModel{{Keys: bson.M{"tokenName": 1}, Options: options.Index().SetSparse(true)}}},
@@ -578,36 +576,19 @@ func (m *mongoDB) OwnedTokensOfAddress(ctx context.Context, walletAddress string
 
 // UpdateAddresses update last time those addresses active
 // Just skip for now
-func (m *mongoDB) UpdateAddresses(ctx context.Context, addressesMap map[string]*big.Int, contractAddrMap map[string]*big.Int) error {
-	if len(addressesMap)+len(contractAddrMap) == 0 {
+func (m *mongoDB) UpdateAddresses(ctx context.Context, addresses map[string]*types.Address) error {
+	if addresses == nil || len(addresses) == 0 {
 		return nil
 	}
 	var updateAddressOperations []mongo.WriteModel
-	for addr, balance := range addressesMap {
-		updateAddressOperations = append(updateAddressOperations, appendUpdateAddressModels(addr, balance, false))
-	}
-	for addr, balance := range contractAddrMap {
-		updateAddressOperations = append(updateAddressOperations, appendUpdateAddressModels(addr, balance, true))
+	for addr, info := range addresses {
+		updateAddressOperations = append(updateAddressOperations,
+			mongo.NewUpdateOneModel().SetUpsert(true).SetFilter(bson.M{"address": addr}).SetUpdate(bson.M{"$set": info}))
 	}
 	if _, err := m.wrapper.C(cAddresses).BulkWrite(updateAddressOperations); err != nil {
 		return err
 	}
 	return nil
-}
-
-func appendUpdateAddressModels(addr string, balance *big.Int, isContract bool) mongo.WriteModel {
-	balanceFloat, _ := new(big.Float).SetPrec(100).Quo(new(big.Float).SetInt(balance), new(big.Float).SetInt(cfg.Hydro)).Float64() //converting to KAI from HYDRO
-	balanceString := balance.String()
-	upsertAddr := types.Address{
-		Address:       addr,
-		BalanceFloat:  balanceFloat,
-		BalanceString: balanceString,
-	}
-	if isContract {
-		upsertAddr.IsContract = true
-	}
-	updateAddressOperation := mongo.NewUpdateOneModel().SetUpsert(true).SetFilter(bson.M{"address": addr}).SetUpdate(bson.M{"$set": upsertAddr})
-	return updateAddressOperation
 }
 
 func (m *mongoDB) GetTotalAddresses(ctx context.Context) (uint64, uint64, error) {

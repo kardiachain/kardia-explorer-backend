@@ -540,10 +540,16 @@ func (s *Server) Txs(c echo.Context) error {
 			vals = nil
 		}
 	}
-
-	smcAddress := map[string]string{}
+	type valInfoResponse struct {
+		Name string
+		Role int
+	}
+	smcAddress := map[string]*valInfoResponse{}
 	for _, v := range vals.Validators {
-		smcAddress[v.SmcAddress.String()] = v.Name
+		smcAddress[v.SmcAddress.String()] = &valInfoResponse{
+			Name: v.Name,
+			Role: v.Role,
+		}
 	}
 	var result Transactions
 	for _, tx := range txs {
@@ -560,13 +566,11 @@ func (s *Server) Txs(c echo.Context) error {
 			DecodedInputData: tx.DecodedInputData,
 		}
 
-		if smcAddress[tx.To] != "" {
-			t.ToName = smcAddress[tx.To]
+		if smcAddress[tx.To] != nil {
+			t.ToName = smcAddress[tx.To].Name
+			t.Role = smcAddress[tx.To].Role
 		}
 
-		if smcAddress[tx.From] != "" {
-			t.FromName = smcAddress[tx.From]
-		}
 		if tx.To == cfg.StakingContractAddr {
 			t.ToName = cfg.StakingContractName
 		}
@@ -594,12 +598,14 @@ func (s *Server) Addresses(c echo.Context) error {
 		return api.Invalid.Build(c)
 	}
 	totalHolders, totalContracts := s.cacheClient.TotalHolders(ctx)
+
 	var result Addresses
 	for _, addr := range addrs {
 		result = append(result, SimpleAddress{
 			Address:       addr.Address,
 			BalanceString: addr.BalanceString,
 			IsContract:    addr.IsContract,
+			Name:          addr.Name,
 		})
 	}
 	return api.OK.SetData(PagingResponse{
@@ -619,9 +625,11 @@ func (s *Server) AddressInfo(c echo.Context) error {
 			Address:       addrInfo.Address,
 			BalanceString: addrInfo.BalanceString,
 			IsContract:    addrInfo.IsContract,
+			Name:          addrInfo.Name,
 		}).Build(c)
 	}
 	s.logger.Warn("address not found in db, getting from RPC instead...", zap.Error(err))
+	// try to get balance and code at this address to determine whether we should write this address info to database or not
 	balance, err := s.kaiClient.GetBalance(ctx, address)
 	if err != nil {
 		return err
@@ -638,13 +646,33 @@ func (s *Server) AddressInfo(c echo.Context) error {
 	if err == nil && len(code) > 0 {
 		addrInfo.IsContract = true
 	}
+	// write this address to db if its balance is larger than 0 or it's a SMC
 	if balance != "0" || addrInfo.IsContract {
+		// update name of this address
+		vals, err := s.cacheClient.Validators(ctx)
+		if err != nil {
+			vals = &types.Validators{
+				Validators: []*types.Validator{},
+			}
+		}
+		cmnAddress := common.HexToAddress(address)
+		for _, val := range vals.Validators {
+			if val.Address.Equal(cmnAddress) {
+				addrInfo.Name = val.Name + " Owner"
+				break
+			}
+			if val.SmcAddress.Equal(cmnAddress) {
+				addrInfo.Name = val.Name + " SMC"
+				break
+			}
+		}
 		_ = s.dbClient.InsertAddress(ctx, addrInfo) // insert this address to database
 	}
 	return api.OK.SetData(SimpleAddress{
 		Address:       addrInfo.Address,
 		BalanceString: addrInfo.BalanceString,
 		IsContract:    addrInfo.IsContract,
+		Name:          addrInfo.Name,
 	}).Build(c)
 }
 

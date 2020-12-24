@@ -12,6 +12,8 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/kardiachain/explorer-backend/cfg"
+
 	"go.uber.org/zap"
 
 	"github.com/kardiachain/explorer-backend/kardia"
@@ -180,6 +182,14 @@ func (s *infoServer) UpdateCurrentStats(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
+	vals, err := s.kaiClient.Validators(ctx)
+	if err != nil {
+		return err
+	}
+	err = s.cacheClient.UpdateValidators(ctx, vals)
+	if err != nil {
+		return err
+	}
 	return nil
 }
 
@@ -274,9 +284,9 @@ func (s *infoServer) ImportBlock(ctx context.Context, block *types.Block, writeT
 
 	// update active addresses
 	startTime = time.Now()
-	addrList, contractList := filterAddrSet(block.Txs)
-	addrList, contractList = s.getAddressBalances(ctx, addrList, contractList)
-	if err := s.dbClient.UpdateAddresses(ctx, addrList, contractList); err != nil {
+	addrsList := filterAddrSet(block.Txs)
+	addrsList = s.getAddressBalances(ctx, addrsList)
+	if err := s.dbClient.UpdateAddresses(ctx, addrsList); err != nil {
 		return err
 	}
 	endTime = time.Since(startTime)
@@ -377,7 +387,7 @@ func (s *infoServer) ImportReceipts(ctx context.Context, block *types.Block) err
 		txByToAdd   *types.TransactionByAddress
 	}
 	results := make(chan response, block.NumTxs)
-	addresses := make(map[string]*big.Int)
+	addresses := make(map[string]*types.Address)
 
 	//todo @longnd: Move this workers to config or dynamic settings
 	for w := 0; w <= 10; w++ {
@@ -416,7 +426,7 @@ func (s *infoServer) ImportReceipts(ctx context.Context, block *types.Block) err
 					for _, l := range receipt.Logs {
 						addresses[l.Address] = nil
 					}
-					if err := s.dbClient.UpdateAddresses(ctx, addresses, nil); err != nil {
+					if err := s.dbClient.UpdateAddresses(ctx, addresses); err != nil {
 						//todo: consider how we handle this err, just skip it now
 						s.logger.Warn("cannot update active address")
 						results <- response{
@@ -552,58 +562,71 @@ func (s *infoServer) getTxsByBlockNumber(blockNumber int64, filter *types.Pagina
 	return nil, nil
 }
 
-func filterAddrSet(txs []*types.Transaction) (addr map[string]*big.Int, contractAddr map[string]*big.Int) {
-	addr = make(map[string]*big.Int)
-	contractAddr = make(map[string]*big.Int)
-	zero := new(big.Int).SetInt64(0)
+func filterAddrSet(txs []*types.Transaction) map[string]*types.Address {
+	addrs := make(map[string]*types.Address)
 	for _, tx := range txs {
-		addr[tx.From] = zero
-		addr[tx.To] = zero
-		contractAddr[tx.ContractAddress] = zero
+		addrs[tx.From] = &types.Address{
+			Address:    tx.From,
+			IsContract: false,
+		}
+		addrs[tx.To] = &types.Address{
+			Address:    tx.From,
+			IsContract: false,
+		}
+		addrs[tx.ContractAddress] = &types.Address{
+			Address:    tx.From,
+			IsContract: true,
+		}
 	}
-	delete(contractAddr, "")
-	delete(contractAddr, "0x")
-	delete(addr, "")
-	delete(addr, "0x")
-	return addr, contractAddr
+	delete(addrs, "")
+	delete(addrs, "0x")
+	return addrs
 }
 
 // TODO(trinhdn): need to use workers instead
-func (s *infoServer) getAddressBalances(ctx context.Context, addrs map[string]*big.Int, contractAddrs map[string]*big.Int) (map[string]*big.Int, map[string]*big.Int) {
+func (s *infoServer) getAddressBalances(ctx context.Context, addrs map[string]*types.Address) map[string]*types.Address {
+	if addrs == nil || len(addrs) == 0 {
+		return map[string]*types.Address{}
+	}
+	vals, err := s.cacheClient.Validators(ctx)
+	if err != nil {
+		vals = &types.Validators{
+			Validators: []*types.Validator{},
+		}
+	}
+	addressesName := map[string]string{}
+	for _, v := range vals.Validators {
+		addressesName[v.SmcAddress.String()] = v.Name + " SMC"
+		addressesName[v.Address.String()] = v.Name + " Owner"
+	}
+	addressesName[cfg.StakingContractAddr] = cfg.StakingContractName
+
 	var (
-		balanceStr string
-		code       common.Bytes
-		err        error
+		code   common.Bytes
+		result = map[string]*types.Address{}
 	)
 	for addr := range addrs {
-		code, err = s.kaiClient.GetCode(ctx, addr)
-		if len(code) > 0 { // is contract
-			delete(addrs, addr)
-			contractAddrs[addr] = nil
-			continue
+		addressInfo := &types.Address{
+			Address: addr,
 		}
-		balanceStr, err = s.kaiClient.GetBalance(ctx, addr)
+		addressInfo.BalanceString, err = s.kaiClient.GetBalance(ctx, addr)
 		if err != nil {
-			continue
+			addressInfo.BalanceString = "0"
 		}
-		balance, ok := new(big.Int).SetString(balanceStr, 10)
-		if !ok {
-			continue
+		balance, _ := new(big.Int).SetString(addressInfo.BalanceString, 10)
+		addressInfo.BalanceFloat, _ = new(big.Float).SetPrec(100).Quo(new(big.Float).SetInt(balance), new(big.Float).SetInt(cfg.Hydro)).Float64() //converting to KAI from HYDRO
+		if !addrs[addr].IsContract {
+			code, _ = s.kaiClient.GetCode(ctx, addr)
+			if len(code) > 0 { // is contract
+				addressInfo.IsContract = true
+			}
 		}
-		addrs[addr] = balance
+		if addressesName[addr] != "" {
+			addressInfo.Name = addressesName[addr]
+		}
+		result[addr] = addressInfo
 	}
-	for contractAddr := range contractAddrs {
-		balanceStr, err = s.kaiClient.GetBalance(ctx, contractAddr)
-		if err != nil {
-			continue
-		}
-		balance, ok := new(big.Int).SetString(balanceStr, 10)
-		if !ok {
-			continue
-		}
-		contractAddrs[contractAddr] = balance
-	}
-	return addrs, contractAddrs
+	return result
 }
 
 func (s *infoServer) mergeAdditionalInfoToTxs(txs []*types.Transaction, receipts []*types.Receipt) []*types.Transaction {

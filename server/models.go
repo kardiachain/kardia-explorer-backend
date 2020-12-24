@@ -37,6 +37,7 @@ type SimpleTransaction struct {
 	FromName         string              `json:"fromName"`
 	To               string              `json:"to"`
 	ToName           string              `json:"toName"`
+	Role             int                 `json:"role"`
 	ContractAddress  string              `json:"contractAddress,omitempty"`
 	Value            string              `json:"value"`
 	TxFee            string              `json:"txFee"`
@@ -78,7 +79,8 @@ type NodeInfo struct {
 type Addresses []SimpleAddress
 
 type SimpleAddress struct {
-	Address       string `json:"address" bson:"address"` // low precise balance for sorting purposes
-	BalanceString string `json:"balance" bson:"balance"` // high precise balance for API
-	IsContract    bool   `json:"isContract" bson:"isContract"`
+	Address       string `json:"address"` // low precise balance for sorting purposes
+	BalanceString string `json:"balance"` // high precise balance for API
+	IsContract    bool   `json:"isContract"`
+	Name          string `json:"name"`
 }

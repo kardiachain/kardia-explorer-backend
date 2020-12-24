@@ -4,7 +4,6 @@ package db
 import (
 	"context"
 	"errors"
-	"math/big"
 
 	"go.uber.org/zap"
 
@@ -75,7 +74,7 @@ type Client interface {
 	OwnedTokensOfAddress(ctx context.Context, address string, pagination *types.Pagination) ([]*types.TokenHolder, uint64, error)
 
 	// ActiveAddress
-	UpdateAddresses(ctx context.Context, addressesMap map[string]*big.Int, contractAddrMap map[string]*big.Int) error
+	UpdateAddresses(ctx context.Context, addresses map[string]*types.Address) error
 	GetTotalAddresses(ctx context.Context) (uint64, uint64, error)
 	GetListAddresses(ctx context.Context, sortDirection int, pagination *types.Pagination) ([]*types.Address, error)
 }

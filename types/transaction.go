@@ -78,7 +78,7 @@ type CallArgsJSON struct {
 	From     string   `json:"from"`     // the sender of the 'transaction'
 	To       *string  `json:"to"`       // the destination contract (nil for contract creation)
 	Gas      uint64   `json:"gas"`      // if 0, the call executes with near-infinite gas
-	GasPrice *big.Int `json:"gasPrice"` // wei <-> gas exchange ratio
-	Value    *big.Int `json:"value"`    // amount of wei sent along with the call
+	GasPrice *big.Int `json:"gasPrice"` // HYDRO <-> gas exchange ratio
+	Value    *big.Int `json:"value"`    // amount of HYDRO sent along with the call
 	Data     string   `json:"data"`     // input data, usually an ABI-encoded contract method invocation
 }
