@@ -533,24 +533,7 @@ func (s *Server) Txs(c echo.Context) error {
 		s.logger.Debug("Got latest txs from cached")
 	}
 
-	vals, err := s.kaiClient.Validators(ctx)
-	if err != nil {
-		vals, err = s.getValidatorsList(ctx)
-		if err != nil {
-			vals = nil
-		}
-	}
-	type valInfoResponse struct {
-		Name string
-		Role int
-	}
-	smcAddress := map[string]*valInfoResponse{}
-	for _, v := range vals.Validators {
-		smcAddress[v.SmcAddress.String()] = &valInfoResponse{
-			Name: v.Name,
-			Role: v.Role,
-		}
-	}
+	smcAddress := s.getValidatorsAddressAndRole(ctx)
 	var result Transactions
 	for _, tx := range txs {
 		t := SimpleTransaction{
@@ -598,15 +581,21 @@ func (s *Server) Addresses(c echo.Context) error {
 		return api.Invalid.Build(c)
 	}
 	totalHolders, totalContracts := s.cacheClient.TotalHolders(ctx)
-
+	smcAddress := s.getValidatorsAddressAndRole(ctx)
 	var result Addresses
 	for _, addr := range addrs {
-		result = append(result, SimpleAddress{
+		addrInfo := SimpleAddress{
 			Address:       addr.Address,
 			BalanceString: addr.BalanceString,
 			IsContract:    addr.IsContract,
 			Name:          addr.Name,
-		})
+		}
+		if smcAddress[addr.Address] != nil {
+			addrInfo.IsInValidatorsList = true
+			addrInfo.Role = smcAddress[addr.Address].Role
+			addrInfo.Name = smcAddress[addr.Address].Name
+		}
+		result = append(result, addrInfo)
 	}
 	return api.OK.SetData(PagingResponse{
 		Page:  page,
@@ -619,14 +608,21 @@ func (s *Server) Addresses(c echo.Context) error {
 func (s *Server) AddressInfo(c echo.Context) error {
 	ctx := context.Background()
 	address := c.Param("address")
+	smcAddress := s.getValidatorsAddressAndRole(ctx)
 	addrInfo, err := s.dbClient.AddressByHash(ctx, address)
 	if err == nil {
-		return api.OK.SetData(SimpleAddress{
+		result := SimpleAddress{
 			Address:       addrInfo.Address,
 			BalanceString: addrInfo.BalanceString,
 			IsContract:    addrInfo.IsContract,
 			Name:          addrInfo.Name,
-		}).Build(c)
+		}
+		if smcAddress[result.Address] != nil {
+			result.IsInValidatorsList = true
+			result.Role = smcAddress[result.Address].Role
+			result.Name = smcAddress[result.Address].Name
+		}
+		return api.OK.SetData(result).Build(c)
 	}
 	s.logger.Warn("address not found in db, getting from RPC instead...", zap.Error(err))
 	// try to get balance and code at this address to determine whether we should write this address info to database or not
@@ -657,12 +653,8 @@ func (s *Server) AddressInfo(c echo.Context) error {
 		}
 		cmnAddress := common.HexToAddress(address)
 		for _, val := range vals.Validators {
-			if val.Address.Equal(cmnAddress) {
-				addrInfo.Name = val.Name + " Owner"
-				break
-			}
 			if val.SmcAddress.Equal(cmnAddress) {
-				addrInfo.Name = val.Name + " SMC"
+				addrInfo.Name = val.Name
 				break
 			}
 		}
@@ -688,14 +680,7 @@ func (s *Server) AddressTxs(c echo.Context) error {
 		return err
 	}
 
-	vals, err := s.kaiClient.Validators(ctx)
-	if err != nil {
-		vals, err = s.getValidatorsList(ctx)
-		if err != nil {
-			vals = nil
-		}
-	}
-
+	smcAddress := s.getValidatorsAddressAndRole(ctx)
 	var result Transactions
 	for _, tx := range txs {
 		t := SimpleTransaction{
@@ -710,13 +695,9 @@ func (s *Server) AddressTxs(c echo.Context) error {
 			Status:           tx.Status,
 			DecodedInputData: tx.DecodedInputData,
 		}
-		if tx.DecodedInputData != nil && vals != nil {
-			for _, val := range vals.Validators {
-				if val.SmcAddress.Equal(common.HexToAddress(tx.To)) {
-					t.ToName = val.Name
-					break
-				}
-			}
+		if smcAddress[tx.To] != nil {
+			t.ToName = smcAddress[tx.To].Name
+			t.Role = smcAddress[tx.To].Role
 		}
 		if tx.To == cfg.StakingContractAddr {
 			t.ToName = cfg.StakingContractName
@@ -862,6 +843,7 @@ func (s *Server) TxByHash(c echo.Context) error {
 		for _, val := range vals.Validators {
 			if val.SmcAddress.Equal(common.HexToAddress(tx.To)) {
 				result.ToName = val.Name
+				result.Role = val.Role
 				return api.OK.SetData(result).Build(c)
 			}
 		}
@@ -913,4 +895,23 @@ func getPagingOption(c echo.Context) (*types.Pagination, int, int) {
 	}
 	pagination.Sanitize()
 	return pagination, page, limit
+}
+
+func (s *Server) getValidatorsAddressAndRole(ctx context.Context) map[string]*valInfoResponse {
+	vals, err := s.kaiClient.Validators(ctx)
+	if err != nil {
+		vals, err = s.getValidatorsList(ctx)
+		if err != nil {
+			vals = nil
+		}
+	}
+
+	smcAddress := map[string]*valInfoResponse{}
+	for _, v := range vals.Validators {
+		smcAddress[v.SmcAddress.String()] = &valInfoResponse{
+			Name: v.Name,
+			Role: v.Role,
+		}
+	}
+	return smcAddress
 }

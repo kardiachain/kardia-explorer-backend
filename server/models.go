@@ -53,6 +53,7 @@ type Transaction struct {
 	From             string              `json:"from"`
 	To               string              `json:"to"`
 	ToName           string              `json:"toName"`
+	Role             int                 `json:"role"`
 	Status           uint                `json:"status"`
 	ContractAddress  string              `json:"contractAddress"`
 	Value            string              `json:"value"`
@@ -79,8 +80,15 @@ type NodeInfo struct {
 type Addresses []SimpleAddress
 
 type SimpleAddress struct {
-	Address       string `json:"address"` // low precise balance for sorting purposes
-	BalanceString string `json:"balance"` // high precise balance for API
-	IsContract    bool   `json:"isContract"`
-	Name          string `json:"name"`
+	Address            string `json:"address"` // low precise balance for sorting purposes
+	BalanceString      string `json:"balance"` // high precise balance for API
+	IsContract         bool   `json:"isContract"`
+	Name               string `json:"name"`
+	IsInValidatorsList bool   `json:"isInValidatorsList"`
+	Role               int    `json:"role"`
+}
+
+type valInfoResponse struct {
+	Name string
+	Role int
 }

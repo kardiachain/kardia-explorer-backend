@@ -596,8 +596,7 @@ func (s *infoServer) getAddressBalances(ctx context.Context, addrs map[string]*t
 	}
 	addressesName := map[string]string{}
 	for _, v := range vals.Validators {
-		addressesName[v.SmcAddress.String()] = v.Name + " SMC"
-		addressesName[v.Address.String()] = v.Name + " Owner"
+		addressesName[v.SmcAddress.String()] = v.Name
 	}
 	addressesName[cfg.StakingContractAddr] = cfg.StakingContractName
 
@@ -608,6 +607,7 @@ func (s *infoServer) getAddressBalances(ctx context.Context, addrs map[string]*t
 	for addr := range addrs {
 		addressInfo := &types.Address{
 			Address: addr,
+			Name:    "",
 		}
 		addressInfo.BalanceString, err = s.kaiClient.GetBalance(ctx, addr)
 		if err != nil {
