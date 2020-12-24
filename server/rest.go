@@ -453,13 +453,7 @@ func (s *Server) BlockTxs(c echo.Context) error {
 		}
 	}
 
-	vals, err := s.kaiClient.Validators(ctx)
-	if err != nil {
-		vals, err = s.getValidatorsList(ctx)
-		if err != nil {
-			vals = nil
-		}
-	}
+	smcAddress := s.getValidatorsAddressAndRole(ctx)
 	var result Transactions
 	for _, tx := range txs {
 		t := SimpleTransaction{
@@ -474,13 +468,10 @@ func (s *Server) BlockTxs(c echo.Context) error {
 			Status:           tx.Status,
 			DecodedInputData: tx.DecodedInputData,
 		}
-		if tx.DecodedInputData != nil && vals != nil {
-			for _, val := range vals.Validators {
-				if val.SmcAddress.Equal(common.HexToAddress(tx.To)) {
-					t.ToName = val.Name
-					break
-				}
-			}
+		if smcAddress[tx.To] != nil {
+			t.ToName = smcAddress[tx.To].Name
+			t.Role = smcAddress[tx.To].Role
+			t.IsInValidatorsList = true
 		}
 		if tx.To == cfg.StakingContractAddr {
 			t.ToName = cfg.StakingContractName
@@ -552,6 +543,7 @@ func (s *Server) Txs(c echo.Context) error {
 		if smcAddress[tx.To] != nil {
 			t.ToName = smcAddress[tx.To].Name
 			t.Role = smcAddress[tx.To].Role
+			t.IsInValidatorsList = true
 		}
 
 		if tx.To == cfg.StakingContractAddr {
@@ -698,6 +690,7 @@ func (s *Server) AddressTxs(c echo.Context) error {
 		if smcAddress[tx.To] != nil {
 			t.ToName = smcAddress[tx.To].Name
 			t.Role = smcAddress[tx.To].Role
+			t.IsInValidatorsList = true
 		}
 		if tx.To == cfg.StakingContractAddr {
 			t.ToName = cfg.StakingContractName
@@ -806,50 +799,41 @@ func (s *Server) TxByHash(c echo.Context) error {
 	if decoded, err := s.kaiClient.DecodeInputData(tx.To, tx.InputData); err == nil {
 		tx.DecodedInputData = decoded
 	}
-	if tx.DecodedInputData != nil {
-		result := &Transaction{
-			BlockHash:        tx.BlockHash,
-			BlockNumber:      tx.BlockNumber,
-			Hash:             tx.Hash,
-			From:             tx.From,
-			To:               tx.To,
-			Status:           tx.Status,
-			ContractAddress:  tx.ContractAddress,
-			Value:            tx.Value,
-			GasPrice:         tx.GasPrice,
-			GasLimit:         tx.GasLimit,
-			GasUsed:          tx.GasUsed,
-			TxFee:            tx.TxFee,
-			Nonce:            tx.Nonce,
-			Time:             tx.Time,
-			InputData:        tx.InputData,
-			DecodedInputData: tx.DecodedInputData,
-			Logs:             tx.Logs,
-			TransactionIndex: tx.TransactionIndex,
-			LogsBloom:        tx.LogsBloom,
-			Root:             tx.Root,
-		}
-		if tx.To == cfg.StakingContractAddr {
-			result.ToName = cfg.StakingContractName
-			return api.OK.SetData(result).Build(c)
-		}
-		vals, err := s.kaiClient.Validators(ctx)
-		if err != nil {
-			vals, err = s.getValidatorsList(ctx)
-			if err != nil {
-				return api.OK.SetData(tx).Build(c)
-			}
-		}
-		for _, val := range vals.Validators {
-			if val.SmcAddress.Equal(common.HexToAddress(tx.To)) {
-				result.ToName = val.Name
-				result.Role = val.Role
-				return api.OK.SetData(result).Build(c)
-			}
-		}
+	result := &Transaction{
+		BlockHash:        tx.BlockHash,
+		BlockNumber:      tx.BlockNumber,
+		Hash:             tx.Hash,
+		From:             tx.From,
+		To:               tx.To,
+		Status:           tx.Status,
+		ContractAddress:  tx.ContractAddress,
+		Value:            tx.Value,
+		GasPrice:         tx.GasPrice,
+		GasLimit:         tx.GasLimit,
+		GasUsed:          tx.GasUsed,
+		TxFee:            tx.TxFee,
+		Nonce:            tx.Nonce,
+		Time:             tx.Time,
+		InputData:        tx.InputData,
+		DecodedInputData: tx.DecodedInputData,
+		Logs:             tx.Logs,
+		TransactionIndex: tx.TransactionIndex,
+		LogsBloom:        tx.LogsBloom,
+		Root:             tx.Root,
+	}
+	if result.To == cfg.StakingContractAddr {
+		result.ToName = cfg.StakingContractName
+		return api.OK.SetData(result).Build(c)
+	}
+	smcAddress := s.getValidatorsAddressAndRole(ctx)
+	if smcAddress[result.To] != nil {
+		result.ToName = smcAddress[result.To].Name
+		result.Role = smcAddress[result.To].Role
+		result.IsInValidatorsList = true
+		return api.OK.SetData(result).Build(c)
 	}
 
-	return api.OK.SetData(tx).Build(c)
+	return api.OK.SetData(result).Build(c)
 }
 
 func (s *Server) TxExist(c echo.Context) error {
