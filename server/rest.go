@@ -100,7 +100,6 @@ func (s *Server) TokenInfo(c echo.Context) error {
 				return api.Invalid.Build(c)
 			}
 		}
-		tokenInfo.MarketCap = tokenInfo.Price * float64(tokenInfo.CirculatingSupply)
 		return api.OK.SetData(tokenInfo).Build(c)
 	}
 
@@ -108,21 +107,19 @@ func (s *Server) TokenInfo(c echo.Context) error {
 	if err != nil {
 		return api.Invalid.Build(c)
 	}
-
-	tokenInfo.MarketCap = tokenInfo.Price * float64(tokenInfo.CirculatingSupply)
 	return api.OK.SetData(tokenInfo).Build(c)
 }
 
-func (s *Server) UpdateCirculatingSupply(c echo.Context) error {
+func (s *Server) UpdateSupplyAmounts(c echo.Context) error {
 	ctx := context.Background()
 	if !strings.Contains(c.Request().Header.Get("Authorization"), s.infoServer.HttpRequestSecret) {
 		return api.Unauthorized.Build(c)
 	}
-	m := make(map[string]int64)
-	if err := c.Bind(&m); err != nil {
+	var supplyInfo *types.SupplyInfo
+	if err := c.Bind(&supplyInfo); err != nil {
 		return api.Invalid.Build(c)
 	}
-	if err := s.cacheClient.UpdateCirculatingSupply(ctx, m["circulatingSupply"]); err != nil {
+	if err := s.cacheClient.UpdateSupplyAmounts(ctx, supplyInfo); err != nil {
 		return api.Invalid.Build(c)
 	}
 	return api.OK.Build(c)

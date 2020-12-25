@@ -146,17 +146,20 @@ func (s *infoServer) TokenInfo(ctx context.Context) (*types.TokenInfo, error) {
 
 	// Cast to internal
 	tokenInfo := &types.TokenInfo{
-		Name:              cmData.Name,
-		Symbol:            cmData.Symbol,
-		Decimal:           18,
-		TotalSupply:       cmData.TotalSupply,
-		CirculatingSupply: cmData.CirculatingSupply,
-		Price:             cmQuote.Price,
-		Volume24h:         cmQuote.Volume24h,
-		Change1h:          cmQuote.PercentChange1h,
-		Change24h:         cmQuote.PercentChange24h,
-		Change7d:          cmQuote.PercentChange7d,
-		MarketCap:         cmQuote.MarketCap,
+		Name:                     cmData.Name,
+		Symbol:                   cmData.Symbol,
+		Decimal:                  18,
+		ERC20TotalSupply:         cmData.TotalSupply,
+		ERC20CirculatingSupply:   cmData.CirculatingSupply,
+		MainnetTotalSupply:       0,
+		MainnetCirculatingSupply: 0,
+		Price:                    cmQuote.Price,
+		Volume24h:                cmQuote.Volume24h,
+		Change1h:                 cmQuote.PercentChange1h,
+		Change24h:                cmQuote.PercentChange24h,
+		Change7d:                 cmQuote.PercentChange7d,
+		ERC20MarketCap:           cmQuote.MarketCap,
+		MainnetMarketCap:         0,
 	}
 	if err := s.cacheClient.UpdateTokenInfo(ctx, tokenInfo); err != nil {
 		return nil, err

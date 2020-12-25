@@ -65,8 +65,8 @@ type Client interface {
 	TokenInfo(ctx context.Context) (*types.TokenInfo, error)
 	UpdateTokenInfo(ctx context.Context, tokenInfo *types.TokenInfo) error
 
-	CirculatingSupply(ctx context.Context) (int64, error)
-	UpdateCirculatingSupply(ctx context.Context, cirSup int64) error
+	SupplyAmounts(ctx context.Context) (*types.SupplyInfo, error)
+	UpdateSupplyAmounts(ctx context.Context, supplyInfo *types.SupplyInfo) error
 
 	Validators(ctx context.Context) (*types.Validators, error)
 	UpdateValidators(ctx context.Context, validators *types.Validators) error

@@ -37,7 +37,7 @@ type EchoServer interface {
 
 	// Info
 	TokenInfo(c echo.Context) error
-	UpdateCirculatingSupply(c echo.Context) error
+	UpdateSupplyAmounts(c echo.Context) error
 
 	// Chart
 	TPS(c echo.Context) error
@@ -120,8 +120,8 @@ func bind(gr *echo.Group, srv EchoServer) {
 		},
 		{
 			method: echo.PUT,
-			path:   "/dashboard/token/circulating",
-			fn:     srv.UpdateCirculatingSupply,
+			path:   "/dashboard/token/supplies",
+			fn:     srv.UpdateSupplyAmounts,
 		},
 		// Blocks
 		{
