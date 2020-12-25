@@ -7,6 +7,7 @@ import (
 
 	"go.uber.org/zap"
 
+	"github.com/kardiachain/explorer-backend/cfg"
 	"github.com/kardiachain/explorer-backend/server"
 )
 
@@ -19,18 +20,9 @@ func listener(ctx context.Context, srv *server.Server, interval time.Duration) {
 		startTime time.Time
 		endTime   time.Duration
 	)
-	// delete current latest block in db
-	deletedHeight, err := srv.DeleteLatestBlock(ctx)
-	if err != nil {
-		srv.Logger.Warn("Cannot remove old latest block", zap.Error(err))
-	}
-	if deletedHeight > 0 {
-		prevHeader = deletedHeight - 1 // the highest persistent block in database now is deletedHeight - 1
-	}
-	// update current stats of network
-	_ = srv.UpdateCurrentStats(ctx)
-
-	srv.Logger.Info("Start listening...")
+	// update current stats of network and get highest persistent block in database
+	prevHeader = srv.GetCurrentStats(ctx)
+	srv.Logger.Info("Start listening...", zap.Uint64("from block", prevHeader))
 	t := time.NewTicker(interval)
 	defer t.Stop()
 	for {
@@ -83,6 +75,9 @@ func listener(ctx context.Context, srv *server.Server, interval time.Duration) {
 					}
 				}
 				prevHeader = latest
+				if latest%cfg.UpdateStatsInterval == 0 {
+					_ = srv.UpdateCurrentStats(ctx)
+				}
 			}
 		}
 	}

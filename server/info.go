@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io/ioutil"
 	"math"
 	"math/big"
@@ -28,6 +29,7 @@ import (
 type InfoServer interface {
 	// API
 	LatestBlockHeight(ctx context.Context) (uint64, error)
+	GetCurrentStats(ctx context.Context) error
 	UpdateCurrentStats(ctx context.Context) error
 
 	// DB
@@ -168,32 +170,44 @@ func (s *infoServer) TokenInfo(ctx context.Context) (*types.TokenInfo, error) {
 	return tokenInfo, nil
 }
 
+func (s *infoServer) GetCurrentStats(ctx context.Context) uint64 {
+	stats := s.dbClient.Stats(ctx)
+	fmt.Println("@@@@@@@@@@@@@@@@@ ", stats.UpdatedAtBlock, stats.TotalTransactions, stats.TotalBlockRewards, stats.TotalAddresses, stats.TotalContracts)
+	_ = s.cacheClient.SetTotalTxs(ctx, stats.TotalTransactions)
+	_ = s.cacheClient.UpdateTotalHolders(ctx, stats.TotalAddresses, stats.TotalContracts)
+	reward, _ := new(big.Int).SetString(stats.TotalBlockRewards, 10)
+	_ = s.cacheClient.UpdateBlockRewards(ctx, reward)
+	latestBlock, err := s.dbClient.LatestBlockHeight(ctx)
+	if err != nil {
+		return 0
+	}
+	for {
+		if latestBlock%cfg.UpdateStatsInterval == 0 {
+			return latestBlock
+		}
+		latestBlock, err = s.dbClient.DeleteLatestBlock(ctx)
+		if err != nil {
+			return 0
+		}
+		latestBlock--
+	}
+}
+
 func (s *infoServer) UpdateCurrentStats(ctx context.Context) error {
-	totalAddr, totalContractAddr, err := s.dbClient.GetTotalAddresses(ctx)
+	totalAddrs, totalContracts := s.cacheClient.TotalHolders(ctx)
+	blockRewards, err := s.cacheClient.BlockRewards(ctx)
 	if err != nil {
 		return err
 	}
-	txsCount, err := s.dbClient.TxsCount(ctx)
-	if err != nil {
-		return err
+	stats := &types.Stats{
+		UpdatedAt:         time.Now(),
+		UpdatedAtBlock:    s.cacheClient.LatestBlockHeight(ctx),
+		TotalTransactions: s.cacheClient.TotalTxs(ctx),
+		TotalBlockRewards: blockRewards.String(),
+		TotalAddresses:    totalAddrs,
+		TotalContracts:    totalContracts,
 	}
-	_, err = s.cacheClient.UpdateTotalTxs(ctx, txsCount)
-	if err != nil {
-		return err
-	}
-	err = s.cacheClient.UpdateTotalHolders(ctx, totalAddr, totalContractAddr)
-	if err != nil {
-		return err
-	}
-	vals, err := s.kaiClient.Validators(ctx)
-	if err != nil {
-		return err
-	}
-	err = s.cacheClient.UpdateValidators(ctx, vals)
-	if err != nil {
-		return err
-	}
-	return nil
+	return s.dbClient.UpdateStats(ctx, stats)
 }
 
 // BlockByHash return block by its hash
@@ -307,6 +321,10 @@ func (s *infoServer) ImportBlock(ctx context.Context, block *types.Block, writeT
 	s.logger.Debug("Total time for getting active addresses", zap.Duration("TimeConsumed", time.Since(startTime)))
 
 	if _, err := s.cacheClient.UpdateTotalTxs(ctx, block.NumTxs); err != nil {
+		return err
+	}
+	rewards, _ := new(big.Int).SetString(block.Rewards, 10)
+	if err := s.cacheClient.UpdateBlockRewards(ctx, rewards); err != nil {
 		return err
 	}
 	return nil

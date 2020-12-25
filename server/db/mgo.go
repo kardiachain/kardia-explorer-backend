@@ -22,6 +22,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"math/big"
 	"time"
 
 	"go.mongodb.org/mongo-driver/bson"
@@ -39,6 +40,7 @@ const (
 	cAddresses       = "Addresses"
 	cTxsByAddress    = "TransactionsByAddress"
 	cActiveAddresses = "ActiveAddresses"
+	cStats           = "Stats"
 )
 
 var (
@@ -137,7 +139,106 @@ func (m *mongoDB) dropDatabase(ctx context.Context) error {
 
 //endregion General
 
+// region Stats
+
+func (m *mongoDB) UpdateStats(ctx context.Context, stats *types.Stats) error {
+	_, err := m.wrapper.C(cStats).Insert(stats)
+	if err != nil {
+		return err
+	}
+	if _, err := m.wrapper.C(cStats).RemoveAll(bson.M{"updatedAtBlock": bson.M{"$lt": stats.UpdatedAtBlock}}); err != nil {
+		m.logger.Warn("cannot remove old stats", zap.Error(err), zap.Uint64("latest updated block", stats.UpdatedAtBlock))
+		return err
+	}
+	return nil
+}
+
+func (m *mongoDB) Stats(ctx context.Context) *types.Stats {
+	var stats *types.Stats
+	if err := m.wrapper.C(cStats).FindOne(bson.M{}).Decode(&stats); err == nil {
+		return stats
+	}
+	// calculate stats based on current database
+	totalAddrs, totalContracts, err := m.GetTotalAddresses(ctx)
+	if err != nil {
+		totalAddrs = 0
+		totalContracts = 0
+	}
+	totalTxs, err := m.TxsCount(ctx)
+	if err != nil {
+		totalTxs = 0
+	}
+	var latestBlockHeight uint64
+	latestBlock, err := m.Blocks(ctx, &types.Pagination{
+		Skip:  0,
+		Limit: 1,
+	})
+	if err == nil {
+		latestBlockHeight = latestBlock[0].Height
+	}
+	totalBlockRewards, err := m.blockRewards(ctx, 0, latestBlockHeight)
+	if err != nil {
+		totalBlockRewards = new(big.Int).SetInt64(0)
+	}
+	return &types.Stats{
+		UpdatedAt:         time.Now(),
+		UpdatedAtBlock:    latestBlockHeight,
+		TotalTransactions: totalTxs,
+		TotalBlockRewards: totalBlockRewards.String(),
+		TotalAddresses:    totalAddrs,
+		TotalContracts:    totalContracts,
+	}
+}
+
+// end region Stats
+
 //region Blocks
+
+func (m *mongoDB) blockRewards(ctx context.Context, start uint64, end uint64) (*big.Int, error) {
+	opts := []*options.FindOptions{
+		options.Find().SetHint(bson.M{"height": -1}),
+		options.Find().SetProjection(bson.M{"height": 1, "rewards": 1}),
+	}
+	cursor, err := m.wrapper.C(cBlocks).
+		Find(bson.D{}, opts...)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get blocks: %v", err)
+	}
+	defer func() {
+		err = cursor.Close(ctx)
+		if err != nil {
+			m.logger.Warn("Error when close cursor", zap.Error(err))
+		}
+	}()
+	var (
+		block = &struct {
+			Height  uint64
+			Rewards string
+		}{}
+		rewardBigInt *big.Int
+		totalReward  = new(big.Int).SetInt64(0)
+	)
+	for cursor.Next(ctx) {
+		if err := cursor.Decode(&block); err != nil {
+			return nil, err
+		}
+		fmt.Println("@@@@@@@@@@@@@@@@ rewards: ", block.Rewards, " block height: ", block.Height)
+		rewardBigInt, _ = new(big.Int).SetString(block.Rewards, 10)
+		totalReward = new(big.Int).Add(totalReward, rewardBigInt)
+	}
+	return totalReward, nil
+}
+
+func (m *mongoDB) LatestBlockHeight(ctx context.Context) (uint64, error) {
+	latestBlock, err := m.Blocks(ctx, &types.Pagination{
+		Skip:  0,
+		Limit: 1,
+	})
+	if err != nil {
+		return 0, err
+	}
+	return latestBlock[0].Height, nil
+}
 
 func (m *mongoDB) Blocks(ctx context.Context, pagination *types.Pagination) ([]*types.Block, error) {
 	m.logger.Debug("get blocks from db", zap.Any("pagination", pagination))

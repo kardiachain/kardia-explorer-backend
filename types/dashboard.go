@@ -23,5 +23,4 @@ type SupplyInfo struct {
 	ERC20TotalSupply       int64 `json:"erc20TotalSupply"`
 	MainnetTotalSupply     int64 `json:"mainnetTotalSupply"`
 	MainnetGenesisAmount   int64 `json:"mainnetGenesisAmount"`
-	MainnetBlockRewards    int64
 }
