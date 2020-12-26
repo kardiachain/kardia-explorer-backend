@@ -142,7 +142,6 @@ func NewKaiClient(config *Config) (ClientInterface, error) {
 		config.lgr.Error("Error getting params contract address", zap.Error(err))
 		return nil, err
 	}
-	fmt.Println("paramsSmcAddr", paramsSmcAddr)
 	paramsABI, err := os.Open(path.Join(path.Dir(filename), "../kardia/abi/params.json"))
 	if err != nil {
 		panic("cannot read params ABI file")

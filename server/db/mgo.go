@@ -25,6 +25,8 @@ import (
 	"math/big"
 	"time"
 
+	"github.com/kardiachain/explorer-backend/cfg"
+
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
@@ -146,6 +148,7 @@ func (m *mongoDB) UpdateStats(ctx context.Context, stats *types.Stats) error {
 	if err != nil {
 		return err
 	}
+	// remove old stats
 	if _, err := m.wrapper.C(cStats).RemoveAll(bson.M{"updatedAtBlock": bson.M{"$lt": stats.UpdatedAtBlock}}); err != nil {
 		m.logger.Warn("cannot remove old stats", zap.Error(err), zap.Uint64("latest updated block", stats.UpdatedAtBlock))
 		return err
@@ -156,9 +159,46 @@ func (m *mongoDB) UpdateStats(ctx context.Context, stats *types.Stats) error {
 func (m *mongoDB) Stats(ctx context.Context) *types.Stats {
 	var stats *types.Stats
 	if err := m.wrapper.C(cStats).FindOne(bson.M{}).Decode(&stats); err == nil {
+		// remove blocks after checkpoint
+		latestBlock, err := m.Blocks(ctx, &types.Pagination{
+			Skip:  0,
+			Limit: 1,
+		})
+		if len(latestBlock) > 0 {
+			stats.UpdatedAtBlock = latestBlock[0].Height
+		}
+		for {
+			if stats.UpdatedAtBlock%cfg.UpdateStatsInterval == 0 {
+				break
+			}
+			stats.UpdatedAtBlock, err = m.DeleteLatestBlock(ctx)
+			if err != nil {
+				m.logger.Warn("Getting stats: DeleteLatestBlock error", zap.Error(err))
+			}
+			stats.UpdatedAtBlock--
+		}
 		return stats
 	}
-	// calculate stats based on current database
+	// create a checkpoint (latestBlockHeight) and remove blocks after checkpoint
+	// then calculate stats based on current database
+	latestBlockHeight := uint64(0)
+	latestBlock, err := m.Blocks(ctx, &types.Pagination{
+		Skip:  0,
+		Limit: 1,
+	})
+	if len(latestBlock) > 0 {
+		latestBlockHeight = latestBlock[0].Height
+	}
+	for {
+		if latestBlockHeight%cfg.UpdateStatsInterval == 0 {
+			break
+		}
+		latestBlockHeight, err = m.DeleteLatestBlock(ctx)
+		if err != nil {
+			m.logger.Warn("Getting stats: DeleteLatestBlock error", zap.Error(err))
+		}
+		latestBlockHeight--
+	}
 	totalAddrs, totalContracts, err := m.GetTotalAddresses(ctx)
 	if err != nil {
 		totalAddrs = 0
@@ -168,15 +208,7 @@ func (m *mongoDB) Stats(ctx context.Context) *types.Stats {
 	if err != nil {
 		totalTxs = 0
 	}
-	var latestBlockHeight uint64
-	latestBlock, err := m.Blocks(ctx, &types.Pagination{
-		Skip:  0,
-		Limit: 1,
-	})
-	if err == nil {
-		latestBlockHeight = latestBlock[0].Height
-	}
-	totalBlockRewards, err := m.blockRewards(ctx, 0, latestBlockHeight)
+	totalBlockRewards, err := m.blockRewards(ctx)
 	if err != nil {
 		totalBlockRewards = new(big.Int).SetInt64(0)
 	}
@@ -194,7 +226,7 @@ func (m *mongoDB) Stats(ctx context.Context) *types.Stats {
 
 //region Blocks
 
-func (m *mongoDB) blockRewards(ctx context.Context, start uint64, end uint64) (*big.Int, error) {
+func (m *mongoDB) blockRewards(ctx context.Context) (*big.Int, error) {
 	opts := []*options.FindOptions{
 		options.Find().SetHint(bson.M{"height": -1}),
 		options.Find().SetProjection(bson.M{"height": 1, "rewards": 1}),
@@ -222,7 +254,6 @@ func (m *mongoDB) blockRewards(ctx context.Context, start uint64, end uint64) (*
 		if err := cursor.Decode(&block); err != nil {
 			return nil, err
 		}
-		fmt.Println("@@@@@@@@@@@@@@@@ rewards: ", block.Rewards, " block height: ", block.Height)
 		rewardBigInt, _ = new(big.Int).SetString(block.Rewards, 10)
 		totalReward = new(big.Int).Add(totalReward, rewardBigInt)
 	}
@@ -234,7 +265,7 @@ func (m *mongoDB) LatestBlockHeight(ctx context.Context) (uint64, error) {
 		Skip:  0,
 		Limit: 1,
 	})
-	if err != nil {
+	if err != nil || len(latestBlock) == 0 {
 		return 0, err
 	}
 	return latestBlock[0].Height, nil

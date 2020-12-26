@@ -67,7 +67,6 @@ func (c *Redis) UpdateTokenInfo(ctx context.Context, tokenInfo *types.TokenInfo)
 		}
 	}
 	tokenInfo.ERC20MarketCap = tokenInfo.Price * float64(tokenInfo.ERC20CirculatingSupply)
-	tokenInfo.MainnetMarketCap = tokenInfo.Price * float64(tokenInfo.MainnetCirculatingSupply)
 	data, err := json.Marshal(tokenInfo)
 	if err != nil {
 		return err
@@ -89,7 +88,10 @@ func (c *Redis) TokenInfo(ctx context.Context) (*types.TokenInfo, error) {
 		return nil, err
 	}
 	// get current circulating supply that we updated manually, if exists
-
+	intRewards, _ := c.BlockRewards(ctx)
+	floatRewards, _ := new(big.Float).SetPrec(100).Quo(new(big.Float).SetInt(intRewards), new(big.Float).SetInt(cfg.Hydro)).Float64()
+	tokenInfo.MainnetMarketCap = tokenInfo.Price * (float64(tokenInfo.MainnetCirculatingSupply) + floatRewards)
+	tokenInfo.MainnetCirculatingSupply = tokenInfo.MainnetCirculatingSupply + new(big.Int).Div(intRewards, new(big.Int).Exp(big.NewInt(10), big.NewInt(18), nil)).Int64()
 	return tokenInfo, nil
 }
 

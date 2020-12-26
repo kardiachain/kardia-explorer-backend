@@ -5,7 +5,6 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"io/ioutil"
 	"math"
 	"math/big"
@@ -172,25 +171,14 @@ func (s *infoServer) TokenInfo(ctx context.Context) (*types.TokenInfo, error) {
 
 func (s *infoServer) GetCurrentStats(ctx context.Context) uint64 {
 	stats := s.dbClient.Stats(ctx)
-	fmt.Println("@@@@@@@@@@@@@@@@@ ", stats.UpdatedAtBlock, stats.TotalTransactions, stats.TotalBlockRewards, stats.TotalAddresses, stats.TotalContracts)
+	s.logger.Info("Current stats of network", zap.Uint64("UpdatedAtBlock", stats.UpdatedAtBlock),
+		zap.Uint64("TotalTransactions", stats.TotalTransactions), zap.String("TotalBlockRewards", stats.TotalBlockRewards),
+		zap.Uint64("TotalAddresses", stats.TotalAddresses), zap.Uint64("TotalContracts", stats.TotalContracts))
 	_ = s.cacheClient.SetTotalTxs(ctx, stats.TotalTransactions)
 	_ = s.cacheClient.UpdateTotalHolders(ctx, stats.TotalAddresses, stats.TotalContracts)
 	reward, _ := new(big.Int).SetString(stats.TotalBlockRewards, 10)
 	_ = s.cacheClient.UpdateBlockRewards(ctx, reward)
-	latestBlock, err := s.dbClient.LatestBlockHeight(ctx)
-	if err != nil {
-		return 0
-	}
-	for {
-		if latestBlock%cfg.UpdateStatsInterval == 0 {
-			return latestBlock
-		}
-		latestBlock, err = s.dbClient.DeleteLatestBlock(ctx)
-		if err != nil {
-			return 0
-		}
-		latestBlock--
-	}
+	return stats.UpdatedAtBlock
 }
 
 func (s *infoServer) UpdateCurrentStats(ctx context.Context) error {
@@ -555,7 +543,14 @@ func (s *infoServer) VerifyBlock(ctx context.Context, blockHeight uint64, networ
 
 	if !s.blockVerifier(dbBlock, networkBlock) {
 		s.logger.Warn("Block in database is corrupted, upserting...", zap.Uint64("db numTxs", dbBlock.NumTxs), zap.Uint64("network numTxs", networkBlock.NumTxs), zap.Error(err))
-		// Force dbBlock with new information from network block
+		// Minus network block reward and total txs before re-importing this block
+		totalTxs := s.cacheClient.TotalTxs(ctx)
+		totalTxs -= networkBlock.NumTxs
+		_ = s.cacheClient.SetTotalTxs(ctx, totalTxs)
+		blockRewards, _ := s.cacheClient.BlockRewards(ctx)
+		networkBlockReward, _ := new(big.Int).SetString(networkBlock.Rewards, 10)
+		_ = s.cacheClient.UpdateBlockRewards(ctx, new(big.Int).Sub(blockRewards, networkBlockReward))
+		// Force replace dbBlock with new information from network block
 		startTime := time.Now()
 		if err := s.UpsertBlock(ctx, networkBlock); err != nil {
 			s.logger.Warn("Cannot upsert block", zap.Uint64("height", blockHeight), zap.Error(err))

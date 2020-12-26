@@ -54,6 +54,7 @@ func (ec *Client) GetValidatorInfo(ctx context.Context, valSmcAddr common.Addres
 	valInfo.CommissionRate = rate
 	valInfo.MaxRate = maxRate
 	valInfo.MaxChangeRate = maxChangeRate
+	ec.lgr.Debug("inforValidator validator info", zap.Any("valInfo", valInfo))
 	return &valInfo, nil
 }
 
