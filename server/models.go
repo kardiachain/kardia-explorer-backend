@@ -28,6 +28,11 @@ type SimpleBlock struct {
 	Rewards         string    `json:"rewards"`
 }
 
+type Block struct {
+	types.Block
+	ProposerName string `json:"proposerName"`
+}
+
 type Transactions []SimpleTransaction
 
 type SimpleTransaction struct {

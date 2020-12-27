@@ -359,8 +359,12 @@ func (s *Server) Block(c echo.Context) error {
 			s.Logger.Info("got block by height from cache:", zap.Uint64("blockHeight", blockHeight))
 		}
 	}
-
-	return api.OK.SetData(block).Build(c)
+	smcAddress := s.getValidatorsAddressAndRole(ctx)
+	result := &Block{
+		Block:        *block,
+		ProposerName: smcAddress[block.ProposerAddress].Name,
+	}
+	return api.OK.SetData(result).Build(c)
 }
 
 func (s *Server) PersistentErrorBlocks(c echo.Context) error {
@@ -497,11 +501,26 @@ func (s *Server) BlocksByProposer(c echo.Context) error {
 		s.logger.Debug("Cannot get blocks by proposer from db", zap.Error(err))
 		return api.Invalid.Build(c)
 	}
+	smcAddress := s.getValidatorsAddressAndRole(ctx)
+	var result Blocks
+	for _, block := range blocks {
+		b := SimpleBlock{
+			Height:          block.Height,
+			Time:            block.Time,
+			ProposerAddress: block.ProposerAddress,
+			NumTxs:          block.NumTxs,
+			GasLimit:        block.GasLimit,
+			GasUsed:         block.GasUsed,
+			Rewards:         block.Rewards,
+		}
+		b.ProposerName = smcAddress[b.ProposerAddress].Name
+		result = append(result, b)
+	}
 	return api.OK.SetData(PagingResponse{
 		Page:  page,
 		Limit: limit,
 		Total: total,
-		Data:  blocks,
+		Data:  result,
 	}).Build(c)
 }
 
