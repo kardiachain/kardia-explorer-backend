@@ -490,6 +490,7 @@ func convertValidatorInfo(val *types.Validator, totalStakedAmount *big.Int, stat
 	} else {
 		val.VotingPowerPercentage = "0"
 	}
+	val.SigningInfo.IndicatorRate = 100 - float64(val.SigningInfo.MissedBlockCounter)/100
 	return val, nil
 }
 
