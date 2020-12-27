@@ -282,6 +282,7 @@ func (s *Server) Blocks(c echo.Context) error {
 	for _, block := range blocks {
 		b := SimpleBlock{
 			Height:          block.Height,
+			Hash:            block.Hash,
 			Time:            block.Time,
 			ProposerAddress: block.ProposerAddress,
 			NumTxs:          block.NumTxs,
@@ -503,6 +504,7 @@ func (s *Server) BlocksByProposer(c echo.Context) error {
 	for _, block := range blocks {
 		b := SimpleBlock{
 			Height:          block.Height,
+			Hash:            block.Hash,
 			Time:            block.Time,
 			ProposerAddress: block.ProposerAddress,
 			NumTxs:          block.NumTxs,
