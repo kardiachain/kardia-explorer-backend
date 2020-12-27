@@ -21,6 +21,7 @@ type SimpleBlock struct {
 	Height          uint64    `json:"height,omitempty"`
 	Time            time.Time `json:"time,omitempty"`
 	ProposerAddress string    `json:"proposerAddress,omitempty"`
+	ProposerName    string    `json:"proposerName"`
 	NumTxs          uint64    `json:"numTxs"`
 	GasLimit        uint64    `json:"gasLimit,omitempty"`
 	GasUsed         uint64    `json:"gasUsed"`
