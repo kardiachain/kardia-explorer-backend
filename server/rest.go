@@ -601,6 +601,7 @@ func (s *Server) Addresses(c echo.Context) error {
 			BalanceString: addr.BalanceString,
 			IsContract:    addr.IsContract,
 			Name:          addr.Name,
+			Rank:          addr.Rank,
 		}
 		if smcAddress[addr.Address] != nil {
 			addrInfo.IsInValidatorsList = true
@@ -628,11 +629,20 @@ func (s *Server) AddressInfo(c echo.Context) error {
 			BalanceString: addrInfo.BalanceString,
 			IsContract:    addrInfo.IsContract,
 			Name:          addrInfo.Name,
+			Rank:          addrInfo.Rank,
 		}
 		if smcAddress[result.Address] != nil {
 			result.IsInValidatorsList = true
 			result.Role = smcAddress[result.Address].Role
 			result.Name = smcAddress[result.Address].Name
+		}
+		balance, err := s.kaiClient.GetBalance(ctx, address)
+		if err != nil {
+			return err
+		}
+		if balance != addrInfo.BalanceString {
+			addrInfo.BalanceString = balance
+			_ = s.dbClient.UpdateAddresses(ctx, []*types.Address{addrInfo})
 		}
 		return api.OK.SetData(result).Build(c)
 	}
@@ -677,6 +687,7 @@ func (s *Server) AddressInfo(c echo.Context) error {
 		BalanceString: addrInfo.BalanceString,
 		IsContract:    addrInfo.IsContract,
 		Name:          addrInfo.Name,
+		Rank:          addrInfo.Rank,
 	}).Build(c)
 }
 
