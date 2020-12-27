@@ -33,6 +33,10 @@ type Client interface {
 	dropCollection(collectionName string)
 	dropDatabase(ctx context.Context) error
 
+	// Stats
+	UpdateStats(ctx context.Context, stats *types.Stats) error
+	Stats(ctx context.Context) *types.Stats
+
 	// Block details
 	BlockByHeight(ctx context.Context, blockHeight uint64) (*types.Block, error)
 	BlockByHash(ctx context.Context, blockHash string) (*types.Block, error)
@@ -40,6 +44,7 @@ type Client interface {
 	BlockTxCount(ctx context.Context, hash string) (int64, error)
 
 	// Interact with blocks
+	LatestBlockHeight(ctx context.Context) (uint64, error)
 	Blocks(ctx context.Context, pagination *types.Pagination) ([]*types.Block, error)
 	InsertBlock(ctx context.Context, block *types.Block) error
 	UpsertBlock(ctx context.Context, block *types.Block) error

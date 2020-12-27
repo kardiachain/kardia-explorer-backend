@@ -4,6 +4,7 @@ package cache
 import (
 	"context"
 	"errors"
+	"math/big"
 	"time"
 
 	"github.com/go-redis/redis/v8"
@@ -54,6 +55,7 @@ type Client interface {
 	PopUnverifiedBlockHeight(ctx context.Context) (uint64, error)
 
 	UpdateTotalTxs(ctx context.Context, blockTxs uint64) (uint64, error)
+	SetTotalTxs(ctx context.Context, numTxs uint64) error
 	TotalTxs(ctx context.Context) uint64
 	LatestBlockHeight(ctx context.Context) uint64
 
@@ -65,14 +67,17 @@ type Client interface {
 	TokenInfo(ctx context.Context) (*types.TokenInfo, error)
 	UpdateTokenInfo(ctx context.Context, tokenInfo *types.TokenInfo) error
 
-	CirculatingSupply(ctx context.Context) (int64, error)
-	UpdateCirculatingSupply(ctx context.Context, cirSup int64) error
+	SupplyAmounts(ctx context.Context) (*types.SupplyInfo, error)
+	UpdateSupplyAmounts(ctx context.Context, supplyInfo *types.SupplyInfo) error
 
 	Validators(ctx context.Context) (*types.Validators, error)
 	UpdateValidators(ctx context.Context, validators *types.Validators) error
 
 	NodesInfo(ctx context.Context) ([]*types.NodeInfo, error)
 	UpdateNodesInfo(ctx context.Context, nodes []*types.NodeInfo) error
+
+	BlockRewards(ctx context.Context) (*big.Int, error)
+	UpdateBlockRewards(ctx context.Context, rewards *big.Int) error
 }
 
 func New(cfg Config) (Client, error) {

@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"math/big"
 	"strconv"
 	"time"
 
@@ -21,6 +22,7 @@ const (
 	KeyLatestBlockHeight = "#block#latestHeight"
 
 	KeyBlocks                = "#blocks" // List
+	KeyBlocksRewards         = "#blocks#rewards"
 	KeyBlockHashByHeight     = "#block#height#%s#hash"
 	KeyTxsOfBlockHeight      = "#block#height#%d#txs"
 	KeyErrorBlocks           = "#blocks#error"           // List
@@ -29,8 +31,8 @@ const (
 
 	KeyLatestTxs = "#txs#latest" // List
 
-	KeyTokenInfo         = "#token#info"
-	KeyCirculatingSupply = "#token#circulating"
+	KeyTokenInfo     = "#token#info"
+	KeySupplyAmounts = "#token#supplies"
 
 	KeyTotalTxs       = "#txs#total"
 	KeyTotalHolders   = "#holders#total"
@@ -48,6 +50,23 @@ type Redis struct {
 }
 
 func (c *Redis) UpdateTokenInfo(ctx context.Context, tokenInfo *types.TokenInfo) error {
+	// modify some fields
+	supplyInfo, err := c.SupplyAmounts(ctx)
+	if err == nil && supplyInfo != nil {
+		if supplyInfo.ERC20TotalSupply > 0 {
+			tokenInfo.ERC20TotalSupply = supplyInfo.ERC20TotalSupply
+		}
+		if supplyInfo.ERC20CirculatingSupply > 0 {
+			tokenInfo.ERC20CirculatingSupply = supplyInfo.ERC20CirculatingSupply
+		}
+		if supplyInfo.MainnetTotalSupply > 0 {
+			tokenInfo.MainnetTotalSupply = supplyInfo.MainnetTotalSupply
+		}
+		if supplyInfo.MainnetGenesisAmount > 0 {
+			tokenInfo.MainnetCirculatingSupply = supplyInfo.MainnetGenesisAmount
+		}
+	}
+	tokenInfo.ERC20MarketCap = tokenInfo.Price * float64(tokenInfo.ERC20CirculatingSupply)
 	data, err := json.Marshal(tokenInfo)
 	if err != nil {
 		return err
@@ -69,30 +88,57 @@ func (c *Redis) TokenInfo(ctx context.Context) (*types.TokenInfo, error) {
 		return nil, err
 	}
 	// get current circulating supply that we updated manually, if exists
-	cirSup, err := c.CirculatingSupply(ctx)
-	if err == nil {
-		tokenInfo.CirculatingSupply = cirSup
-	}
+	intRewards, _ := c.BlockRewards(ctx)
+	floatRewards, _ := new(big.Float).SetPrec(100).Quo(new(big.Float).SetInt(intRewards), new(big.Float).SetInt(cfg.Hydro)).Float64()
+	tokenInfo.MainnetMarketCap = tokenInfo.Price * (float64(tokenInfo.MainnetCirculatingSupply) + floatRewards)
+	tokenInfo.MainnetCirculatingSupply = tokenInfo.MainnetCirculatingSupply + new(big.Int).Div(intRewards, new(big.Int).Exp(big.NewInt(10), big.NewInt(18), nil)).Int64()
 	return tokenInfo, nil
 }
 
-func (c *Redis) UpdateCirculatingSupply(ctx context.Context, cirSup int64) error {
-	if _, err := c.client.Set(ctx, KeyCirculatingSupply, strconv.FormatInt(cirSup, 10), 60*time.Minute).Result(); err != nil {
+func (c *Redis) UpdateSupplyAmounts(ctx context.Context, supplyInfo *types.SupplyInfo) error {
+	currentSupplyInfo, err := c.SupplyAmounts(ctx)
+	if err == nil && currentSupplyInfo != nil {
+		if supplyInfo.ERC20TotalSupply > 0 {
+			currentSupplyInfo.ERC20TotalSupply = supplyInfo.ERC20TotalSupply
+		}
+		if supplyInfo.ERC20CirculatingSupply > 0 {
+			currentSupplyInfo.ERC20CirculatingSupply = supplyInfo.ERC20CirculatingSupply
+		}
+		if supplyInfo.MainnetTotalSupply > 0 {
+			currentSupplyInfo.MainnetTotalSupply = supplyInfo.MainnetTotalSupply
+		}
+		if supplyInfo.MainnetGenesisAmount > 0 {
+			currentSupplyInfo.MainnetGenesisAmount = supplyInfo.MainnetGenesisAmount
+		}
+	} else {
+		currentSupplyInfo = supplyInfo
+	}
+	data, err := json.Marshal(currentSupplyInfo)
+	if err != nil {
 		return err
 	}
+	if err := c.client.Set(ctx, KeySupplyAmounts, string(data), 0).Err(); err != nil {
+		return err
+	}
+	// then update token info, base on this new supply info
+	tokenInfo, err := c.TokenInfo(ctx)
+	if err != nil || tokenInfo == nil {
+		return nil
+	}
+	_ = c.UpdateTokenInfo(ctx, tokenInfo)
 	return nil
 }
 
-func (c *Redis) CirculatingSupply(ctx context.Context) (int64, error) {
-	result, err := c.client.Get(ctx, KeyCirculatingSupply).Result()
+func (c *Redis) SupplyAmounts(ctx context.Context) (*types.SupplyInfo, error) {
+	result, err := c.client.Get(ctx, KeySupplyAmounts).Result()
 	if err != nil {
-		return 0, err
+		return nil, err
 	}
-	cirSup, err := strconv.ParseInt(result, 10, 64)
-	if err != nil {
-		return 0, err
+	var supplyInfo *types.SupplyInfo
+	if err := json.Unmarshal([]byte(result), &supplyInfo); err != nil {
+		return nil, err
 	}
-	return cirSup, nil
+	return supplyInfo, nil
 }
 
 func (c *Redis) IsRequestToCoinMarket(ctx context.Context) bool {
@@ -124,6 +170,15 @@ func (c *Redis) UpdateTotalTxs(ctx context.Context, blockTxs uint64) (uint64, er
 		c.logger.Warn("cannot set total txs values")
 	}
 	return totalTxs, nil
+}
+
+func (c *Redis) SetTotalTxs(ctx context.Context, numTxs uint64) error {
+	if err := c.client.Set(ctx, KeyTotalTxs, numTxs, 0).Err(); err != nil {
+		// Handle error here
+		c.logger.Warn("cannot set total txs values", zap.Error(err))
+		return err
+	}
+	return nil
 }
 
 func (c *Redis) LatestBlockHeight(ctx context.Context) uint64 {
@@ -537,6 +592,29 @@ func (c *Redis) UpdateNodesInfo(ctx context.Context, nodes []*types.NodeInfo) er
 	result, err := c.client.Expire(ctx, KeyNodesInfoList, cfg.NodesInfoListExpTime).Result()
 	if err != nil || !result {
 		c.logger.Warn("cannot set nodes info expiration time in cache", zap.Bool("result", result), zap.Error(err))
+		return err
+	}
+	return nil
+}
+
+func (c *Redis) BlockRewards(ctx context.Context) (*big.Int, error) {
+	rewardsStr, err := c.client.Get(ctx, KeyBlocksRewards).Result()
+	if err != nil {
+		c.logger.Warn("cannot get block rewards from cache", zap.Error(err))
+		return nil, err
+	}
+	rewards, _ := new(big.Int).SetString(rewardsStr, 10)
+	return rewards, nil
+}
+
+func (c *Redis) UpdateBlockRewards(ctx context.Context, rewards *big.Int) error {
+	currentRewards, err := c.BlockRewards(ctx)
+	if err != nil {
+		currentRewards = new(big.Int).SetInt64(0)
+	}
+	currentRewards = new(big.Int).Add(currentRewards, rewards)
+	if err := c.client.Set(ctx, KeyBlocksRewards, currentRewards.String(), 0).Err(); err != nil {
+		c.logger.Warn("cannot set block rewards to cache", zap.Error(err))
 		return err
 	}
 	return nil

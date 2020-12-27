@@ -28,6 +28,7 @@ import (
 type InfoServer interface {
 	// API
 	LatestBlockHeight(ctx context.Context) (uint64, error)
+	GetCurrentStats(ctx context.Context) error
 	UpdateCurrentStats(ctx context.Context) error
 
 	// DB
@@ -146,17 +147,20 @@ func (s *infoServer) TokenInfo(ctx context.Context) (*types.TokenInfo, error) {
 
 	// Cast to internal
 	tokenInfo := &types.TokenInfo{
-		Name:              cmData.Name,
-		Symbol:            cmData.Symbol,
-		Decimal:           18,
-		TotalSupply:       cmData.TotalSupply,
-		CirculatingSupply: cmData.CirculatingSupply,
-		Price:             cmQuote.Price,
-		Volume24h:         cmQuote.Volume24h,
-		Change1h:          cmQuote.PercentChange1h,
-		Change24h:         cmQuote.PercentChange24h,
-		Change7d:          cmQuote.PercentChange7d,
-		MarketCap:         cmQuote.MarketCap,
+		Name:                     cmData.Name,
+		Symbol:                   cmData.Symbol,
+		Decimal:                  18,
+		ERC20TotalSupply:         cmData.TotalSupply,
+		ERC20CirculatingSupply:   cmData.CirculatingSupply,
+		MainnetTotalSupply:       0,
+		MainnetCirculatingSupply: 0,
+		Price:                    cmQuote.Price,
+		Volume24h:                cmQuote.Volume24h,
+		Change1h:                 cmQuote.PercentChange1h,
+		Change24h:                cmQuote.PercentChange24h,
+		Change7d:                 cmQuote.PercentChange7d,
+		ERC20MarketCap:           cmQuote.MarketCap,
+		MainnetMarketCap:         0,
 	}
 	if err := s.cacheClient.UpdateTokenInfo(ctx, tokenInfo); err != nil {
 		return nil, err
@@ -165,32 +169,33 @@ func (s *infoServer) TokenInfo(ctx context.Context) (*types.TokenInfo, error) {
 	return tokenInfo, nil
 }
 
+func (s *infoServer) GetCurrentStats(ctx context.Context) uint64 {
+	stats := s.dbClient.Stats(ctx)
+	s.logger.Info("Current stats of network", zap.Uint64("UpdatedAtBlock", stats.UpdatedAtBlock),
+		zap.Uint64("TotalTransactions", stats.TotalTransactions), zap.String("TotalBlockRewards", stats.TotalBlockRewards),
+		zap.Uint64("TotalAddresses", stats.TotalAddresses), zap.Uint64("TotalContracts", stats.TotalContracts))
+	_ = s.cacheClient.SetTotalTxs(ctx, stats.TotalTransactions)
+	_ = s.cacheClient.UpdateTotalHolders(ctx, stats.TotalAddresses, stats.TotalContracts)
+	reward, _ := new(big.Int).SetString(stats.TotalBlockRewards, 10)
+	_ = s.cacheClient.UpdateBlockRewards(ctx, reward)
+	return stats.UpdatedAtBlock
+}
+
 func (s *infoServer) UpdateCurrentStats(ctx context.Context) error {
-	totalAddr, totalContractAddr, err := s.dbClient.GetTotalAddresses(ctx)
+	totalAddrs, totalContracts := s.cacheClient.TotalHolders(ctx)
+	blockRewards, err := s.cacheClient.BlockRewards(ctx)
 	if err != nil {
 		return err
 	}
-	txsCount, err := s.dbClient.TxsCount(ctx)
-	if err != nil {
-		return err
+	stats := &types.Stats{
+		UpdatedAt:         time.Now(),
+		UpdatedAtBlock:    s.cacheClient.LatestBlockHeight(ctx),
+		TotalTransactions: s.cacheClient.TotalTxs(ctx),
+		TotalBlockRewards: blockRewards.String(),
+		TotalAddresses:    totalAddrs,
+		TotalContracts:    totalContracts,
 	}
-	_, err = s.cacheClient.UpdateTotalTxs(ctx, txsCount)
-	if err != nil {
-		return err
-	}
-	err = s.cacheClient.UpdateTotalHolders(ctx, totalAddr, totalContractAddr)
-	if err != nil {
-		return err
-	}
-	vals, err := s.kaiClient.Validators(ctx)
-	if err != nil {
-		return err
-	}
-	err = s.cacheClient.UpdateValidators(ctx, vals)
-	if err != nil {
-		return err
-	}
-	return nil
+	return s.dbClient.UpdateStats(ctx, stats)
 }
 
 // BlockByHash return block by its hash
@@ -304,6 +309,10 @@ func (s *infoServer) ImportBlock(ctx context.Context, block *types.Block, writeT
 	s.logger.Debug("Total time for getting active addresses", zap.Duration("TimeConsumed", time.Since(startTime)))
 
 	if _, err := s.cacheClient.UpdateTotalTxs(ctx, block.NumTxs); err != nil {
+		return err
+	}
+	rewards, _ := new(big.Int).SetString(block.Rewards, 10)
+	if err := s.cacheClient.UpdateBlockRewards(ctx, rewards); err != nil {
 		return err
 	}
 	return nil
@@ -534,7 +543,14 @@ func (s *infoServer) VerifyBlock(ctx context.Context, blockHeight uint64, networ
 
 	if !s.blockVerifier(dbBlock, networkBlock) {
 		s.logger.Warn("Block in database is corrupted, upserting...", zap.Uint64("db numTxs", dbBlock.NumTxs), zap.Uint64("network numTxs", networkBlock.NumTxs), zap.Error(err))
-		// Force dbBlock with new information from network block
+		// Minus network block reward and total txs before re-importing this block
+		totalTxs := s.cacheClient.TotalTxs(ctx)
+		totalTxs -= networkBlock.NumTxs
+		_ = s.cacheClient.SetTotalTxs(ctx, totalTxs)
+		blockRewards, _ := s.cacheClient.BlockRewards(ctx)
+		networkBlockReward, _ := new(big.Int).SetString(networkBlock.Rewards, 10)
+		_ = s.cacheClient.UpdateBlockRewards(ctx, new(big.Int).Sub(blockRewards, networkBlockReward))
+		// Force replace dbBlock with new information from network block
 		startTime := time.Now()
 		if err := s.UpsertBlock(ctx, networkBlock); err != nil {
 			s.logger.Warn("Cannot upsert block", zap.Uint64("height", blockHeight), zap.Error(err))
