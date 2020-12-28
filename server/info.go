@@ -176,7 +176,11 @@ func (s *infoServer) GetCurrentStats(ctx context.Context) uint64 {
 	_ = s.cacheClient.UpdateTotalHolders(ctx, stats.TotalAddresses, stats.TotalContracts)
 	reward, _ := new(big.Int).SetString(stats.TotalBlockRewards, 10)
 	_ = s.cacheClient.UpdateBlockRewards(ctx, reward)
-	_, _ = s.kaiClient.Validators(ctx)
+	vals, _ := s.kaiClient.Validators(ctx)
+	_ = s.cacheClient.UpdateValidators(ctx, vals)
+	for _, val := range vals.Validators {
+		cfg.GenesisAddresses = append(cfg.GenesisAddresses, val.SmcAddress.String())
+	}
 	for _, addr := range cfg.GenesisAddresses {
 		balance, _ := s.kaiClient.GetBalance(ctx, addr)
 		balanceInBigInt, _ := new(big.Int).SetString(balance, 10)
