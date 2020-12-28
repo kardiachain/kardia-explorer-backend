@@ -608,6 +608,15 @@ func (s *Server) Addresses(c echo.Context) error {
 			addrInfo.Role = smcAddress[addr.Address].Role
 			addrInfo.Name = smcAddress[addr.Address].Name
 		}
+		// double check with balance from RPC
+		balance, err := s.kaiClient.GetBalance(ctx, addr.Address)
+		if err != nil {
+			return err
+		}
+		if balance != addr.BalanceString {
+			addr.BalanceString = balance
+			_ = s.dbClient.UpdateAddresses(ctx, []*types.Address{addr})
+		}
 		result = append(result, addrInfo)
 	}
 	return api.OK.SetData(PagingResponse{
