@@ -150,17 +150,15 @@ func (s *infoServer) TokenInfo(ctx context.Context) (*types.TokenInfo, error) {
 		Name:                     cmData.Name,
 		Symbol:                   cmData.Symbol,
 		Decimal:                  18,
-		ERC20TotalSupply:         cmData.TotalSupply,
+		TotalSupply:              cmData.TotalSupply,
 		ERC20CirculatingSupply:   cmData.CirculatingSupply,
-		MainnetTotalSupply:       0,
 		MainnetCirculatingSupply: 0,
 		Price:                    cmQuote.Price,
 		Volume24h:                cmQuote.Volume24h,
 		Change1h:                 cmQuote.PercentChange1h,
 		Change24h:                cmQuote.PercentChange24h,
 		Change7d:                 cmQuote.PercentChange7d,
-		ERC20MarketCap:           cmQuote.MarketCap,
-		MainnetMarketCap:         0,
+		MarketCap:                cmQuote.MarketCap,
 	}
 	if err := s.cacheClient.UpdateTokenInfo(ctx, tokenInfo); err != nil {
 		return nil, err
@@ -289,8 +287,8 @@ func (s *infoServer) ImportBlock(ctx context.Context, block *types.Block, writeT
 
 	// update active addresses
 	startTime = time.Now()
-	addrsList := filterAddrSet(block.Txs)
-	addrsList = s.getAddressBalances(ctx, addrsList)
+	addrsMap := filterAddrSet(block.Txs)
+	addrsList := s.getAddressBalances(ctx, addrsMap)
 	if err := s.dbClient.UpdateAddresses(ctx, addrsList); err != nil {
 		return err
 	}
@@ -396,7 +394,7 @@ func (s *infoServer) ImportReceipts(ctx context.Context, block *types.Block) err
 		txByToAdd   *types.TransactionByAddress
 	}
 	results := make(chan response, block.NumTxs)
-	addresses := make(map[string]*types.Address)
+	var addresses []*types.Address
 
 	//todo @longnd: Move this workers to config or dynamic settings
 	for w := 0; w <= 10; w++ {
@@ -432,9 +430,9 @@ func (s *infoServer) ImportReceipts(ctx context.Context, block *types.Block) err
 				}
 
 				if address == nil || address.IsContract {
-					for _, l := range receipt.Logs {
-						addresses[l.Address] = nil
-					}
+					//for _, l := range receipt.Logs {
+					//	addresses[l.Address] = nil
+					//}
 					if err := s.dbClient.UpdateAddresses(ctx, addresses); err != nil {
 						//todo: consider how we handle this err, just skip it now
 						s.logger.Warn("cannot update active address")
@@ -600,9 +598,9 @@ func filterAddrSet(txs []*types.Transaction) map[string]*types.Address {
 }
 
 // TODO(trinhdn): need to use workers instead
-func (s *infoServer) getAddressBalances(ctx context.Context, addrs map[string]*types.Address) map[string]*types.Address {
+func (s *infoServer) getAddressBalances(ctx context.Context, addrs map[string]*types.Address) []*types.Address {
 	if addrs == nil || len(addrs) == 0 {
-		return map[string]*types.Address{}
+		return nil
 	}
 	vals, err := s.cacheClient.Validators(ctx)
 	if err != nil {
@@ -617,8 +615,8 @@ func (s *infoServer) getAddressBalances(ctx context.Context, addrs map[string]*t
 	addressesName[cfg.StakingContractAddr] = cfg.StakingContractName
 
 	var (
-		code   common.Bytes
-		result = map[string]*types.Address{}
+		code     common.Bytes
+		addrsMap = map[string]*types.Address{}
 	)
 	for addr := range addrs {
 		addressInfo := &types.Address{
@@ -640,7 +638,11 @@ func (s *infoServer) getAddressBalances(ctx context.Context, addrs map[string]*t
 		if addressesName[addr] != "" {
 			addressInfo.Name = addressesName[addr]
 		}
-		result[addr] = addressInfo
+		addrsMap[addr] = addressInfo
+	}
+	var result []*types.Address
+	for _, info := range addrsMap {
+		result = append(result, info)
 	}
 	return result
 }

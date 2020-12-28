@@ -95,6 +95,7 @@ type SimpleAddress struct {
 	Name               string `json:"name"`
 	IsInValidatorsList bool   `json:"isInValidatorsList"`
 	Role               int    `json:"role"`
+	Rank               uint64 `json:"rank"`
 }
 
 type valInfoResponse struct {

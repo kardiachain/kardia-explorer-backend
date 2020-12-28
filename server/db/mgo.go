@@ -708,14 +708,14 @@ func (m *mongoDB) OwnedTokensOfAddress(ctx context.Context, walletAddress string
 
 // UpdateAddresses update last time those addresses active
 // Just skip for now
-func (m *mongoDB) UpdateAddresses(ctx context.Context, addresses map[string]*types.Address) error {
+func (m *mongoDB) UpdateAddresses(ctx context.Context, addresses []*types.Address) error {
 	if addresses == nil || len(addresses) == 0 {
 		return nil
 	}
 	var updateAddressOperations []mongo.WriteModel
-	for addr, info := range addresses {
+	for _, info := range addresses {
 		updateAddressOperations = append(updateAddressOperations,
-			mongo.NewUpdateOneModel().SetUpsert(true).SetFilter(bson.M{"address": addr}).SetUpdate(bson.M{"$set": info}))
+			mongo.NewUpdateOneModel().SetUpsert(true).SetFilter(bson.M{"address": info.Address}).SetUpdate(bson.M{"$set": info}))
 	}
 	if _, err := m.wrapper.C(cAddresses).BulkWrite(updateAddressOperations); err != nil {
 		return err
@@ -743,7 +743,10 @@ func (m *mongoDB) GetListAddresses(ctx context.Context, sortDirection int, pagin
 		options.Find().SetLimit(int64(pagination.Limit)),
 	}
 
-	var addrs []*types.Address
+	var (
+		rank  = uint64(pagination.Skip + 1)
+		addrs []*types.Address
+	)
 	cursor, err := m.wrapper.C(cAddresses).Find(bson.D{}, opts...)
 	if err != nil {
 		return nil, err
@@ -759,7 +762,9 @@ func (m *mongoDB) GetListAddresses(ctx context.Context, sortDirection int, pagin
 		if err := cursor.Decode(&addr); err != nil {
 			return nil, err
 		}
+		addr.Rank = rank
 		addrs = append(addrs, addr)
+		rank++
 	}
 
 	return addrs, nil

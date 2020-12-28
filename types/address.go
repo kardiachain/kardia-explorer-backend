@@ -2,6 +2,7 @@ package types
 
 type Address struct {
 	Address       string  `json:"address" bson:"address"`
+	Rank          uint64  `json:"rank"`
 	BalanceFloat  float64 `json:"-" bson:"balanceFloat"`        // low precise balance for sorting purposes
 	BalanceString string  `json:"balance" bson:"balanceString"` // high precise balance for API
 	Name          string  `json:"name" bson:"name"`             // alias of an address

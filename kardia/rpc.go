@@ -237,7 +237,7 @@ func (ec *Client) GetBalance(ctx context.Context, account string) (string, error
 		result string
 		err    error
 	)
-	err = ec.defaultClient.c.CallContext(ctx, &result, "account_balance", common.HexToAddress(account), "latest")
+	err = ec.chooseClient().c.CallContext(ctx, &result, "account_balance", common.HexToAddress(account), "latest")
 	return result, err
 }
 
