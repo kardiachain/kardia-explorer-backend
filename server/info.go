@@ -176,6 +176,28 @@ func (s *infoServer) GetCurrentStats(ctx context.Context) uint64 {
 	_ = s.cacheClient.UpdateTotalHolders(ctx, stats.TotalAddresses, stats.TotalContracts)
 	reward, _ := new(big.Int).SetString(stats.TotalBlockRewards, 10)
 	_ = s.cacheClient.UpdateBlockRewards(ctx, reward)
+	vals, _ := s.kaiClient.Validators(ctx)
+	_ = s.cacheClient.UpdateValidators(ctx, vals)
+	for _, val := range vals.Validators {
+		cfg.GenesisAddresses = append(cfg.GenesisAddresses, val.SmcAddress.String())
+	}
+	for _, addr := range cfg.GenesisAddresses {
+		balance, _ := s.kaiClient.GetBalance(ctx, addr)
+		balanceInBigInt, _ := new(big.Int).SetString(balance, 10)
+		balanceFloat, _ := new(big.Float).SetPrec(100).Quo(new(big.Float).SetInt(balanceInBigInt), new(big.Float).SetInt(cfg.Hydro)).Float64() //converting to KAI from HYDRO
+		addrInfo := &types.Address{
+			Address:       addr,
+			BalanceFloat:  balanceFloat,
+			BalanceString: balance,
+			IsContract:    false,
+		}
+		code, _ := s.kaiClient.GetCode(ctx, addr)
+		if len(code) > 0 {
+			addrInfo.IsContract = true
+		}
+		// write this address to db
+		_ = s.dbClient.InsertAddress(ctx, addrInfo)
+	}
 	return stats.UpdatedAtBlock
 }
 
