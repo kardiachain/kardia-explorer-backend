@@ -638,7 +638,6 @@ func (s *Server) AddressInfo(c echo.Context) error {
 			BalanceString: addrInfo.BalanceString,
 			IsContract:    addrInfo.IsContract,
 			Name:          addrInfo.Name,
-			Rank:          addrInfo.Rank,
 		}
 		if smcAddress[result.Address] != nil {
 			result.IsInValidatorsList = true
@@ -675,29 +674,19 @@ func (s *Server) AddressInfo(c echo.Context) error {
 	}
 	// write this address to db if its balance is larger than 0 or it's a SMC
 	if balance != "0" || addrInfo.IsContract {
-		// update name of this address
-		vals, err := s.cacheClient.Validators(ctx)
-		if err != nil {
-			vals = &types.Validators{
-				Validators: []*types.Validator{},
-			}
-		}
-		cmnAddress := common.HexToAddress(address)
-		for _, val := range vals.Validators {
-			if val.SmcAddress.Equal(cmnAddress) {
-				addrInfo.Name = val.Name
-				break
-			}
-		}
 		_ = s.dbClient.InsertAddress(ctx, addrInfo) // insert this address to database
 	}
-	return api.OK.SetData(SimpleAddress{
+	result := &SimpleAddress{
 		Address:       addrInfo.Address,
 		BalanceString: addrInfo.BalanceString,
 		IsContract:    addrInfo.IsContract,
-		Name:          addrInfo.Name,
-		Rank:          addrInfo.Rank,
-	}).Build(c)
+	}
+	if smcAddress[result.Address] != nil {
+		result.IsInValidatorsList = true
+		result.Role = smcAddress[result.Address].Role
+		result.Name = smcAddress[result.Address].Name
+	}
+	return api.OK.SetData(result).Build(c)
 }
 
 func (s *Server) AddressTxs(c echo.Context) error {
