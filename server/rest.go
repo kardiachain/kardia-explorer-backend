@@ -499,7 +499,21 @@ func (s *Server) BlocksByProposer(c echo.Context) error {
 		s.logger.Debug("Cannot get blocks by proposer from db", zap.Error(err))
 		return api.Invalid.Build(c)
 	}
-	smcAddress := s.getValidatorsAddressAndRole(ctx)
+	vals, err := s.kaiClient.Validators(ctx)
+	if err != nil {
+		vals, err = s.getValidatorsList(ctx)
+		if err != nil {
+			vals = nil
+		}
+	}
+
+	smcAddress := map[string]*valInfoResponse{}
+	for _, v := range vals.Validators {
+		smcAddress[v.Address.String()] = &valInfoResponse{
+			Name: v.Name,
+			Role: v.Role,
+		}
+	}
 	var result Blocks
 	for _, block := range blocks {
 		b := SimpleBlock{
@@ -922,10 +936,6 @@ func (s *Server) getValidatorsAddressAndRole(ctx context.Context) map[string]*va
 	smcAddress := map[string]*valInfoResponse{}
 	for _, v := range vals.Validators {
 		smcAddress[v.SmcAddress.String()] = &valInfoResponse{
-			Name: v.Name,
-			Role: v.Role,
-		}
-		smcAddress[v.Address.String()] = &valInfoResponse{
 			Name: v.Name,
 			Role: v.Role,
 		}
