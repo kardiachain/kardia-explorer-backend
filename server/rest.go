@@ -277,7 +277,21 @@ func (s *Server) Blocks(c echo.Context) error {
 		s.logger.Debug("Got latest blocks from cache")
 	}
 
-	smcAddress := s.getValidatorsAddressAndRole(ctx)
+	vals, err := s.kaiClient.Validators(ctx)
+	if err != nil {
+		vals, err = s.getValidatorsList(ctx)
+		if err != nil {
+			vals = nil
+		}
+	}
+
+	smcAddress := map[string]*valInfoResponse{}
+	for _, v := range vals.Validators {
+		smcAddress[v.Address.String()] = &valInfoResponse{
+			Name: v.Name,
+			Role: v.Role,
+		}
+	}
 	var result Blocks
 	for _, block := range blocks {
 		b := SimpleBlock{
