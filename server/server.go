@@ -37,7 +37,6 @@ type Config struct {
 	MinConn        int
 	MaxConn        int
 
-	KardiaProtocol     kardia.Protocol
 	KardiaURLs         []string
 	KardiaTrustedNodes []string
 

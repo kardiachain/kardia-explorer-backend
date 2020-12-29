@@ -29,17 +29,13 @@ import (
 type EchoServer interface {
 	// General
 	Ping(c echo.Context) error
-	Info(c echo.Context) error
 	Stats(c echo.Context) error
 	TotalHolders(c echo.Context) error
 
 	// Info
 	TokenInfo(c echo.Context) error
 	UpdateSupplyAmounts(c echo.Context) error
-
-	// Chart
-	TPS(c echo.Context) error
-	BlockTime(c echo.Context) error
+	Nodes(c echo.Context) error
 
 	// Staking-related
 	ValidatorStats(c echo.Context) error
@@ -52,7 +48,6 @@ type EchoServer interface {
 	// Blocks
 	Blocks(c echo.Context) error
 	Block(c echo.Context) error
-	BlockExist(c echo.Context) error
 	BlockTxs(c echo.Context) error
 	BlocksByProposer(c echo.Context) error
 	PersistentErrorBlocks(c echo.Context) error
@@ -62,22 +57,10 @@ type EchoServer interface {
 	AddressInfo(c echo.Context) error
 	AddressTxs(c echo.Context) error
 	AddressHolders(c echo.Context) error
-	AddressOwnedTokens(c echo.Context) error
-	AddressInternalTxs(c echo.Context) error
-	AddressContract(c echo.Context) error
-	AddressTxByNonce(c echo.Context) error
-	AddressTxHashByNonce(c echo.Context) error
 
 	// Tx
 	Txs(c echo.Context) error
 	TxByHash(c echo.Context) error
-	TxExist(c echo.Context) error
-
-	// Contracts
-	Contracts(c echo.Context) error
-
-	// Info
-	Nodes(c echo.Context) error
 }
 
 type restDefinition struct {
@@ -93,12 +76,6 @@ func bind(gr *echo.Group, srv EchoServer) {
 			method:      echo.GET,
 			path:        "/ping",
 			fn:          srv.Ping,
-			middlewares: nil,
-		},
-		{
-			method:      echo.GET,
-			path:        "/info",
-			fn:          srv.Info,
 			middlewares: nil,
 		},
 		{

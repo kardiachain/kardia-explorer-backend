@@ -24,10 +24,6 @@ func (s *Server) Ping(c echo.Context) error {
 	return api.OK.Build(c)
 }
 
-func (s *Server) Info(c echo.Context) error {
-	return api.OK.Build(c)
-}
-
 func (s *Server) Stats(c echo.Context) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancel()
@@ -134,10 +130,6 @@ func (s *Server) UpdateSupplyAmounts(c echo.Context) error {
 	if err := s.cacheClient.UpdateSupplyAmounts(ctx, supplyInfo); err != nil {
 		return api.Invalid.Build(c)
 	}
-	return api.OK.Build(c)
-}
-
-func (s *Server) TPS(c echo.Context) error {
 	return api.OK.Build(c)
 }
 
@@ -412,10 +404,6 @@ func (s *Server) PersistentErrorBlocks(c echo.Context) error {
 		return api.Invalid.Build(c)
 	}
 	return api.OK.SetData(heights).Build(c)
-}
-
-func (s *Server) BlockExist(c echo.Context) error {
-	return api.OK.Build(c)
 }
 
 func (s *Server) BlockTxs(c echo.Context) error {
@@ -824,27 +812,6 @@ func (s *Server) AddressHolders(c echo.Context) error {
 	}).Build(c)
 }
 
-func (s *Server) AddressOwnedTokens(c echo.Context) error {
-	return api.OK.Build(c)
-}
-
-// AddressInternal
-func (s *Server) AddressInternalTxs(c echo.Context) error {
-	return api.OK.Build(c)
-}
-
-func (s *Server) AddressContract(c echo.Context) error {
-	return api.OK.Build(c)
-}
-
-func (s *Server) AddressTxByNonce(c echo.Context) error {
-	return api.OK.Build(c)
-}
-
-func (s *Server) AddressTxHashByNonce(c echo.Context) error {
-	return api.OK.Build(c)
-}
-
 func (s *Server) TxByHash(c echo.Context) error {
 	ctx := context.Background()
 	txHash := c.Param("txHash")
@@ -917,18 +884,6 @@ func (s *Server) TxByHash(c echo.Context) error {
 	}
 
 	return api.OK.SetData(result).Build(c)
-}
-
-func (s *Server) TxExist(c echo.Context) error {
-	return api.OK.Build(c)
-}
-
-func (s *Server) Contracts(c echo.Context) error {
-	return api.OK.Build(c)
-}
-
-func (s *Server) BlockTime(c echo.Context) error {
-	panic("implement me")
 }
 
 func (s *Server) getValidatorsList(ctx context.Context) (*types.Validators, error) {

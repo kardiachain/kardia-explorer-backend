@@ -7,7 +7,6 @@ import (
 
 	"github.com/kardiachain/explorer-backend/api"
 	"github.com/kardiachain/explorer-backend/cfg"
-	"github.com/kardiachain/explorer-backend/kardia"
 	"github.com/kardiachain/explorer-backend/server"
 	"github.com/kardiachain/explorer-backend/server/cache"
 	"github.com/kardiachain/explorer-backend/server/db"
@@ -44,7 +43,6 @@ func main() {
 		StorageDB:      serviceCfg.StorageDB,
 		StorageIsFlush: serviceCfg.StorageIsFlush,
 
-		KardiaProtocol:     kardia.Protocol(serviceCfg.KardiaProtocol),
 		KardiaURLs:         serviceCfg.KardiaURLs,
 		KardiaTrustedNodes: serviceCfg.KardiaTrustedNodes,
 
