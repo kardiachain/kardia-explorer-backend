@@ -103,10 +103,7 @@ func TestRedis_BlockByHash(t *testing.T) {
 	ctx := context.Background()
 
 	// insert test data
-	getBlockSetup(ctx, r.client)
-	if err != nil {
-		t.Fatalf("cannot store test data to redis")
-	}
+	_ = getBlockSetup(ctx, r.client)
 
 	tests := []struct {
 		name    string
