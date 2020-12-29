@@ -177,6 +177,7 @@ func (s *infoServer) GetCurrentStats(ctx context.Context) uint64 {
 	_ = s.cacheClient.UpdateTotalHolders(ctx, stats.TotalAddresses, stats.TotalContracts)
 	cfg.GenesisAddresses = append(cfg.GenesisAddresses, cfg.TreasuryContractAddr)
 	cfg.GenesisAddresses = append(cfg.GenesisAddresses, cfg.StakingContractAddr)
+	cfg.GenesisAddresses = append(cfg.GenesisAddresses, cfg.KardiaDeployerAddr)
 	vals, _ := s.kaiClient.Validators(ctx)
 	_ = s.cacheClient.UpdateValidators(ctx, vals)
 	for _, val := range vals.Validators {

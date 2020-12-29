@@ -482,6 +482,9 @@ func (s *Server) BlockTxs(c echo.Context) error {
 		if tx.To == cfg.TreasuryContractAddr {
 			t.ToName = cfg.TreasuryContractName
 		}
+		if tx.To == cfg.KardiaDeployerAddr {
+			t.ToName = cfg.KardiaDeployerName
+		}
 		result = append(result, t)
 	}
 
@@ -582,6 +585,9 @@ func (s *Server) Txs(c echo.Context) error {
 		if tx.To == cfg.TreasuryContractAddr {
 			t.ToName = cfg.TreasuryContractName
 		}
+		if tx.To == cfg.KardiaDeployerAddr {
+			t.ToName = cfg.KardiaDeployerName
+		}
 		result = append(result, t)
 	}
 
@@ -627,6 +633,9 @@ func (s *Server) Addresses(c echo.Context) error {
 		if addr.Address == cfg.StakingContractAddr {
 			addrInfo.Name = cfg.StakingContractName
 		}
+		if addr.Address == cfg.KardiaDeployerAddr {
+			addrInfo.Name = cfg.KardiaDeployerName
+		}
 		// double check with balance from RPC
 		balance, err := s.kaiClient.GetBalance(ctx, addr.Address)
 		if err != nil {
@@ -668,6 +677,9 @@ func (s *Server) AddressInfo(c echo.Context) error {
 		}
 		if result.Address == cfg.StakingContractAddr {
 			result.Name = cfg.StakingContractName
+		}
+		if result.Address == cfg.KardiaDeployerAddr {
+			result.Name = cfg.KardiaDeployerName
 		}
 		balance, err := s.kaiClient.GetBalance(ctx, address)
 		if err != nil {
@@ -750,6 +762,9 @@ func (s *Server) AddressTxs(c echo.Context) error {
 		}
 		if tx.To == cfg.TreasuryContractAddr {
 			t.ToName = cfg.TreasuryContractName
+		}
+		if tx.To == cfg.KardiaDeployerAddr {
+			t.ToName = cfg.KardiaDeployerName
 		}
 		result = append(result, t)
 	}
@@ -858,6 +873,10 @@ func (s *Server) TxByHash(c echo.Context) error {
 	}
 	if result.To == cfg.TreasuryContractAddr {
 		result.ToName = cfg.TreasuryContractName
+		return api.OK.SetData(result).Build(c)
+	}
+	if tx.To == cfg.KardiaDeployerAddr {
+		result.ToName = cfg.KardiaDeployerName
 		return api.OK.SetData(result).Build(c)
 	}
 	smcAddress := s.getValidatorsAddressAndRole(ctx)
