@@ -148,7 +148,6 @@ func (c *Redis) UpdateTotalTxs(ctx context.Context, blockTxs uint64) (uint64, er
 	totalTxs += blockTxs
 
 	if err := c.client.Set(ctx, KeyTotalTxs, totalTxs, 0).Err(); err != nil {
-		// Handle error here
 		c.logger.Warn("cannot set total txs values")
 	}
 	return totalTxs, nil
@@ -156,7 +155,6 @@ func (c *Redis) UpdateTotalTxs(ctx context.Context, blockTxs uint64) (uint64, er
 
 func (c *Redis) SetTotalTxs(ctx context.Context, numTxs uint64) error {
 	if err := c.client.Set(ctx, KeyTotalTxs, numTxs, 0).Err(); err != nil {
-		// Handle error here
 		c.logger.Warn("cannot set total txs values", zap.Error(err))
 		return err
 	}
@@ -196,12 +194,10 @@ func (c *Redis) InsertTxsOfBlock(ctx context.Context, block *types.Block) error 
 	for _, tx := range block.Txs {
 		txStr, err := json.Marshal(tx)
 		if err != nil {
-			c.logger.Debug("cannot marshal txs arr to string")
 			return err
 		}
 		_, err = c.client.LPush(ctx, keyTxsOfThisBlock, txStr).Result()
 		if err != nil {
-			c.logger.Debug("cannot insert txs")
 			return err
 		}
 		// check if we need to pop old tx from latest transaction list due to max size exceeded
@@ -223,11 +219,8 @@ func (c *Redis) InsertTxsOfBlock(ctx context.Context, block *types.Block) error 
 		c.logger.Warn("cannot set txs of block expiration time in cache", zap.Bool("result", result), zap.Error(err))
 		return err
 	}
-	return nil
-}
 
-func (c *Redis) TxByHash(ctx context.Context, txHash string) (*types.Transaction, error) {
-	panic("implement me")
+	return nil
 }
 
 // ImportBlock cache follow step:
@@ -236,7 +229,6 @@ func (c *Redis) TxByHash(ctx context.Context, txHash string) (*types.Transaction
 func (c *Redis) InsertBlock(ctx context.Context, block *types.Block) error {
 	size, err := c.client.LLen(ctx, KeyBlocks).Result()
 	if err != nil {
-		c.logger.Warn("cannot get size of #blocks", zap.Error(err))
 		return err
 	}
 	// Size over buffer then
@@ -244,18 +236,15 @@ func (c *Redis) InsertBlock(ctx context.Context, block *types.Block) error {
 		// Get last
 		var blockStr string
 		if err := c.client.RPop(ctx, KeyBlocks).Scan(&blockStr); err != nil {
-			c.logger.Debug("cannot pop last element", zap.Error(err))
 			return err
 		}
 
 		var block types.Block
 		if err := json.Unmarshal([]byte(blockStr), &block); err != nil {
-			c.logger.Debug("cannot marshal block from cache to object", zap.Error(err))
 			return err
 		}
 
 		if err := c.deleteKeysOfBlock(ctx, &block); err != nil {
-			c.logger.Debug("cannot delete txs of block", zap.Error(err))
 			return err
 		}
 	}
@@ -274,16 +263,13 @@ func (c *Redis) InsertBlock(ctx context.Context, block *types.Block) error {
 	// Push to top
 	_, err = c.client.LPush(ctx, KeyBlocks, blockJSON).Result()
 	if err != nil {
-		c.logger.Debug("Error pushing new block", zap.Error(err))
 		return err
 	}
 	keyBlockHashByHeight := fmt.Sprintf(KeyBlockHashByHeight, block.Hash)
 	if err := c.client.Set(ctx, keyBlockHashByHeight, block.Height, cfg.BlockInfoExpTime).Err(); err != nil {
-		c.logger.Debug("Error set block height by hash", zap.Error(err))
 		return err
 	}
 	if err := c.client.Set(ctx, KeyLatestBlockHeight, block.Height, 0).Err(); err != nil {
-		c.logger.Debug("Error set latest block height", zap.Error(err))
 		return err
 	}
 
@@ -311,7 +297,6 @@ func (c *Redis) TxsByBlockHash(ctx context.Context, blockHash string, pagination
 func (c *Redis) TxsByBlockHeight(ctx context.Context, blockHeight uint64, pagination *types.Pagination) ([]*types.Transaction, uint64, error) {
 	keyTxsOfThisBlock := fmt.Sprintf(KeyTxsOfBlockHeight, blockHeight)
 	length, err := c.client.LLen(ctx, keyTxsOfThisBlock).Result()
-	c.logger.Info("TxsByBlockHeight ", zap.String("keyTxsOfThisBlock", keyTxsOfThisBlock), zap.Int64("length", length), zap.Error(err))
 	if err != nil || length == 0 {
 		return nil, 0, errors.New("block is not exist in cache")
 	}
@@ -529,7 +514,6 @@ func (c *Redis) deleteKeysOfBlock(ctx context.Context, block *types.Block) error
 		fmt.Sprintf(KeyTxsOfBlockHeight, block.Height),
 	}
 	if _, err := c.client.Del(ctx, keys...).Result(); err != nil {
-		c.logger.Debug("cannot delete keys", zap.Strings("Keys", keys))
 		return err
 	}
 	return nil

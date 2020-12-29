@@ -221,7 +221,6 @@ func (s *infoServer) BlockByHash(ctx context.Context, hash string) (*types.Block
 	if err == nil {
 		return cacheBlock, nil
 	}
-	lgr.Debug("cannot find block in cache", zap.Error(err))
 
 	dbBlock, err := s.dbClient.BlockByHash(ctx, hash)
 	if err == nil {
@@ -240,14 +239,13 @@ func (s *infoServer) BlockByHeight(ctx context.Context, blockHeight uint64) (*ty
 	if err == nil {
 		return cacheBlock, nil
 	}
-	lgr.Debug("cannot find block in cache")
 
 	dbBlock, err := s.dbClient.BlockByHeight(ctx, blockHeight)
 	if err == nil {
 		return dbBlock, nil
 	}
 	// Something wrong or we stay behind the network
-	lgr.Debug("cannot find block in db")
+	lgr.Warn("cannot find block by height in db", zap.Uint64("Height", blockHeight))
 
 	return s.kaiClient.BlockByHeight(ctx, blockHeight)
 }
@@ -276,12 +274,8 @@ func (s *infoServer) ImportBlock(ctx context.Context, block *types.Block, writeT
 	block.Txs = s.mergeAdditionalInfoToTxs(block.Txs, block.Receipts)
 
 	// Start import block
-	// consider new routine here
-	// todo: add metrics
-	// todo @longnd: Use redis or leveldb as mem-write buffer for N blocks
 	startTime := time.Now()
 	if err := s.dbClient.InsertBlock(ctx, block); err != nil {
-		s.logger.Debug("cannot import block to db", zap.Error(err))
 		return err
 	}
 	endTime := time.Since(startTime)
@@ -290,7 +284,6 @@ func (s *infoServer) ImportBlock(ctx context.Context, block *types.Block, writeT
 
 	if writeToCache {
 		if err := s.cacheClient.InsertTxsOfBlock(ctx, block); err != nil {
-			s.logger.Debug("cannot import txs to cache", zap.Error(err))
 			return err
 		}
 	}
@@ -410,15 +403,12 @@ func (s *infoServer) ImportReceipts(ctx context.Context, block *types.Block) err
 	results := make(chan response, block.NumTxs)
 	var addresses []*types.Address
 
-	//todo @longnd: Move this workers to config or dynamic settings
 	for w := 0; w <= 10; w++ {
 		go func(jobs <-chan types.Transaction, results chan<- response) {
 			for tx := range jobs {
-				//s.logger.Debug("Start worker", zap.Any("TX", tx))
 				receipt, err := s.kaiClient.GetTransactionReceipt(ctx, tx.Hash)
 				if err != nil {
 					s.logger.Warn("get receipt err", zap.String("tx hash", tx.Hash), zap.Error(err))
-					//todo: consider how we handle this err, just skip it now
 					results <- response{
 						err: err,
 					}
@@ -435,7 +425,6 @@ func (s *infoServer) ImportReceipts(ctx context.Context, block *types.Block) err
 
 				address, err := s.dbClient.AddressByHash(ctx, toAddress)
 				if err != nil {
-					//todo: consider how we handle this err, just skip it now
 					s.logger.Warn("cannot get address by hash")
 					results <- response{
 						err: err,
@@ -444,12 +433,7 @@ func (s *infoServer) ImportReceipts(ctx context.Context, block *types.Block) err
 				}
 
 				if address == nil || address.IsContract {
-					//for _, l := range receipt.Logs {
-					//	addresses[l.Address] = nil
-					//}
 					if err := s.dbClient.UpdateAddresses(ctx, addresses); err != nil {
-						//todo: consider how we handle this err, just skip it now
-						s.logger.Warn("cannot update active address")
 						results <- response{
 							err: err,
 						}
@@ -479,7 +463,6 @@ func (s *infoServer) ImportReceipts(ctx context.Context, block *types.Block) err
 		jobs <- *tx
 	}
 	close(jobs)
-	// todo @longnd: try to remove this loop
 	size := int(block.NumTxs)
 	for i := 0; i < size; i++ {
 		r := <-results
@@ -494,17 +477,13 @@ func (s *infoServer) ImportReceipts(ctx context.Context, block *types.Block) err
 		}
 	}
 
-	// todo @longnd: Handle insert failed
 	if len(listTxByToAddress) > 0 {
-		s.logger.Debug("ListTxFromAddress", zap.Int("Size", len(listTxByFromAddress)))
 		if err := s.dbClient.InsertListTxByAddress(ctx, listTxByFromAddress); err != nil {
 			return err
 		}
 	}
 
-	// todo @longnd: Handle insert failed
 	if len(listTxByToAddress) > 0 {
-		s.logger.Debug("ListTxByToAddress", zap.Int("Size", len(listTxByFromAddress)))
 		if err := s.dbClient.InsertListTxByAddress(ctx, listTxByToAddress); err != nil {
 			return err
 		}
@@ -567,24 +546,9 @@ func (s *infoServer) VerifyBlock(ctx context.Context, blockHeight uint64, networ
 		}
 		endTime := time.Since(startTime)
 		s.metrics.RecordUpsertBlockTime(endTime)
-		s.logger.Debug("Upsert block time", zap.Duration("TimeConsumed", endTime), zap.String("Avg", s.metrics.GetUpsertBlockTime()))
 		return true, nil
 	}
 	return false, nil
-}
-
-// calculateTPS return TPS per each [10, 20, 50] blocks
-func (s *infoServer) calculateTPS(startTime uint64) (uint64, error) {
-	return 0, nil
-}
-
-// getAddressByHash return *types.Address from mgo.Collection("Address")
-func (s *infoServer) getAddressByHash(address string) (*types.Address, error) {
-	return nil, nil
-}
-
-func (s *infoServer) getTxsByBlockNumber(blockNumber int64, filter *types.Pagination) ([]*types.Transaction, error) {
-	return nil, nil
 }
 
 func filterAddrSet(txs []*types.Transaction) map[string]*types.Address {
@@ -608,7 +572,6 @@ func filterAddrSet(txs []*types.Transaction) map[string]*types.Address {
 	return addrs
 }
 
-// TODO(trinhdn): need to use workers instead
 func (s *infoServer) getAddressBalances(ctx context.Context, addrs map[string]*types.Address) []*types.Address {
 	if addrs == nil || len(addrs) == 0 {
 		return nil

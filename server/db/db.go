@@ -46,7 +46,6 @@ type Client interface {
 	Blocks(ctx context.Context, pagination *types.Pagination) ([]*types.Block, error)
 	InsertBlock(ctx context.Context, block *types.Block) error
 	DeleteLatestBlock(ctx context.Context) (uint64, error)
-	// TODO(trinhdn): Replace delete+insert operation with upsert instead
 	DeleteBlockByHeight(ctx context.Context, blockHeight uint64) error
 	BlocksByProposer(ctx context.Context, proposer string, pagination *types.Pagination) ([]*types.Block, uint64, error)
 
@@ -74,7 +73,6 @@ type Client interface {
 }
 
 func NewClient(cfg Config) (Client, error) {
-	cfg.Logger.Debug("Create new db instance with config", zap.Any("config", cfg))
 	switch cfg.DbAdapter {
 	case MGO:
 		return newMongoDB(cfg)

@@ -48,7 +48,10 @@ type ClientInterface interface {
 	// validator related methods
 	GetSlashEvents(ctx context.Context, valAddr common.Address) ([]*types.SlashEvents, error)
 
-	// ultilities methods
+	// params related methods
+	GetMaxProposers(ctx context.Context) (int64, error)
+
+	// utilities methods
 	DecodeInputData(to string, input string) (*types.FunctionCall, error)
 }
 

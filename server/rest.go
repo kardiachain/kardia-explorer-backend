@@ -144,7 +144,6 @@ func (s *Server) ValidatorStats(c echo.Context) error {
 	// get validators list from cache
 	valsList, err := s.cacheClient.Validators(ctx)
 	if err != nil {
-		s.logger.Debug("cannot get validators list from cache", zap.Error(err))
 		valsList, err = s.getValidatorsList(ctx)
 		if err != nil {
 			return api.Invalid.Build(c)
@@ -267,16 +266,13 @@ func (s *Server) Blocks(c echo.Context) error {
 	)
 	pagination, page, limit := getPagingOption(c)
 
-	// todo @londnd: implement read from cache,
 	blocks, err = s.cacheClient.LatestBlocks(ctx, pagination)
 	if err != nil || blocks == nil {
-		s.logger.Info("Cannot get latest blocks from cache", zap.Error(err))
 		blocks, err = s.dbClient.Blocks(ctx, pagination)
 		if err != nil {
 			s.logger.Info("Cannot get latest blocks from db", zap.Error(err))
 			return api.InternalServer.Build(c)
 		}
-	} else {
 	}
 
 	vals, err := s.kaiClient.Validators(ctx)
@@ -329,7 +325,6 @@ func (s *Server) Block(c echo.Context) error {
 		// get block in cache if exist
 		block, err = s.cacheClient.BlockByHash(ctx, blockHashOrHeightStr)
 		if err != nil {
-			s.logger.Info("got block by hash from cache error", zap.Any("block", block), zap.Error(err))
 			// otherwise, get from db
 			block, err = s.dbClient.BlockByHash(ctx, blockHashOrHeightStr)
 			if err != nil {
@@ -350,7 +345,6 @@ func (s *Server) Block(c echo.Context) error {
 		// get block in cache if exist
 		block, err = s.cacheClient.BlockByHeight(ctx, blockHeight)
 		if err != nil {
-			s.logger.Info("got block by height from cache error", zap.Uint64("blockHeight", blockHeight), zap.Error(err))
 			// otherwise, get from db
 			block, err = s.dbClient.BlockByHeight(ctx, blockHeight)
 			if err != nil {
@@ -410,7 +404,6 @@ func (s *Server) BlockTxs(c echo.Context) error {
 		// get block txs in block if exist
 		txs, total, err = s.cacheClient.TxsByBlockHash(ctx, block, pagination)
 		if err != nil {
-			s.logger.Info("cannot get block txs by hash from cache", zap.String("blockHash", block), zap.Error(err))
 			// otherwise, get from db
 			txs, total, err = s.dbClient.TxsByBlockHash(ctx, block, pagination)
 			if err != nil {
@@ -440,7 +433,6 @@ func (s *Server) BlockTxs(c echo.Context) error {
 		// get block txs in block if exist
 		txs, total, err = s.cacheClient.TxsByBlockHeight(ctx, height, pagination)
 		if err != nil {
-			s.logger.Info("cannot get block txs by height from cache", zap.String("blockHeight", block), zap.Error(err))
 			// otherwise, get from db
 			txs, total, err = s.dbClient.TxsByBlockHeight(ctx, height, pagination)
 			if err != nil {
@@ -506,7 +498,6 @@ func (s *Server) BlocksByProposer(c echo.Context) error {
 	pagination, page, limit := getPagingOption(c)
 	blocks, total, err := s.dbClient.BlocksByProposer(ctx, c.Param("address"), pagination)
 	if err != nil {
-		s.logger.Info("Cannot get blocks by proposer from db", zap.Error(err))
 		return api.Invalid.Build(c)
 	}
 	vals, err := s.kaiClient.Validators(ctx)
@@ -557,10 +548,8 @@ func (s *Server) Txs(c echo.Context) error {
 
 	txs, err = s.cacheClient.LatestTransactions(ctx, pagination)
 	if err != nil || txs == nil || len(txs) < limit {
-		s.logger.Info("Cannot get latest txs from cache", zap.Error(err))
 		txs, err = s.dbClient.LatestTxs(ctx, pagination)
 		if err != nil {
-			s.logger.Info("Cannot get latest txs from db", zap.Error(err))
 			return api.Invalid.Build(c)
 		}
 	}
@@ -733,7 +722,6 @@ func (s *Server) AddressTxs(c echo.Context) error {
 
 	txs, total, err := s.dbClient.TxsByAddress(ctx, address, pagination)
 	if err != nil {
-		s.logger.Info("error while get address txs:", zap.Error(err))
 		return err
 	}
 

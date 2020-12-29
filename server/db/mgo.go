@@ -20,7 +20,6 @@ package db
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"time"
 
@@ -43,10 +42,6 @@ const (
 	cStats        = "Stats"
 )
 
-var (
-	ErrNotImplemented = errors.New("not implemented")
-)
-
 type mongoDB struct {
 	logger  *zap.Logger
 	wrapper *KaiMgo
@@ -54,7 +49,6 @@ type mongoDB struct {
 }
 
 func newMongoDB(cfg Config) (*mongoDB, error) {
-	cfg.Logger.Debug("Create mgo with config", zap.Any("config", cfg))
 
 	ctx := context.Background()
 	dbClient := &mongoDB{
@@ -77,7 +71,7 @@ func newMongoDB(cfg Config) (*mongoDB, error) {
 	dbClient.wrapper.Database(mgoClient.Database(cfg.DbName))
 
 	if cfg.FlushDB {
-		cfg.Logger.Debug("Start flush database")
+		cfg.Logger.Info("Start flush database")
 		if err := mgoClient.Database(cfg.DbName).Drop(ctx); err != nil {
 			return nil, err
 		}
@@ -255,7 +249,6 @@ func (m *mongoDB) Blocks(ctx context.Context, pagination *types.Pagination) ([]*
 		if err := cursor.Decode(&block); err != nil {
 			return nil, err
 		}
-		//m.logger.Debug("Get block success", zap.Any("block", block))
 		blocks = append(blocks, block)
 	}
 
@@ -297,7 +290,6 @@ func (m *mongoDB) IsBlockExist(ctx context.Context, blockHeight uint64) (bool, e
 
 func (m *mongoDB) InsertBlock(ctx context.Context, block *types.Block) error {
 	logger := m.logger
-	// todo @longnd: add block info ?
 	// Upsert block into Blocks
 	_, err := m.wrapper.C(cBlocks).Insert(block)
 	if err != nil {
@@ -326,12 +318,10 @@ func (m *mongoDB) DeleteLatestBlock(ctx context.Context) (uint64, error) {
 		m.logger.Warn("there isn't any block in database now, nothing to delete", zap.Error(err))
 		return 0, nil
 	}
-	m.logger.Debug("DeleteLatestBlock...", zap.Uint64("latest block height", blocks[0].Height))
 	if err := m.DeleteBlockByHeight(ctx, blocks[0].Height); err != nil {
 		m.logger.Warn("cannot remove old latest block", zap.Error(err), zap.Uint64("latest block height", blocks[0].Height))
 		return 0, err
 	}
-	m.logger.Debug("DeleteLatestBlock success", zap.Uint64("latest block height", blocks[0].Height))
 	return blocks[0].Height, nil
 }
 
@@ -537,7 +527,6 @@ func (m *mongoDB) InsertTxs(ctx context.Context, txs []*types.Transaction) error
 	for _, tx := range txs {
 		txModel := mongo.NewInsertOneModel().SetDocument(tx)
 		txsBulkWriter = append(txsBulkWriter, txModel)
-		// TODO(trinhdn): insert created contract info to database with model `address`
 	}
 	if len(txsBulkWriter) > 0 {
 		if _, err := m.wrapper.C(cTxs).BulkWrite(txsBulkWriter); err != nil {
@@ -545,6 +534,19 @@ func (m *mongoDB) InsertTxs(ctx context.Context, txs []*types.Transaction) error
 		}
 	}
 
+	return nil
+}
+
+func (m *mongoDB) UpsertTxs(ctx context.Context, txs []*types.Transaction) error {
+	var txsBulkWriter []mongo.WriteModel
+	for _, tx := range txs {
+		txModel := mongo.NewInsertOneModel().SetDocument(tx)
+		txsBulkWriter = append(txsBulkWriter, txModel)
+	}
+
+	if _, err := m.wrapper.C(cTxs).BulkWrite(txsBulkWriter); err != nil {
+		return err
+	}
 	return nil
 }
 
@@ -585,9 +587,9 @@ func (m *mongoDB) LatestTxs(ctx context.Context, pagination *types.Pagination) (
 		if err := cursor.Decode(&tx); err != nil {
 			return nil, err
 		}
-		//m.logger.Debug("Get latest txs success", zap.Any("tx", tx))
 		txs = append(txs, tx)
 	}
+
 	return txs, nil
 }
 
@@ -613,7 +615,6 @@ func (m *mongoDB) InsertAddress(ctx context.Context, address *types.Address) err
 }
 
 // UpdateAddresses update last time those addresses active
-// Just skip for now
 func (m *mongoDB) UpdateAddresses(ctx context.Context, addresses []*types.Address) error {
 	if addresses == nil || len(addresses) == 0 {
 		return nil
