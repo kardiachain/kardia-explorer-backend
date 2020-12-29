@@ -48,7 +48,7 @@ func listener(ctx context.Context, srv *server.Server, interval time.Duration) {
 			return
 		case <-t.C:
 			latest, err := srv.LatestBlockHeight(ctx)
-			srv.Logger.Debug("Listener: Get block height from network", zap.Uint64("BlockHeight", latest), zap.Uint64("PrevHeader", prevHeader))
+			srv.Logger.Info("Listener: Get block height from network", zap.Uint64("BlockHeight", latest), zap.Uint64("PrevHeader", prevHeader))
 			if err != nil {
 				srv.Logger.Error("Listener: Failed to get latest block number", zap.Error(err))
 				continue

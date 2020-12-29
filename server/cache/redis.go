@@ -137,7 +137,6 @@ func (c *Redis) TotalTxs(ctx context.Context) uint64 {
 	result, err := c.client.Get(ctx, KeyTotalTxs).Result()
 	if err != nil {
 		// Handle error here
-		c.logger.Warn("cannot get total txs values")
 	}
 	// Convert to int
 	totalTxs := utils.StrToUint64(result)
@@ -166,10 +165,8 @@ func (c *Redis) SetTotalTxs(ctx context.Context, numTxs uint64) error {
 
 func (c *Redis) LatestBlockHeight(ctx context.Context) uint64 {
 	result, err := c.client.Get(ctx, KeyLatestBlockHeight).Uint64()
-	c.logger.Debug("LatestBlockHeight", zap.Uint64("Height", result))
 	if err != nil {
 		// Handle error here
-		c.logger.Warn("cannot get latest block height value from cache")
 	}
 	return result
 }
@@ -196,7 +193,6 @@ func (c *Redis) InsertTxsOfBlock(ctx context.Context, block *types.Block) error 
 	}
 	blockHeight := block.Height
 	keyTxsOfThisBlock := fmt.Sprintf(KeyTxsOfBlockHeight, blockHeight)
-	c.logger.Debug("Pushing txs to cache:", zap.String("KeyTxsOfThisBlock", keyTxsOfThisBlock))
 	for _, tx := range block.Txs {
 		txStr, err := json.Marshal(tx)
 		if err != nil {
@@ -227,8 +223,6 @@ func (c *Redis) InsertTxsOfBlock(ctx context.Context, block *types.Block) error 
 		c.logger.Warn("cannot set txs of block expiration time in cache", zap.Bool("result", result), zap.Error(err))
 		return err
 	}
-
-	c.logger.Debug("Done insert txs to cached")
 	return nil
 }
 
@@ -242,7 +236,7 @@ func (c *Redis) TxByHash(ctx context.Context, txHash string) (*types.Transaction
 func (c *Redis) InsertBlock(ctx context.Context, block *types.Block) error {
 	size, err := c.client.LLen(ctx, KeyBlocks).Result()
 	if err != nil {
-		c.logger.Debug("cannot get size of #blocks", zap.Error(err))
+		c.logger.Warn("cannot get size of #blocks", zap.Error(err))
 		return err
 	}
 	// Size over buffer then
@@ -317,7 +311,7 @@ func (c *Redis) TxsByBlockHash(ctx context.Context, blockHash string, pagination
 func (c *Redis) TxsByBlockHeight(ctx context.Context, blockHeight uint64, pagination *types.Pagination) ([]*types.Transaction, uint64, error) {
 	keyTxsOfThisBlock := fmt.Sprintf(KeyTxsOfBlockHeight, blockHeight)
 	length, err := c.client.LLen(ctx, keyTxsOfThisBlock).Result()
-	c.logger.Debug("TxsByBlockHeight ", zap.String("keyTxsOfThisBlock", keyTxsOfThisBlock), zap.Int64("length", length), zap.Error(err))
+	c.logger.Info("TxsByBlockHeight ", zap.String("keyTxsOfThisBlock", keyTxsOfThisBlock), zap.Int64("length", length), zap.Error(err))
 	if err != nil || length == 0 {
 		return nil, 0, errors.New("block is not exist in cache")
 	}
@@ -358,7 +352,6 @@ func (c *Redis) LatestBlocks(ctx context.Context, pagination *types.Pagination) 
 		return nil, errors.New("indexes of latest blocks out of range in cache")
 	}
 
-	c.logger.Debug("Getting blocks from cache: ", zap.Int64("startIndex", startIndex), zap.Int64("endIndex", endIndex), zap.Int64("cache length", length), zap.Uint64("Current latest block height", c.LatestBlockHeight(ctx)))
 	marshalledBlocks, err = c.client.LRange(ctx, KeyBlocks, startIndex, endIndex).Result()
 	if err != nil {
 		return nil, err
@@ -390,8 +383,6 @@ func (c *Redis) LatestTransactions(ctx context.Context, pagination *types.Pagina
 	if startIndex >= length || endIndex >= length {
 		return nil, errors.New("indexes of latest txs out of range in cache")
 	}
-
-	c.logger.Debug("Getting latest txs from block in cache", zap.String("Key", KeyLatestTxs), zap.Int64("startIndex", startIndex), zap.Int64("endIndex", endIndex), zap.Int64("cache length", length))
 	marshalledTxs, err = c.client.LRange(ctx, KeyLatestTxs, startIndex, endIndex).Result()
 	if err != nil {
 		return nil, err
@@ -489,19 +480,15 @@ func (c *Redis) UpdateTotalHolders(ctx context.Context, holders uint64, contract
 
 func (c *Redis) TotalHolders(ctx context.Context) (uint64, uint64) {
 	result, err := c.client.Get(ctx, KeyTotalHolders).Result()
-	c.logger.Debug("TotalHolders", zap.String("Total", result))
 	if err != nil {
 		// Handle error here
-		c.logger.Warn("cannot get total holders values")
 	}
 	// Convert to int
 	totalHolders := utils.StrToUint64(result)
 
 	result, err = c.client.Get(ctx, KeyTotalContracts).Result()
-	c.logger.Debug("TotalContracts", zap.String("Total", result))
 	if err != nil {
 		// Handle error here
-		c.logger.Warn("cannot get total holders values")
 	}
 	// Convert to int
 	totalContracts := utils.StrToUint64(result)

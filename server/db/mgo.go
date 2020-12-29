@@ -618,7 +618,7 @@ func (m *mongoDB) LatestTxs(ctx context.Context, pagination *types.Pagination) (
 		}
 	}()
 	queryTime := time.Since(start)
-	m.logger.Debug("Total time for query tx", zap.Any("TimeConsumed", queryTime))
+	m.logger.Info("Total time for query tx", zap.Any("TimeConsumed", queryTime))
 	for cursor.Next(ctx) {
 		tx := &types.Transaction{}
 		if err := cursor.Decode(&tx); err != nil {
@@ -628,7 +628,7 @@ func (m *mongoDB) LatestTxs(ctx context.Context, pagination *types.Pagination) (
 		txs = append(txs, tx)
 	}
 	processTime := time.Since(start)
-	m.logger.Debug("Total time for process tx", zap.Any("TimeConsumed", processTime))
+	m.logger.Info("Total time for process tx", zap.Any("TimeConsumed", processTime))
 
 	return txs, nil
 }
