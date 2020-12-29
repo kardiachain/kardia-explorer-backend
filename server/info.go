@@ -16,13 +16,14 @@ import (
 
 	"go.uber.org/zap"
 
+	"github.com/kardiachain/go-kardia/lib/common"
+
 	"github.com/kardiachain/explorer-backend/kardia"
 	"github.com/kardiachain/explorer-backend/metrics"
 	"github.com/kardiachain/explorer-backend/server/cache"
 	"github.com/kardiachain/explorer-backend/server/db"
 	"github.com/kardiachain/explorer-backend/types"
 	"github.com/kardiachain/explorer-backend/utils"
-	"github.com/kardiachain/go-kardia/lib/common"
 )
 
 type InfoServer interface {
@@ -688,4 +689,12 @@ func (s *infoServer) mergeAdditionalInfoToTxs(txs []*types.Transaction, receipts
 		receiptIndex++
 	}
 	return txs
+}
+
+func (s *infoServer) LatestBlockHeight(ctx context.Context) (uint64, error) {
+	return s.kaiClient.LatestBlockNumber(ctx)
+}
+
+func (s *infoServer) BlockCacheSize(ctx context.Context) (int64, error) {
+	return s.cacheClient.ListSize(ctx, cache.KeyBlocks)
 }
