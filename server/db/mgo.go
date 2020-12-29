@@ -519,18 +519,6 @@ func (m *mongoDB) TxByHash(ctx context.Context, txHash string) (*types.Transacti
 	return tx, nil
 }
 
-func (m *mongoDB) TxByNonce(ctx context.Context, nonce int64) (*types.Transaction, error) {
-	var tx *types.Transaction
-	err := m.wrapper.C(cTxs).FindOne(bson.M{"nonce": nonce}).Decode(&tx)
-	if err != nil {
-		if err == mgo.ErrNotFound {
-			return nil, nil
-		}
-		return nil, fmt.Errorf("failed to get tx: %v", err)
-	}
-	return tx, nil
-}
-
 // InsertTxs create bulk writer
 func (m *mongoDB) InsertTxs(ctx context.Context, txs []*types.Transaction) error {
 	var (

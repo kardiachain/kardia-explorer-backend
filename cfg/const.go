@@ -29,8 +29,7 @@ const (
 	LatestTxsLength = 1000
 
 	// redis keys expiration time
-	NodesInfoListExpTime = 1 * time.Hour
-	BlockInfoExpTime     = 30 * time.Minute
+	BlockInfoExpTime = 30 * time.Minute
 
 	StakingContractAddr       = "0x0000000000000000000000000000000000001337"
 	StakingContractName       = "Staking Contract"

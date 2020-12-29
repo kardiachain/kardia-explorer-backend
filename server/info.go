@@ -227,7 +227,7 @@ func (s *infoServer) BlockByHash(ctx context.Context, hash string) (*types.Block
 		return dbBlock, nil
 	}
 	// Something wrong or we stay behind the network
-	lgr.Debug("cannot find block in db", zap.Error(err))
+	lgr.Warn("cannot find block in db", zap.Error(err))
 	return s.kaiClient.BlockByHash(ctx, hash)
 }
 
@@ -280,6 +280,7 @@ func (s *infoServer) ImportBlock(ctx context.Context, block *types.Block, writeT
 	}
 	endTime := time.Since(startTime)
 	s.metrics.RecordInsertBlockTime(endTime)
+	s.logger.Info("Total time for import block", zap.Duration("TimeConsumed", endTime), zap.String("Avg", s.metrics.GetInsertBlockTime()))
 
 	if writeToCache {
 		if err := s.cacheClient.InsertTxsOfBlock(ctx, block); err != nil {
@@ -293,6 +294,7 @@ func (s *infoServer) ImportBlock(ctx context.Context, block *types.Block, writeT
 	}
 	endTime = time.Since(startTime)
 	s.metrics.RecordInsertTxsTime(endTime)
+	s.logger.Info("Total time for import tx", zap.Duration("TimeConsumed", endTime), zap.String("Avg", s.metrics.GetInsertTxsTime()))
 
 	// update active addresses
 	startTime = time.Now()
@@ -303,6 +305,7 @@ func (s *infoServer) ImportBlock(ctx context.Context, block *types.Block, writeT
 	}
 	endTime = time.Since(startTime)
 	s.metrics.RecordInsertActiveAddressTime(endTime)
+	s.logger.Info("Total time for update addresses", zap.Duration("TimeConsumed", endTime), zap.String("Avg", s.metrics.GetInsertActiveAddressTime()))
 	startTime = time.Now()
 	totalAddr, totalContractAddr, err := s.dbClient.GetTotalAddresses(ctx)
 	if err != nil {
@@ -312,6 +315,7 @@ func (s *infoServer) ImportBlock(ctx context.Context, block *types.Block, writeT
 	if err != nil {
 		return err
 	}
+	s.logger.Info("Total time for getting active addresses", zap.Duration("TimeConsumed", time.Since(startTime)))
 
 	if _, err := s.cacheClient.UpdateTotalTxs(ctx, block.NumTxs); err != nil {
 		return err
