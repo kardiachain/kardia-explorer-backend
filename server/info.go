@@ -52,6 +52,8 @@ type InfoServer interface {
 	PopUnverifiedBlockHeight(ctx context.Context) (uint64, error)
 
 	VerifyBlock(ctx context.Context, blockHeight uint64, networkBlock *types.Block) (bool, error)
+
+	Validators(ctx context.Context) ([]*types.Validator, error)
 }
 
 // infoServer handle how data was retrieved, stored without interact with other network excluded dbClient

@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/kardiachain/explorer-backend/cfg"
+	"github.com/kardiachain/explorer-backend/server/db"
 
 	"github.com/kardiachain/go-kardia/lib/common"
 
@@ -275,12 +276,10 @@ func (s *Server) Blocks(c echo.Context) error {
 		}
 	}
 
-	vals, err := s.kaiClient.Validators(ctx)
+	vals := &types.Validators{}
+	vals, err = s.getValidatorsList(ctx)
 	if err != nil {
-		vals, err = s.getValidatorsList(ctx)
-		if err != nil {
-			vals = nil
-		}
+		vals = &types.Validators{}
 	}
 
 	smcAddress := map[string]*valInfoResponse{}
@@ -890,17 +889,26 @@ func (s *Server) TxByHash(c echo.Context) error {
 	return api.OK.SetData(result).Build(c)
 }
 
+//getValidatorsList retrieve Validators
 func (s *Server) getValidatorsList(ctx context.Context) (*types.Validators, error) {
-	valsList, err := s.kaiClient.Validators(ctx)
+	cValidators, err := s.cacheClient.Validators(ctx)
+	if err == nil {
+		return cValidators, nil
+	}
+	findAllValidator := db.ValidatorsFilter{IsAll: true}
+	dbValidators, err := s.dbClient.FindValidators(ctx, findAllValidator)
+	if err == nil {
+		// Convert into
+		validators := &types.Validators{Validators: dbValidators}
+		return validators, nil
+	}
+
+	validators, err := s.kaiClient.Validators(ctx)
 	if err != nil {
 		s.logger.Warn("cannot get validators list from RPC", zap.Error(err))
 		return nil, err
 	}
-	err = s.cacheClient.UpdateValidators(ctx, valsList)
-	if err != nil {
-		s.logger.Warn("cannot store validators list to cache", zap.Error(err))
-	}
-	return valsList, nil
+	return validators, nil
 }
 
 func getPagingOption(c echo.Context) (*types.Pagination, int, int) {
@@ -941,8 +949,9 @@ func (s *Server) getValidatorsAddressAndRole(ctx context.Context) map[string]*va
 	return smcAddress
 }
 
+//UpdateAddressName set alias for address
+//Note: Name is stored in internal system
 func (s *Server) UpdateAddressName(c echo.Context) error {
-	s.logger.Info("UpdateAddressName")
 	ctx := context.Background()
 	if c.Request().Header.Get("Authorization") != s.infoServer.HttpRequestSecret {
 		return api.Unauthorized.Build(c)

@@ -362,6 +362,7 @@ func (ec *Client) Validator(ctx context.Context, address string) (*types.Validat
 	return convertedVal, nil
 }
 
+//Validators return list validators from network
 func (ec *Client) Validators(ctx context.Context) (*types.Validators, error) {
 	var (
 		proposersStakedAmount = big.NewInt(0)

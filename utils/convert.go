@@ -36,3 +36,11 @@ func ToAddressMap(addrs []*types.Address) map[string]*types.Address {
 	}
 	return addrMap
 }
+
+func ToValidatorMap(validators []*types.Validator) map[string]*types.Validator {
+	validatorMap := make(map[string]*types.Validator)
+	for _, v := range validators {
+		validatorMap[v.Address.Hex()] = v
+	}
+	return validatorMap
+}
