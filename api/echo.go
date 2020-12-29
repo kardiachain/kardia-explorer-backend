@@ -57,6 +57,7 @@ type EchoServer interface {
 	AddressInfo(c echo.Context) error
 	AddressTxs(c echo.Context) error
 	AddressHolders(c echo.Context) error
+	UpdateAddressName(c echo.Context) error
 
 	// Tx
 	Txs(c echo.Context) error
@@ -154,6 +155,11 @@ func bind(gr *echo.Group, srv EchoServer) {
 			method: echo.GET,
 			path:   "/addresses/:address",
 			fn:     srv.AddressInfo,
+		},
+		{
+			method: echo.PUT,
+			path:   "/addresses",
+			fn:     srv.UpdateAddressName,
 		},
 		// Tokens
 		{

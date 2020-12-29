@@ -49,7 +49,6 @@ type mongoDB struct {
 }
 
 func newMongoDB(cfg Config) (*mongoDB, error) {
-
 	ctx := context.Background()
 	dbClient := &mongoDB{
 		logger:  cfg.Logger,
@@ -212,7 +211,6 @@ func (m *mongoDB) Stats(ctx context.Context) *types.Stats {
 // end region Stats
 
 //region Blocks
-
 func (m *mongoDB) LatestBlockHeight(ctx context.Context) (uint64, error) {
 	latestBlock, err := m.Blocks(ctx, &types.Pagination{
 		Skip:  0,

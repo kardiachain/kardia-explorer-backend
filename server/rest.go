@@ -928,3 +928,33 @@ func (s *Server) getValidatorsAddressAndRole(ctx context.Context) map[string]*va
 	}
 	return smcAddress
 }
+
+func (s *Server) UpdateAddressName(c echo.Context) error {
+	s.logger.Info("UpdateAddressName")
+	ctx := context.Background()
+	if c.Request().Header.Get("Authorization") != s.infoServer.HttpRequestSecret {
+		return api.Unauthorized.Build(c)
+	}
+
+	type req struct {
+		Address string `json:"address"`
+		Name    string `json:"name"`
+	}
+	var reqObj req
+	if err := c.Bind(&reqObj); err != nil {
+		return api.Invalid.Build(c)
+	}
+
+	addr, err := s.dbClient.AddressByHash(ctx, reqObj.Address)
+	if err != nil {
+		return api.Invalid.Build(c)
+	}
+
+	addr.Name = reqObj.Name
+
+	if err := s.dbClient.UpdateAddresses(ctx, []*types.Address{addr}); err != nil {
+		return api.Invalid.Build(c)
+	}
+
+	return api.OK.Build(c)
+}

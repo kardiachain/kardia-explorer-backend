@@ -20,9 +20,19 @@ package utils
 
 import (
 	"strconv"
+
+	"github.com/kardiachain/explorer-backend/types"
 )
 
 func StrToUint64(data string) uint64 {
 	i, _ := strconv.ParseUint(data, 10, 64)
 	return i
+}
+
+func ToAddressMap(addrs []*types.Address) map[string]*types.Address {
+	addrMap := make(map[string]*types.Address)
+	for _, a := range addrs {
+		addrMap[a.Address] = a
+	}
+	return addrMap
 }
