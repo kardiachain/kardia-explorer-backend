@@ -37,4 +37,4 @@ Backend for *[explorer](https://explorer.kardiachain.io)*
 
 ## Support and contributes 
 
-Feel free to create issues if you have any. PRs are welcome and make sure you follow coding guideline. For any information about this project, please contact us at `hello@kardiachain.io`
+Feel free to create issues if you have any. PRs are welcome and make sure you follow coding guideline. For any information about this project, please contact us at `hello@kardiachain.io`.

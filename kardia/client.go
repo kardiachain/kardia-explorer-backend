@@ -73,7 +73,7 @@ type ClientInterface interface {
 	// params related methods
 	GetMaxProposers(ctx context.Context) (int64, error)
 
-	// ultilities methods
+	// utilities methods
 	DecodeInputData(to string, input string) (*types.FunctionCall, error)
 }
 
