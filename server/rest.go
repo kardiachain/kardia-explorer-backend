@@ -100,6 +100,12 @@ func (s *Server) TokenInfo(c echo.Context) error {
 				return api.Invalid.Build(c)
 			}
 		}
+		cirSup, err := s.kaiClient.GetCirculatingSupply(ctx)
+		if err != nil {
+			return api.Invalid.Build(c)
+		}
+		cirSup = new(big.Int).Div(cirSup, new(big.Int).Exp(big.NewInt(10), big.NewInt(18), nil))
+		tokenInfo.MainnetCirculatingSupply = cirSup.Int64() - 4500000000
 		return api.OK.SetData(tokenInfo).Build(c)
 	}
 
@@ -107,6 +113,12 @@ func (s *Server) TokenInfo(c echo.Context) error {
 	if err != nil {
 		return api.Invalid.Build(c)
 	}
+	cirSup, err := s.kaiClient.GetCirculatingSupply(ctx)
+	if err != nil {
+		return api.Invalid.Build(c)
+	}
+	cirSup = new(big.Int).Div(cirSup, new(big.Int).Exp(big.NewInt(10), big.NewInt(18), nil))
+	tokenInfo.MainnetCirculatingSupply = cirSup.Int64() - 4500000000
 	return api.OK.SetData(tokenInfo).Build(c)
 }
 

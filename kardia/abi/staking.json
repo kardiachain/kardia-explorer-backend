@@ -476,7 +476,7 @@
     "outputs": [
       {
         "internalType": "uint256",
-        "name": "",
+        "name": "totalSupply",
         "type": "uint256"
       }
     ],

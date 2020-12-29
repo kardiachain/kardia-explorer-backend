@@ -170,12 +170,10 @@ func (s *infoServer) TokenInfo(ctx context.Context) (*types.TokenInfo, error) {
 func (s *infoServer) GetCurrentStats(ctx context.Context) uint64 {
 	stats := s.dbClient.Stats(ctx)
 	s.logger.Info("Current stats of network", zap.Uint64("UpdatedAtBlock", stats.UpdatedAtBlock),
-		zap.Uint64("TotalTransactions", stats.TotalTransactions), zap.String("TotalBlockRewards", stats.TotalBlockRewards),
-		zap.Uint64("TotalAddresses", stats.TotalAddresses), zap.Uint64("TotalContracts", stats.TotalContracts))
+		zap.Uint64("TotalTransactions", stats.TotalTransactions), zap.Uint64("TotalAddresses", stats.TotalAddresses),
+		zap.Uint64("TotalContracts", stats.TotalContracts))
 	_ = s.cacheClient.SetTotalTxs(ctx, stats.TotalTransactions)
 	_ = s.cacheClient.UpdateTotalHolders(ctx, stats.TotalAddresses, stats.TotalContracts)
-	reward, _ := new(big.Int).SetString(stats.TotalBlockRewards, 10)
-	_ = s.cacheClient.UpdateBlockRewards(ctx, reward)
 	vals, _ := s.kaiClient.Validators(ctx)
 	_ = s.cacheClient.UpdateValidators(ctx, vals)
 	for _, val := range vals.Validators {
@@ -203,15 +201,10 @@ func (s *infoServer) GetCurrentStats(ctx context.Context) uint64 {
 
 func (s *infoServer) UpdateCurrentStats(ctx context.Context) error {
 	totalAddrs, totalContracts := s.cacheClient.TotalHolders(ctx)
-	blockRewards, err := s.cacheClient.BlockRewards(ctx)
-	if err != nil {
-		return err
-	}
 	stats := &types.Stats{
 		UpdatedAt:         time.Now(),
 		UpdatedAtBlock:    s.cacheClient.LatestBlockHeight(ctx),
 		TotalTransactions: s.cacheClient.TotalTxs(ctx),
-		TotalBlockRewards: blockRewards.String(),
 		TotalAddresses:    totalAddrs,
 		TotalContracts:    totalContracts,
 	}
@@ -329,10 +322,6 @@ func (s *infoServer) ImportBlock(ctx context.Context, block *types.Block, writeT
 	s.logger.Debug("Total time for getting active addresses", zap.Duration("TimeConsumed", time.Since(startTime)))
 
 	if _, err := s.cacheClient.UpdateTotalTxs(ctx, block.NumTxs); err != nil {
-		return err
-	}
-	rewards, _ := new(big.Int).SetString(block.Rewards, 10)
-	if err := s.cacheClient.UpdateBlockRewards(ctx, rewards); err != nil {
 		return err
 	}
 	return nil
@@ -567,9 +556,6 @@ func (s *infoServer) VerifyBlock(ctx context.Context, blockHeight uint64, networ
 		totalTxs := s.cacheClient.TotalTxs(ctx)
 		totalTxs -= networkBlock.NumTxs
 		_ = s.cacheClient.SetTotalTxs(ctx, totalTxs)
-		blockRewards, _ := s.cacheClient.BlockRewards(ctx)
-		networkBlockReward, _ := new(big.Int).SetString(networkBlock.Rewards, 10)
-		_ = s.cacheClient.UpdateBlockRewards(ctx, new(big.Int).Sub(blockRewards, networkBlockReward))
 		// Force replace dbBlock with new information from network block
 		startTime := time.Now()
 		if err := s.UpsertBlock(ctx, networkBlock); err != nil {
