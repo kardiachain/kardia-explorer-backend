@@ -270,6 +270,7 @@ func (s *Server) Blocks(c echo.Context) error {
 	if err != nil || blocks == nil {
 		blocks, err = s.dbClient.Blocks(ctx, pagination)
 		if err != nil {
+			s.logger.Info("Cannot get latest blocks from db", zap.Error(err))
 			return api.InternalServer.Build(c)
 		}
 	}
@@ -334,12 +335,7 @@ func (s *Server) Block(c echo.Context) error {
 					s.logger.Warn("got block by hash from RPC error", zap.Any("block", block), zap.Error(err))
 					return api.Invalid.Build(c)
 				}
-				s.logger.Info("got block by hash from RPC:", zap.Any("block", block), zap.Error(err))
-			} else {
-				s.Logger.Info("got block by hash from db:", zap.String("blockHash", blockHashOrHeightStr))
 			}
-		} else {
-			s.Logger.Info("got block by hash from cache:", zap.String("blockHash", blockHashOrHeightStr))
 		}
 	} else {
 		blockHeight, err := strconv.ParseUint(blockHashOrHeightStr, 10, 64)
@@ -359,11 +355,7 @@ func (s *Server) Block(c echo.Context) error {
 					s.logger.Warn("got block by height from RPC error", zap.Uint64("blockHeight", blockHeight), zap.Error(err))
 					return api.Invalid.Build(c)
 				}
-				s.logger.Info("got block by height from RPC:", zap.Uint64("blockHeight", blockHeight), zap.Error(err))
 			}
-			s.Logger.Info("got block by height from db:", zap.Uint64("blockHeight", blockHeight))
-		} else {
-			s.Logger.Info("got block by height from cache:", zap.Uint64("blockHeight", blockHeight))
 		}
 	}
 	vals, err := s.kaiClient.Validators(ctx)
@@ -490,6 +482,9 @@ func (s *Server) BlockTxs(c echo.Context) error {
 		if tx.To == cfg.TreasuryContractAddr {
 			t.ToName = cfg.TreasuryContractName
 		}
+		if tx.To == cfg.KardiaDeployerAddr {
+			t.ToName = cfg.KardiaDeployerName
+		}
 		result = append(result, t)
 	}
 
@@ -590,6 +585,9 @@ func (s *Server) Txs(c echo.Context) error {
 		if tx.To == cfg.TreasuryContractAddr {
 			t.ToName = cfg.TreasuryContractName
 		}
+		if tx.To == cfg.KardiaDeployerAddr {
+			t.ToName = cfg.KardiaDeployerName
+		}
 		result = append(result, t)
 	}
 
@@ -635,6 +633,9 @@ func (s *Server) Addresses(c echo.Context) error {
 		if addr.Address == cfg.StakingContractAddr {
 			addrInfo.Name = cfg.StakingContractName
 		}
+		if addr.Address == cfg.KardiaDeployerAddr {
+			addrInfo.Name = cfg.KardiaDeployerName
+		}
 		// double check with balance from RPC
 		balance, err := s.kaiClient.GetBalance(ctx, addr.Address)
 		if err != nil {
@@ -676,6 +677,9 @@ func (s *Server) AddressInfo(c echo.Context) error {
 		}
 		if result.Address == cfg.StakingContractAddr {
 			result.Name = cfg.StakingContractName
+		}
+		if result.Address == cfg.KardiaDeployerAddr {
+			result.Name = cfg.KardiaDeployerName
 		}
 		balance, err := s.kaiClient.GetBalance(ctx, address)
 		if err != nil {
@@ -759,6 +763,9 @@ func (s *Server) AddressTxs(c echo.Context) error {
 		if tx.To == cfg.TreasuryContractAddr {
 			t.ToName = cfg.TreasuryContractName
 		}
+		if tx.To == cfg.KardiaDeployerAddr {
+			t.ToName = cfg.KardiaDeployerName
+		}
 		result = append(result, t)
 	}
 
@@ -815,6 +822,7 @@ func (s *Server) TxByHash(c echo.Context) error {
 	tx, err := s.dbClient.TxByHash(ctx, txHash)
 	if err != nil {
 		// try to get tx by hash through RPC
+		s.Logger.Info("cannot get tx by hash from db:", zap.String("txHash", txHash))
 		tx, err = s.kaiClient.GetTransaction(ctx, txHash)
 		if err != nil {
 			s.Logger.Warn("cannot get tx by hash from RPC:", zap.String("txHash", txHash))
@@ -865,6 +873,10 @@ func (s *Server) TxByHash(c echo.Context) error {
 	}
 	if result.To == cfg.TreasuryContractAddr {
 		result.ToName = cfg.TreasuryContractName
+		return api.OK.SetData(result).Build(c)
+	}
+	if tx.To == cfg.KardiaDeployerAddr {
+		result.ToName = cfg.KardiaDeployerName
 		return api.OK.SetData(result).Build(c)
 	}
 	smcAddress := s.getValidatorsAddressAndRole(ctx)

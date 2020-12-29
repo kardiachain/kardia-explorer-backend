@@ -43,7 +43,6 @@ type Client interface {
 	IsBlockExist(ctx context.Context, blockHeight uint64) (bool, error)
 
 	// Interact with blocks
-	LatestBlockHeight(ctx context.Context) (uint64, error)
 	Blocks(ctx context.Context, pagination *types.Pagination) ([]*types.Block, error)
 	InsertBlock(ctx context.Context, block *types.Block) error
 	DeleteLatestBlock(ctx context.Context) (uint64, error)
@@ -51,7 +50,6 @@ type Client interface {
 	BlocksByProposer(ctx context.Context, proposer string, pagination *types.Pagination) ([]*types.Block, uint64, error)
 
 	// Txs
-	TxsCount(ctx context.Context) (uint64, error)
 	TxsByBlockHash(ctx context.Context, blockHash string, pagination *types.Pagination) ([]*types.Transaction, uint64, error)
 	TxsByBlockHeight(ctx context.Context, blockNumber uint64, pagination *types.Pagination) ([]*types.Transaction, uint64, error)
 	TxsByAddress(ctx context.Context, address string, pagination *types.Pagination) ([]*types.Transaction, uint64, error)
@@ -59,11 +57,9 @@ type Client interface {
 
 	// Tx detail
 	TxByHash(ctx context.Context, txHash string) (*types.Transaction, error)
-	TxByNonce(ctx context.Context, nonce int64) (*types.Transaction, error)
 
 	// Interact with tx
 	InsertTxs(ctx context.Context, txs []*types.Transaction) error
-	UpsertTxs(ctx context.Context, txs []*types.Transaction) error
 	InsertListTxByAddress(ctx context.Context, list []*types.TransactionByAddress) error
 
 	// Address
