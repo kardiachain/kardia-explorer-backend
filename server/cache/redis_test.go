@@ -696,7 +696,7 @@ func TestRedis_UnverifiedBlocks(t *testing.T) {
 				}
 			}
 			var got []uint64
-			for _ = range tt.args.heights {
+			for range tt.args.heights {
 				height, err := c.PopUnverifiedBlockHeight(tt.args.ctx)
 				if (err != nil) != tt.wantRetrieveErr {
 					t.Errorf("PopUnverifiedBlockHeight() error = %v, wantErr %v", err, tt.wantRetrieveErr)
@@ -714,42 +714,6 @@ func TestRedis_UnverifiedBlocks(t *testing.T) {
 		})
 	}
 	_, _ = r.client.FlushAll(context.Background()).Result()
-}
-
-func TestRedis_TxByHash(t *testing.T) {
-	type fields struct {
-		client *redis.Client
-		logger *zap.Logger
-	}
-	type args struct {
-		ctx    context.Context
-		txHash string
-	}
-	tests := []struct {
-		name    string
-		fields  fields
-		args    args
-		want    *types.Transaction
-		wantErr bool
-	}{
-		{},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			c := &Redis{
-				client: tt.fields.client,
-				logger: tt.fields.logger,
-			}
-			got, err := c.TxByHash(tt.args.ctx, tt.args.txHash)
-			if (err != nil) != tt.wantErr {
-				t.Errorf("TxByHash() error = %v, wantErr %v", err, tt.wantErr)
-				return
-			}
-			if !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("TxByHash() got = %v, want %v", got, tt.want)
-			}
-		})
-	}
 }
 
 func getTxsByBlockSetup(ctx context.Context, client *redis.Client) error {
