@@ -41,7 +41,6 @@ type Client interface {
 	BlockByHeight(ctx context.Context, blockHeight uint64) (*types.Block, error)
 	BlockByHash(ctx context.Context, blockHash string) (*types.Block, error)
 	IsBlockExist(ctx context.Context, blockHeight uint64) (bool, error)
-	BlockTxCount(ctx context.Context, hash string) (int64, error)
 
 	// Interact with blocks
 	LatestBlockHeight(ctx context.Context) (uint64, error)

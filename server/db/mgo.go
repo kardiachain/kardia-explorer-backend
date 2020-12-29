@@ -389,10 +389,6 @@ func (m *mongoDB) TxsCount(ctx context.Context) (uint64, error) {
 	return uint64(total), nil
 }
 
-func (m *mongoDB) BlockTxCount(ctx context.Context, hash string) (int64, error) {
-	return 0, nil
-}
-
 func (m *mongoDB) TxsByBlockHash(ctx context.Context, blockHash string, pagination *types.Pagination) ([]*types.Transaction, uint64, error) {
 	var txs []*types.Transaction
 	opts := []*options.FindOptions(nil)

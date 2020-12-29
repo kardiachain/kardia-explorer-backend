@@ -427,11 +427,7 @@ func (s *infoServer) ImportReceipts(ctx context.Context, block *types.Block) err
 				}
 
 				if address == nil || address.IsContract {
-					//for _, l := range receipt.Logs {
-					//	addresses[l.Address] = nil
-					//}
 					if err := s.dbClient.UpdateAddresses(ctx, addresses); err != nil {
-						s.logger.Warn("cannot update active address")
 						results <- response{
 							err: err,
 						}

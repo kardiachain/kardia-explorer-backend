@@ -39,8 +39,6 @@ type Client interface {
 	TxsByBlockHash(ctx context.Context, blockHash string, pagination *types.Pagination) ([]*types.Transaction, uint64, error)
 	TxsByBlockHeight(ctx context.Context, blockHeight uint64, pagination *types.Pagination) ([]*types.Transaction, uint64, error)
 
-	TxByHash(ctx context.Context, txHash string) (*types.Transaction, error)
-
 	ListSize(ctx context.Context, key string) (int64, error)
 
 	LatestBlocks(ctx context.Context, pagination *types.Pagination) ([]*types.Block, error)

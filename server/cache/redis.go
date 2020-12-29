@@ -224,10 +224,6 @@ func (c *Redis) InsertTxsOfBlock(ctx context.Context, block *types.Block) error 
 	return nil
 }
 
-func (c *Redis) TxByHash(ctx context.Context, txHash string) (*types.Transaction, error) {
-	panic("implement me")
-}
-
 // ImportBlock cache follow step:
 // Keep recent N blocks in memory as cache and temp write DB
 // Maintain SetByHash and SetByNumber
