@@ -322,6 +322,32 @@ func (ec *Client) GetTotalSlashedToken(ctx context.Context) (*big.Int, error) {
 	return result.TotalSlashedToken, nil
 }
 
+// GetCirculatingSupply returns circulating supply at the moment
+func (ec *Client) GetCirculatingSupply(ctx context.Context) (*big.Int, error) {
+	payload, err := ec.stakingUtil.Abi.Pack("totalSupply")
+	if err != nil {
+		ec.lgr.Error("Error packing circulating supply payload: ", zap.Error(err))
+		return nil, err
+	}
+
+	res, err := ec.KardiaCall(ctx, contructCallArgs(ec.stakingUtil.ContractAddress.Hex(), payload))
+	if err != nil {
+		ec.lgr.Error("GetCirculatingSupply KardiaCall error: ", zap.Error(err))
+		return nil, err
+	}
+
+	var result struct {
+		TotalSupply *big.Int
+	}
+	// unpack result
+	err = ec.stakingUtil.Abi.UnpackIntoInterface(&result, "totalSupply", res)
+	if err != nil {
+		ec.lgr.Error("Error unpacking circulating supply error: ", zap.Error(err))
+		return nil, err
+	}
+	return result.TotalSupply, nil
+}
+
 func contructCallArgs(address string, payload []byte) types.CallArgsJSON {
 	return types.CallArgsJSON{
 		From:     address,

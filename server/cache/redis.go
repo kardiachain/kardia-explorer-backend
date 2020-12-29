@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"math/big"
 	"strconv"
 	"time"
 
@@ -22,7 +21,6 @@ const (
 	KeyLatestBlockHeight = "#block#latestHeight"
 
 	KeyBlocks                = "#blocks" // List
-	KeyBlocksRewards         = "#blocks#rewards"
 	KeyBlockHashByHeight     = "#block#height#%s#hash"
 	KeyTxsOfBlockHeight      = "#block#height#%d#txs"
 	KeyErrorBlocks           = "#blocks#error"           // List
@@ -82,9 +80,7 @@ func (c *Redis) TokenInfo(ctx context.Context) (*types.TokenInfo, error) {
 		return nil, err
 	}
 	// get current circulating supply that we updated manually, if exists
-	intRewards, _ := c.BlockRewards(ctx)
-	tokenInfo.MarketCap = tokenInfo.Price * float64(tokenInfo.ERC20CirculatingSupply+tokenInfo.MainnetCirculatingSupply)
-	tokenInfo.MainnetCirculatingSupply = tokenInfo.MainnetCirculatingSupply + new(big.Int).Div(intRewards, new(big.Int).Exp(big.NewInt(10), big.NewInt(18), nil)).Int64()
+	tokenInfo.MarketCap = tokenInfo.Price * float64(tokenInfo.ERC20CirculatingSupply)
 	return tokenInfo, nil
 }
 
@@ -579,29 +575,6 @@ func (c *Redis) UpdateNodesInfo(ctx context.Context, nodes []*types.NodeInfo) er
 	result, err := c.client.Expire(ctx, KeyNodesInfoList, cfg.NodesInfoListExpTime).Result()
 	if err != nil || !result {
 		c.logger.Warn("cannot set nodes info expiration time in cache", zap.Bool("result", result), zap.Error(err))
-		return err
-	}
-	return nil
-}
-
-func (c *Redis) BlockRewards(ctx context.Context) (*big.Int, error) {
-	rewardsStr, err := c.client.Get(ctx, KeyBlocksRewards).Result()
-	if err != nil {
-		c.logger.Warn("cannot get block rewards from cache", zap.Error(err))
-		return nil, err
-	}
-	rewards, _ := new(big.Int).SetString(rewardsStr, 10)
-	return rewards, nil
-}
-
-func (c *Redis) UpdateBlockRewards(ctx context.Context, rewards *big.Int) error {
-	currentRewards, err := c.BlockRewards(ctx)
-	if err != nil {
-		currentRewards = new(big.Int).SetInt64(0)
-	}
-	currentRewards = new(big.Int).Add(currentRewards, rewards)
-	if err := c.client.Set(ctx, KeyBlocksRewards, currentRewards.String(), 0).Err(); err != nil {
-		c.logger.Warn("cannot set block rewards to cache", zap.Error(err))
 		return err
 	}
 	return nil

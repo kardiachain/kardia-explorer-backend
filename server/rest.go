@@ -100,6 +100,12 @@ func (s *Server) TokenInfo(c echo.Context) error {
 				return api.Invalid.Build(c)
 			}
 		}
+		cirSup, err := s.kaiClient.GetCirculatingSupply(ctx)
+		if err != nil {
+			return api.Invalid.Build(c)
+		}
+		cirSup = new(big.Int).Div(cirSup, new(big.Int).Exp(big.NewInt(10), big.NewInt(18), nil))
+		tokenInfo.MainnetCirculatingSupply = cirSup.Int64() - 4500000000
 		return api.OK.SetData(tokenInfo).Build(c)
 	}
 
@@ -107,6 +113,12 @@ func (s *Server) TokenInfo(c echo.Context) error {
 	if err != nil {
 		return api.Invalid.Build(c)
 	}
+	cirSup, err := s.kaiClient.GetCirculatingSupply(ctx)
+	if err != nil {
+		return api.Invalid.Build(c)
+	}
+	cirSup = new(big.Int).Div(cirSup, new(big.Int).Exp(big.NewInt(10), big.NewInt(18), nil))
+	tokenInfo.MainnetCirculatingSupply = cirSup.Int64() - 4500000000
 	return api.OK.SetData(tokenInfo).Build(c)
 }
 
@@ -371,7 +383,21 @@ func (s *Server) Block(c echo.Context) error {
 			s.Logger.Info("got block by height from cache:", zap.Uint64("blockHeight", blockHeight))
 		}
 	}
-	smcAddress := s.getValidatorsAddressAndRole(ctx)
+	vals, err := s.kaiClient.Validators(ctx)
+	if err != nil {
+		vals, err = s.getValidatorsList(ctx)
+		if err != nil {
+			vals = nil
+		}
+	}
+
+	smcAddress := map[string]*valInfoResponse{}
+	for _, v := range vals.Validators {
+		smcAddress[v.Address.String()] = &valInfoResponse{
+			Name: v.Name,
+			Role: v.Role,
+		}
+	}
 	result := &Block{
 		Block:        *block,
 		ProposerName: smcAddress[block.ProposerAddress].Name,
