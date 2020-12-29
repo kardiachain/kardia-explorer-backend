@@ -562,7 +562,6 @@ func (m *mongoDB) InsertListTxByAddress(ctx context.Context, list []*types.Trans
 }
 
 func (m *mongoDB) LatestTxs(ctx context.Context, pagination *types.Pagination) ([]*types.Transaction, error) {
-	start := time.Now()
 	opts := []*options.FindOptions{
 		options.Find().SetHint(bson.M{"time": -1}),
 		options.Find().SetSort(bson.M{"time": -1}),
@@ -581,8 +580,6 @@ func (m *mongoDB) LatestTxs(ctx context.Context, pagination *types.Pagination) (
 			m.logger.Warn("Error when close cursor", zap.Error(err))
 		}
 	}()
-	queryTime := time.Since(start)
-	m.logger.Info("Total time for query tx", zap.Any("TimeConsumed", queryTime))
 	for cursor.Next(ctx) {
 		tx := &types.Transaction{}
 		if err := cursor.Decode(&tx); err != nil {
@@ -591,9 +588,6 @@ func (m *mongoDB) LatestTxs(ctx context.Context, pagination *types.Pagination) (
 		//m.logger.Debug("Get latest txs success", zap.Any("tx", tx))
 		txs = append(txs, tx)
 	}
-	processTime := time.Since(start)
-	m.logger.Info("Total time for process tx", zap.Any("TimeConsumed", processTime))
-
 	return txs, nil
 }
 
