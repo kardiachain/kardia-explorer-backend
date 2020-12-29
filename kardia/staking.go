@@ -349,6 +349,32 @@ func (ec *Client) GetCirculatingSupply(ctx context.Context) (*big.Int, error) {
 	return result.TotalSupply, nil
 }
 
+// GetTreasuryContractAddress returns treasury contract address
+func (ec *Client) GetTreasuryContractAddress(ctx context.Context) (common.Address, error) {
+	payload, err := ec.stakingUtil.Abi.Pack("treasury")
+	if err != nil {
+		ec.lgr.Error("Error packing get treasury contract address payload: ", zap.Error(err))
+		return common.Address{}, err
+	}
+
+	res, err := ec.KardiaCall(ctx, contructCallArgs(ec.stakingUtil.ContractAddress.Hex(), payload))
+	if err != nil {
+		ec.lgr.Error("GetGetTreasuryContractAddress KardiaCall error: ", zap.Error(err))
+		return common.Address{}, err
+	}
+
+	var result struct {
+		TreasuryAddress common.Address
+	}
+	// unpack result
+	err = ec.stakingUtil.Abi.UnpackIntoInterface(&result, "treasury", res)
+	if err != nil {
+		ec.lgr.Error("Error unpacking get treasury contract address error: ", zap.Error(err))
+		return common.Address{}, err
+	}
+	return result.TreasuryAddress, nil
+}
+
 func contructCallArgs(address string, payload []byte) types.CallArgsJSON {
 	return types.CallArgsJSON{
 		From:     address,

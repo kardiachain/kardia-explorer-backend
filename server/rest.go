@@ -120,7 +120,7 @@ func (s *Server) TokenInfo(c echo.Context) error {
 
 func (s *Server) UpdateSupplyAmounts(c echo.Context) error {
 	ctx := context.Background()
-	if !strings.Contains(c.Request().Header.Get("Authorization"), s.infoServer.HttpRequestSecret) {
+	if c.Request().Header.Get("Authorization") != s.infoServer.HttpRequestSecret {
 		return api.Unauthorized.Build(c)
 	}
 	var supplyInfo *types.SupplyInfo
@@ -508,6 +508,9 @@ func (s *Server) BlockTxs(c echo.Context) error {
 		if tx.To == cfg.StakingContractAddr {
 			t.ToName = cfg.StakingContractName
 		}
+		if tx.To == cfg.TreasuryContractAddr {
+			t.ToName = cfg.TreasuryContractName
+		}
 		result = append(result, t)
 	}
 
@@ -611,6 +614,9 @@ func (s *Server) Txs(c echo.Context) error {
 		if tx.To == cfg.StakingContractAddr {
 			t.ToName = cfg.StakingContractName
 		}
+		if tx.To == cfg.TreasuryContractAddr {
+			t.ToName = cfg.TreasuryContractName
+		}
 		result = append(result, t)
 	}
 
@@ -650,6 +656,12 @@ func (s *Server) Addresses(c echo.Context) error {
 			addrInfo.Role = smcAddress[addr.Address].Role
 			addrInfo.Name = smcAddress[addr.Address].Name
 		}
+		if addr.Address == cfg.TreasuryContractAddr {
+			addrInfo.Name = cfg.TreasuryContractName
+		}
+		if addr.Address == cfg.StakingContractAddr {
+			addrInfo.Name = cfg.StakingContractName
+		}
 		// double check with balance from RPC
 		balance, err := s.kaiClient.GetBalance(ctx, addr.Address)
 		if err != nil {
@@ -685,6 +697,12 @@ func (s *Server) AddressInfo(c echo.Context) error {
 			result.IsInValidatorsList = true
 			result.Role = smcAddress[result.Address].Role
 			result.Name = smcAddress[result.Address].Name
+		}
+		if result.Address == cfg.TreasuryContractAddr {
+			result.Name = cfg.TreasuryContractName
+		}
+		if result.Address == cfg.StakingContractAddr {
+			result.Name = cfg.StakingContractName
 		}
 		balance, err := s.kaiClient.GetBalance(ctx, address)
 		if err != nil {
@@ -766,10 +784,12 @@ func (s *Server) AddressTxs(c echo.Context) error {
 		if tx.To == cfg.StakingContractAddr {
 			t.ToName = cfg.StakingContractName
 		}
+		if tx.To == cfg.TreasuryContractAddr {
+			t.ToName = cfg.TreasuryContractName
+		}
 		result = append(result, t)
 	}
 
-	s.logger.Info("address txs:", zap.String("address", address))
 	return api.OK.SetData(PagingResponse{
 		Page:  page,
 		Limit: limit,
@@ -873,6 +893,10 @@ func (s *Server) TxByHash(c echo.Context) error {
 	}
 	if result.To == cfg.StakingContractAddr {
 		result.ToName = cfg.StakingContractName
+		return api.OK.SetData(result).Build(c)
+	}
+	if result.To == cfg.TreasuryContractAddr {
+		result.ToName = cfg.TreasuryContractName
 		return api.OK.SetData(result).Build(c)
 	}
 	smcAddress := s.getValidatorsAddressAndRole(ctx)

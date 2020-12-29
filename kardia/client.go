@@ -57,6 +57,7 @@ type ClientInterface interface {
 	GetValFromOwner(ctx context.Context, valAddr common.Address) (common.Address, error)
 	GetTotalSlashedToken(ctx context.Context) (*big.Int, error)
 	GetCirculatingSupply(ctx context.Context) (*big.Int, error)
+	GetTreasuryContractAddress(ctx context.Context) (common.Address, error)
 
 	// validator related methods
 	GetValidatorInfo(ctx context.Context, valSmcAddr common.Address) (*types.RPCValidator, error)
