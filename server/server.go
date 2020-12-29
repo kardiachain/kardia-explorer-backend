@@ -19,8 +19,9 @@
 package server
 
 import (
-	"github.com/kardiachain/explorer-backend/types"
 	"go.uber.org/zap"
+
+	"github.com/kardiachain/explorer-backend/types"
 
 	"github.com/kardiachain/explorer-backend/kardia"
 	"github.com/kardiachain/explorer-backend/metrics"

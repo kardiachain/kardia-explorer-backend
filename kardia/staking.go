@@ -24,8 +24,9 @@ import (
 
 	"go.uber.org/zap"
 
-	"github.com/kardiachain/explorer-backend/types"
 	"github.com/kardiachain/go-kardia/lib/common"
+
+	"github.com/kardiachain/explorer-backend/types"
 )
 
 func (ec *Client) GetValidatorsByDelegator(ctx context.Context, delAddr common.Address) ([]*types.ValidatorsByDelegator, error) {
@@ -63,7 +64,7 @@ func (ec *Client) GetValidatorsByDelegator(ctx context.Context, delAddr common.A
 		var name []byte
 		for _, b := range valInfo.Name {
 			if b != 0 {
-				name = append(name, byte(b))
+				name = append(name, b)
 			}
 		}
 		owner, err := ec.GetOwnerFromValidatorSMC(ctx, val)

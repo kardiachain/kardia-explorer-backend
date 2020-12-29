@@ -31,7 +31,7 @@ import (
 
 	"go.uber.org/zap"
 
-	kardia "github.com/kardiachain/go-kardia"
+	"github.com/kardiachain/go-kardia"
 	"github.com/kardiachain/go-kardia/lib/abi"
 	"github.com/kardiachain/go-kardia/lib/common"
 	"github.com/kardiachain/go-kardia/rpc"

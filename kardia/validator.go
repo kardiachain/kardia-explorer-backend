@@ -23,9 +23,10 @@ import (
 	"math/big"
 	"time"
 
-	"github.com/kardiachain/explorer-backend/types"
 	"github.com/kardiachain/go-kardia/lib/common"
 	"go.uber.org/zap"
+
+	"github.com/kardiachain/explorer-backend/types"
 )
 
 // GetValidatorInfo returns information of this validator
