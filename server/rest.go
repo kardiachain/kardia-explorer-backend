@@ -383,7 +383,21 @@ func (s *Server) Block(c echo.Context) error {
 			s.Logger.Info("got block by height from cache:", zap.Uint64("blockHeight", blockHeight))
 		}
 	}
-	smcAddress := s.getValidatorsAddressAndRole(ctx)
+	vals, err := s.kaiClient.Validators(ctx)
+	if err != nil {
+		vals, err = s.getValidatorsList(ctx)
+		if err != nil {
+			vals = nil
+		}
+	}
+
+	smcAddress := map[string]*valInfoResponse{}
+	for _, v := range vals.Validators {
+		smcAddress[v.Address.String()] = &valInfoResponse{
+			Name: v.Name,
+			Role: v.Role,
+		}
+	}
 	result := &Block{
 		Block:        *block,
 		ProposerName: smcAddress[block.ProposerAddress].Name,
