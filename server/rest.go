@@ -124,7 +124,7 @@ func (s *Server) TokenInfo(c echo.Context) error {
 
 func (s *Server) UpdateSupplyAmounts(c echo.Context) error {
 	ctx := context.Background()
-	if !strings.Contains(c.Request().Header.Get("Authorization"), s.infoServer.HttpRequestSecret) {
+	if c.Request().Header.Get("Authorization") != s.infoServer.HttpRequestSecret {
 		return api.Unauthorized.Build(c)
 	}
 	var supplyInfo *types.SupplyInfo
@@ -781,7 +781,6 @@ func (s *Server) AddressTxs(c echo.Context) error {
 		result = append(result, t)
 	}
 
-	s.logger.Info("address txs:", zap.String("address", address))
 	return api.OK.SetData(PagingResponse{
 		Page:  page,
 		Limit: limit,
@@ -979,6 +978,9 @@ func (s *Server) getValidatorsAddressAndRole(ctx context.Context) map[string]*va
 			Name: v.Name,
 			Role: v.Role,
 		}
+	}
+	smcAddress[cfg.TreasuryContractAddr] = &valInfoResponse{
+		Name: cfg.TreasuryContractName,
 	}
 	return smcAddress
 }
