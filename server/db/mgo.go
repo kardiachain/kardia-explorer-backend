@@ -36,12 +36,11 @@ import (
 )
 
 const (
-	cBlocks          = "Blocks"
-	cTxs             = "Transactions"
-	cAddresses       = "Addresses"
-	cTxsByAddress    = "TransactionsByAddress"
-	cActiveAddresses = "ActiveAddresses"
-	cStats           = "Stats"
+	cBlocks       = "Blocks"
+	cTxs          = "Transactions"
+	cAddresses    = "Addresses"
+	cTxsByAddress = "TransactionsByAddress"
+	cStats        = "Stats"
 )
 
 var (

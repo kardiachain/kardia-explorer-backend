@@ -30,8 +30,6 @@ import (
 var (
 	currentProcessBlock uint64
 	processCounter      = 0
-	startTime           time.Time
-	endTime             time.Duration
 )
 
 const (
