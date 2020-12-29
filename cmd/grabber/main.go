@@ -144,14 +144,11 @@ func main() {
 	}
 
 	// Start listener in new go routine
-	// todo @longnd: Running multi goroutine same time
 	go listener(ctx, srv, serviceCfg.ListenerInterval)
 	backfillCtx, _ := context.WithCancel(context.Background())
 	go backfill(backfillCtx, backfillSrv, serviceCfg.BackfillInterval)
 	verifyCtx, _ := context.WithCancel(context.Background())
 	go verify(verifyCtx, verifySrv, serviceCfg.VerifierInterval)
-	//updateAddresses(ctx, true, 0, srv)
 	<-waitExit
-	logger.Info("Grabber stopping")
 	logger.Info("Stopped")
 }

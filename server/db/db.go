@@ -47,9 +47,7 @@ type Client interface {
 	LatestBlockHeight(ctx context.Context) (uint64, error)
 	Blocks(ctx context.Context, pagination *types.Pagination) ([]*types.Block, error)
 	InsertBlock(ctx context.Context, block *types.Block) error
-	UpsertBlock(ctx context.Context, block *types.Block) error
 	DeleteLatestBlock(ctx context.Context) (uint64, error)
-	// TODO(trinhdn): Replace delete+insert operation with upsert instead
 	DeleteBlockByHeight(ctx context.Context, blockHeight uint64) error
 	BlocksByProposer(ctx context.Context, proposer string, pagination *types.Pagination) ([]*types.Block, uint64, error)
 
@@ -69,14 +67,9 @@ type Client interface {
 	UpsertTxs(ctx context.Context, txs []*types.Transaction) error
 	InsertListTxByAddress(ctx context.Context, list []*types.TransactionByAddress) error
 
-	// Token
-	TokenHolders(ctx context.Context, tokenAddress string, pagination *types.Pagination) ([]*types.TokenHolder, uint64, error)
-	//InternalTxs(ctx context.Context)
-
 	// Address
 	AddressByHash(ctx context.Context, addressHash string) (*types.Address, error)
 	InsertAddress(ctx context.Context, address *types.Address) error
-	OwnedTokensOfAddress(ctx context.Context, address string, pagination *types.Pagination) ([]*types.TokenHolder, uint64, error)
 
 	// ActiveAddress
 	UpdateAddresses(ctx context.Context, addresses []*types.Address) error

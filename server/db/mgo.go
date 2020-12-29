@@ -20,7 +20,6 @@ package db
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"time"
 
@@ -41,10 +40,6 @@ const (
 	cAddresses    = "Addresses"
 	cTxsByAddress = "TransactionsByAddress"
 	cStats        = "Stats"
-)
-
-var (
-	ErrNotImplemented = errors.New("not implemented")
 )
 
 type mongoDB struct {
@@ -298,7 +293,6 @@ func (m *mongoDB) IsBlockExist(ctx context.Context, blockHeight uint64) (bool, e
 
 func (m *mongoDB) InsertBlock(ctx context.Context, block *types.Block) error {
 	logger := m.logger
-	// todo @longnd: add block info ?
 	// Upsert block into Blocks
 	_, err := m.wrapper.C(cBlocks).Insert(block)
 	if err != nil {
@@ -312,11 +306,6 @@ func (m *mongoDB) InsertBlock(ctx context.Context, block *types.Block) error {
 	}
 
 	return nil
-}
-
-// UpsertBlock call by verifier, to avoid duplicate block record
-func (m *mongoDB) UpsertBlock(ctx context.Context, block *types.Block) error {
-	return ErrNotImplemented
 }
 
 func (m *mongoDB) DeleteLatestBlock(ctx context.Context) (uint64, error) {
@@ -559,7 +548,6 @@ func (m *mongoDB) InsertTxs(ctx context.Context, txs []*types.Transaction) error
 	for _, tx := range txs {
 		txModel := mongo.NewInsertOneModel().SetDocument(tx)
 		txsBulkWriter = append(txsBulkWriter, txModel)
-		// TODO(trinhdn): insert created contract info to database with model `address`
 	}
 	if len(txsBulkWriter) > 0 {
 		if _, err := m.wrapper.C(cTxs).BulkWrite(txsBulkWriter); err != nil {
@@ -635,13 +623,6 @@ func (m *mongoDB) LatestTxs(ctx context.Context, pagination *types.Pagination) (
 
 //endregion Txs
 
-//region Token
-func (m *mongoDB) TokenHolders(ctx context.Context, tokenAddress string, pagination *types.Pagination) ([]*types.TokenHolder, uint64, error) {
-	panic("implement me")
-}
-
-//endregion Token
-
 //region Address
 
 func (m *mongoDB) AddressByHash(ctx context.Context, address string) (*types.Address, error) {
@@ -661,12 +642,7 @@ func (m *mongoDB) InsertAddress(ctx context.Context, address *types.Address) err
 	return nil
 }
 
-func (m *mongoDB) OwnedTokensOfAddress(ctx context.Context, walletAddress string, pagination *types.Pagination) ([]*types.TokenHolder, uint64, error) {
-	panic("implement me")
-}
-
 // UpdateAddresses update last time those addresses active
-// Just skip for now
 func (m *mongoDB) UpdateAddresses(ctx context.Context, addresses []*types.Address) error {
 	if addresses == nil || len(addresses) == 0 {
 		return nil

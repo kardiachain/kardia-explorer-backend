@@ -274,9 +274,6 @@ func (s *infoServer) ImportBlock(ctx context.Context, block *types.Block, writeT
 	block.Txs = s.mergeAdditionalInfoToTxs(block.Txs, block.Receipts)
 
 	// Start import block
-	// consider new routine here
-	// todo: add metrics
-	// todo @longnd: Use redis or leveldb as mem-write buffer for N blocks
 	startTime := time.Now()
 	if err := s.dbClient.InsertBlock(ctx, block); err != nil {
 		s.logger.Debug("cannot import block to db", zap.Error(err))
@@ -408,7 +405,6 @@ func (s *infoServer) ImportReceipts(ctx context.Context, block *types.Block) err
 	results := make(chan response, block.NumTxs)
 	var addresses []*types.Address
 
-	//todo @longnd: Move this workers to config or dynamic settings
 	for w := 0; w <= 10; w++ {
 		go func(jobs <-chan types.Transaction, results chan<- response) {
 			for tx := range jobs {
@@ -416,7 +412,6 @@ func (s *infoServer) ImportReceipts(ctx context.Context, block *types.Block) err
 				receipt, err := s.kaiClient.GetTransactionReceipt(ctx, tx.Hash)
 				if err != nil {
 					s.logger.Warn("get receipt err", zap.String("tx hash", tx.Hash), zap.Error(err))
-					//todo: consider how we handle this err, just skip it now
 					results <- response{
 						err: err,
 					}
@@ -433,7 +428,6 @@ func (s *infoServer) ImportReceipts(ctx context.Context, block *types.Block) err
 
 				address, err := s.dbClient.AddressByHash(ctx, toAddress)
 				if err != nil {
-					//todo: consider how we handle this err, just skip it now
 					s.logger.Warn("cannot get address by hash")
 					results <- response{
 						err: err,
@@ -446,7 +440,6 @@ func (s *infoServer) ImportReceipts(ctx context.Context, block *types.Block) err
 					//	addresses[l.Address] = nil
 					//}
 					if err := s.dbClient.UpdateAddresses(ctx, addresses); err != nil {
-						//todo: consider how we handle this err, just skip it now
 						s.logger.Warn("cannot update active address")
 						results <- response{
 							err: err,
@@ -477,7 +470,6 @@ func (s *infoServer) ImportReceipts(ctx context.Context, block *types.Block) err
 		jobs <- *tx
 	}
 	close(jobs)
-	// todo @longnd: try to remove this loop
 	size := int(block.NumTxs)
 	for i := 0; i < size; i++ {
 		r := <-results
@@ -492,7 +484,6 @@ func (s *infoServer) ImportReceipts(ctx context.Context, block *types.Block) err
 		}
 	}
 
-	// todo @longnd: Handle insert failed
 	if len(listTxByToAddress) > 0 {
 		s.logger.Debug("ListTxFromAddress", zap.Int("Size", len(listTxByFromAddress)))
 		if err := s.dbClient.InsertListTxByAddress(ctx, listTxByFromAddress); err != nil {
@@ -500,7 +491,6 @@ func (s *infoServer) ImportReceipts(ctx context.Context, block *types.Block) err
 		}
 	}
 
-	// todo @longnd: Handle insert failed
 	if len(listTxByToAddress) > 0 {
 		s.logger.Debug("ListTxByToAddress", zap.Int("Size", len(listTxByFromAddress)))
 		if err := s.dbClient.InsertListTxByAddress(ctx, listTxByToAddress); err != nil {
@@ -571,20 +561,6 @@ func (s *infoServer) VerifyBlock(ctx context.Context, blockHeight uint64, networ
 	return false, nil
 }
 
-// calculateTPS return TPS per each [10, 20, 50] blocks
-func (s *infoServer) calculateTPS(startTime uint64) (uint64, error) {
-	return 0, nil
-}
-
-// getAddressByHash return *types.Address from mgo.Collection("Address")
-func (s *infoServer) getAddressByHash(address string) (*types.Address, error) {
-	return nil, nil
-}
-
-func (s *infoServer) getTxsByBlockNumber(blockNumber int64, filter *types.Pagination) ([]*types.Transaction, error) {
-	return nil, nil
-}
-
 func filterAddrSet(txs []*types.Transaction) map[string]*types.Address {
 	addrs := make(map[string]*types.Address)
 	for _, tx := range txs {
@@ -606,7 +582,6 @@ func filterAddrSet(txs []*types.Transaction) map[string]*types.Address {
 	return addrs
 }
 
-// TODO(trinhdn): need to use workers instead
 func (s *infoServer) getAddressBalances(ctx context.Context, addrs map[string]*types.Address) []*types.Address {
 	if addrs == nil || len(addrs) == 0 {
 		return nil

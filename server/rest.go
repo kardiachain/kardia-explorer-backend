@@ -267,7 +267,6 @@ func (s *Server) Blocks(c echo.Context) error {
 	)
 	pagination, page, limit := getPagingOption(c)
 
-	// todo @londnd: implement read from cache,
 	blocks, err = s.cacheClient.LatestBlocks(ctx, pagination)
 	if err != nil || blocks == nil {
 		s.logger.Debug("Cannot get latest blocks from cache", zap.Error(err))

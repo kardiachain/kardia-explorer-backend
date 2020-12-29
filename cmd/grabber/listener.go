@@ -31,7 +31,6 @@ import (
 var prevHeader uint64 = 0 // the highest persistent block in database, don't need to backfill blocks have blockHeight < prevHeader
 
 // listener fetch LatestBlockNumber every second and check if we stay behind latest block
-// todo: implement pipeline with worker for dispatch InsertBlock task
 func listener(ctx context.Context, srv *server.Server, interval time.Duration) {
 	var (
 		startTime time.Time
@@ -58,7 +57,6 @@ func listener(ctx context.Context, srv *server.Server, interval time.Duration) {
 				srv.Logger.Debug("Listener: No new block from RPC", zap.Uint64("prevHeader", prevHeader))
 				continue
 			}
-			// todo @longnd: this check quite bad, since its require us to keep backfill running
 			if prevHeader != latest {
 				startTime = time.Now()
 				block, err := srv.BlockByHeight(ctx, latest)
