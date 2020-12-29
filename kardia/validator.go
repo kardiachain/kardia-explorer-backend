@@ -55,7 +55,6 @@ func (ec *Client) GetValidatorInfo(ctx context.Context, valSmcAddr common.Addres
 	valInfo.CommissionRate = rate
 	valInfo.MaxRate = maxRate
 	valInfo.MaxChangeRate = maxChangeRate
-	ec.lgr.Debug("inforValidator validator info", zap.Any("valInfo", valInfo))
 	return &valInfo, nil
 }
 
@@ -264,7 +263,6 @@ func (ec *Client) GetSlashEventsLength(ctx context.Context, valSmcAddr common.Ad
 		return nil, err
 	}
 	if len(res) == 0 {
-		ec.lgr.Debug("GetSlashEventsLength KardiaCall empty result")
 		return nil, ErrEmptyList
 	}
 
@@ -304,7 +302,7 @@ func (ec *Client) GetSlashEvents(ctx context.Context, valAddr common.Address) ([
 		}
 		res, err := ec.KardiaCall(ctx, contructCallArgs(valSmcAddr.Hex(), payload))
 		if err != nil {
-			ec.lgr.Debug("GetSlashEvents KardiaCall Error: ", zap.String("i", i.String()), zap.String("payload", common.Bytes(payload).String()), zap.Error(err))
+			ec.lgr.Warn("GetSlashEvents KardiaCall Error: ", zap.String("i", i.String()), zap.String("payload", common.Bytes(payload).String()), zap.Error(err))
 			return nil, err
 		}
 		var result struct {

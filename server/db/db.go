@@ -78,7 +78,6 @@ type Client interface {
 }
 
 func NewClient(cfg Config) (Client, error) {
-	cfg.Logger.Debug("Create new db instance with config", zap.Any("config", cfg))
 	switch cfg.DbAdapter {
 	case MGO:
 		return newMongoDB(cfg)

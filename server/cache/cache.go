@@ -77,7 +77,6 @@ type Client interface {
 }
 
 func New(cfg Config) (Client, error) {
-	cfg.Logger.Debug("create cache client with config", zap.Any("config", cfg))
 	switch cfg.Adapter {
 	case RedisAdapter:
 		return newRedis(cfg)

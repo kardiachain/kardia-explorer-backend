@@ -54,7 +54,6 @@ func listener(ctx context.Context, srv *server.Server, interval time.Duration) {
 			}
 			lgr := srv.Logger.With(zap.Uint64("block", latest))
 			if latest <= prevHeader {
-				srv.Logger.Debug("Listener: No new block from RPC", zap.Uint64("prevHeader", prevHeader))
 				continue
 			}
 			if prevHeader != latest {

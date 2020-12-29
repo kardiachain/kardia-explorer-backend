@@ -219,7 +219,6 @@ func (s *infoServer) BlockByHash(ctx context.Context, hash string) (*types.Block
 	if err == nil {
 		return cacheBlock, nil
 	}
-	lgr.Debug("cannot find block in cache", zap.Error(err))
 
 	dbBlock, err := s.dbClient.BlockByHash(ctx, hash)
 	if err == nil {
@@ -238,14 +237,13 @@ func (s *infoServer) BlockByHeight(ctx context.Context, blockHeight uint64) (*ty
 	if err == nil {
 		return cacheBlock, nil
 	}
-	lgr.Debug("cannot find block in cache")
 
 	dbBlock, err := s.dbClient.BlockByHeight(ctx, blockHeight)
 	if err == nil {
 		return dbBlock, nil
 	}
 	// Something wrong or we stay behind the network
-	lgr.Debug("cannot find block in db")
+	lgr.Warn("cannot find block by height in db", zap.Uint64("Height", blockHeight))
 
 	return s.kaiClient.BlockByHeight(ctx, blockHeight)
 }
@@ -276,16 +274,13 @@ func (s *infoServer) ImportBlock(ctx context.Context, block *types.Block, writeT
 	// Start import block
 	startTime := time.Now()
 	if err := s.dbClient.InsertBlock(ctx, block); err != nil {
-		s.logger.Debug("cannot import block to db", zap.Error(err))
 		return err
 	}
 	endTime := time.Since(startTime)
 	s.metrics.RecordInsertBlockTime(endTime)
-	s.logger.Debug("Total time for import block", zap.Duration("TimeConsumed", endTime), zap.String("Avg", s.metrics.GetInsertBlockTime()))
 
 	if writeToCache {
 		if err := s.cacheClient.InsertTxsOfBlock(ctx, block); err != nil {
-			s.logger.Debug("cannot import txs to cache", zap.Error(err))
 			return err
 		}
 	}
@@ -296,7 +291,6 @@ func (s *infoServer) ImportBlock(ctx context.Context, block *types.Block, writeT
 	}
 	endTime = time.Since(startTime)
 	s.metrics.RecordInsertTxsTime(endTime)
-	s.logger.Debug("Total time for import tx", zap.Duration("TimeConsumed", endTime), zap.String("Avg", s.metrics.GetInsertTxsTime()))
 
 	// update active addresses
 	startTime = time.Now()
@@ -307,7 +301,6 @@ func (s *infoServer) ImportBlock(ctx context.Context, block *types.Block, writeT
 	}
 	endTime = time.Since(startTime)
 	s.metrics.RecordInsertActiveAddressTime(endTime)
-	s.logger.Debug("Total time for update addresses", zap.Duration("TimeConsumed", endTime), zap.String("Avg", s.metrics.GetInsertActiveAddressTime()))
 	startTime = time.Now()
 	totalAddr, totalContractAddr, err := s.dbClient.GetTotalAddresses(ctx)
 	if err != nil {
@@ -317,7 +310,6 @@ func (s *infoServer) ImportBlock(ctx context.Context, block *types.Block, writeT
 	if err != nil {
 		return err
 	}
-	s.logger.Debug("Total time for getting active addresses", zap.Duration("TimeConsumed", time.Since(startTime)))
 
 	if _, err := s.cacheClient.UpdateTotalTxs(ctx, block.NumTxs); err != nil {
 		return err
@@ -408,7 +400,6 @@ func (s *infoServer) ImportReceipts(ctx context.Context, block *types.Block) err
 	for w := 0; w <= 10; w++ {
 		go func(jobs <-chan types.Transaction, results chan<- response) {
 			for tx := range jobs {
-				//s.logger.Debug("Start worker", zap.Any("TX", tx))
 				receipt, err := s.kaiClient.GetTransactionReceipt(ctx, tx.Hash)
 				if err != nil {
 					s.logger.Warn("get receipt err", zap.String("tx hash", tx.Hash), zap.Error(err))
@@ -485,14 +476,12 @@ func (s *infoServer) ImportReceipts(ctx context.Context, block *types.Block) err
 	}
 
 	if len(listTxByToAddress) > 0 {
-		s.logger.Debug("ListTxFromAddress", zap.Int("Size", len(listTxByFromAddress)))
 		if err := s.dbClient.InsertListTxByAddress(ctx, listTxByFromAddress); err != nil {
 			return err
 		}
 	}
 
 	if len(listTxByToAddress) > 0 {
-		s.logger.Debug("ListTxByToAddress", zap.Int("Size", len(listTxByFromAddress)))
 		if err := s.dbClient.InsertListTxByAddress(ctx, listTxByToAddress); err != nil {
 			return err
 		}
@@ -555,7 +544,6 @@ func (s *infoServer) VerifyBlock(ctx context.Context, blockHeight uint64, networ
 		}
 		endTime := time.Since(startTime)
 		s.metrics.RecordUpsertBlockTime(endTime)
-		s.logger.Debug("Upsert block time", zap.Duration("TimeConsumed", endTime), zap.String("Avg", s.metrics.GetUpsertBlockTime()))
 		return true, nil
 	}
 	return false, nil
