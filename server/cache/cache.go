@@ -39,8 +39,6 @@ type Client interface {
 	TxsByBlockHash(ctx context.Context, blockHash string, pagination *types.Pagination) ([]*types.Transaction, uint64, error)
 	TxsByBlockHeight(ctx context.Context, blockHeight uint64, pagination *types.Pagination) ([]*types.Transaction, uint64, error)
 
-	TxByHash(ctx context.Context, txHash string) (*types.Transaction, error)
-
 	ListSize(ctx context.Context, key string) (int64, error)
 
 	LatestBlocks(ctx context.Context, pagination *types.Pagination) ([]*types.Block, error)
@@ -65,15 +63,10 @@ type Client interface {
 	IsRequestToCoinMarket(ctx context.Context) bool
 	TokenInfo(ctx context.Context) (*types.TokenInfo, error)
 	UpdateTokenInfo(ctx context.Context, tokenInfo *types.TokenInfo) error
-
-	SupplyAmounts(ctx context.Context) (*types.SupplyInfo, error)
 	UpdateSupplyAmounts(ctx context.Context, supplyInfo *types.SupplyInfo) error
 
 	Validators(ctx context.Context) (*types.Validators, error)
 	UpdateValidators(ctx context.Context, validators *types.Validators) error
-
-	NodesInfo(ctx context.Context) ([]*types.NodeInfo, error)
-	UpdateNodesInfo(ctx context.Context, nodes []*types.NodeInfo) error
 }
 
 func New(cfg Config) (Client, error) {

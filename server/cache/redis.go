@@ -523,50 +523,6 @@ func (c *Redis) UpdateValidators(ctx context.Context, validators *types.Validato
 	return nil
 }
 
-func (c *Redis) NodesInfo(ctx context.Context) ([]*types.NodeInfo, error) {
-	nodesListLen, err := c.client.LLen(ctx, KeyNodesInfoList).Result()
-	if err != nil {
-		c.logger.Warn("cannot get nodes info length from cache")
-		return nil, err
-	}
-	if nodesListLen == 0 {
-		return nil, nil
-	}
-	nodeStrList, err := c.client.LRange(ctx, KeyNodesInfoList, 0, nodesListLen-1).Result()
-	if err != nil {
-		c.logger.Warn("cannot get nodes info from cache", zap.Int("from", 0), zap.Int64("to", nodesListLen-1))
-		return nil, err
-	}
-	var nodesList []*types.NodeInfo
-	for _, nodeStr := range nodeStrList {
-		var node *types.NodeInfo
-		if err := json.Unmarshal([]byte(nodeStr), &node); err != nil {
-			return nil, err
-		}
-		nodesList = append(nodesList, node)
-	}
-	return nodesList, nil
-}
-
-func (c *Redis) UpdateNodesInfo(ctx context.Context, nodes []*types.NodeInfo) error {
-	for _, node := range nodes {
-		nodeJSON, err := json.Marshal(node)
-		if err != nil {
-			return err
-		}
-		if err := c.client.RPush(ctx, KeyNodesInfoList, string(nodeJSON)).Err(); err != nil {
-			c.logger.Warn("cannot push nodes info to cache")
-			return err
-		}
-	}
-	result, err := c.client.Expire(ctx, KeyNodesInfoList, cfg.NodesInfoListExpTime).Result()
-	if err != nil || !result {
-		c.logger.Warn("cannot set nodes info expiration time in cache", zap.Bool("result", result), zap.Error(err))
-		return err
-	}
-	return nil
-}
-
 func (c *Redis) deleteKeysOfBlock(ctx context.Context, block *types.Block) error {
 	keys := []string{
 		fmt.Sprintf(KeyBlockHashByHeight, block.Hash),

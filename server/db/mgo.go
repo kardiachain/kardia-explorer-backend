@@ -231,7 +231,6 @@ func (m *mongoDB) LatestBlockHeight(ctx context.Context) (uint64, error) {
 }
 
 func (m *mongoDB) Blocks(ctx context.Context, pagination *types.Pagination) ([]*types.Block, error) {
-	m.logger.Debug("get blocks from db", zap.Any("pagination", pagination))
 	var blocks []*types.Block
 	opts := []*options.FindOptions{
 		options.Find().SetHint(bson.M{"height": -1}),
@@ -312,11 +311,6 @@ func (m *mongoDB) InsertBlock(ctx context.Context, block *types.Block) error {
 	}
 
 	return nil
-}
-
-// UpsertBlock call by verifier, to avoid duplicate block record
-func (m *mongoDB) UpsertBlock(ctx context.Context, block *types.Block) error {
-	return ErrNotImplemented
 }
 
 func (m *mongoDB) DeleteLatestBlock(ctx context.Context) (uint64, error) {
@@ -403,10 +397,6 @@ func (m *mongoDB) TxsCount(ctx context.Context) (uint64, error) {
 		return 0, err
 	}
 	return uint64(total), nil
-}
-
-func (m *mongoDB) BlockTxCount(ctx context.Context, hash string) (int64, error) {
-	return 0, nil
 }
 
 func (m *mongoDB) TxsByBlockHash(ctx context.Context, blockHash string, pagination *types.Pagination) ([]*types.Transaction, uint64, error) {
@@ -539,18 +529,6 @@ func (m *mongoDB) TxByHash(ctx context.Context, txHash string) (*types.Transacti
 	return tx, nil
 }
 
-func (m *mongoDB) TxByNonce(ctx context.Context, nonce int64) (*types.Transaction, error) {
-	var tx *types.Transaction
-	err := m.wrapper.C(cTxs).FindOne(bson.M{"nonce": nonce}).Decode(&tx)
-	if err != nil {
-		if err == mgo.ErrNotFound {
-			return nil, nil
-		}
-		return nil, fmt.Errorf("failed to get tx: %v", err)
-	}
-	return tx, nil
-}
-
 // InsertTxs create bulk writer
 func (m *mongoDB) InsertTxs(ctx context.Context, txs []*types.Transaction) error {
 	var (
@@ -567,20 +545,6 @@ func (m *mongoDB) InsertTxs(ctx context.Context, txs []*types.Transaction) error
 		}
 	}
 
-	return nil
-}
-
-func (m *mongoDB) UpsertTxs(ctx context.Context, txs []*types.Transaction) error {
-	var txsBulkWriter []mongo.WriteModel
-	for _, tx := range txs {
-		m.logger.Debug("Process tx", zap.String("tx", fmt.Sprintf("%#v", tx)))
-		txModel := mongo.NewInsertOneModel().SetDocument(tx)
-		txsBulkWriter = append(txsBulkWriter, txModel)
-	}
-
-	if _, err := m.wrapper.C(cTxs).BulkWrite(txsBulkWriter); err != nil {
-		return err
-	}
 	return nil
 }
 
@@ -635,13 +599,6 @@ func (m *mongoDB) LatestTxs(ctx context.Context, pagination *types.Pagination) (
 
 //endregion Txs
 
-//region Token
-func (m *mongoDB) TokenHolders(ctx context.Context, tokenAddress string, pagination *types.Pagination) ([]*types.TokenHolder, uint64, error) {
-	panic("implement me")
-}
-
-//endregion Token
-
 //region Address
 
 func (m *mongoDB) AddressByHash(ctx context.Context, address string) (*types.Address, error) {
@@ -659,10 +616,6 @@ func (m *mongoDB) InsertAddress(ctx context.Context, address *types.Address) err
 		return err
 	}
 	return nil
-}
-
-func (m *mongoDB) OwnedTokensOfAddress(ctx context.Context, walletAddress string, pagination *types.Pagination) ([]*types.TokenHolder, uint64, error) {
-	panic("implement me")
 }
 
 // UpdateAddresses update last time those addresses active
