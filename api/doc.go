@@ -19,5 +19,4 @@
 // Package api using echo framework, provide list API for frontend/third party to interact with explorer
 // RestAPI has follow format: {host}/api/{version}/{api}
 // Version is a uint
-// todo @longnd: consider using gRPC in next version
 package api
