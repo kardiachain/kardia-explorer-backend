@@ -227,7 +227,7 @@ func (s *infoServer) BlockByHash(ctx context.Context, hash string) (*types.Block
 		return dbBlock, nil
 	}
 	// Something wrong or we stay behind the network
-	lgr.Debug("cannot find block in db", zap.Error(err))
+	lgr.Warn("cannot find block in db", zap.Error(err))
 	return s.kaiClient.BlockByHash(ctx, hash)
 }
 
