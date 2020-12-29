@@ -1,3 +1,20 @@
+/*
+ *  Copyright 2018 KardiaChain
+ *  This file is part of the go-kardia library.
+ *
+ *  The go-kardia library is free software: you can redistribute it and/or modify
+ *  it under the terms of the GNU Lesser General Public License as published by
+ *  the Free Software Foundation, either version 3 of the License, or
+ *  (at your option) any later version.
+ *
+ *  The go-kardia library is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ *  GNU Lesser General Public License for more details.
+ *
+ *  You should have received a copy of the GNU Lesser General Public License
+ *  along with the go-kardia library. If not, see <http://www.gnu.org/licenses/>.
+ */
 // Package main
 package main
 
@@ -7,27 +24,21 @@ import (
 
 	"go.uber.org/zap"
 
+	"github.com/kardiachain/explorer-backend/cfg"
 	"github.com/kardiachain/explorer-backend/server"
 )
 
 var prevHeader uint64 = 0 // the highest persistent block in database, don't need to backfill blocks have blockHeight < prevHeader
 
 // listener fetch LatestBlockNumber every second and check if we stay behind latest block
-// todo: implement pipeline with worker for dispatch InsertBlock task
 func listener(ctx context.Context, srv *server.Server, interval time.Duration) {
 	var (
 		startTime time.Time
 		endTime   time.Duration
 	)
-	// delete current latest block in db
-	deletedHeight, err := srv.DeleteLatestBlock(ctx)
-	if err != nil {
-		srv.Logger.Warn("Cannot remove old latest block", zap.Error(err))
-	}
-	if deletedHeight > 0 {
-		prevHeader = deletedHeight - 1 // the highest persistent block in database now is deletedHeight - 1
-	}
-	srv.Logger.Info("Start listening...")
+	// update current stats of network and get highest persistent block in database
+	prevHeader = srv.GetCurrentStats(ctx)
+	srv.Logger.Info("Start listening...", zap.Uint64("from block", prevHeader))
 	t := time.NewTicker(interval)
 	defer t.Stop()
 	for {
@@ -36,17 +47,15 @@ func listener(ctx context.Context, srv *server.Server, interval time.Duration) {
 			return
 		case <-t.C:
 			latest, err := srv.LatestBlockHeight(ctx)
-			srv.Logger.Debug("Listener: Get block height from network", zap.Uint64("BlockHeight", latest), zap.Uint64("PrevHeader", prevHeader))
+			srv.Logger.Info("Listener: Get block height from network", zap.Uint64("BlockHeight", latest), zap.Uint64("PrevHeader", prevHeader))
 			if err != nil {
 				srv.Logger.Error("Listener: Failed to get latest block number", zap.Error(err))
 				continue
 			}
 			lgr := srv.Logger.With(zap.Uint64("block", latest))
 			if latest <= prevHeader {
-				srv.Logger.Debug("Listener: No new block from RPC", zap.Uint64("prevHeader", prevHeader))
 				continue
 			}
-			// todo @longnd: this check quite bad, since its require us to keep backfill running
 			if prevHeader != latest {
 				startTime = time.Now()
 				block, err := srv.BlockByHeight(ctx, latest)
@@ -68,7 +77,7 @@ func listener(ctx context.Context, srv *server.Server, interval time.Duration) {
 				}
 				// import this latest block to cache and database
 				if err := srv.ImportBlock(ctx, block, true); err != nil {
-					lgr.Error("Listener: Failed to import block", zap.Error(err))
+					lgr.Debug("Listener: Failed to import block", zap.Error(err))
 					continue
 				}
 				if latest-1 > prevHeader {
@@ -80,6 +89,9 @@ func listener(ctx context.Context, srv *server.Server, interval time.Duration) {
 					}
 				}
 				prevHeader = latest
+				if latest%cfg.UpdateStatsInterval == 0 {
+					_ = srv.UpdateCurrentStats(ctx)
+				}
 			}
 		}
 	}

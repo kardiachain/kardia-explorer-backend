@@ -1,5 +1,5 @@
 /*
- *  Copyright 2018 KardiaChain
+ *  Copyright 2020 KardiaChain
  *  This file is part of the go-kardia library.
  *
  *  The go-kardia library is free software: you can redistribute it and/or modify
@@ -16,23 +16,34 @@
  *  along with the go-kardia library. If not, see <http://www.gnu.org/licenses/>.
  */
 
-package server
+package kardia
 
 import (
 	"context"
-	"time"
+	"math/big"
 
-	"github.com/kardiachain/explorer-backend/server/cache"
+	"go.uber.org/zap"
 )
 
-const (
-	DefaultTimeout = 5 * time.Second
-)
+// GetMaxProposers returns max number of proposers
+func (ec *Client) GetMaxProposers(ctx context.Context) (int64, error) {
+	payload, err := ec.paramsUtil.Abi.Pack("getMaxProposers")
+	if err != nil {
+		return 0, err
+	}
+	res, err := ec.KardiaCall(ctx, contructCallArgs(ec.paramsUtil.ContractAddress.Hex(), payload))
+	if err != nil {
+		return 0, err
+	}
 
-func (s *infoServer) LatestBlockHeight(ctx context.Context) (uint64, error) {
-	return s.kaiClient.LatestBlockNumber(ctx)
-}
-
-func (s *infoServer) BlockCacheSize(ctx context.Context) (int64, error) {
-	return s.cacheClient.ListSize(ctx, cache.KeyBlocks)
+	var result struct {
+		MaxProposers *big.Int
+	}
+	// unpack result
+	err = ec.paramsUtil.Abi.UnpackIntoInterface(&result, "getMaxProposers", res)
+	if err != nil {
+		ec.lgr.Error("Error unpacking max proposers", zap.Error(err))
+		return 0, err
+	}
+	return result.MaxProposers.Int64(), nil
 }

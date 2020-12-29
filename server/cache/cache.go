@@ -39,8 +39,6 @@ type Client interface {
 	TxsByBlockHash(ctx context.Context, blockHash string, pagination *types.Pagination) ([]*types.Transaction, uint64, error)
 	TxsByBlockHeight(ctx context.Context, blockHeight uint64, pagination *types.Pagination) ([]*types.Transaction, uint64, error)
 
-	TxByHash(ctx context.Context, txHash string) (*types.Transaction, error)
-
 	ListSize(ctx context.Context, key string) (int64, error)
 
 	LatestBlocks(ctx context.Context, pagination *types.Pagination) ([]*types.Block, error)
@@ -54,6 +52,7 @@ type Client interface {
 	PopUnverifiedBlockHeight(ctx context.Context) (uint64, error)
 
 	UpdateTotalTxs(ctx context.Context, blockTxs uint64) (uint64, error)
+	SetTotalTxs(ctx context.Context, numTxs uint64) error
 	TotalTxs(ctx context.Context) uint64
 	LatestBlockHeight(ctx context.Context) uint64
 
@@ -64,19 +63,13 @@ type Client interface {
 	IsRequestToCoinMarket(ctx context.Context) bool
 	TokenInfo(ctx context.Context) (*types.TokenInfo, error)
 	UpdateTokenInfo(ctx context.Context, tokenInfo *types.TokenInfo) error
-
-	CirculatingSupply(ctx context.Context) (int64, error)
-	UpdateCirculatingSupply(ctx context.Context, cirSup int64) error
+	UpdateSupplyAmounts(ctx context.Context, supplyInfo *types.SupplyInfo) error
 
 	Validators(ctx context.Context) (*types.Validators, error)
 	UpdateValidators(ctx context.Context, validators *types.Validators) error
-
-	NodesInfo(ctx context.Context) ([]*types.NodeInfo, error)
-	UpdateNodesInfo(ctx context.Context, nodes []*types.NodeInfo) error
 }
 
 func New(cfg Config) (Client, error) {
-	cfg.Logger.Debug("create cache client with config", zap.Any("config", cfg))
 	switch cfg.Adapter {
 	case RedisAdapter:
 		return newRedis(cfg)

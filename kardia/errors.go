@@ -1,5 +1,5 @@
 /*
- *  Copyright 2018 KardiaChain
+ *  Copyright 2020 KardiaChain
  *  This file is part of the go-kardia library.
  *
  *  The go-kardia library is free software: you can redistribute it and/or modify
@@ -15,19 +15,14 @@
  *  You should have received a copy of the GNU Lesser General Public License
  *  along with the go-kardia library. If not, see <http://www.gnu.org/licenses/>.
  */
-// Package utils
-package utils
 
-import (
-	"context"
-	"time"
+package kardia
+
+import "errors"
+
+var (
+	ErrNotAValidatorAddress    = errors.New("address is not a validator")
+	ErrMethodNotFound          = errors.New("abi: could not locate named method or event")
+	ErrEmptyList               = errors.New("empty list")
+	ErrParsingBigIntFromString = errors.New("cannot parse big.Int from string")
 )
-
-func SleepFor(ctx context.Context, dur time.Duration) error {
-	select {
-	case <-ctx.Done():
-		return ctx.Err()
-	case <-time.After(dur):
-		return nil
-	}
-}

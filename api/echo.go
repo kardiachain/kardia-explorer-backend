@@ -19,8 +19,6 @@
 package api
 
 import (
-	"fmt"
-
 	"github.com/labstack/echo"
 	"github.com/labstack/echo/middleware"
 
@@ -31,50 +29,38 @@ import (
 type EchoServer interface {
 	// General
 	Ping(c echo.Context) error
-	Info(c echo.Context) error
 	Stats(c echo.Context) error
 	TotalHolders(c echo.Context) error
 
 	// Info
 	TokenInfo(c echo.Context) error
-	UpdateCirculatingSupply(c echo.Context) error
+	UpdateSupplyAmounts(c echo.Context) error
+	Nodes(c echo.Context) error
 
-	// Chart
-	TPS(c echo.Context) error
-	BlockTime(c echo.Context) error
-
-	// Validators
+	// Staking-related
 	ValidatorStats(c echo.Context) error
 	Validators(c echo.Context) error
+	GetValidatorsByDelegator(c echo.Context) error
+	GetCandidatesList(c echo.Context) error
+	GetSlashEvents(c echo.Context) error
+	GetSlashedTokens(c echo.Context) error
 
 	// Blocks
 	Blocks(c echo.Context) error
 	Block(c echo.Context) error
-	BlockExist(c echo.Context) error
 	BlockTxs(c echo.Context) error
+	BlocksByProposer(c echo.Context) error
 	PersistentErrorBlocks(c echo.Context) error
 
 	// Addresses
 	Addresses(c echo.Context) error
-	Balance(c echo.Context) error
+	AddressInfo(c echo.Context) error
 	AddressTxs(c echo.Context) error
 	AddressHolders(c echo.Context) error
-	AddressOwnedTokens(c echo.Context) error
-	AddressInternalTxs(c echo.Context) error
-	AddressContract(c echo.Context) error
-	AddressTxByNonce(c echo.Context) error
-	AddressTxHashByNonce(c echo.Context) error
 
 	// Tx
 	Txs(c echo.Context) error
 	TxByHash(c echo.Context) error
-	TxExist(c echo.Context) error
-
-	// Contracts
-	Contracts(c echo.Context) error
-
-	// Info
-	Nodes(c echo.Context) error
 }
 
 type restDefinition struct {
@@ -90,12 +76,6 @@ func bind(gr *echo.Group, srv EchoServer) {
 			method:      echo.GET,
 			path:        "/ping",
 			fn:          srv.Ping,
-			middlewares: nil,
-		},
-		{
-			method:      echo.GET,
-			path:        "/info",
-			fn:          srv.Info,
 			middlewares: nil,
 		},
 		{
@@ -115,13 +95,13 @@ func bind(gr *echo.Group, srv EchoServer) {
 		},
 		{
 			method: echo.PUT,
-			path:   "/dashboard/token/circulating",
-			fn:     srv.UpdateCirculatingSupply,
+			path:   "/dashboard/token/supplies",
+			fn:     srv.UpdateSupplyAmounts,
 		},
 		// Blocks
 		{
 			method: echo.GET,
-			// Query params: ?page=1&limit=10
+			// Query params: ?page=0&limit=10
 			path: "/blocks",
 			fn:   srv.Blocks,
 		},
@@ -137,8 +117,16 @@ func bind(gr *echo.Group, srv EchoServer) {
 		},
 		{
 			method: echo.GET,
+			// Params: proposer address
+			// Query params: ?page=0&limit=10
+			path:        "/blocks/proposer/:address",
+			fn:          srv.BlocksByProposer,
+			middlewares: nil,
+		},
+		{
+			method: echo.GET,
 			// Params: block's hash
-			// Query params: ?page=1&limit=10
+			// Query params: ?page=0&limit=10
 			path:        "/block/:block/txs",
 			fn:          srv.BlockTxs,
 			middlewares: []echo.MiddlewareFunc{checkPagination()},
@@ -150,7 +138,7 @@ func bind(gr *echo.Group, srv EchoServer) {
 		},
 		{
 			method: echo.GET,
-			// Query params: ?page=1&limit=10
+			// Query params: ?page=0&limit=10
 			path:        "/txs",
 			fn:          srv.Txs,
 			middlewares: []echo.MiddlewareFunc{checkPagination()},
@@ -158,13 +146,14 @@ func bind(gr *echo.Group, srv EchoServer) {
 		// Address
 		{
 			method: echo.GET,
-			path:   "/addresses",
-			fn:     srv.Addresses,
+			// Query params: ?page=0&limit=10&sort=1
+			path: "/addresses",
+			fn:   srv.Addresses,
 		},
 		{
 			method: echo.GET,
-			path:   "/addresses/:address/balance",
-			fn:     srv.Balance,
+			path:   "/addresses/:address",
+			fn:     srv.AddressInfo,
 		},
 		// Tokens
 		{
@@ -191,6 +180,30 @@ func bind(gr *echo.Group, srv EchoServer) {
 			fn:          srv.ValidatorStats,
 			middlewares: nil,
 		},
+		{
+			method:      echo.GET,
+			path:        "/delegators/:address/validators",
+			fn:          srv.GetValidatorsByDelegator,
+			middlewares: nil,
+		},
+		{
+			method:      echo.GET,
+			path:        "/validators/candidates",
+			fn:          srv.GetCandidatesList,
+			middlewares: nil,
+		},
+		{
+			method:      echo.GET,
+			path:        "/validators/:address/slash",
+			fn:          srv.GetSlashEvents,
+			middlewares: nil,
+		},
+		{
+			method:      echo.GET,
+			path:        "/validators/slashed/tokens",
+			fn:          srv.GetSlashedTokens,
+			middlewares: nil,
+		},
 	}
 
 	for _, api := range apis {
@@ -207,9 +220,6 @@ func Start(srv EchoServer, cfg cfg.ExplorerConfig) {
 	e.Use(middleware.Gzip())
 
 	v1Gr := e.Group("/api/v1")
-
-	fmt.Println("API server", cfg.Port)
-
 	bind(v1Gr, srv)
 	if err := e.Start(cfg.Port); err != nil {
 		panic("cannot start echo server")

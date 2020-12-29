@@ -3,9 +3,14 @@ package server
 
 import (
 	"context"
+	"math/big"
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/kardiachain/explorer-backend/cfg"
+
+	"github.com/kardiachain/go-kardia/lib/common"
 
 	"github.com/bxcodec/faker/v3"
 	"github.com/labstack/echo"
@@ -16,10 +21,6 @@ import (
 )
 
 func (s *Server) Ping(c echo.Context) error {
-	return api.OK.Build(c)
-}
-
-func (s *Server) Info(c echo.Context) error {
 	return api.OK.Build(c)
 }
 
@@ -69,23 +70,20 @@ func (s *Server) TotalHolders(c echo.Context) error {
 
 func (s *Server) Nodes(c echo.Context) error {
 	ctx := context.Background()
-	nodes, err := s.cacheClient.NodesInfo(ctx)
-	if err == nil && nodes != nil {
-		s.logger.Debug("Got nodes info from cache")
-		return api.OK.SetData(nodes).Build(c)
-	}
-	s.logger.Debug("Cannot get nodes info from cache, getting from RPC", zap.Any("nodes info", nodes), zap.Error(err))
-	nodes, err = s.kaiClient.NodesInfo(ctx)
+	nodes, err := s.kaiClient.NodesInfo(ctx)
 	if err != nil {
 		s.logger.Warn("cannot get nodes info from RPC", zap.Error(err))
 		return api.Invalid.Build(c)
 	}
-	err = s.cacheClient.UpdateNodesInfo(ctx, nodes)
-	if err != nil {
-		s.logger.Warn("cannot set nodes info to cache", zap.Error(err))
+	var result []*NodeInfo
+	for _, node := range nodes {
+		result = append(result, &NodeInfo{
+			ID:         node.ID,
+			Moniker:    node.Moniker,
+			PeersCount: len(node.Peers),
+		})
 	}
-	s.logger.Debug("Got nodes info from RPC", zap.Any("nodes info", nodes))
-	return api.OK.SetData(nodes).Build(c)
+	return api.OK.SetData(result).Build(c)
 }
 
 func (s *Server) TokenInfo(c echo.Context) error {
@@ -98,7 +96,12 @@ func (s *Server) TokenInfo(c echo.Context) error {
 				return api.Invalid.Build(c)
 			}
 		}
-		tokenInfo.MarketCap = tokenInfo.Price * float64(tokenInfo.CirculatingSupply)
+		cirSup, err := s.kaiClient.GetCirculatingSupply(ctx)
+		if err != nil {
+			return api.Invalid.Build(c)
+		}
+		cirSup = new(big.Int).Div(cirSup, new(big.Int).Exp(big.NewInt(10), big.NewInt(18), nil))
+		tokenInfo.MainnetCirculatingSupply = cirSup.Int64() - 4500000000
 		return api.OK.SetData(tokenInfo).Build(c)
 	}
 
@@ -106,27 +109,27 @@ func (s *Server) TokenInfo(c echo.Context) error {
 	if err != nil {
 		return api.Invalid.Build(c)
 	}
-
-	tokenInfo.MarketCap = tokenInfo.Price * float64(tokenInfo.CirculatingSupply)
+	cirSup, err := s.kaiClient.GetCirculatingSupply(ctx)
+	if err != nil {
+		return api.Invalid.Build(c)
+	}
+	cirSup = new(big.Int).Div(cirSup, new(big.Int).Exp(big.NewInt(10), big.NewInt(18), nil))
+	tokenInfo.MainnetCirculatingSupply = cirSup.Int64() - 4500000000
 	return api.OK.SetData(tokenInfo).Build(c)
 }
 
-func (s *Server) UpdateCirculatingSupply(c echo.Context) error {
+func (s *Server) UpdateSupplyAmounts(c echo.Context) error {
 	ctx := context.Background()
-	if !strings.Contains(c.Request().Header.Get("Authorization"), s.infoServer.HttpRequestSecret) {
+	if c.Request().Header.Get("Authorization") != s.infoServer.HttpRequestSecret {
 		return api.Unauthorized.Build(c)
 	}
-	m := make(map[string]int64)
-	if err := c.Bind(&m); err != nil {
+	var supplyInfo *types.SupplyInfo
+	if err := c.Bind(&supplyInfo); err != nil {
 		return api.Invalid.Build(c)
 	}
-	if err := s.cacheClient.UpdateCirculatingSupply(ctx, m["circulatingSupply"]); err != nil {
+	if err := s.cacheClient.UpdateSupplyAmounts(ctx, supplyInfo); err != nil {
 		return api.Invalid.Build(c)
 	}
-	return api.OK.Build(c)
-}
-
-func (s *Server) TPS(c echo.Context) error {
 	return api.OK.Build(c)
 }
 
@@ -136,42 +139,37 @@ func (s *Server) ValidatorStats(c echo.Context) error {
 		page, limit int
 		err         error
 	)
-	pageParams := c.QueryParam("page")
-	limitParams := c.QueryParam("limit")
-	page, err = strconv.Atoi(pageParams)
-	if err != nil {
-		page = 0
-	}
-	limit, err = strconv.Atoi(limitParams)
-	if err != nil {
-		limit = 20
-	}
-	pagination := &types.Pagination{
-		Skip:  page * limit,
-		Limit: limit,
-	}
-	pagination.Sanitize()
+	pagination, page, limit := getPagingOption(c)
 
-	// get validator list from cache
-	valsList, err := s.getValidatorsListFromCache(ctx)
+	// get validators list from cache
+	valsList, err := s.cacheClient.Validators(ctx)
 	if err != nil {
-		return api.Invalid.Build(c)
+		valsList, err = s.getValidatorsList(ctx)
+		if err != nil {
+			return api.Invalid.Build(c)
+		}
 	}
 
 	// get delegation details
 	validator, err := s.kaiClient.Validator(ctx, c.Param("address"))
 	if err != nil {
-		s.logger.Warn("cannot get validators list from RPC, use cached validator info instead", zap.Error(err))
+		s.logger.Warn("cannot get validator info from RPC, use cached validator info instead", zap.Error(err))
 	}
 	// get validator additional info such as commission rate
 	for _, val := range valsList.Validators {
 		if strings.ToLower(val.Address.Hex()) == strings.ToLower(c.Param("address")) {
 			if validator == nil {
 				validator = val
+				break
 			}
-			validator.CommissionRate = val.CommissionRate
+			// update validator VotingPowerPercentage
+			validator.VotingPowerPercentage = val.VotingPowerPercentage
 			break
 		}
+	}
+	if validator == nil {
+		// address in param is not a validator
+		return api.Invalid.Build(c)
 	}
 	var delegators []*types.Delegator
 	if pagination.Skip > len(validator.Delegators) {
@@ -185,7 +183,6 @@ func (s *Server) ValidatorStats(c echo.Context) error {
 	total := uint64(len(validator.Delegators))
 	validator.Delegators = delegators
 
-	s.logger.Debug("Got validator info from RPC", zap.Any("ValidatorInfo", validator))
 	return api.OK.SetData(PagingResponse{
 		Page:  page,
 		Limit: limit,
@@ -196,55 +193,108 @@ func (s *Server) ValidatorStats(c echo.Context) error {
 
 func (s *Server) Validators(c echo.Context) error {
 	ctx := context.Background()
-	valsList, err := s.getValidatorsListFromCache(ctx)
+	valsList, err := s.getValidatorsList(ctx)
+	if err != nil {
+		return api.Invalid.Build(c)
+	}
+	var result []*types.Validator
+	for _, val := range valsList.Validators {
+		if val.Role != 0 {
+			result = append(result, val)
+		}
+	}
+	valsList.Validators = result
+	return api.OK.SetData(valsList).Build(c)
+}
+
+func (s *Server) GetValidatorsByDelegator(c echo.Context) error {
+	ctx := context.Background()
+	delAddr := c.Param("address")
+	valsList, err := s.kaiClient.GetValidatorsByDelegator(ctx, common.HexToAddress(delAddr))
 	if err != nil {
 		return api.Invalid.Build(c)
 	}
 	return api.OK.SetData(valsList).Build(c)
 }
 
+func (s *Server) GetCandidatesList(c echo.Context) error {
+	ctx := context.Background()
+	valsList, err := s.getValidatorsList(ctx)
+	if err != nil {
+		return api.Invalid.Build(c)
+	}
+	var (
+		result    []*types.Validator
+		valsCount = 0
+	)
+	for _, val := range valsList.Validators {
+		if val.Role == 0 {
+			result = append(result, val)
+		} else {
+			valsCount++
+		}
+	}
+	valsList.Validators = result
+	return api.OK.SetData(valsList).Build(c)
+}
+
+func (s *Server) GetSlashEvents(c echo.Context) error {
+	ctx := context.Background()
+	slashEvents, err := s.kaiClient.GetSlashEvents(ctx, common.HexToAddress(c.Param("address")))
+	if err != nil {
+		s.logger.Warn("Cannot GetSlashEvents", zap.Error(err))
+		return api.Invalid.Build(c)
+	}
+	return api.OK.SetData(slashEvents).Build(c)
+}
+
+func (s *Server) GetSlashedTokens(c echo.Context) error {
+	ctx := context.Background()
+	result, err := s.kaiClient.GetTotalSlashedToken(ctx)
+	if err != nil {
+		return api.Invalid.Build(c)
+	}
+	return api.OK.SetData(result).Build(c)
+}
+
 func (s *Server) Blocks(c echo.Context) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancel()
 	var (
-		page, limit int
-		err         error
-		blocks      []*types.Block
+		err    error
+		blocks []*types.Block
 	)
-	pageParams := c.QueryParam("page")
-	limitParams := c.QueryParam("limit")
-	page, err = strconv.Atoi(pageParams)
-	if err != nil {
-		page = 0
-	}
-	limit, err = strconv.Atoi(limitParams)
-	if err != nil {
-		limit = 20
-	}
-	pagination := &types.Pagination{
-		Skip:  page * limit,
-		Limit: limit,
-	}
-	pagination.Sanitize()
+	pagination, page, limit := getPagingOption(c)
 
-	// todo @londnd: implement read from cache,
 	blocks, err = s.cacheClient.LatestBlocks(ctx, pagination)
 	if err != nil || blocks == nil {
-		s.logger.Debug("Cannot get latest blocks from cache", zap.Error(err))
 		blocks, err = s.dbClient.Blocks(ctx, pagination)
 		if err != nil {
-			s.logger.Debug("Cannot get latest blocks from db", zap.Error(err))
+			s.logger.Info("Cannot get latest blocks from db", zap.Error(err))
 			return api.InternalServer.Build(c)
 		}
-		s.logger.Debug("Got latest blocks from db")
-	} else {
-		s.logger.Debug("Got latest blocks from cache")
 	}
 
+	vals, err := s.kaiClient.Validators(ctx)
+	if err != nil {
+		vals, err = s.getValidatorsList(ctx)
+		if err != nil {
+			vals = nil
+		}
+	}
+
+	smcAddress := map[string]*valInfoResponse{}
+	for _, v := range vals.Validators {
+		smcAddress[v.Address.String()] = &valInfoResponse{
+			Name: v.Name,
+			Role: v.Role,
+		}
+	}
 	var result Blocks
 	for _, block := range blocks {
 		b := SimpleBlock{
 			Height:          block.Height,
+			Hash:            block.Hash,
 			Time:            block.Time,
 			ProposerAddress: block.ProposerAddress,
 			NumTxs:          block.NumTxs,
@@ -252,6 +302,7 @@ func (s *Server) Blocks(c echo.Context) error {
 			GasUsed:         block.GasUsed,
 			Rewards:         block.Rewards,
 		}
+		b.ProposerName = smcAddress[b.ProposerAddress].Name
 		result = append(result, b)
 	}
 	total := s.cacheClient.LatestBlockHeight(ctx)
@@ -274,7 +325,6 @@ func (s *Server) Block(c echo.Context) error {
 		// get block in cache if exist
 		block, err = s.cacheClient.BlockByHash(ctx, blockHashOrHeightStr)
 		if err != nil {
-			s.logger.Debug("got block by hash from cache error", zap.Any("block", block), zap.Error(err))
 			// otherwise, get from db
 			block, err = s.dbClient.BlockByHash(ctx, blockHashOrHeightStr)
 			if err != nil {
@@ -285,12 +335,7 @@ func (s *Server) Block(c echo.Context) error {
 					s.logger.Warn("got block by hash from RPC error", zap.Any("block", block), zap.Error(err))
 					return api.Invalid.Build(c)
 				}
-				s.logger.Info("got block by hash from RPC:", zap.Any("block", block), zap.Error(err))
-			} else {
-				s.Logger.Info("got block by hash from db:", zap.String("blockHash", blockHashOrHeightStr))
 			}
-		} else {
-			s.Logger.Info("got block by hash from cache:", zap.String("blockHash", blockHashOrHeightStr))
 		}
 	} else {
 		blockHeight, err := strconv.ParseUint(blockHashOrHeightStr, 10, 64)
@@ -300,7 +345,6 @@ func (s *Server) Block(c echo.Context) error {
 		// get block in cache if exist
 		block, err = s.cacheClient.BlockByHeight(ctx, blockHeight)
 		if err != nil {
-			s.logger.Debug("got block by height from cache error", zap.Uint64("blockHeight", blockHeight), zap.Error(err))
 			// otherwise, get from db
 			block, err = s.dbClient.BlockByHeight(ctx, blockHeight)
 			if err != nil {
@@ -311,15 +355,29 @@ func (s *Server) Block(c echo.Context) error {
 					s.logger.Warn("got block by height from RPC error", zap.Uint64("blockHeight", blockHeight), zap.Error(err))
 					return api.Invalid.Build(c)
 				}
-				s.logger.Info("got block by height from RPC:", zap.Uint64("blockHeight", blockHeight), zap.Error(err))
 			}
-			s.Logger.Info("got block by height from db:", zap.Uint64("blockHeight", blockHeight))
-		} else {
-			s.Logger.Info("got block by height from cache:", zap.Uint64("blockHeight", blockHeight))
+		}
+	}
+	vals, err := s.kaiClient.Validators(ctx)
+	if err != nil {
+		vals, err = s.getValidatorsList(ctx)
+		if err != nil {
+			vals = nil
 		}
 	}
 
-	return api.OK.SetData(block).Build(c)
+	smcAddress := map[string]*valInfoResponse{}
+	for _, v := range vals.Validators {
+		smcAddress[v.Address.String()] = &valInfoResponse{
+			Name: v.Name,
+			Role: v.Role,
+		}
+	}
+	result := &Block{
+		Block:        *block,
+		ProposerName: smcAddress[block.ProposerAddress].Name,
+	}
+	return api.OK.SetData(result).Build(c)
 }
 
 func (s *Server) PersistentErrorBlocks(c echo.Context) error {
@@ -331,40 +389,21 @@ func (s *Server) PersistentErrorBlocks(c echo.Context) error {
 	return api.OK.SetData(heights).Build(c)
 }
 
-func (s *Server) BlockExist(c echo.Context) error {
-	return api.OK.Build(c)
-}
-
 func (s *Server) BlockTxs(c echo.Context) error {
 	ctx := context.Background()
-	var page, limit int
-	var err error
 	block := c.Param("block")
-	pageParams := c.QueryParam("page")
-	limitParams := c.QueryParam("limit")
-	page, err = strconv.Atoi(pageParams)
-	if err != nil {
-		page = 0
-	}
-	limit, err = strconv.Atoi(limitParams)
-	if err != nil {
-		limit = 20
-	}
+	pagination, page, limit := getPagingOption(c)
 
 	var (
 		txs   []*types.Transaction
 		total uint64
+		err   error
 	)
-	pagination := &types.Pagination{
-		Skip:  page * limit,
-		Limit: limit,
-	}
-	pagination.Sanitize()
+
 	if strings.HasPrefix(block, "0x") {
 		// get block txs in block if exist
 		txs, total, err = s.cacheClient.TxsByBlockHash(ctx, block, pagination)
 		if err != nil {
-			s.logger.Debug("cannot get block txs by hash from cache", zap.String("blockHash", block), zap.Error(err))
 			// otherwise, get from db
 			txs, total, err = s.dbClient.TxsByBlockHash(ctx, block, pagination)
 			if err != nil {
@@ -384,12 +423,7 @@ func (s *Server) BlockTxs(c echo.Context) error {
 					txs = blockRPC.Txs[pagination.Skip : pagination.Skip+pagination.Limit]
 				}
 				total = blockRPC.NumTxs
-				s.Logger.Debug("got block txs by hash from RPC:", zap.String("blockHash", block))
-			} else {
-				s.Logger.Debug("got block txs by hash from db:", zap.String("blockHash", block))
 			}
-		} else {
-			s.Logger.Debug("got block txs by hash from cache:", zap.String("blockHash", block))
 		}
 	} else {
 		height, err := strconv.ParseUint(block, 10, 64)
@@ -399,7 +433,6 @@ func (s *Server) BlockTxs(c echo.Context) error {
 		// get block txs in block if exist
 		txs, total, err = s.cacheClient.TxsByBlockHeight(ctx, height, pagination)
 		if err != nil {
-			s.logger.Debug("cannot get block txs by height from cache", zap.String("blockHeight", block), zap.Error(err))
 			// otherwise, get from db
 			txs, total, err = s.dbClient.TxsByBlockHeight(ctx, height, pagination)
 			if err != nil {
@@ -419,26 +452,38 @@ func (s *Server) BlockTxs(c echo.Context) error {
 					txs = blockRPC.Txs[pagination.Skip : pagination.Skip+pagination.Limit]
 				}
 				total = blockRPC.NumTxs
-				s.Logger.Debug("got block txs by height from RPC:", zap.String("blockHeight", block))
-			} else {
-				s.Logger.Debug("got block txs by height from db:", zap.String("blockHeight", block))
 			}
-		} else {
-			s.Logger.Debug("got block txs by height from cache:", zap.String("blockHeight", block))
 		}
 	}
 
+	smcAddress := s.getValidatorsAddressAndRole(ctx)
 	var result Transactions
 	for _, tx := range txs {
 		t := SimpleTransaction{
-			Hash:        tx.Hash,
-			BlockNumber: tx.BlockNumber,
-			Time:        tx.Time,
-			From:        tx.From,
-			To:          tx.To,
-			Value:       tx.Value,
-			TxFee:       tx.TxFee,
-			Status:      tx.Status,
+			Hash:             tx.Hash,
+			BlockNumber:      tx.BlockNumber,
+			Time:             tx.Time,
+			From:             tx.From,
+			To:               tx.To,
+			ContractAddress:  tx.ContractAddress,
+			Value:            tx.Value,
+			TxFee:            tx.TxFee,
+			Status:           tx.Status,
+			DecodedInputData: tx.DecodedInputData,
+		}
+		if smcAddress[tx.To] != nil {
+			t.ToName = smcAddress[tx.To].Name
+			t.Role = smcAddress[tx.To].Role
+			t.IsInValidatorsList = true
+		}
+		if tx.To == cfg.StakingContractAddr {
+			t.ToName = cfg.StakingContractName
+		}
+		if tx.To == cfg.TreasuryContractAddr {
+			t.ToName = cfg.TreasuryContractName
+		}
+		if tx.To == cfg.KardiaDeployerAddr {
+			t.ToName = cfg.KardiaDeployerName
 		}
 		result = append(result, t)
 	}
@@ -451,54 +496,97 @@ func (s *Server) BlockTxs(c echo.Context) error {
 	}).Build(c)
 }
 
-func (s *Server) Txs(c echo.Context) error {
+func (s *Server) BlocksByProposer(c echo.Context) error {
 	ctx := context.Background()
-	var (
-		page, limit int
-		err         error
-	)
-	pageParams := c.QueryParam("page")
-	limitParams := c.QueryParam("limit")
-	page, err = strconv.Atoi(pageParams)
+	pagination, page, limit := getPagingOption(c)
+	blocks, total, err := s.dbClient.BlocksByProposer(ctx, c.Param("address"), pagination)
 	if err != nil {
-		page = 0
+		return api.Invalid.Build(c)
 	}
-	limit, err = strconv.Atoi(limitParams)
+	vals, err := s.kaiClient.Validators(ctx)
 	if err != nil {
-		limit = 20
+		vals, err = s.getValidatorsList(ctx)
+		if err != nil {
+			vals = nil
+		}
 	}
 
-	var txs []*types.Transaction
-	pagination := &types.Pagination{
-		Skip:  page * limit,
-		Limit: limit,
+	smcAddress := map[string]*valInfoResponse{}
+	for _, v := range vals.Validators {
+		smcAddress[v.Address.String()] = &valInfoResponse{
+			Name: v.Name,
+			Role: v.Role,
+		}
 	}
-	pagination.Sanitize()
+	var result Blocks
+	for _, block := range blocks {
+		b := SimpleBlock{
+			Height:          block.Height,
+			Hash:            block.Hash,
+			Time:            block.Time,
+			ProposerAddress: block.ProposerAddress,
+			NumTxs:          block.NumTxs,
+			GasLimit:        block.GasLimit,
+			GasUsed:         block.GasUsed,
+			Rewards:         block.Rewards,
+		}
+		b.ProposerName = smcAddress[b.ProposerAddress].Name
+		result = append(result, b)
+	}
+	return api.OK.SetData(PagingResponse{
+		Page:  page,
+		Limit: limit,
+		Total: total,
+		Data:  result,
+	}).Build(c)
+}
+
+func (s *Server) Txs(c echo.Context) error {
+	ctx := context.Background()
+	pagination, page, limit := getPagingOption(c)
+	var (
+		err error
+		txs []*types.Transaction
+	)
 
 	txs, err = s.cacheClient.LatestTransactions(ctx, pagination)
 	if err != nil || txs == nil || len(txs) < limit {
-		s.logger.Debug("Cannot get latest txs from cache", zap.Error(err))
 		txs, err = s.dbClient.LatestTxs(ctx, pagination)
 		if err != nil {
-			s.logger.Debug("Cannot get latest txs from db", zap.Error(err))
 			return api.Invalid.Build(c)
 		}
-		s.logger.Debug("Got latest txs from db")
-	} else {
-		s.logger.Debug("Got latest txs from cached")
 	}
 
+	smcAddress := s.getValidatorsAddressAndRole(ctx)
 	var result Transactions
 	for _, tx := range txs {
 		t := SimpleTransaction{
-			Hash:        tx.Hash,
-			BlockNumber: tx.BlockNumber,
-			Time:        tx.Time,
-			From:        tx.From,
-			To:          tx.To,
-			Value:       tx.Value,
-			TxFee:       tx.TxFee,
-			Status:      tx.Status,
+			Hash:             tx.Hash,
+			BlockNumber:      tx.BlockNumber,
+			Time:             tx.Time,
+			From:             tx.From,
+			To:               tx.To,
+			ContractAddress:  tx.ContractAddress,
+			Value:            tx.Value,
+			TxFee:            tx.TxFee,
+			Status:           tx.Status,
+			DecodedInputData: tx.DecodedInputData,
+		}
+
+		if smcAddress[tx.To] != nil {
+			t.ToName = smcAddress[tx.To].Name
+			t.Role = smcAddress[tx.To].Role
+			t.IsInValidatorsList = true
+		}
+
+		if tx.To == cfg.StakingContractAddr {
+			t.ToName = cfg.StakingContractName
+		}
+		if tx.To == cfg.TreasuryContractAddr {
+			t.ToName = cfg.TreasuryContractName
+		}
+		if tx.To == cfg.KardiaDeployerAddr {
+			t.ToName = cfg.KardiaDeployerName
 		}
 		result = append(result, t)
 	}
@@ -512,92 +600,175 @@ func (s *Server) Txs(c echo.Context) error {
 }
 
 func (s *Server) Addresses(c echo.Context) error {
-	var page, limit int
-	var err error
-	//blockHash := c.Param("blockHash")
-	pageParams := c.QueryParam("page")
-	limitParams := c.QueryParam("limit")
-	page, err = strconv.Atoi(pageParams)
-	if err != nil {
-		page = 0
+	ctx := context.Background()
+	pagination, page, limit := getPagingOption(c)
+	sortDirectionStr := c.QueryParam("sort")
+	sortDirection, err := strconv.Atoi(sortDirectionStr)
+	if err != nil || (sortDirection != 1 && sortDirection != -1) {
+		sortDirection = -1 // DESC
 	}
-	limit, err = strconv.Atoi(limitParams)
+	addrs, err := s.dbClient.GetListAddresses(ctx, sortDirection, pagination)
 	if err != nil {
-		limit = 20
+		return api.Invalid.Build(c)
 	}
-
-	var addresses []*types.Address
-	for i := 0; i < limit; i++ {
-		address := &types.Address{}
-		if err := faker.FakeData(address); err != nil {
+	totalHolders, totalContracts := s.cacheClient.TotalHolders(ctx)
+	smcAddress := s.getValidatorsAddressAndRole(ctx)
+	var result Addresses
+	for _, addr := range addrs {
+		addrInfo := SimpleAddress{
+			Address:       addr.Address,
+			BalanceString: addr.BalanceString,
+			IsContract:    addr.IsContract,
+			Name:          addr.Name,
+			Rank:          addr.Rank,
+		}
+		if smcAddress[addr.Address] != nil {
+			addrInfo.IsInValidatorsList = true
+			addrInfo.Role = smcAddress[addr.Address].Role
+			addrInfo.Name = smcAddress[addr.Address].Name
+		}
+		if addr.Address == cfg.TreasuryContractAddr {
+			addrInfo.Name = cfg.TreasuryContractName
+		}
+		if addr.Address == cfg.StakingContractAddr {
+			addrInfo.Name = cfg.StakingContractName
+		}
+		if addr.Address == cfg.KardiaDeployerAddr {
+			addrInfo.Name = cfg.KardiaDeployerName
+		}
+		// double check with balance from RPC
+		balance, err := s.kaiClient.GetBalance(ctx, addr.Address)
+		if err != nil {
 			return err
 		}
-		addresses = append(addresses, address)
+		if balance != addr.BalanceString {
+			addr.BalanceString = balance
+			_ = s.dbClient.UpdateAddresses(ctx, []*types.Address{addr})
+		}
+		result = append(result, addrInfo)
 	}
-
 	return api.OK.SetData(PagingResponse{
 		Page:  page,
 		Limit: limit,
-		Total: uint64(limit * 10),
-		Data:  addresses,
+		Total: totalHolders + totalContracts,
+		Data:  result,
 	}).Build(c)
 }
 
-func (s *Server) Balance(c echo.Context) error {
+func (s *Server) AddressInfo(c echo.Context) error {
 	ctx := context.Background()
 	address := c.Param("address")
+	smcAddress := s.getValidatorsAddressAndRole(ctx)
+	addrInfo, err := s.dbClient.AddressByHash(ctx, address)
+	if err == nil {
+		result := SimpleAddress{
+			Address:       addrInfo.Address,
+			BalanceString: addrInfo.BalanceString,
+			IsContract:    addrInfo.IsContract,
+			Name:          addrInfo.Name,
+		}
+		if smcAddress[result.Address] != nil {
+			result.IsInValidatorsList = true
+			result.Role = smcAddress[result.Address].Role
+			result.Name = smcAddress[result.Address].Name
+		}
+		if result.Address == cfg.TreasuryContractAddr {
+			result.Name = cfg.TreasuryContractName
+		}
+		if result.Address == cfg.StakingContractAddr {
+			result.Name = cfg.StakingContractName
+		}
+		if result.Address == cfg.KardiaDeployerAddr {
+			result.Name = cfg.KardiaDeployerName
+		}
+		balance, err := s.kaiClient.GetBalance(ctx, address)
+		if err != nil {
+			return err
+		}
+		if balance != addrInfo.BalanceString {
+			addrInfo.BalanceString = balance
+			_ = s.dbClient.UpdateAddresses(ctx, []*types.Address{addrInfo})
+		}
+		return api.OK.SetData(result).Build(c)
+	}
+	s.logger.Warn("address not found in db, getting from RPC instead...", zap.Error(err))
+	// try to get balance and code at this address to determine whether we should write this address info to database or not
 	balance, err := s.kaiClient.GetBalance(ctx, address)
 	if err != nil {
 		return err
 	}
-	s.logger.Debug("Balance", zap.String("address", address), zap.String("balance", balance))
-
-	return api.OK.SetData(balance).Build(c)
+	balanceInBigInt, _ := new(big.Int).SetString(balance, 10)
+	balanceFloat, _ := new(big.Float).SetPrec(100).Quo(new(big.Float).SetInt(balanceInBigInt), new(big.Float).SetInt(cfg.Hydro)).Float64() //converting to KAI from HYDRO
+	addrInfo = &types.Address{
+		Address:       address,
+		BalanceFloat:  balanceFloat,
+		BalanceString: balance,
+		IsContract:    false,
+	}
+	code, err := s.kaiClient.GetCode(ctx, address)
+	if err == nil && len(code) > 0 {
+		addrInfo.IsContract = true
+	}
+	// write this address to db if its balance is larger than 0 or it's a SMC
+	if balance != "0" || addrInfo.IsContract {
+		_ = s.dbClient.InsertAddress(ctx, addrInfo) // insert this address to database
+	}
+	result := &SimpleAddress{
+		Address:       addrInfo.Address,
+		BalanceString: addrInfo.BalanceString,
+		IsContract:    addrInfo.IsContract,
+	}
+	if smcAddress[result.Address] != nil {
+		result.IsInValidatorsList = true
+		result.Role = smcAddress[result.Address].Role
+		result.Name = smcAddress[result.Address].Name
+	}
+	return api.OK.SetData(result).Build(c)
 }
 
 func (s *Server) AddressTxs(c echo.Context) error {
 	ctx := context.Background()
-	var page, limit int
 	var err error
 	address := c.Param("address")
-	pageParams := c.QueryParam("page")
-	limitParams := c.QueryParam("limit")
-	page, err = strconv.Atoi(pageParams)
-	if err != nil {
-		page = 0
-	}
-	limit, err = strconv.Atoi(limitParams)
-	if err != nil {
-		limit = 20
-	}
-	pagination := &types.Pagination{
-		Skip:  page * limit,
-		Limit: limit,
-	}
-	pagination.Sanitize()
+	pagination, page, limit := getPagingOption(c)
 
 	txs, total, err := s.dbClient.TxsByAddress(ctx, address, pagination)
 	if err != nil {
-		s.logger.Debug("error while get address txs:", zap.Error(err))
 		return err
 	}
 
+	smcAddress := s.getValidatorsAddressAndRole(ctx)
 	var result Transactions
 	for _, tx := range txs {
 		t := SimpleTransaction{
-			Hash:        tx.Hash,
-			BlockNumber: tx.BlockNumber,
-			Time:        tx.Time,
-			From:        tx.From,
-			To:          tx.To,
-			Value:       tx.Value,
-			TxFee:       tx.TxFee,
-			Status:      tx.Status,
+			Hash:             tx.Hash,
+			BlockNumber:      tx.BlockNumber,
+			Time:             tx.Time,
+			From:             tx.From,
+			To:               tx.To,
+			ContractAddress:  tx.ContractAddress,
+			Value:            tx.Value,
+			TxFee:            tx.TxFee,
+			Status:           tx.Status,
+			DecodedInputData: tx.DecodedInputData,
+		}
+		if smcAddress[tx.To] != nil {
+			t.ToName = smcAddress[tx.To].Name
+			t.Role = smcAddress[tx.To].Role
+			t.IsInValidatorsList = true
+		}
+		if tx.To == cfg.StakingContractAddr {
+			t.ToName = cfg.StakingContractName
+		}
+		if tx.To == cfg.TreasuryContractAddr {
+			t.ToName = cfg.TreasuryContractName
+		}
+		if tx.To == cfg.KardiaDeployerAddr {
+			t.ToName = cfg.KardiaDeployerName
 		}
 		result = append(result, t)
 	}
 
-	s.logger.Info("address txs:", zap.String("address", address))
 	return api.OK.SetData(PagingResponse{
 		Page:  page,
 		Limit: limit,
@@ -607,8 +778,10 @@ func (s *Server) AddressTxs(c echo.Context) error {
 }
 
 func (s *Server) AddressHolders(c echo.Context) error {
-	var page, limit int
-	var err error
+	var (
+		page, limit int
+		err         error
+	)
 	//blockHash := c.Param("blockHash")
 	pageParams := c.QueryParam("page")
 	limitParams := c.QueryParam("limit")
@@ -638,27 +811,6 @@ func (s *Server) AddressHolders(c echo.Context) error {
 	}).Build(c)
 }
 
-func (s *Server) AddressOwnedTokens(c echo.Context) error {
-	return api.OK.Build(c)
-}
-
-// AddressInternal
-func (s *Server) AddressInternalTxs(c echo.Context) error {
-	return api.OK.Build(c)
-}
-
-func (s *Server) AddressContract(c echo.Context) error {
-	return api.OK.Build(c)
-}
-
-func (s *Server) AddressTxByNonce(c echo.Context) error {
-	return api.OK.Build(c)
-}
-
-func (s *Server) AddressTxHashByNonce(c echo.Context) error {
-	return api.OK.Build(c)
-}
-
 func (s *Server) TxByHash(c echo.Context) error {
 	ctx := context.Background()
 	txHash := c.Param("txHash")
@@ -670,7 +822,7 @@ func (s *Server) TxByHash(c echo.Context) error {
 	tx, err := s.dbClient.TxByHash(ctx, txHash)
 	if err != nil {
 		// try to get tx by hash through RPC
-		s.Logger.Debug("cannot get tx by hash from db:", zap.String("txHash", txHash))
+		s.Logger.Info("cannot get tx by hash from db:", zap.String("txHash", txHash))
 		tx, err = s.kaiClient.GetTransaction(ctx, txHash)
 		if err != nil {
 			s.Logger.Warn("cannot get tx by hash from RPC:", zap.String("txHash", txHash))
@@ -680,7 +832,6 @@ func (s *Server) TxByHash(c echo.Context) error {
 		if err != nil {
 			s.Logger.Warn("cannot get receipt by hash from RPC:", zap.String("txHash", txHash))
 		}
-		s.Logger.Debug("got tx by hash from RPC:", zap.String("txHash", txHash))
 		if receipt != nil {
 			tx.Logs = receipt.Logs
 			tx.Root = receipt.Root
@@ -688,41 +839,104 @@ func (s *Server) TxByHash(c echo.Context) error {
 			tx.GasUsed = receipt.GasUsed
 			tx.ContractAddress = receipt.ContractAddress
 		}
-	} else {
-		s.Logger.Debug("got tx by hash from db:", zap.String("txHash", txHash))
 	}
 
-	return api.OK.SetData(tx).Build(c)
-}
-
-func (s *Server) TxExist(c echo.Context) error {
-	return api.OK.Build(c)
-}
-
-func (s *Server) Contracts(c echo.Context) error {
-	return api.OK.Build(c)
-}
-
-func (s *Server) BlockTime(c echo.Context) error {
-	panic("implement me")
-}
-
-func (s *Server) getValidatorsListFromCache(ctx context.Context) (*types.Validators, error) {
-	valsList, err := s.cacheClient.Validators(ctx)
-	if err == nil {
-		s.logger.Debug("got validators list from cache", zap.Error(err))
-		return valsList, nil
+	// add name of recipient, if any
+	if decoded, err := s.kaiClient.DecodeInputData(tx.To, tx.InputData); err == nil {
+		tx.DecodedInputData = decoded
 	}
-	s.logger.Warn("cannot get validators list from cache", zap.Error(err))
-	valsList, err = s.kaiClient.Validators(ctx)
+	result := &Transaction{
+		BlockHash:        tx.BlockHash,
+		BlockNumber:      tx.BlockNumber,
+		Hash:             tx.Hash,
+		From:             tx.From,
+		To:               tx.To,
+		Status:           tx.Status,
+		ContractAddress:  tx.ContractAddress,
+		Value:            tx.Value,
+		GasPrice:         tx.GasPrice,
+		GasLimit:         tx.GasLimit,
+		GasUsed:          tx.GasUsed,
+		TxFee:            tx.TxFee,
+		Nonce:            tx.Nonce,
+		Time:             tx.Time,
+		InputData:        tx.InputData,
+		DecodedInputData: tx.DecodedInputData,
+		Logs:             tx.Logs,
+		TransactionIndex: tx.TransactionIndex,
+		LogsBloom:        tx.LogsBloom,
+		Root:             tx.Root,
+	}
+	if result.To == cfg.StakingContractAddr {
+		result.ToName = cfg.StakingContractName
+		return api.OK.SetData(result).Build(c)
+	}
+	if result.To == cfg.TreasuryContractAddr {
+		result.ToName = cfg.TreasuryContractName
+		return api.OK.SetData(result).Build(c)
+	}
+	if tx.To == cfg.KardiaDeployerAddr {
+		result.ToName = cfg.KardiaDeployerName
+		return api.OK.SetData(result).Build(c)
+	}
+	smcAddress := s.getValidatorsAddressAndRole(ctx)
+	if smcAddress[result.To] != nil {
+		result.ToName = smcAddress[result.To].Name
+		result.Role = smcAddress[result.To].Role
+		result.IsInValidatorsList = true
+		return api.OK.SetData(result).Build(c)
+	}
+
+	return api.OK.SetData(result).Build(c)
+}
+
+func (s *Server) getValidatorsList(ctx context.Context) (*types.Validators, error) {
+	valsList, err := s.kaiClient.Validators(ctx)
 	if err != nil {
 		s.logger.Warn("cannot get validators list from RPC", zap.Error(err))
 		return nil, err
 	}
-	s.logger.Debug("Got validators list from RPC")
 	err = s.cacheClient.UpdateValidators(ctx, valsList)
 	if err != nil {
 		s.logger.Warn("cannot store validators list to cache", zap.Error(err))
 	}
 	return valsList, nil
+}
+
+func getPagingOption(c echo.Context) (*types.Pagination, int, int) {
+	pageParams := c.QueryParam("page")
+	limitParams := c.QueryParam("limit")
+	page, err := strconv.Atoi(pageParams)
+	if err != nil {
+		page = 0
+	}
+	limit, err := strconv.Atoi(limitParams)
+	if err != nil {
+		limit = 10
+	}
+	pagination := &types.Pagination{
+		Skip:  page * limit,
+		Limit: limit,
+	}
+	pagination.Sanitize()
+	return pagination, page, limit
+}
+
+func (s *Server) getValidatorsAddressAndRole(ctx context.Context) map[string]*valInfoResponse {
+	vals, err := s.kaiClient.Validators(ctx)
+	if err != nil {
+		vals, err = s.getValidatorsList(ctx)
+		if err != nil {
+			vals = nil
+		}
+	}
+
+	smcAddress := map[string]*valInfoResponse{}
+	for _, v := range vals.Validators {
+		smcAddress[v.SmcAddress.String()] = &valInfoResponse{
+			Name: v.Name,
+			Role: v.Role,
+		}
+	}
+	return smcAddress
 }

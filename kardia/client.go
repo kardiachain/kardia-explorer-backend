@@ -20,30 +20,39 @@ package kardia
 
 import (
 	"context"
+	"math/big"
+
+	"github.com/kardiachain/go-kardia/lib/common"
+	"go.uber.org/zap"
 
 	"github.com/kardiachain/explorer-backend/types"
-	"github.com/kardiachain/go-kardiamain/lib/common"
-	"go.uber.org/zap"
 )
 
 type ClientInterface interface {
 	LatestBlockNumber(ctx context.Context) (uint64, error)
 	BlockByHash(ctx context.Context, hash string) (*types.Block, error)
 	BlockByHeight(ctx context.Context, height uint64) (*types.Block, error)
-	BlockHeaderByHash(ctx context.Context, hash string) (*types.Header, error)
-	BlockHeaderByNumber(ctx context.Context, number uint64) (*types.Header, error)
 	GetTransaction(ctx context.Context, hash string) (*types.Transaction, error)
 	GetTransactionReceipt(ctx context.Context, txHash string) (*types.Receipt, error)
 	GetBalance(ctx context.Context, account string) (string, error)
-	GetStorageAt(ctx context.Context, account string, key string) (common.Bytes, error)
 	GetCode(ctx context.Context, account string) (common.Bytes, error)
-	NonceAt(ctx context.Context, account string) (uint64, error)
-	SendRawTransaction(ctx context.Context, tx string) error
-	Peers(ctx context.Context, client *RPCClient) ([]*types.PeerInfo, error)
 	NodesInfo(ctx context.Context) ([]*types.NodeInfo, error)
-	Datadir(ctx context.Context) (string, error)
 	Validator(ctx context.Context, address string) (*types.Validator, error)
 	Validators(ctx context.Context) (*types.Validators, error)
+
+	// staking related methods
+	GetValidatorsByDelegator(ctx context.Context, delAddr common.Address) ([]*types.ValidatorsByDelegator, error)
+	GetTotalSlashedToken(ctx context.Context) (*big.Int, error)
+	GetCirculatingSupply(ctx context.Context) (*big.Int, error)
+
+	// validator related methods
+	GetSlashEvents(ctx context.Context, valAddr common.Address) ([]*types.SlashEvents, error)
+
+	// params related methods
+	GetMaxProposers(ctx context.Context) (int64, error)
+
+	// utilities methods
+	DecodeInputData(to string, input string) (*types.FunctionCall, error)
 }
 
 type Config struct {

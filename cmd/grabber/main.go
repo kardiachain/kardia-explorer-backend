@@ -1,3 +1,20 @@
+/*
+ *  Copyright 2018 KardiaChain
+ *  This file is part of the go-kardia library.
+ *
+ *  The go-kardia library is free software: you can redistribute it and/or modify
+ *  it under the terms of the GNU Lesser General Public License as published by
+ *  the Free Software Foundation, either version 3 of the License, or
+ *  (at your option) any later version.
+ *
+ *  The go-kardia library is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ *  GNU Lesser General Public License for more details.
+ *
+ *  You should have received a copy of the GNU Lesser General Public License
+ *  along with the go-kardia library. If not, see <http://www.gnu.org/licenses/>.
+ */
 // Package main
 package main
 
@@ -12,7 +29,6 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/kardiachain/explorer-backend/cfg"
-	"github.com/kardiachain/explorer-backend/kardia"
 	"github.com/kardiachain/explorer-backend/server"
 	"github.com/kardiachain/explorer-backend/server/cache"
 	"github.com/kardiachain/explorer-backend/server/db"
@@ -61,7 +77,6 @@ func main() {
 		StorageDB:      serviceCfg.StorageDB,
 		StorageIsFlush: serviceCfg.StorageIsFlush,
 
-		KardiaProtocol:     kardia.Protocol(serviceCfg.KardiaProtocol),
 		KardiaURLs:         serviceCfg.KardiaURLs,
 		KardiaTrustedNodes: serviceCfg.KardiaTrustedNodes,
 
@@ -84,9 +99,8 @@ func main() {
 		StorageAdapter: db.Adapter(serviceCfg.StorageDriver),
 		StorageURI:     serviceCfg.StorageURI,
 		StorageDB:      serviceCfg.StorageDB,
-		StorageIsFlush: serviceCfg.StorageIsFlush,
+		StorageIsFlush: false,
 
-		KardiaProtocol:     kardia.Protocol(serviceCfg.KardiaProtocol),
 		KardiaURLs:         serviceCfg.KardiaURLs,
 		KardiaTrustedNodes: serviceCfg.KardiaTrustedNodes,
 
@@ -108,9 +122,8 @@ func main() {
 		StorageAdapter: db.Adapter(serviceCfg.StorageDriver),
 		StorageURI:     serviceCfg.StorageURI,
 		StorageDB:      serviceCfg.StorageDB,
-		StorageIsFlush: serviceCfg.StorageIsFlush,
+		StorageIsFlush: false,
 
-		KardiaProtocol:     kardia.Protocol(serviceCfg.KardiaProtocol),
 		KardiaURLs:         serviceCfg.KardiaURLs,
 		KardiaTrustedNodes: serviceCfg.KardiaTrustedNodes,
 
@@ -131,14 +144,11 @@ func main() {
 	}
 
 	// Start listener in new go routine
-	// todo @longnd: Running multi goroutine same time
 	go listener(ctx, srv, serviceCfg.ListenerInterval)
 	backfillCtx, _ := context.WithCancel(context.Background())
 	go backfill(backfillCtx, backfillSrv, serviceCfg.BackfillInterval)
 	verifyCtx, _ := context.WithCancel(context.Background())
 	go verify(verifyCtx, verifySrv, serviceCfg.VerifierInterval)
-	//updateAddresses(ctx, true, 0, srv)
 	<-waitExit
-	logger.Info("Grabber stopping")
 	logger.Info("Stopped")
 }

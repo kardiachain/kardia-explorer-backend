@@ -20,9 +20,10 @@ package db
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"time"
+
+	"github.com/kardiachain/explorer-backend/cfg"
 
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
@@ -34,15 +35,11 @@ import (
 )
 
 const (
-	cBlocks          = "Blocks"
-	cTxs             = "Transactions"
-	cAddresses       = "Addresses"
-	cTxsByAddress    = "TransactionsByAddress"
-	cActiveAddresses = "ActiveAddresses"
-)
-
-var (
-	ErrNotImplemented = errors.New("not implemented")
+	cBlocks       = "Blocks"
+	cTxs          = "Transactions"
+	cAddresses    = "Addresses"
+	cTxsByAddress = "TransactionsByAddress"
+	cStats        = "Stats"
 )
 
 type mongoDB struct {
@@ -52,7 +49,6 @@ type mongoDB struct {
 }
 
 func newMongoDB(cfg Config) (*mongoDB, error) {
-	cfg.Logger.Debug("Create mgo with config", zap.Any("config", cfg))
 
 	ctx := context.Background()
 	dbClient := &mongoDB{
@@ -75,7 +71,7 @@ func newMongoDB(cfg Config) (*mongoDB, error) {
 	dbClient.wrapper.Database(mgoClient.Database(cfg.DbName))
 
 	if cfg.FlushDB {
-		cfg.Logger.Debug("Start flush database")
+		cfg.Logger.Info("Start flush database")
 		if err := mgoClient.Database(cfg.DbName).Drop(ctx); err != nil {
 			return nil, err
 		}
@@ -93,17 +89,24 @@ func createIndexes(dbClient *mongoDB) error {
 
 	for _, cIdx := range []CIndex{
 		// Add index to improve querying transactions by hash, block hash and block height
-		{c: cTxs, model: []mongo.IndexModel{{Keys: bson.M{"hash": -1}, Options: options.Index().SetUnique(true).SetBackground(true).SetSparse(true)}}},
-		{c: cTxs, model: []mongo.IndexModel{{Keys: bson.M{"blockNumber": -1}, Options: options.Index().SetBackground(true).SetSparse(true)}}},
-		{c: cTxs, model: []mongo.IndexModel{{Keys: bson.M{"blockHash": 1}, Options: options.Index().SetBackground(true).SetSparse(true)}}},
+		{c: cTxs, model: []mongo.IndexModel{{Keys: bson.M{"hash": -1}, Options: options.Index().SetUnique(true).SetSparse(true)}}},
+		{c: cTxs, model: []mongo.IndexModel{{Keys: bson.M{"blockNumber": -1}, Options: options.Index().SetSparse(true)}}},
+		{c: cTxs, model: []mongo.IndexModel{{Keys: bson.M{"blockHash": 1}, Options: options.Index().SetSparse(true)}}},
 		// Add index in `from` and `to` fields to improve get txs of address, considering if memory is increasing rapidly
-		{c: cTxs, model: []mongo.IndexModel{{Keys: bson.D{{Key: "from", Value: 1}, {Key: "time", Value: -1}}, Options: options.Index().SetBackground(true).SetSparse(true)}}},
-		{c: cTxs, model: []mongo.IndexModel{{Keys: bson.D{{Key: "to", Value: 1}, {Key: "time", Value: -1}}, Options: options.Index().SetBackground(true).SetSparse(true)}}},
-		{c: cTxs, model: []mongo.IndexModel{{Keys: bson.M{"time": -1}, Options: options.Index().SetBackground(true).SetSparse(true)}}},
+		{c: cTxs, model: []mongo.IndexModel{{Keys: bson.D{{Key: "from", Value: 1}, {Key: "time", Value: -1}}, Options: options.Index().SetSparse(true)}}},
+		{c: cTxs, model: []mongo.IndexModel{{Keys: bson.D{{Key: "to", Value: 1}, {Key: "time", Value: -1}}, Options: options.Index().SetSparse(true)}}},
+		{c: cTxs, model: []mongo.IndexModel{{Keys: bson.M{"time": -1}, Options: options.Index().SetSparse(true)}}},
 		// Add index to improve querying blocks by proposer, hash and height
-		{c: cBlocks, model: []mongo.IndexModel{{Keys: bson.M{"height": -1}, Options: options.Index().SetUnique(true).SetBackground(true).SetSparse(true)}}},
-		{c: cBlocks, model: []mongo.IndexModel{{Keys: bson.M{"hash": 1}, Options: options.Index().SetUnique(true).SetBackground(true).SetSparse(true)}}},
-		{c: cBlocks, model: []mongo.IndexModel{{Keys: bson.D{{Key: "proposerAddress", Value: 1}, {Key: "time", Value: -1}}, Options: options.Index().SetBackground(true).SetSparse(true)}}},
+		{c: cBlocks, model: []mongo.IndexModel{{Keys: bson.M{"height": -1}, Options: options.Index().SetUnique(true).SetSparse(true)}}},
+		{c: cBlocks, model: []mongo.IndexModel{{Keys: bson.M{"hash": 1}, Options: options.Index().SetUnique(true).SetSparse(true)}}},
+		{c: cBlocks, model: []mongo.IndexModel{{Keys: bson.D{{Key: "proposerAddress", Value: 1}, {Key: "time", Value: -1}}, Options: options.Index().SetSparse(true)}}},
+		// indexing addresses collection
+		{c: cAddresses, model: []mongo.IndexModel{{Keys: bson.M{"address": 1}, Options: options.Index().SetUnique(true).SetSparse(true)}}},
+		{c: cAddresses, model: []mongo.IndexModel{{Keys: bson.M{"name": 1}, Options: options.Index().SetSparse(true)}}},
+		{c: cAddresses, model: []mongo.IndexModel{{Keys: bson.M{"isContract": 1}}}},
+		{c: cAddresses, model: []mongo.IndexModel{{Keys: bson.M{"balanceFloat": -1}, Options: options.Index().SetSparse(true)}}},
+		{c: cAddresses, model: []mongo.IndexModel{{Keys: bson.M{"tokenName": 1}, Options: options.Index().SetSparse(true)}}},
+		{c: cAddresses, model: []mongo.IndexModel{{Keys: bson.M{"tokenSymbol": 1}, Options: options.Index().SetSparse(true)}}},
 	} {
 		if err := dbClient.wrapper.C(cIdx.c).EnsureIndex(cIdx.model); err != nil {
 			return err
@@ -130,10 +133,98 @@ func (m *mongoDB) dropDatabase(ctx context.Context) error {
 
 //endregion General
 
+// region Stats
+
+func (m *mongoDB) UpdateStats(ctx context.Context, stats *types.Stats) error {
+	_, err := m.wrapper.C(cStats).Insert(stats)
+	if err != nil {
+		return err
+	}
+	// remove old stats
+	if _, err := m.wrapper.C(cStats).RemoveAll(bson.M{"updatedAtBlock": bson.M{"$lt": stats.UpdatedAtBlock}}); err != nil {
+		m.logger.Warn("cannot remove old stats", zap.Error(err), zap.Uint64("latest updated block", stats.UpdatedAtBlock))
+		return err
+	}
+	return nil
+}
+
+func (m *mongoDB) Stats(ctx context.Context) *types.Stats {
+	var stats *types.Stats
+	if err := m.wrapper.C(cStats).FindOne(bson.M{}).Decode(&stats); err == nil {
+		// remove blocks after checkpoint
+		latestBlock, err := m.Blocks(ctx, &types.Pagination{
+			Skip:  0,
+			Limit: 1,
+		})
+		if len(latestBlock) > 0 {
+			stats.UpdatedAtBlock = latestBlock[0].Height
+		}
+		for {
+			if stats.UpdatedAtBlock%cfg.UpdateStatsInterval == 0 {
+				break
+			}
+			stats.UpdatedAtBlock, err = m.DeleteLatestBlock(ctx)
+			if err != nil {
+				m.logger.Warn("Getting stats: DeleteLatestBlock error", zap.Error(err))
+			}
+			stats.UpdatedAtBlock--
+		}
+		return stats
+	}
+	// create a checkpoint (latestBlockHeight) and remove blocks after checkpoint
+	// then calculate stats based on current database
+	latestBlockHeight := uint64(0)
+	latestBlock, err := m.Blocks(ctx, &types.Pagination{
+		Skip:  0,
+		Limit: 1,
+	})
+	if len(latestBlock) > 0 {
+		latestBlockHeight = latestBlock[0].Height
+	}
+	for {
+		if latestBlockHeight%cfg.UpdateStatsInterval == 0 {
+			break
+		}
+		latestBlockHeight, err = m.DeleteLatestBlock(ctx)
+		if err != nil {
+			m.logger.Warn("Getting stats: DeleteLatestBlock error", zap.Error(err))
+		}
+		latestBlockHeight--
+	}
+	totalAddrs, totalContracts, err := m.GetTotalAddresses(ctx)
+	if err != nil {
+		totalAddrs = 0
+		totalContracts = 0
+	}
+	totalTxs, err := m.TxsCount(ctx)
+	if err != nil {
+		totalTxs = 0
+	}
+	return &types.Stats{
+		UpdatedAt:         time.Now(),
+		UpdatedAtBlock:    latestBlockHeight,
+		TotalTransactions: totalTxs,
+		TotalAddresses:    totalAddrs,
+		TotalContracts:    totalContracts,
+	}
+}
+
+// end region Stats
+
 //region Blocks
 
+func (m *mongoDB) LatestBlockHeight(ctx context.Context) (uint64, error) {
+	latestBlock, err := m.Blocks(ctx, &types.Pagination{
+		Skip:  0,
+		Limit: 1,
+	})
+	if err != nil || len(latestBlock) == 0 {
+		return 0, err
+	}
+	return latestBlock[0].Height, nil
+}
+
 func (m *mongoDB) Blocks(ctx context.Context, pagination *types.Pagination) ([]*types.Block, error) {
-	m.logger.Debug("get blocks from db", zap.Any("pagination", pagination))
 	var blocks []*types.Block
 	opts := []*options.FindOptions{
 		options.Find().SetHint(bson.M{"height": -1}),
@@ -158,7 +249,6 @@ func (m *mongoDB) Blocks(ctx context.Context, pagination *types.Pagination) ([]*
 		if err := cursor.Decode(&block); err != nil {
 			return nil, err
 		}
-		//m.logger.Debug("Get block success", zap.Any("block", block))
 		blocks = append(blocks, block)
 	}
 
@@ -200,7 +290,6 @@ func (m *mongoDB) IsBlockExist(ctx context.Context, blockHeight uint64) (bool, e
 
 func (m *mongoDB) InsertBlock(ctx context.Context, block *types.Block) error {
 	logger := m.logger
-	// todo @longnd: add block info ?
 	// Upsert block into Blocks
 	_, err := m.wrapper.C(cBlocks).Insert(block)
 	if err != nil {
@@ -216,11 +305,6 @@ func (m *mongoDB) InsertBlock(ctx context.Context, block *types.Block) error {
 	return nil
 }
 
-// UpsertBlock call by verifier, to avoid duplicate block record
-func (m *mongoDB) UpsertBlock(ctx context.Context, block *types.Block) error {
-	return ErrNotImplemented
-}
-
 func (m *mongoDB) DeleteLatestBlock(ctx context.Context) (uint64, error) {
 	blocks, err := m.Blocks(ctx, &types.Pagination{
 		Skip:  0,
@@ -234,12 +318,10 @@ func (m *mongoDB) DeleteLatestBlock(ctx context.Context) (uint64, error) {
 		m.logger.Warn("there isn't any block in database now, nothing to delete", zap.Error(err))
 		return 0, nil
 	}
-	m.logger.Debug("DeleteLatestBlock...", zap.Uint64("latest block height", blocks[0].Height))
 	if err := m.DeleteBlockByHeight(ctx, blocks[0].Height); err != nil {
 		m.logger.Warn("cannot remove old latest block", zap.Error(err), zap.Uint64("latest block height", blocks[0].Height))
 		return 0, err
 	}
-	m.logger.Debug("DeleteLatestBlock success", zap.Uint64("latest block height", blocks[0].Height))
 	return blocks[0].Height, nil
 }
 
@@ -255,17 +337,56 @@ func (m *mongoDB) DeleteBlockByHeight(ctx context.Context, blockHeight uint64) e
 	return nil
 }
 
+func (m *mongoDB) BlocksByProposer(ctx context.Context, proposer string, pagination *types.Pagination) ([]*types.Block, uint64, error) {
+	var blocks []*types.Block
+	opts := []*options.FindOptions(nil)
+	if pagination != nil {
+		opts = []*options.FindOptions{
+			options.Find().SetHint(bson.D{{Key: "proposerAddress", Value: 1}, {Key: "time", Value: -1}}),
+			options.Find().SetSort(bson.M{"time": -1}),
+			options.Find().SetSkip(int64(pagination.Skip)),
+			options.Find().SetLimit(int64(pagination.Limit)),
+		}
+	}
+	cursor, err := m.wrapper.C(cBlocks).
+		Find(bson.M{"proposerAddress": proposer}, opts...)
+	defer func() {
+		err = cursor.Close(ctx)
+		if err != nil {
+			m.logger.Warn("Error when close cursor", zap.Error(err))
+		}
+	}()
+	if err != nil {
+		if err == mgo.ErrNotFound {
+			return nil, 0, nil
+		}
+		return nil, 0, fmt.Errorf("failed to get txs for block: %v", err)
+	}
+	for cursor.Next(ctx) {
+		block := &types.Block{}
+		if err := cursor.Decode(block); err != nil {
+			return nil, 0, err
+		}
+		blocks = append(blocks, block)
+	}
+	// get total transaction in block in database
+	total, err := m.wrapper.C(cBlocks).Count(bson.M{"proposerAddress": proposer})
+	if err != nil {
+		return nil, 0, err
+	}
+	return blocks, uint64(total), nil
+}
+
 //endregion Blocks
 
 //region Txs
 
-func (m *mongoDB) Txs(ctx context.Context, pagination *types.Pagination) ([]*types.Transaction, error) {
-	panic("implement me")
-}
-
-func (m *mongoDB) BlockTxCount(ctx context.Context, hash string) (int64, error) {
-
-	return 0, nil
+func (m *mongoDB) TxsCount(ctx context.Context) (uint64, error) {
+	total, err := m.wrapper.C(cTxs).Count(bson.M{})
+	if err != nil {
+		return 0, err
+	}
+	return uint64(total), nil
 }
 
 func (m *mongoDB) TxsByBlockHash(ctx context.Context, blockHash string, pagination *types.Pagination) ([]*types.Transaction, uint64, error) {
@@ -353,6 +474,7 @@ func (m *mongoDB) TxsByAddress(ctx context.Context, address string, pagination *
 	opts := []*options.FindOptions{
 		options.Find().SetHint(bson.D{{Key: "from", Value: 1}, {Key: "time", Value: -1}}),
 		options.Find().SetHint(bson.D{{Key: "to", Value: 1}, {Key: "time", Value: -1}}),
+		options.Find().SetSort(bson.M{"time": -1}),
 		options.Find().SetSkip(int64(pagination.Skip)),
 		options.Find().SetLimit(int64(pagination.Limit)),
 	}
@@ -397,18 +519,6 @@ func (m *mongoDB) TxByHash(ctx context.Context, txHash string) (*types.Transacti
 	return tx, nil
 }
 
-func (m *mongoDB) TxByNonce(ctx context.Context, nonce int64) (*types.Transaction, error) {
-	var tx *types.Transaction
-	err := m.wrapper.C(cTxs).FindOne(bson.M{"nonce": nonce}).Decode(&tx)
-	if err != nil {
-		if err == mgo.ErrNotFound {
-			return nil, nil
-		}
-		return nil, fmt.Errorf("failed to get tx: %v", err)
-	}
-	return tx, nil
-}
-
 // InsertTxs create bulk writer
 func (m *mongoDB) InsertTxs(ctx context.Context, txs []*types.Transaction) error {
 	var (
@@ -417,7 +527,6 @@ func (m *mongoDB) InsertTxs(ctx context.Context, txs []*types.Transaction) error
 	for _, tx := range txs {
 		txModel := mongo.NewInsertOneModel().SetDocument(tx)
 		txsBulkWriter = append(txsBulkWriter, txModel)
-		// TODO(trinhdn): insert created contract info to database with model `address`
 	}
 	if len(txsBulkWriter) > 0 {
 		if _, err := m.wrapper.C(cTxs).BulkWrite(txsBulkWriter); err != nil {
@@ -431,7 +540,6 @@ func (m *mongoDB) InsertTxs(ctx context.Context, txs []*types.Transaction) error
 func (m *mongoDB) UpsertTxs(ctx context.Context, txs []*types.Transaction) error {
 	var txsBulkWriter []mongo.WriteModel
 	for _, tx := range txs {
-		m.logger.Debug("Process tx", zap.String("tx", fmt.Sprintf("%#v", tx)))
 		txModel := mongo.NewInsertOneModel().SetDocument(tx)
 		txsBulkWriter = append(txsBulkWriter, txModel)
 	}
@@ -456,9 +564,9 @@ func (m *mongoDB) InsertListTxByAddress(ctx context.Context, list []*types.Trans
 }
 
 func (m *mongoDB) LatestTxs(ctx context.Context, pagination *types.Pagination) ([]*types.Transaction, error) {
-	start := time.Now()
 	opts := []*options.FindOptions{
 		options.Find().SetHint(bson.M{"time": -1}),
+		options.Find().SetSort(bson.M{"time": -1}),
 		options.Find().SetSkip(int64(pagination.Skip)),
 		options.Find().SetLimit(int64(pagination.Limit)),
 	}
@@ -474,57 +582,81 @@ func (m *mongoDB) LatestTxs(ctx context.Context, pagination *types.Pagination) (
 			m.logger.Warn("Error when close cursor", zap.Error(err))
 		}
 	}()
-	queryTime := time.Since(start)
-	m.logger.Debug("Total time for query tx", zap.Any("TimeConsumed", queryTime))
 	for cursor.Next(ctx) {
 		tx := &types.Transaction{}
 		if err := cursor.Decode(&tx); err != nil {
 			return nil, err
 		}
-		//m.logger.Debug("Get latest txs success", zap.Any("tx", tx))
 		txs = append(txs, tx)
 	}
-	processTime := time.Since(start)
-	m.logger.Debug("Total time for process tx", zap.Any("TimeConsumed", processTime))
 
 	return txs, nil
 }
 
 //endregion Txs
 
-//region Token
-func (m *mongoDB) TokenHolders(ctx context.Context, tokenAddress string, pagination *types.Pagination) ([]*types.TokenHolder, uint64, error) {
-	panic("implement me")
-}
-
-//endregion Token
-
 //region Address
 
-func (m *mongoDB) AddressByHash(ctx context.Context, addressHash string) (*types.Address, error) {
+func (m *mongoDB) AddressByHash(ctx context.Context, address string) (*types.Address, error) {
 	var c types.Address
-	err := m.wrapper.C(cAddresses).FindOne(bson.M{"address": addressHash}).Decode(&c)
+	err := m.wrapper.C(cAddresses).FindOne(bson.M{"address": address}).Decode(&c)
 	if err != nil {
-		if err == mongo.ErrNoDocuments {
-			return nil, nil
-		}
 		return nil, fmt.Errorf("failed to get address: %v", err)
 	}
 	return &c, nil
 }
-func (m *mongoDB) OwnedTokensOfAddress(ctx context.Context, walletAddress string, pagination *types.Pagination) ([]*types.TokenHolder, uint64, error) {
-	panic("implement me")
+
+func (m *mongoDB) InsertAddress(ctx context.Context, address *types.Address) error {
+	_, err := m.wrapper.C(cAddresses).Insert(address)
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
-//endregion Address
+// UpdateAddresses update last time those addresses active
+func (m *mongoDB) UpdateAddresses(ctx context.Context, addresses []*types.Address) error {
+	if addresses == nil || len(addresses) == 0 {
+		return nil
+	}
+	var updateAddressOperations []mongo.WriteModel
+	for _, info := range addresses {
+		updateAddressOperations = append(updateAddressOperations,
+			mongo.NewUpdateOneModel().SetUpsert(true).SetFilter(bson.M{"address": info.Address}).SetUpdate(bson.M{"$set": info}))
+	}
+	if _, err := m.wrapper.C(cAddresses).BulkWrite(updateAddressOperations); err != nil {
+		return err
+	}
+	return nil
+}
 
-// UpdateActiveAddresses update last time those addresses active
-// Just skip for now
-func (m *mongoDB) UpdateActiveAddresses(ctx context.Context, addressesMap map[string]bool, contractAddrMap map[string]bool) error {
-	var addrListFromDB []*types.ActiveAddress
-	cursor, err := m.wrapper.C(cActiveAddresses).Find(bson.D{})
+func (m *mongoDB) GetTotalAddresses(ctx context.Context) (uint64, uint64, error) {
+	totalAddr, err := m.wrapper.C(cAddresses).Count(bson.M{"isContract": false})
 	if err != nil {
-		return fmt.Errorf("failed to get active addresses: %v", err)
+		return 0, 0, err
+	}
+	totalContractAddr, err := m.wrapper.C(cAddresses).Count(bson.M{"isContract": true})
+	if err != nil {
+		return 0, 0, err
+	}
+	return uint64(totalAddr), uint64(totalContractAddr), nil
+}
+
+func (m *mongoDB) GetListAddresses(ctx context.Context, sortDirection int, pagination *types.Pagination) ([]*types.Address, error) {
+	opts := []*options.FindOptions{
+		options.Find().SetHint(bson.M{"balanceFloat": -1}),
+		options.Find().SetSort(bson.M{"balanceFloat": sortDirection}),
+		options.Find().SetSkip(int64(pagination.Skip)),
+		options.Find().SetLimit(int64(pagination.Limit)),
+	}
+
+	var (
+		rank  = uint64(pagination.Skip + 1)
+		addrs []*types.Address
+	)
+	cursor, err := m.wrapper.C(cAddresses).Find(bson.D{}, opts...)
+	if err != nil {
+		return nil, err
 	}
 	defer func() {
 		err = cursor.Close(ctx)
@@ -533,55 +665,16 @@ func (m *mongoDB) UpdateActiveAddresses(ctx context.Context, addressesMap map[st
 		}
 	}()
 	for cursor.Next(ctx) {
-		addr := &types.ActiveAddress{}
+		addr := &types.Address{}
 		if err := cursor.Decode(&addr); err != nil {
-			return err
+			return nil, err
 		}
-		addrListFromDB = append(addrListFromDB, addr)
+		addr.Rank = rank
+		addrs = append(addrs, addr)
+		rank++
 	}
 
-	for _, addr := range addrListFromDB {
-		if addressesMap[addr.Address] {
-			delete(addressesMap, addr.Address)
-		}
-		if contractAddrMap[addr.Address] {
-			delete(contractAddrMap, addr.Address)
-		}
-	}
-
-	var addrBulkWriter []mongo.WriteModel
-	for addr := range addressesMap {
-		addrModel := mongo.NewInsertOneModel().SetDocument(types.ActiveAddress{
-			Address:    addr,
-			Balance:    "0",
-			IsContract: false,
-		})
-		addrBulkWriter = append(addrBulkWriter, addrModel)
-	}
-	for contractAddr := range contractAddrMap {
-		addrModel := mongo.NewInsertOneModel().SetDocument(types.ActiveAddress{
-			Address:    contractAddr,
-			Balance:    "0",
-			IsContract: true,
-		})
-		addrBulkWriter = append(addrBulkWriter, addrModel)
-	}
-	if len(addrBulkWriter) > 0 {
-		if _, err := m.wrapper.C(cActiveAddresses).BulkWrite(addrBulkWriter); err != nil {
-			return err
-		}
-	}
-	return nil
+	return addrs, nil
 }
 
-func (m *mongoDB) GetTotalActiveAddresses(ctx context.Context) (uint64, uint64, error) {
-	totalAddr, err := m.wrapper.C(cActiveAddresses).Count(bson.M{"isContract": false})
-	if err != nil {
-		return 0, 0, err
-	}
-	totalContractAddr, err := m.wrapper.C(cActiveAddresses).Count(bson.M{"isContract": true})
-	if err != nil {
-		return 0, 0, err
-	}
-	return uint64(totalAddr), uint64(totalContractAddr), nil
-}
+//endregion Address

@@ -5,7 +5,6 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"io/ioutil"
 	"math"
 	"math/big"
@@ -13,7 +12,11 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/kardiachain/explorer-backend/cfg"
+
 	"go.uber.org/zap"
+
+	"github.com/kardiachain/go-kardia/lib/common"
 
 	"github.com/kardiachain/explorer-backend/kardia"
 	"github.com/kardiachain/explorer-backend/metrics"
@@ -26,6 +29,8 @@ import (
 type InfoServer interface {
 	// API
 	LatestBlockHeight(ctx context.Context) (uint64, error)
+	GetCurrentStats(ctx context.Context) error
+	UpdateCurrentStats(ctx context.Context) error
 
 	// DB
 	//LatestInsertBlockHeight(ctx context.Context) (uint64, error)
@@ -135,8 +140,6 @@ func (s *infoServer) TokenInfo(ctx context.Context) (*types.TokenInfo, error) {
 		return nil, err
 	}
 
-	fmt.Println("CoinMarket Response", cmResponse)
-
 	if cmResponse.Status.ErrorCode != 0 {
 		return nil, errors.New("api failed")
 	}
@@ -145,23 +148,71 @@ func (s *infoServer) TokenInfo(ctx context.Context) (*types.TokenInfo, error) {
 
 	// Cast to internal
 	tokenInfo := &types.TokenInfo{
-		Name:              cmData.Name,
-		Symbol:            cmData.Symbol,
-		Decimal:           18,
-		TotalSupply:       cmData.TotalSupply,
-		CirculatingSupply: cmData.CirculatingSupply,
-		Price:             cmQuote.Price,
-		Volume24h:         cmQuote.Volume24h,
-		Change1h:          cmQuote.PercentChange1h,
-		Change24h:         cmQuote.PercentChange24h,
-		Change7d:          cmQuote.PercentChange7d,
-		MarketCap:         cmQuote.MarketCap,
+		Name:                     cmData.Name,
+		Symbol:                   cmData.Symbol,
+		Decimal:                  18,
+		TotalSupply:              cmData.TotalSupply,
+		ERC20CirculatingSupply:   cmData.CirculatingSupply,
+		MainnetCirculatingSupply: 0,
+		Price:                    cmQuote.Price,
+		Volume24h:                cmQuote.Volume24h,
+		Change1h:                 cmQuote.PercentChange1h,
+		Change24h:                cmQuote.PercentChange24h,
+		Change7d:                 cmQuote.PercentChange7d,
+		MarketCap:                cmQuote.MarketCap,
 	}
 	if err := s.cacheClient.UpdateTokenInfo(ctx, tokenInfo); err != nil {
 		return nil, err
 	}
 
 	return tokenInfo, nil
+}
+
+func (s *infoServer) GetCurrentStats(ctx context.Context) uint64 {
+	stats := s.dbClient.Stats(ctx)
+	s.logger.Info("Current stats of network", zap.Uint64("UpdatedAtBlock", stats.UpdatedAtBlock),
+		zap.Uint64("TotalTransactions", stats.TotalTransactions), zap.Uint64("TotalAddresses", stats.TotalAddresses),
+		zap.Uint64("TotalContracts", stats.TotalContracts))
+	_ = s.cacheClient.SetTotalTxs(ctx, stats.TotalTransactions)
+	_ = s.cacheClient.UpdateTotalHolders(ctx, stats.TotalAddresses, stats.TotalContracts)
+	cfg.GenesisAddresses = append(cfg.GenesisAddresses, cfg.TreasuryContractAddr)
+	cfg.GenesisAddresses = append(cfg.GenesisAddresses, cfg.StakingContractAddr)
+	cfg.GenesisAddresses = append(cfg.GenesisAddresses, cfg.KardiaDeployerAddr)
+	vals, _ := s.kaiClient.Validators(ctx)
+	_ = s.cacheClient.UpdateValidators(ctx, vals)
+	for _, val := range vals.Validators {
+		cfg.GenesisAddresses = append(cfg.GenesisAddresses, val.SmcAddress.String())
+	}
+	for _, addr := range cfg.GenesisAddresses {
+		balance, _ := s.kaiClient.GetBalance(ctx, addr)
+		balanceInBigInt, _ := new(big.Int).SetString(balance, 10)
+		balanceFloat, _ := new(big.Float).SetPrec(100).Quo(new(big.Float).SetInt(balanceInBigInt), new(big.Float).SetInt(cfg.Hydro)).Float64() //converting to KAI from HYDRO
+		addrInfo := &types.Address{
+			Address:       addr,
+			BalanceFloat:  balanceFloat,
+			BalanceString: balance,
+			IsContract:    false,
+		}
+		code, _ := s.kaiClient.GetCode(ctx, addr)
+		if len(code) > 0 {
+			addrInfo.IsContract = true
+		}
+		// write this address to db
+		_ = s.dbClient.InsertAddress(ctx, addrInfo)
+	}
+	return stats.UpdatedAtBlock
+}
+
+func (s *infoServer) UpdateCurrentStats(ctx context.Context) error {
+	totalAddrs, totalContracts := s.cacheClient.TotalHolders(ctx)
+	stats := &types.Stats{
+		UpdatedAt:         time.Now(),
+		UpdatedAtBlock:    s.cacheClient.LatestBlockHeight(ctx),
+		TotalTransactions: s.cacheClient.TotalTxs(ctx),
+		TotalAddresses:    totalAddrs,
+		TotalContracts:    totalContracts,
+	}
+	return s.dbClient.UpdateStats(ctx, stats)
 }
 
 // BlockByHash return block by its hash
@@ -171,7 +222,6 @@ func (s *infoServer) BlockByHash(ctx context.Context, hash string) (*types.Block
 	if err == nil {
 		return cacheBlock, nil
 	}
-	lgr.Debug("cannot find block in cache", zap.Error(err))
 
 	dbBlock, err := s.dbClient.BlockByHash(ctx, hash)
 	if err == nil {
@@ -190,14 +240,13 @@ func (s *infoServer) BlockByHeight(ctx context.Context, blockHeight uint64) (*ty
 	if err == nil {
 		return cacheBlock, nil
 	}
-	lgr.Debug("cannot find block in cache")
 
 	dbBlock, err := s.dbClient.BlockByHeight(ctx, blockHeight)
 	if err == nil {
 		return dbBlock, nil
 	}
 	// Something wrong or we stay behind the network
-	lgr.Warn("cannot find block in db")
+	lgr.Warn("cannot find block by height in db", zap.Uint64("Height", blockHeight))
 
 	return s.kaiClient.BlockByHeight(ctx, blockHeight)
 }
@@ -223,24 +272,19 @@ func (s *infoServer) ImportBlock(ctx context.Context, block *types.Block, writeT
 
 	// merge receipts into corresponding transactions
 	// because getBlockByHash/Height API returns 2 array contains txs and receipts separately
-	block.Txs = mergeReceipts(block.Txs, block.Receipts)
+	block.Txs = s.mergeAdditionalInfoToTxs(block.Txs, block.Receipts)
 
 	// Start import block
-	// consider new routine here
-	// todo: add metrics
-	// todo @longnd: Use redis or leveldb as mem-write buffer for N blocks
 	startTime := time.Now()
 	if err := s.dbClient.InsertBlock(ctx, block); err != nil {
-		s.logger.Debug("cannot import block to db", zap.Error(err))
 		return err
 	}
 	endTime := time.Since(startTime)
 	s.metrics.RecordInsertBlockTime(endTime)
-	s.logger.Debug("Total time for import block", zap.Duration("TimeConsumed", endTime), zap.String("Avg", s.metrics.GetInsertBlockTime()))
+	s.logger.Info("Total time for import block", zap.Duration("TimeConsumed", endTime), zap.String("Avg", s.metrics.GetInsertBlockTime()))
 
 	if writeToCache {
 		if err := s.cacheClient.InsertTxsOfBlock(ctx, block); err != nil {
-			s.logger.Debug("cannot import txs to cache", zap.Error(err))
 			return err
 		}
 	}
@@ -251,30 +295,20 @@ func (s *infoServer) ImportBlock(ctx context.Context, block *types.Block, writeT
 	}
 	endTime = time.Since(startTime)
 	s.metrics.RecordInsertTxsTime(endTime)
-	s.logger.Debug("Total time for import tx", zap.Duration("TimeConsumed", endTime), zap.String("Avg", s.metrics.GetInsertTxsTime()))
+	s.logger.Info("Total time for import tx", zap.Duration("TimeConsumed", endTime), zap.String("Avg", s.metrics.GetInsertTxsTime()))
 
 	// update active addresses
 	startTime = time.Now()
-	addrList, contractList := filterAddrSet(block.Txs)
-	if err := s.dbClient.UpdateActiveAddresses(ctx, addrList, contractList); err != nil {
+	addrsMap := filterAddrSet(block.Txs)
+	addrsList := s.getAddressBalances(ctx, addrsMap)
+	if err := s.dbClient.UpdateAddresses(ctx, addrsList); err != nil {
 		return err
 	}
-	insertActiveAddrConsumed := time.Since(startTime)
-	s.logger.Debug("Total time for update active addresses", zap.Any("TimeConsumed", insertActiveAddrConsumed))
-	totalAddr, totalContractAddr, err := s.dbClient.GetTotalActiveAddresses(ctx)
-	if err != nil {
-		return err
-	}
-	err = s.cacheClient.UpdateTotalHolders(ctx, totalAddr, totalContractAddr)
-	if err != nil {
-		return err
-	}
-
 	endTime = time.Since(startTime)
 	s.metrics.RecordInsertActiveAddressTime(endTime)
-	s.logger.Debug("Total time for import active addresses", zap.Duration("TimeConsumed", endTime), zap.String("Avg", s.metrics.GetInsertActiveAddressTime()))
+	s.logger.Info("Total time for update addresses", zap.Duration("TimeConsumed", endTime), zap.String("Avg", s.metrics.GetInsertActiveAddressTime()))
 	startTime = time.Now()
-	totalAddr, totalContractAddr, err = s.dbClient.GetTotalActiveAddresses(ctx)
+	totalAddr, totalContractAddr, err := s.dbClient.GetTotalAddresses(ctx)
 	if err != nil {
 		return err
 	}
@@ -282,7 +316,7 @@ func (s *infoServer) ImportBlock(ctx context.Context, block *types.Block, writeT
 	if err != nil {
 		return err
 	}
-	s.logger.Debug("Total time for getting active addresses", zap.Duration("TimeConsumed", time.Since(startTime)))
+	s.logger.Info("Total time for getting active addresses", zap.Duration("TimeConsumed", time.Since(startTime)))
 
 	if _, err := s.cacheClient.UpdateTotalTxs(ctx, block.NumTxs); err != nil {
 		return err
@@ -368,17 +402,14 @@ func (s *infoServer) ImportReceipts(ctx context.Context, block *types.Block) err
 		txByToAdd   *types.TransactionByAddress
 	}
 	results := make(chan response, block.NumTxs)
-	addresses := make(map[string]bool)
+	var addresses []*types.Address
 
-	//todo @longnd: Move this workers to config or dynamic settings
 	for w := 0; w <= 10; w++ {
 		go func(jobs <-chan types.Transaction, results chan<- response) {
 			for tx := range jobs {
-				//s.logger.Debug("Start worker", zap.Any("TX", tx))
 				receipt, err := s.kaiClient.GetTransactionReceipt(ctx, tx.Hash)
 				if err != nil {
 					s.logger.Warn("get receipt err", zap.String("tx hash", tx.Hash), zap.Error(err))
-					//todo: consider how we handle this err, just skip it now
 					results <- response{
 						err: err,
 					}
@@ -395,7 +426,6 @@ func (s *infoServer) ImportReceipts(ctx context.Context, block *types.Block) err
 
 				address, err := s.dbClient.AddressByHash(ctx, toAddress)
 				if err != nil {
-					//todo: consider how we handle this err, just skip it now
 					s.logger.Warn("cannot get address by hash")
 					results <- response{
 						err: err,
@@ -404,12 +434,7 @@ func (s *infoServer) ImportReceipts(ctx context.Context, block *types.Block) err
 				}
 
 				if address == nil || address.IsContract {
-					for _, l := range receipt.Logs {
-						addresses[l.Address] = true
-					}
-					if err := s.dbClient.UpdateActiveAddresses(ctx, addresses, nil); err != nil {
-						//todo: consider how we handle this err, just skip it now
-						s.logger.Warn("cannot update active address")
+					if err := s.dbClient.UpdateAddresses(ctx, addresses); err != nil {
 						results <- response{
 							err: err,
 						}
@@ -439,7 +464,6 @@ func (s *infoServer) ImportReceipts(ctx context.Context, block *types.Block) err
 		jobs <- *tx
 	}
 	close(jobs)
-	// todo @longnd: try to remove this loop
 	size := int(block.NumTxs)
 	for i := 0; i < size; i++ {
 		r := <-results
@@ -454,17 +478,13 @@ func (s *infoServer) ImportReceipts(ctx context.Context, block *types.Block) err
 		}
 	}
 
-	// todo @longnd: Handle insert failed
 	if len(listTxByToAddress) > 0 {
-		s.logger.Debug("ListTxFromAddress", zap.Int("Size", len(listTxByFromAddress)))
 		if err := s.dbClient.InsertListTxByAddress(ctx, listTxByFromAddress); err != nil {
 			return err
 		}
 	}
 
-	// todo @longnd: Handle insert failed
 	if len(listTxByToAddress) > 0 {
-		s.logger.Debug("ListTxByToAddress", zap.Int("Size", len(listTxByFromAddress)))
 		if err := s.dbClient.InsertListTxByAddress(ctx, listTxByToAddress); err != nil {
 			return err
 		}
@@ -514,53 +534,95 @@ func (s *infoServer) VerifyBlock(ctx context.Context, blockHeight uint64, networ
 	dbBlock.NumTxs = total
 
 	if !s.blockVerifier(dbBlock, networkBlock) {
-		s.logger.Warn("Block in database is corrupted, upserting...", zap.Error(err))
-		// Force dbBlock with new information from network block
+		s.logger.Warn("Block in database is corrupted, upserting...", zap.Uint64("db numTxs", dbBlock.NumTxs), zap.Uint64("network numTxs", networkBlock.NumTxs), zap.Error(err))
+		// Minus network block reward and total txs before re-importing this block
+		totalTxs := s.cacheClient.TotalTxs(ctx)
+		totalTxs -= networkBlock.NumTxs
+		_ = s.cacheClient.SetTotalTxs(ctx, totalTxs)
+		// Force replace dbBlock with new information from network block
 		startTime := time.Now()
 		if err := s.UpsertBlock(ctx, networkBlock); err != nil {
-			s.logger.Warn("Cannot upsert block", zap.Uint64("height", blockHeight))
+			s.logger.Warn("Cannot upsert block", zap.Uint64("height", blockHeight), zap.Error(err))
 			return false, err
 		}
 		endTime := time.Since(startTime)
 		s.metrics.RecordUpsertBlockTime(endTime)
-		s.logger.Debug("Upsert block time", zap.Duration("TimeConsumed", endTime), zap.String("Avg", s.metrics.GetUpsertBlockTime()))
 		return true, nil
 	}
 	return false, nil
 }
 
-// calculateTPS return TPS per each [10, 20, 50] blocks
-func (s *infoServer) calculateTPS(startTime uint64) (uint64, error) {
-	return 0, nil
-}
-
-// getAddressByHash return *types.Address from mgo.Collection("Address")
-func (s *infoServer) getAddressByHash(address string) (*types.Address, error) {
-	return nil, nil
-}
-
-func (s *infoServer) getTxsByBlockNumber(blockNumber int64, filter *types.Pagination) ([]*types.Transaction, error) {
-	return nil, nil
-}
-
-func filterAddrSet(txs []*types.Transaction) (addr map[string]bool, contractAddr map[string]bool) {
-	addr = make(map[string]bool)
-	contractAddr = make(map[string]bool)
+func filterAddrSet(txs []*types.Transaction) map[string]*types.Address {
+	addrs := make(map[string]*types.Address)
 	for _, tx := range txs {
-		if !addr[tx.From] {
-			addr[tx.From] = true
+		addrs[tx.From] = &types.Address{
+			Address:    tx.From,
+			IsContract: false,
 		}
-		if !addr[tx.To] {
-			addr[tx.To] = true
+		addrs[tx.To] = &types.Address{
+			Address:    tx.From,
+			IsContract: false,
 		}
-		if !contractAddr[tx.ContractAddress] {
-			contractAddr[tx.ContractAddress] = true
+		addrs[tx.ContractAddress] = &types.Address{
+			Address:    tx.From,
+			IsContract: true,
 		}
 	}
-	return addr, contractAddr
+	delete(addrs, "")
+	delete(addrs, "0x")
+	return addrs
 }
 
-func mergeReceipts(txs []*types.Transaction, receipts []*types.Receipt) []*types.Transaction {
+func (s *infoServer) getAddressBalances(ctx context.Context, addrs map[string]*types.Address) []*types.Address {
+	if addrs == nil || len(addrs) == 0 {
+		return nil
+	}
+	vals, err := s.cacheClient.Validators(ctx)
+	if err != nil {
+		vals = &types.Validators{
+			Validators: []*types.Validator{},
+		}
+	}
+	addressesName := map[string]string{}
+	for _, v := range vals.Validators {
+		addressesName[v.SmcAddress.String()] = v.Name
+	}
+	addressesName[cfg.StakingContractAddr] = cfg.StakingContractName
+
+	var (
+		code     common.Bytes
+		addrsMap = map[string]*types.Address{}
+	)
+	for addr := range addrs {
+		addressInfo := &types.Address{
+			Address: addr,
+			Name:    "",
+		}
+		addressInfo.BalanceString, err = s.kaiClient.GetBalance(ctx, addr)
+		if err != nil {
+			addressInfo.BalanceString = "0"
+		}
+		balance, _ := new(big.Int).SetString(addressInfo.BalanceString, 10)
+		addressInfo.BalanceFloat, _ = new(big.Float).SetPrec(100).Quo(new(big.Float).SetInt(balance), new(big.Float).SetInt(cfg.Hydro)).Float64() //converting to KAI from HYDRO
+		if !addrs[addr].IsContract {
+			code, _ = s.kaiClient.GetCode(ctx, addr)
+			if len(code) > 0 { // is contract
+				addressInfo.IsContract = true
+			}
+		}
+		if addressesName[addr] != "" {
+			addressInfo.Name = addressesName[addr]
+		}
+		addrsMap[addr] = addressInfo
+	}
+	var result []*types.Address
+	for _, info := range addrsMap {
+		result = append(result, info)
+	}
+	return result
+}
+
+func (s *infoServer) mergeAdditionalInfoToTxs(txs []*types.Transaction, receipts []*types.Receipt) []*types.Transaction {
 	if receipts == nil || len(receipts) == 0 {
 		return txs
 	}
@@ -571,6 +633,9 @@ func mergeReceipts(txs []*types.Transaction, receipts []*types.Receipt) []*types
 		txFeeInOxy *big.Int
 	)
 	for _, tx := range txs {
+		if decoded, err := s.kaiClient.DecodeInputData(tx.To, tx.InputData); err == nil {
+			tx.DecodedInputData = decoded
+		}
 		if (receiptIndex > len(receipts)-1) || !(receipts[receiptIndex].TransactionHash == tx.Hash) {
 			tx.Status = 0
 			continue
@@ -590,4 +655,12 @@ func mergeReceipts(txs []*types.Transaction, receipts []*types.Receipt) []*types
 		receiptIndex++
 	}
 	return txs
+}
+
+func (s *infoServer) LatestBlockHeight(ctx context.Context) (uint64, error) {
+	return s.kaiClient.LatestBlockNumber(ctx)
+}
+
+func (s *infoServer) BlockCacheSize(ctx context.Context) (int64, error) {
+	return s.cacheClient.ListSize(ctx, cache.KeyBlocks)
 }

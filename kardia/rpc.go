@@ -23,22 +23,24 @@ import (
 	"errors"
 	"fmt"
 	"math/big"
+	"os"
+	"path"
+	"runtime"
 	"sort"
 	"strings"
 
 	"go.uber.org/zap"
 
-	kardia "github.com/kardiachain/go-kardiamain"
-	"github.com/kardiachain/go-kardiamain/lib/common"
-	"github.com/kardiachain/go-kardiamain/rpc"
+	"github.com/kardiachain/go-kardia"
+	"github.com/kardiachain/go-kardia/lib/abi"
+	"github.com/kardiachain/go-kardia/lib/common"
+	"github.com/kardiachain/go-kardia/rpc"
 
+	"github.com/kardiachain/explorer-backend/cfg"
 	"github.com/kardiachain/explorer-backend/types"
 )
 
 var (
-	ErrParsingBigIntFromString = errors.New("cannot parse string to big.Int")
-	ErrValidatorNotFound       = errors.New("validator address not found")
-
 	tenPoweredBy5  = new(big.Int).Exp(big.NewInt(10), big.NewInt(5), nil)
 	tenPoweredBy18 = new(big.Int).Exp(big.NewInt(10), big.NewInt(18), nil)
 )
@@ -49,26 +51,38 @@ type RPCClient struct {
 	ip     string
 }
 
+type SmcUtil struct {
+	Abi             *abi.ABI
+	ContractAddress common.Address
+	Bytecode        string
+}
+
 // Client return an *rpc.Client instance
 type Client struct {
 	clientList        []*RPCClient
 	trustedClientList []*RPCClient
 	defaultClient     *RPCClient
 	numRequest        int
-	lgr               *zap.Logger
+
+	stakingUtil   *SmcUtil
+	validatorUtil *SmcUtil
+	paramsUtil    *SmcUtil
+
+	lgr *zap.Logger
 }
 
 // NewKaiClient creates a client that uses the given RPC client.
-func NewKaiClient(cfg *Config) (ClientInterface, error) {
-	if len(cfg.rpcURL) == 0 && len(cfg.trustedNodeRPCURL) == 0 {
+func NewKaiClient(config *Config) (ClientInterface, error) {
+	if len(config.rpcURL) == 0 && len(config.trustedNodeRPCURL) == 0 {
 		return nil, errors.New("empty RPC URL")
 	}
 
 	var (
-		defaultClient *RPCClient = nil
-		clientList               = []*RPCClient{}
+		defaultClient     *RPCClient = nil
+		clientList        []*RPCClient
+		trustedClientList []*RPCClient
 	)
-	for _, u := range cfg.rpcURL {
+	for _, u := range config.rpcURL {
 		rpcClient, err := rpc.Dial(u)
 		if err != nil {
 			return nil, err
@@ -80,8 +94,7 @@ func NewKaiClient(cfg *Config) (ClientInterface, error) {
 		}
 		clientList = append(clientList, newClient)
 	}
-	var trustedClientList = []*RPCClient{}
-	for _, u := range cfg.trustedNodeRPCURL {
+	for _, u := range config.trustedNodeRPCURL {
 		rpcClient, err := rpc.Dial(u)
 		if err != nil {
 			return nil, err
@@ -96,7 +109,55 @@ func NewKaiClient(cfg *Config) (ClientInterface, error) {
 	// set default RPC client as one of our trusted ones
 	defaultClient = trustedClientList[0]
 
-	return &Client{clientList, trustedClientList, defaultClient, 0, cfg.lgr}, nil
+	_, filename, _, _ := runtime.Caller(1)
+	stakingABI, err := os.Open(path.Join(path.Dir(filename), "../kardia/abi/staking.json"))
+	if err != nil {
+		panic("cannot read staking ABI file")
+	}
+	stakingSmcABI, err := abi.JSON(stakingABI)
+	if err != nil {
+		config.lgr.Error("Error reading staking contract abi", zap.Error(err))
+		return nil, err
+	}
+	stakingUtil := &SmcUtil{
+		Abi:             &stakingSmcABI,
+		ContractAddress: common.HexToAddress(cfg.StakingContractAddr),
+		Bytecode:        cfg.StakingContractByteCode,
+	}
+	validatorABI, err := os.Open(path.Join(path.Dir(filename), "../kardia/abi/validator.json"))
+	if err != nil {
+		panic("cannot read validator ABI file")
+	}
+	validatorSmcAbi, err := abi.JSON(validatorABI)
+	if err != nil {
+		config.lgr.Error("Error reading validator contract abi", zap.Error(err))
+		return nil, err
+	}
+	validatorUtil := &SmcUtil{
+		Abi:      &validatorSmcAbi,
+		Bytecode: cfg.ValidatorContractByteCode,
+	}
+	paramsSmcAddr, err := GetParamsSMCAddress(stakingUtil, defaultClient)
+	if err != nil {
+		config.lgr.Error("Error getting params contract address", zap.Error(err))
+		return nil, err
+	}
+	paramsABI, err := os.Open(path.Join(path.Dir(filename), "../kardia/abi/params.json"))
+	if err != nil {
+		panic("cannot read params ABI file")
+	}
+	paramsSmcAbi, err := abi.JSON(paramsABI)
+	if err != nil {
+		config.lgr.Error("Error reading params contract abi", zap.Error(err))
+		return nil, err
+	}
+	paramsUtil := &SmcUtil{
+		Abi:             &paramsSmcAbi,
+		ContractAddress: paramsSmcAddr,
+		Bytecode:        cfg.ValidatorContractByteCode,
+	}
+
+	return &Client{clientList, trustedClientList, defaultClient, 0, stakingUtil, validatorUtil, paramsUtil, config.lgr}, nil
 }
 
 func (ec *Client) chooseClient() *RPCClient {
@@ -128,13 +189,11 @@ func (ec *Client) BlockByHash(ctx context.Context, hash string) (*types.Block, e
 // BlockByHeight returns a block from the current canonical chain.
 //
 // Use HeaderByNumber if you don't need all transactions or uncle headers.
-// TODO(trinhdn): If number is nil, the latest known block is returned.
 func (ec *Client) BlockByHeight(ctx context.Context, height uint64) (*types.Block, error) {
 	return ec.getBlock(ctx, "kai_getBlockByNumber", height)
 }
 
 // BlockHeaderByNumber returns a block header from the current canonical chain.
-// TODO(trinhdn): If number is nil, the latest known block header is returned.
 func (ec *Client) BlockHeaderByNumber(ctx context.Context, number uint64) (*types.Header, error) {
 	return ec.getBlockHeader(ctx, "kai_getBlockHeaderByNumber", number)
 }
@@ -169,7 +228,7 @@ func (ec *Client) GetTransactionReceipt(ctx context.Context, txHash string) (*ty
 	return r, err
 }
 
-// BalanceAt returns the wei balance of the given account.
+// BalanceAt returns balance (in HYDRO) of the given account.
 // The block number can be nil, in which case the balance is taken from the latest known block.
 func (ec *Client) GetBalance(ctx context.Context, account string) (string, error) {
 	var (
@@ -184,7 +243,7 @@ func (ec *Client) GetBalance(ctx context.Context, account string) (string, error
 // The block number can be nil, in which case the value is taken from the latest known block.
 func (ec *Client) GetStorageAt(ctx context.Context, account string, key string) (common.Bytes, error) {
 	var result common.Bytes
-	err := ec.chooseClient().c.CallContext(ctx, &result, "kai_getStorageAt", common.HexToAddress(account), key, "latest")
+	err := ec.chooseClient().c.CallContext(ctx, &result, "account_getStorageAt", common.HexToAddress(account), key, "latest")
 	return result, err
 }
 
@@ -192,7 +251,7 @@ func (ec *Client) GetStorageAt(ctx context.Context, account string, key string) 
 // The block number can be nil, in which case the code is taken from the latest known block.
 func (ec *Client) GetCode(ctx context.Context, account string) (common.Bytes, error) {
 	var result common.Bytes
-	err := ec.chooseClient().c.CallContext(ctx, &result, "kai_getCode", common.HexToAddress(account), "latest")
+	err := ec.chooseClient().c.CallContext(ctx, &result, "account_getCode", common.HexToAddress(account), "latest")
 	return result, err
 }
 
@@ -211,36 +270,67 @@ func (ec *Client) SendRawTransaction(ctx context.Context, tx string) error {
 	return ec.chooseClient().c.CallContext(ctx, nil, "tx_sendRawTransaction", tx)
 }
 
-func (ec *Client) Peers(ctx context.Context, client *RPCClient) ([]*types.PeerInfo, error) {
-	var result []*types.PeerInfo
-	err := client.c.CallContext(ctx, &result, "node_peers")
-	return result, err
+func (ec *Client) KardiaCall(ctx context.Context, args types.CallArgsJSON) (common.Bytes, error) {
+	var result common.Bytes
+	err := ec.chooseClient().c.CallContext(ctx, &result, "kai_kardiaCall", args, "latest")
+	if err != nil {
+		return nil, err
+	}
+	return result, nil
 }
 
 func (ec *Client) NodesInfo(ctx context.Context) ([]*types.NodeInfo, error) {
 	var (
-		nodes = []*types.NodeInfo(nil)
+		nodes []*types.NodeInfo
 		err   error
 	)
 	clientList := append(ec.clientList, ec.trustedClientList...)
-	nodeMap := make(map[string]*types.NodeInfo, len(clientList))
+	nodeMap := make(map[string]*types.NodeInfo, len(clientList)) // list all nodes in network
+	peersMap := make(map[string]*types.RPCPeerInfo)              // list all peers details
 	for _, client := range clientList {
 		var (
 			node  *types.NodeInfo
-			peers []*types.PeerInfo
+			peers []*types.RPCPeerInfo
 		)
+		// get current node info then get it's peers
 		err = client.c.CallContext(ctx, &node, "node_nodeInfo")
 		if err != nil {
 			continue
 		}
-		peers, err = ec.Peers(ctx, client)
+		err := client.c.CallContext(ctx, &peers, "node_peers")
 		if err != nil {
 			continue
 		}
-		node.Peers = peers
+		node.Peers = make(map[string]*types.PeerInfo)
+		for _, peer := range peers {
+			// append current peer to this node
+			node.Peers[peer.NodeInfo.ID] = &types.PeerInfo{
+				Moniker:  peer.NodeInfo.Moniker,
+				Duration: peer.ConnectionStatus.Duration,
+				RemoteIP: peer.RemoteIP,
+			}
+			peersMap[peer.NodeInfo.ID] = peer
+			// try to discover new nodes through these peers
+			// init a new node info in list
+			if nodeMap[peer.NodeInfo.ID] == nil {
+				nodeMap[peer.NodeInfo.ID] = peer.NodeInfo
+			}
+			if nodeMap[peer.NodeInfo.ID].Peers == nil {
+				nodeMap[peer.NodeInfo.ID].Peers = make(map[string]*types.PeerInfo)
+			}
+			nodeMap[peer.NodeInfo.ID].Peers[node.ID] = &types.PeerInfo{} // mark this peer for re-updating later
+		}
 		nodeMap[node.ID] = node
 	}
 	for _, node := range nodeMap {
+		// re-update full peers info
+		for id, peer := range node.Peers {
+			node.Peers[id] = &types.PeerInfo{
+				Duration: peer.Duration,
+				Moniker:  peer.Moniker,
+				RemoteIP: peer.RemoteIP,
+			}
+		}
 		nodes = append(nodes, node)
 	}
 	return nodes, nil
@@ -258,17 +348,40 @@ func (ec *Client) Validator(ctx context.Context, address string) (*types.Validat
 	if err != nil {
 		return nil, err
 	}
-	return validator, nil
+	valsSet, err := ec.GetValidatorSets(ctx)
+	if err != nil {
+		return nil, err
+	}
+	// update validator's role
+	validator.Role = ec.getValidatorRole(valsSet, validator.Address, validator.Status)
+	// calculate his rate from big.Int
+	convertedVal, err := convertValidatorInfo(validator, nil, validator.Role)
+	if err != nil {
+		return nil, err
+	}
+	return convertedVal, nil
 }
 
 func (ec *Client) Validators(ctx context.Context) (*types.Validators, error) {
-	var validators []*types.Validator
+	var (
+		proposersStakedAmount = big.NewInt(0)
+		validators            []*types.Validator
+	)
 	err := ec.defaultClient.c.CallContext(ctx, &validators, "kai_validators", true)
 	if err != nil {
 		return nil, err
 	}
+	// compare staked amount btw validators to determine their status
+	sort.Slice(validators, func(i, j int) bool {
+		iAmount, _ := new(big.Int).SetString(validators[i].StakedAmount, 10)
+		jAmount, _ := new(big.Int).SetString(validators[j].StakedAmount, 10)
+		return iAmount.Cmp(jAmount) == 1
+	})
 	var (
 		delegators                 = make(map[string]bool)
+		totalProposers             = 0
+		totalValidators            = 0
+		totalCandidates            = 0
 		totalStakedAmount          = big.NewInt(0)
 		totalDelegatorStakedAmount = big.NewInt(0)
 
@@ -276,6 +389,10 @@ func (ec *Client) Validators(ctx context.Context) (*types.Validators, error) {
 		delStakedAmount *big.Int
 		ok              bool
 	)
+	valsSet, err := ec.GetValidatorSets(ctx)
+	if err != nil {
+		return nil, err
+	}
 	for _, val := range validators {
 		for _, del := range val.Delegators {
 			delegators[del.Address.Hex()] = true
@@ -285,34 +402,48 @@ func (ec *Client) Validators(ctx context.Context) (*types.Validators, error) {
 			}
 			delStakedAmount, ok = new(big.Int).SetString(del.StakedAmount, 10)
 			if !ok {
-				return nil, err
+				return nil, ErrParsingBigIntFromString
 			}
 			totalDelegatorStakedAmount = new(big.Int).Add(totalDelegatorStakedAmount, delStakedAmount)
 		}
 		valStakedAmount, ok = new(big.Int).SetString(val.StakedAmount, 10)
 		if !ok {
-			return nil, err
+			return nil, ErrParsingBigIntFromString
 		}
 		totalStakedAmount = new(big.Int).Add(totalStakedAmount, valStakedAmount)
-	}
-	sort.Slice(validators, func(i, j int) bool {
-		iAmount, _ := new(big.Int).SetString(validators[i].StakedAmount, 10)
-		jAmount, _ := new(big.Int).SetString(validators[j].StakedAmount, 10)
-		return iAmount.Cmp(jAmount) == 1
-	})
-	for _, val := range validators {
-		if val, err = convertValidatorInfo(val, totalStakedAmount); err != nil {
-			return nil, err
+		val.Role = ec.getValidatorRole(valsSet, val.Address, val.Status)
+		// validator who started a node and not in validators set is a normal validator
+		if val.Role == 2 {
+			totalProposers++
+			totalValidators++
+			valStakedAmount, ok = new(big.Int).SetString(val.StakedAmount, 10)
+			if !ok {
+				return nil, ErrParsingBigIntFromString
+			}
+			proposersStakedAmount = new(big.Int).Add(proposersStakedAmount, valStakedAmount)
+		} else if val.Role == 1 {
+			totalValidators++
+		} else if val.Role == 0 {
+			totalCandidates++
 		}
 	}
+	var returnValsList []*types.Validator
+	for _, val := range validators {
+		convertedVal, err := convertValidatorInfo(val, proposersStakedAmount, val.Role)
+		if err != nil {
+			return nil, err
+		}
+		returnValsList = append(returnValsList, convertedVal)
+	}
 	result := &types.Validators{
-		TotalValidators:            len(validators),
+		TotalValidators:            totalValidators,
 		TotalDelegators:            len(delegators),
+		TotalProposers:             totalProposers,
+		TotalCandidates:            totalCandidates,
 		TotalStakedAmount:          totalStakedAmount.String(),
 		TotalValidatorStakedAmount: new(big.Int).Sub(totalStakedAmount, totalDelegatorStakedAmount).String(),
 		TotalDelegatorStakedAmount: totalDelegatorStakedAmount.String(),
-		TotalProposer:              21, // TODO(trinhdn): follow core API updates
-		Validators:                 validators,
+		Validators:                 returnValsList,
 	}
 	return result, nil
 }
@@ -335,9 +466,11 @@ func (ec *Client) getBlockHeader(ctx context.Context, method string, args ...int
 	return &raw, nil
 }
 
-func convertValidatorInfo(val *types.Validator, totalStakedAmount *big.Int) (*types.Validator, error) {
-	var err error
-	val.Commission = ""
+func convertValidatorInfo(val *types.Validator, totalStakedAmount *big.Int, status int) (*types.Validator, error) {
+	var (
+		err  error
+		zero = new(big.Int).SetInt64(0)
+	)
 	if val.CommissionRate, err = convertBigIntToPercentage(val.CommissionRate); err != nil {
 		return nil, err
 	}
@@ -347,11 +480,14 @@ func convertValidatorInfo(val *types.Validator, totalStakedAmount *big.Int) (*ty
 	if val.MaxChangeRate, err = convertBigIntToPercentage(val.MaxChangeRate); err != nil {
 		return nil, err
 	}
-	if totalStakedAmount != nil {
+	if totalStakedAmount != nil && totalStakedAmount.Cmp(zero) == 1 && status == 2 {
 		if val.VotingPowerPercentage, err = calculateVotingPower(val.StakedAmount, totalStakedAmount); err != nil {
 			return nil, err
 		}
+	} else {
+		val.VotingPowerPercentage = "0"
 	}
+	val.SigningInfo.IndicatorRate = 100 - float64(val.SigningInfo.MissedBlockCounter)/100
 	return val, nil
 }
 
@@ -383,4 +519,19 @@ func calculateVotingPower(raw string, total *big.Int) (string, error) {
 		result = "0" + result
 	}
 	return result, nil
+}
+
+func (ec *Client) getValidatorRole(valsSet []common.Address, address common.Address, status uint8) int {
+	// if he's in validators set, he is a proposer
+	for _, val := range valsSet {
+		if val.Equal(address) {
+			return 2
+		}
+	}
+	// else if his node is started, he is a normal validator
+	if status == 2 {
+		return 1
+	}
+	// otherwise he is a candidate
+	return 0
 }

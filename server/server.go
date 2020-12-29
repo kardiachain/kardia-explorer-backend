@@ -19,8 +19,9 @@
 package server
 
 import (
-	"github.com/kardiachain/explorer-backend/types"
 	"go.uber.org/zap"
+
+	"github.com/kardiachain/explorer-backend/types"
 
 	"github.com/kardiachain/explorer-backend/kardia"
 	"github.com/kardiachain/explorer-backend/metrics"
@@ -36,7 +37,6 @@ type Config struct {
 	MinConn        int
 	MaxConn        int
 
-	KardiaProtocol     kardia.Protocol
 	KardiaURLs         []string
 	KardiaTrustedNodes []string
 
@@ -83,14 +83,12 @@ func New(cfg Config) (*Server, error) {
 	}
 	dbClient, err := db.NewClient(dbConfig)
 	if err != nil {
-		cfg.Logger.Debug("cannot create db client", zap.Error(err))
 		return nil, err
 	}
 
 	kaiClientCfg := kardia.NewConfig(cfg.KardiaURLs, cfg.KardiaTrustedNodes, cfg.Logger)
 	kaiClient, err := kardia.NewKaiClient(kaiClientCfg)
 	if err != nil {
-		cfg.Logger.Debug("cannot create KaiClient", zap.Error(err))
 		return nil, err
 	}
 

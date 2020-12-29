@@ -20,11 +20,12 @@
 package cfg
 
 import (
-	"github.com/kardiachain/explorer-backend/types"
 	"os"
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/kardiachain/explorer-backend/types"
 )
 
 const (
