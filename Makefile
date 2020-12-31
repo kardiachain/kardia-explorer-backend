@@ -24,6 +24,8 @@ run-grabber:
 	docker-compose up grabber
 run-backend:
 	docker-compose up backend
+run-watcher:
+	docker-compose up watcherd
 utest:
 	go test ./... -cover -covermode=count -coverprofile=cover.out -coverpkg=./internal/...
 	go tool cover -func=cover.out

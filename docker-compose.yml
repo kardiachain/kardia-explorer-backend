@@ -6,8 +6,6 @@ services:
     container_name: "explorer-redis"
     ports:
       - 6379:6379
-    #volumes:
-    #  - ./redis.conf:/usr/local/etc/redis/redis.conf # Where is redis.conf ?
     restart: always
   mongodb:
     image: mongo:latest
@@ -21,30 +19,46 @@ services:
   backend:
     build:
       context: .
-      args:
-        GITHUB_TOKEN: ${GITHUB_TOKEN}
     image: kardiachain/backend-explorer
     container_name: "explorer-backend"
     ports:
       - 8000:3000
-    environment:
-      GITHUB_TOKEN: ${GITHUB_TOKEN}
     command: "api"
     volumes:
       - .env.sample:/go/bin/.env
     depends_on:
       - grabber
       - mongodb
-      #- postgres
+    restart: always
+    logging:
+      driver: "json-file"
+      options:
+        max-size: 300m
   grabber:
     build:
       context: .
-      args:
-        GITHUB_TOKEN: ${GITHUB_TOKEN}
     image: kardiachain/backend-explorer
     container_name: "explorer-grabber"
-    environment:
-      GITHUB_TOKEN: ${GITHUB_TOKEN}
     volumes:
       - .env.sample:/go/bin/.env
-    command: "grabber -m mongodb:27017 -u http://10.10.0.251:8551 --log-level info -f true"
+    command: "grabber"
+    restart: always
+    logging:
+      driver: "json-file"
+      options:
+        max-size: 300m
+  watcher:
+    build:
+      context: .
+    image: kardiachain/backend-explorer
+    container_name: "explorer-watcher"
+    volumes:
+      - .env.sample:/go/bin/.env
+    command: "watcher"
+    restart: always
+    depends_on:
+      - mongodb
+    logging:
+      driver: "json-file"
+      options:
+        max-size: 300m
