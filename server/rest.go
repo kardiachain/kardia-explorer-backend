@@ -3,6 +3,7 @@ package server
 
 import (
 	"context"
+	"fmt"
 	"math/big"
 	"strconv"
 	"strings"
@@ -907,13 +908,13 @@ func (s *Server) TxByHash(c echo.Context) error {
 //getValidatorsList retrieve Validators
 func (s *Server) getValidatorsList(ctx context.Context) (*types.Validators, error) {
 	cValidators, err := s.cacheClient.Validators(ctx)
-	if err == nil {
+	if err == nil && cValidators != nil {
+		fmt.Printf("Validators: %+v \n", cValidators)
 		return cValidators, nil
 	}
 	findAllValidator := db.ValidatorsFilter{IsAll: true}
 	dbValidators, err := s.dbClient.FindValidators(ctx, findAllValidator)
-	if err == nil {
-		// Convert into
+	if err == nil && dbValidators != nil {
 		validators := &types.Validators{Validators: dbValidators}
 		return validators, nil
 	}

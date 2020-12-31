@@ -5,6 +5,7 @@ import (
 	"context"
 
 	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/mongo"
 	"go.uber.org/zap"
 
 	"github.com/kardiachain/explorer-backend/types"
@@ -50,6 +51,10 @@ func (m *mongoDB) FindValidators(ctx context.Context, filter ValidatorsFilter) (
 			return nil, err
 		}
 		validators = append(validators, &v)
+	}
+
+	if len(validators) == 0 {
+		return nil, mongo.ErrNoDocuments
 	}
 
 	return validators, nil
