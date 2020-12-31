@@ -259,8 +259,7 @@ func (s *Server) GetSlashedTokens(c echo.Context) error {
 }
 
 func (s *Server) Blocks(c echo.Context) error {
-	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
-	defer cancel()
+	ctx := context.Background()
 	var (
 		err    error
 		blocks []*types.Block
@@ -276,13 +275,16 @@ func (s *Server) Blocks(c echo.Context) error {
 		}
 	}
 
-	vals := &types.Validators{}
-	vals, err = s.getValidatorsList(ctx)
+	smcAddress := map[string]*valInfoResponse{}
+	vals, err := s.cacheClient.Validators(ctx)
 	if err != nil {
-		vals = &types.Validators{}
+		vals, err = s.getValidatorsList(ctx)
+		if err != nil {
+			smcAddress = make(map[string]*valInfoResponse)
+			vals = &types.Validators{}
+		}
 	}
 
-	smcAddress := map[string]*valInfoResponse{}
 	for _, v := range vals.Validators {
 		smcAddress[v.Address.String()] = &valInfoResponse{
 			Name: v.Name,
@@ -357,15 +359,17 @@ func (s *Server) Block(c echo.Context) error {
 			}
 		}
 	}
-	vals, err := s.kaiClient.Validators(ctx)
+
+	smcAddress := map[string]*valInfoResponse{}
+	vals, err := s.cacheClient.Validators(ctx)
 	if err != nil {
 		vals, err = s.getValidatorsList(ctx)
 		if err != nil {
-			vals = nil
+			smcAddress = make(map[string]*valInfoResponse)
+			vals = &types.Validators{}
 		}
 	}
 
-	smcAddress := map[string]*valInfoResponse{}
 	for _, v := range vals.Validators {
 		smcAddress[v.Address.String()] = &valInfoResponse{
 			Name: v.Name,
@@ -502,15 +506,17 @@ func (s *Server) BlocksByProposer(c echo.Context) error {
 	if err != nil {
 		return api.Invalid.Build(c)
 	}
-	vals, err := s.kaiClient.Validators(ctx)
+
+	smcAddress := map[string]*valInfoResponse{}
+	vals, err := s.cacheClient.Validators(ctx)
 	if err != nil {
 		vals, err = s.getValidatorsList(ctx)
 		if err != nil {
-			vals = nil
+			smcAddress = make(map[string]*valInfoResponse)
+			vals = &types.Validators{}
 		}
 	}
 
-	smcAddress := map[string]*valInfoResponse{}
 	for _, v := range vals.Validators {
 		smcAddress[v.Address.String()] = &valInfoResponse{
 			Name: v.Name,
@@ -931,11 +937,11 @@ func getPagingOption(c echo.Context) (*types.Pagination, int, int) {
 }
 
 func (s *Server) getValidatorsAddressAndRole(ctx context.Context) map[string]*valInfoResponse {
-	vals, err := s.kaiClient.Validators(ctx)
+	vals, err := s.cacheClient.Validators(ctx)
 	if err != nil {
 		vals, err = s.getValidatorsList(ctx)
 		if err != nil {
-			vals = nil
+			return make(map[string]*valInfoResponse)
 		}
 	}
 
