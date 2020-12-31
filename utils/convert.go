@@ -22,8 +22,11 @@ import (
 	"math/big"
 	"strconv"
 
-	"github.com/kardiachain/explorer-backend/cfg"
 	"github.com/kardiachain/explorer-backend/types"
+)
+
+var (
+	Hydro = big.NewInt(1000000000000000000)
 )
 
 func StrToUint64(data string) uint64 {
@@ -33,7 +36,7 @@ func StrToUint64(data string) uint64 {
 
 func BalanceToFloat(balance string) float64 {
 	balanceBI, _ := new(big.Int).SetString(balance, 10)
-	balanceF, _ := new(big.Float).SetPrec(100).Quo(new(big.Float).SetInt(balanceBI), new(big.Float).SetInt(cfg.Hydro)).Float64() //converting to KAI from HYDRO
+	balanceF, _ := new(big.Float).SetPrec(100).Quo(new(big.Float).SetInt(balanceBI), new(big.Float).SetInt(Hydro)).Float64() //converting to KAI from HYDRO
 	return balanceF
 }
 

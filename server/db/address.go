@@ -11,6 +11,7 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/kardiachain/explorer-backend/types"
+	"github.com/kardiachain/explorer-backend/utils"
 )
 
 type FindAddressFilter struct {
@@ -58,7 +59,7 @@ func (m *mongoDB) AddressByHash(ctx context.Context, address string) (*types.Add
 }
 
 func (m *mongoDB) InsertAddress(ctx context.Context, address *types.Address) error {
-	address.CalculateOrder()
+	address.SetBalanceInFloat(utils.BalanceToFloat(address.Balance))
 	_, err := m.wrapper.C(cAddresses).Insert(address)
 	if err != nil {
 		return err
@@ -72,10 +73,10 @@ func (m *mongoDB) UpdateAddresses(ctx context.Context, addresses []*types.Addres
 		return nil
 	}
 	var updateAddressOperations []mongo.WriteModel
-	for _, info := range addresses {
-		info.CalculateOrder()
+	for _, a := range addresses {
+		a.SetBalanceInFloat(utils.BalanceToFloat(a.Balance))
 		updateAddressOperations = append(updateAddressOperations,
-			mongo.NewUpdateOneModel().SetUpsert(true).SetFilter(bson.M{"address": info.Address}).SetUpdate(bson.M{"$set": info}))
+			mongo.NewUpdateOneModel().SetUpsert(true).SetFilter(bson.M{"address": a.Address}).SetUpdate(bson.M{"$set": a}))
 	}
 	if _, err := m.wrapper.C(cAddresses).BulkWrite(updateAddressOperations); err != nil {
 		return err

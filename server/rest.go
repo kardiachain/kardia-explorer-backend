@@ -631,11 +631,11 @@ func (s *Server) Addresses(c echo.Context) error {
 	var result Addresses
 	for _, addr := range addrs {
 		addrInfo := SimpleAddress{
-			Address:       addr.Address,
-			BalanceString: addr.BalanceString,
-			IsContract:    addr.IsContract,
-			Name:          addr.Name,
-			Rank:          addr.Rank,
+			Address:    addr.Address,
+			Balance:    addr.Balance,
+			IsContract: addr.IsContract,
+			Name:       addr.Name,
+			Rank:       addr.Rank,
 		}
 		if smcAddress[addr.Address] != nil {
 			addrInfo.IsInValidatorsList = true
@@ -656,8 +656,8 @@ func (s *Server) Addresses(c echo.Context) error {
 		if err != nil {
 			return err
 		}
-		if balance != addr.BalanceString {
-			addr.BalanceString = balance
+		if balance != addr.Balance {
+			addr.Balance = balance
 			_ = s.dbClient.UpdateAddresses(ctx, []*types.Address{addr})
 		}
 		result = append(result, addrInfo)
@@ -677,10 +677,10 @@ func (s *Server) AddressInfo(c echo.Context) error {
 	addrInfo, err := s.dbClient.AddressByHash(ctx, address)
 	if err == nil {
 		result := SimpleAddress{
-			Address:       addrInfo.Address,
-			BalanceString: addrInfo.BalanceString,
-			IsContract:    addrInfo.IsContract,
-			Name:          addrInfo.Name,
+			Address:    addrInfo.Address,
+			Balance:    addrInfo.Balance,
+			IsContract: addrInfo.IsContract,
+			Name:       addrInfo.Name,
 		}
 		if smcAddress[result.Address] != nil {
 			result.IsInValidatorsList = true
@@ -700,8 +700,8 @@ func (s *Server) AddressInfo(c echo.Context) error {
 		if err != nil {
 			return err
 		}
-		if balance != addrInfo.BalanceString {
-			addrInfo.BalanceString = balance
+		if balance != addrInfo.Balance {
+			addrInfo.Balance = balance
 			_ = s.dbClient.UpdateAddresses(ctx, []*types.Address{addrInfo})
 		}
 		return api.OK.SetData(result).Build(c)
@@ -712,13 +712,10 @@ func (s *Server) AddressInfo(c echo.Context) error {
 	if err != nil {
 		return err
 	}
-	balanceInBigInt, _ := new(big.Int).SetString(balance, 10)
-	balanceFloat, _ := new(big.Float).SetPrec(100).Quo(new(big.Float).SetInt(balanceInBigInt), new(big.Float).SetInt(cfg.Hydro)).Float64() //converting to KAI from HYDRO
 	addrInfo = &types.Address{
-		Address:       address,
-		BalanceFloat:  balanceFloat,
-		BalanceString: balance,
-		IsContract:    false,
+		Address:    address,
+		Balance:    balance,
+		IsContract: false,
 	}
 	code, err := s.kaiClient.GetCode(ctx, address)
 	if err == nil && len(code) > 0 {
@@ -729,9 +726,9 @@ func (s *Server) AddressInfo(c echo.Context) error {
 		_ = s.dbClient.InsertAddress(ctx, addrInfo) // insert this address to database
 	}
 	result := &SimpleAddress{
-		Address:       addrInfo.Address,
-		BalanceString: addrInfo.BalanceString,
-		IsContract:    addrInfo.IsContract,
+		Address:    addrInfo.Address,
+		Balance:    addrInfo.Balance,
+		IsContract: addrInfo.IsContract,
 	}
 	if smcAddress[result.Address] != nil {
 		result.IsInValidatorsList = true

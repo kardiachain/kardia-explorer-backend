@@ -90,7 +90,7 @@ type Addresses []SimpleAddress
 
 type SimpleAddress struct {
 	Address            string `json:"address"` // low precise balance for sorting purposes
-	BalanceString      string `json:"balance"` // high precise balance for API
+	Balance            string `json:"balance"` // high precise balance for API
 	IsContract         bool   `json:"isContract"`
 	Name               string `json:"name"`
 	IsInValidatorsList bool   `json:"isInValidatorsList"`

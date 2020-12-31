@@ -1,9 +1,5 @@
 package types
 
-import (
-	"github.com/kardiachain/explorer-backend/utils"
-)
-
 type Address struct {
 	Address      string  `json:"address" bson:"address"`
 	Rank         uint64  `json:"rank"`
@@ -32,6 +28,6 @@ type Address struct {
 	UpdatedAt int64 `json:"updatedAt" bson:"updatedAt"`
 }
 
-func (o *Address) CalculateOrder() {
-	o.balanceFloat = utils.BalanceToFloat(o.Balance)
+func (o *Address) SetBalanceInFloat(b float64) {
+	o.balanceFloat = b
 }
