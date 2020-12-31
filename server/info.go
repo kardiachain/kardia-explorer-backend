@@ -187,13 +187,10 @@ func (s *infoServer) GetCurrentStats(ctx context.Context) uint64 {
 	}
 	for _, addr := range cfg.GenesisAddresses {
 		balance, _ := s.kaiClient.GetBalance(ctx, addr)
-		balanceInBigInt, _ := new(big.Int).SetString(balance, 10)
-		balanceFloat, _ := new(big.Float).SetPrec(100).Quo(new(big.Float).SetInt(balanceInBigInt), new(big.Float).SetInt(cfg.Hydro)).Float64() //converting to KAI from HYDRO
 		addrInfo := &types.Address{
-			Address:       addr,
-			BalanceFloat:  balanceFloat,
-			BalanceString: balance,
-			IsContract:    false,
+			Address:    addr,
+			Balance:    balance,
+			IsContract: false,
 		}
 		code, _ := s.kaiClient.GetCode(ctx, addr)
 		if len(code) > 0 {
@@ -600,12 +597,10 @@ func (s *infoServer) getAddressBalances(ctx context.Context, addrs map[string]*t
 			Address: addr,
 			Name:    "",
 		}
-		addressInfo.BalanceString, err = s.kaiClient.GetBalance(ctx, addr)
+		addressInfo.Balance, err = s.kaiClient.GetBalance(ctx, addr)
 		if err != nil {
-			addressInfo.BalanceString = "0"
+			addressInfo.Balance = "0"
 		}
-		balance, _ := new(big.Int).SetString(addressInfo.BalanceString, 10)
-		addressInfo.BalanceFloat, _ = new(big.Float).SetPrec(100).Quo(new(big.Float).SetInt(balance), new(big.Float).SetInt(cfg.Hydro)).Float64() //converting to KAI from HYDRO
 		if !addrs[addr].IsContract {
 			code, _ = s.kaiClient.GetCode(ctx, addr)
 			if len(code) > 0 { // is contract

@@ -10,6 +10,7 @@ import (
 	"github.com/kardiachain/explorer-backend/kardia"
 	"github.com/kardiachain/explorer-backend/server/cache"
 	"github.com/kardiachain/explorer-backend/server/db"
+	"github.com/kardiachain/explorer-backend/types"
 )
 
 type ValidatorWatcher interface {
@@ -83,6 +84,23 @@ func (s *watcher) SyncValidators(ctx context.Context) error {
 	}
 
 	if err := s.cacheClient.UpdateValidators(ctx, validators); err != nil {
+		return err
+	}
+
+	// Update proposer in Addresses
+	var proposers []*types.Address
+	for _, v := range validators.Validators {
+		balance, err := s.kaiClient.GetBalance(ctx, v.Address.Hex())
+		if err != nil {
+			balance = "0"
+		}
+
+		proposers = append(proposers, &types.Address{
+			Address: v.Address.Hex(),
+			Balance: balance,
+		})
+	}
+	if err := s.dbClient.UpdateAddresses(ctx, proposers); err != nil {
 		return err
 	}
 	return nil

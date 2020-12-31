@@ -19,14 +19,22 @@
 package utils
 
 import (
+	"math/big"
 	"strconv"
 
+	"github.com/kardiachain/explorer-backend/cfg"
 	"github.com/kardiachain/explorer-backend/types"
 )
 
 func StrToUint64(data string) uint64 {
 	i, _ := strconv.ParseUint(data, 10, 64)
 	return i
+}
+
+func BalanceToFloat(balance string) float64 {
+	balanceBI, _ := new(big.Int).SetString(balance, 10)
+	balanceF, _ := new(big.Float).SetPrec(100).Quo(new(big.Float).SetInt(balanceBI), new(big.Float).SetInt(cfg.Hydro)).Float64() //converting to KAI from HYDRO
+	return balanceF
 }
 
 func ToAddressMap(addrs []*types.Address) map[string]*types.Address {

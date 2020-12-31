@@ -1,11 +1,15 @@
 package types
 
+import (
+	"github.com/kardiachain/explorer-backend/utils"
+)
+
 type Address struct {
-	Address       string  `json:"address" bson:"address"`
-	Rank          uint64  `json:"rank"`
-	BalanceFloat  float64 `json:"-" bson:"balanceFloat"`        // low precise balance for sorting purposes
-	BalanceString string  `json:"balance" bson:"balanceString"` // high precise balance for API
-	Name          string  `json:"name" bson:"name"`             // alias of an address
+	Address      string  `json:"address" bson:"address"`
+	Rank         uint64  `json:"rank"`
+	balanceFloat float64 `bson:"balanceFloat"`           // low precise balance for sorting purposes
+	Balance      string  `json:"balance" bson:"balance"` // high precise balance for API
+	Name         string  `json:"name" bson:"name"`       // alias of an address
 
 	// Token
 	TokenName   string `json:"tokenName" bson:"tokenName"`
@@ -26,4 +30,8 @@ type Address struct {
 	TokenTxCount    int `json:"tokenTxCount" bson:"tokenTxCount"`
 
 	UpdatedAt int64 `json:"updatedAt" bson:"updatedAt"`
+}
+
+func (o *Address) CalculateOrder() {
+	o.balanceFloat = utils.BalanceToFloat(o.Balance)
 }

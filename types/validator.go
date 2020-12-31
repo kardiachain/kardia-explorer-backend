@@ -7,34 +7,38 @@ import (
 	"github.com/kardiachain/go-kardia/lib/common"
 )
 
+type StakingStats struct {
+	TotalValidators            int    `json:"totalValidators" bson:"totalValidators"`
+	TotalProposers             int    `json:"totalProposers" bson:"totalProposers"`
+	TotalCandidates            int    `json:"totalCandidates" bson:"totalCandidates"`
+	TotalDelegators            int    `json:"totalDelegators" bson:"totalDelegators"`
+	TotalStakedAmount          string `json:"totalStakedAmount" bson:"totalStakedAmount"`
+	TotalValidatorStakedAmount string `json:"totalValidatorStakedAmount" bson:"totalValidatorStakedAmount"`
+	TotalDelegatorStakedAmount string `json:"totalDelegatorStakedAmount" bson:"totalDelegatorStakedAmount"`
+}
+
 type Validators struct {
-	TotalValidators            int          `json:"totalValidators"`
-	TotalProposers             int          `json:"totalProposers"`
-	TotalCandidates            int          `json:"totalCandidates"`
-	TotalDelegators            int          `json:"totalDelegators"`
-	TotalStakedAmount          string       `json:"totalStakedAmount"`
-	TotalValidatorStakedAmount string       `json:"totalValidatorStakedAmount"`
-	TotalDelegatorStakedAmount string       `json:"totalDelegatorStakedAmount"`
-	Validators                 []*Validator `json:"validators"`
+	StakingStats
+	Validators []*Validator `json:"validators"`
 }
 
 type Validator struct {
-	Address               common.Address `json:"address"`
-	SmcAddress            common.Address `json:"smcAddress"`
-	Status                uint8          `json:"status"`
-	Role                  int            `json:"role"`
-	Jailed                bool           `json:"jailed"`
-	Name                  string         `json:"name,omitempty"`
-	VotingPowerPercentage string         `json:"votingPowerPercentage"`
-	StakedAmount          string         `json:"stakedAmount"`
-	AccumulatedCommission string         `json:"accumulatedCommission"`
-	UpdateTime            uint64         `json:"updateTime"`
-	CommissionRate        string         `json:"commissionRate"`
-	TotalDelegators       int            `json:"totalDelegators"`
-	MaxRate               string         `json:"maxRate"`
-	MaxChangeRate         string         `json:"maxChangeRate"`
-	SigningInfo           *SigningInfo   `json:"signingInfo"`
-	Delegators            []*Delegator   `json:"delegators,omitempty"`
+	Address               common.Address `json:"address" bson:"address"`
+	SmcAddress            common.Address `json:"smcAddress" bson:"smcAddress"`
+	Status                uint8          `json:"status" bson:"status"`
+	Role                  int            `json:"role" bson:"role"`
+	Jailed                bool           `json:"jailed" bson:"jailed"`
+	Name                  string         `json:"name,omitempty" bson:"name"`
+	VotingPowerPercentage string         `json:"votingPowerPercentage" bson:"votingPowerPercentage"`
+	StakedAmount          string         `json:"stakedAmount" bson:"stakedAmount"`
+	AccumulatedCommission string         `json:"accumulatedCommission" bson:"accumulatedCommission"`
+	UpdateTime            uint64         `json:"updateTime" bson:"updateTime"`
+	CommissionRate        string         `json:"commissionRate" bson:"commissionRate"`
+	TotalDelegators       int            `json:"totalDelegators" bson:"totalDelegators"`
+	MaxRate               string         `json:"maxRate" bson:"maxRate"`
+	MaxChangeRate         string         `json:"maxChangeRate" bson:"maxChangeRate"`
+	SigningInfo           *SigningInfo   `json:"signingInfo" bson:"signingInfo"`
+	Delegators            []*Delegator   `json:"delegators,omitempty" bson:"delegators"`
 }
 
 type RPCValidator struct {
@@ -65,25 +69,25 @@ type RPCDelegator struct {
 }
 
 type Delegator struct {
-	Address      common.Address `json:"address"`
-	Name         string         `json:"name,omitempty"`
-	StakedAmount string         `json:"stakedAmount"`
-	Reward       string         `json:"reward"`
+	Address      common.Address `json:"address" bson:"address"`
+	Name         string         `json:"name,omitempty" bson:"name"`
+	StakedAmount string         `json:"stakedAmount" bson:"stakedAmount"`
+	Reward       string         `json:"reward" bson:"reward"`
 }
 
 type SlashEvents struct {
-	Period   string `json:"period"`
-	Fraction string `json:"fraction"`
-	Height   string `json:"height"`
+	Period   string `json:"period" bson:"period"`
+	Fraction string `json:"fraction" bson:"fraction"`
+	Height   string `json:"height" bson:"height"`
 }
 
 type SigningInfo struct {
-	StartHeight        uint64  `json:"startHeight"`
-	IndexOffset        uint64  `json:"indexOffset"`
-	Tombstoned         bool    `json:"tombstoned"`
-	MissedBlockCounter uint64  `json:"missedBlockCounter"`
-	IndicatorRate      float64 `json:"indicatorRate"`
-	JailedUntil        uint64  `json:"jailedUntil"`
+	StartHeight        uint64  `json:"startHeight" bson:"startHeight"`
+	IndexOffset        uint64  `json:"indexOffset" bson:"indexOffset"`
+	Tombstoned         bool    `json:"tombstoned" bson:"tombstoned"`
+	MissedBlockCounter uint64  `json:"missedBlockCounter" bson:"missedBlockCounter"`
+	IndicatorRate      float64 `json:"indicatorRate" bson:"indicatorRate"`
+	JailedUntil        uint64  `json:"jailedUntil" bson:"jailedUntil"`
 }
 
 type RPCPeerInfo struct {
