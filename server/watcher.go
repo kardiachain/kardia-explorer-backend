@@ -4,6 +4,7 @@ package server
 import (
 	"context"
 
+	"github.com/kardiachain/go-kardia/types/time"
 	"go.uber.org/zap"
 
 	"github.com/kardiachain/explorer-backend/kardia"
@@ -24,12 +25,54 @@ type watcher struct {
 }
 
 func NewValidatorWatcher(cfg Config) (ValidatorWatcher, error) {
-	return &watcher{}, nil
+	cfg.Logger.Info("Create new server instance", zap.Any("config", cfg))
+	dbConfig := db.Config{
+		DbAdapter: cfg.StorageAdapter,
+		DbName:    cfg.StorageDB,
+		URL:       cfg.StorageURI,
+		Logger:    cfg.Logger,
+		MinConn:   cfg.MinConn,
+		MaxConn:   cfg.MaxConn,
+
+		FlushDB: cfg.StorageIsFlush,
+	}
+	dbClient, err := db.NewClient(dbConfig)
+	if err != nil {
+		return nil, err
+	}
+
+	kaiClientCfg := kardia.NewConfig(cfg.KardiaURLs, cfg.KardiaTrustedNodes, cfg.Logger)
+	kaiClient, err := kardia.NewKaiClient(kaiClientCfg)
+	if err != nil {
+		return nil, err
+	}
+
+	cacheCfg := cache.Config{
+		Adapter:     cfg.CacheAdapter,
+		URL:         cfg.CacheURL,
+		DB:          cfg.CacheDB,
+		IsFlush:     cfg.CacheIsFlush,
+		BlockBuffer: cfg.BlockBuffer,
+		Logger:      cfg.Logger,
+	}
+	cacheClient, err := cache.New(cacheCfg)
+	if err != nil {
+		return nil, err
+	}
+
+	validatorSrv := watcher{
+		dbClient:    dbClient,
+		cacheClient: cacheClient,
+		kaiClient:   kaiClient,
+		lgr:         cfg.Logger,
+	}
+	return &validatorSrv, nil
 
 }
 
 //SyncValidators fetch validators info from network and update to storage and cache
 func (s *watcher) SyncValidators(ctx context.Context) error {
+	s.lgr.Info("Sync validators", zap.Time("Timeline", time.Now()))
 	validators, err := s.kaiClient.Validators(ctx)
 	if err != nil {
 		return err

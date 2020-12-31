@@ -31,7 +31,7 @@ func main() {
 	if err != nil {
 		panic("cannot init logger")
 	}
-	logger.Info("Start grabber...")
+	logger.Info("Setup watcher...")
 
 	defer func() {
 		if err := recover(); err != nil {

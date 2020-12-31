@@ -13,7 +13,7 @@ import (
 func watchValidators(ctx context.Context, w server.ValidatorWatcher, interval time.Duration) {
 	lgr, _ := zap.NewProduction()
 	lgr = lgr.With(zap.String("service", "watcher"))
-	t := time.NewTicker(interval)
+	t := time.NewTicker(30 * time.Second)
 	defer t.Stop()
 	for {
 		select {
@@ -23,7 +23,6 @@ func watchValidators(ctx context.Context, w server.ValidatorWatcher, interval ti
 			if err := w.SyncValidators(ctx); err != nil {
 				lgr.Warn("cannot sync validator", zap.Error(err))
 			}
-
 		}
 	}
 }
