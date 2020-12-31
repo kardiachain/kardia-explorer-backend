@@ -303,7 +303,12 @@ func (s *Server) Blocks(c echo.Context) error {
 			GasUsed:         block.GasUsed,
 			Rewards:         block.Rewards,
 		}
-		b.ProposerName = smcAddress[b.ProposerAddress].Name
+		if smcAddress[b.ProposerAddress] != nil {
+			b.ProposerName = smcAddress[b.ProposerAddress].Name
+		} else {
+			b.ProposerName = ""
+		}
+
 		result = append(result, b)
 	}
 	total := s.cacheClient.LatestBlockHeight(ctx)
