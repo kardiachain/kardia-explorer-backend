@@ -18,17 +18,6 @@ services:
     ports:
       - 27017:27017
     command: "--wiredTigerCacheSizeGB 4 --wiredTigerCollectionBlockCompressor zstd --wiredTigerJournalCompressor zstd"
-  #postgres:
-  #  image: postgres:11.9
-  #  container_name: "explorer-postgres"
-  #  restart: always
-  #  ports:
-  #    - 5433:5432
-  #  environment:
-  #    POSTGRES_DB: explorer
-  #    POSTGRES_PASSWORD: DUHtvINJ+MUl8e
-  #  volumes:
-  #    - ../postgres-explorer:/var/lib/postgresql/data
   backend:
     build:
       context: .

@@ -71,7 +71,7 @@ type restDefinition struct {
 	middlewares []echo.MiddlewareFunc
 }
 
-func bind(gr *echo.Group, srv EchoServer) {
+func Bind(gr *echo.Group, srv EchoServer) {
 	apis := []restDefinition{
 		{
 			method:      echo.GET,
@@ -218,15 +218,14 @@ func bind(gr *echo.Group, srv EchoServer) {
 
 }
 
-func Start(srv EchoServer, cfg cfg.ExplorerConfig) {
-	e := echo.New()
+func Start(e *echo.Echo, srv EchoServer, cfg cfg.ExplorerConfig) {
 
 	e.Use(middleware.CORS())
 	e.Use(middleware.Logger())
 	e.Use(middleware.Gzip())
 
 	v1Gr := e.Group("/api/v1")
-	bind(v1Gr, srv)
+	Bind(v1Gr, srv)
 	if err := e.Start(cfg.Port); err != nil {
 		panic("cannot start echo server")
 	}

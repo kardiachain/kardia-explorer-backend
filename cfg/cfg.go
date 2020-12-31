@@ -70,6 +70,9 @@ type ExplorerConfig struct {
 	VerifierInterval time.Duration
 
 	VerifyBlockParam *types.VerifyBlockParam
+
+	// SentryConfiguration
+	SentryDSN string
 }
 
 func New() (ExplorerConfig, error) {
@@ -207,6 +210,8 @@ func New() (ExplorerConfig, error) {
 			VerifyTxCount:   verifyTxCount,
 			VerifyBlockHash: verifyBlockHash,
 		},
+
+		SentryDSN: os.Getenv("SENTRY_DNS"),
 	}
 
 	return cfg, nil

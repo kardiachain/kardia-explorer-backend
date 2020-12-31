@@ -2,6 +2,7 @@
 package main
 
 import (
+	"github.com/getsentry/sentry-go"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 
@@ -28,6 +29,26 @@ func newLogger(sCfg cfg.ExplorerConfig) (*zap.Logger, error) {
 	default:
 		logCfg.Level.SetLevel(zapcore.InfoLevel)
 	}
+	sentryOpts := zap.WrapCore(func(core zapcore.Core) zapcore.Core {
+		return zapcore.RegisterHooks(core, func(entry zapcore.Entry) error {
+			e := sentry.NewEvent()
+			e.Message = entry.Message
+			switch entry.Level {
+			case zap.InfoLevel:
+				e.Level = sentry.LevelInfo
+			case zap.DebugLevel:
+				e.Level = sentry.LevelDebug
+			case zap.WarnLevel:
+				e.Level = sentry.LevelWarning
+			case zap.ErrorLevel:
+				e.Level = sentry.LevelError
+			default:
+				e.Level = sentry.LevelInfo
+			}
+			sentry.CaptureEvent(e)
+			return nil
+		})
+	})
 
-	return logCfg.Build()
+	return logCfg.Build(sentryOpts)
 }

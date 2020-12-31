@@ -979,3 +979,18 @@ func (s *Server) UpdateAddressName(c echo.Context) error {
 
 	return api.OK.Build(c)
 }
+
+func (s *Server) AddPrivateNode(c echo.Context) error {
+	//ctx := context.Background()
+	if c.Request().Header.Get("Authorization") != s.infoServer.HttpRequestSecret {
+		return api.Unauthorized.Build(c)
+	}
+
+	type req types.NodeInfo
+	var reqObj req
+	if err := c.Bind(&reqObj); err != nil {
+		return api.Invalid.Build(c)
+	}
+
+	return api.OK.Build(c)
+}
