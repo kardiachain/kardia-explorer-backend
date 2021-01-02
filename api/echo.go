@@ -36,6 +36,8 @@ type EchoServer interface {
 	TokenInfo(c echo.Context) error
 	UpdateSupplyAmounts(c echo.Context) error
 	Nodes(c echo.Context) error
+	UpsertNetworkNodes(c echo.Context) error
+	RemoveNetworkNodes(c echo.Context) error
 
 	// Staking-related
 	ValidatorStats(c echo.Context) error
@@ -98,6 +100,16 @@ func Bind(gr *echo.Group, srv EchoServer) {
 			method: echo.PUT,
 			path:   "/dashboard/token/supplies",
 			fn:     srv.UpdateSupplyAmounts,
+		},
+		{
+			method: echo.PUT,
+			path:   "/nodes",
+			fn:     srv.UpsertNetworkNodes,
+		},
+		{
+			method: echo.DELETE,
+			path:   "/nodes/:nodeID",
+			fn:     srv.RemoveNetworkNodes,
 		},
 		// Blocks
 		{

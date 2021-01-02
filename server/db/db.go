@@ -27,6 +27,12 @@ type Config struct {
 	Logger *zap.Logger
 }
 
+type Nodes interface {
+	UpsertNode(ctx context.Context, node *types.NodeInfo) error
+	Nodes(ctx context.Context) ([]*types.NodeInfo, error)
+	RemoveNode(ctx context.Context, id string) error
+}
+
 type Validator interface {
 	FindValidators(ctx context.Context, filter ValidatorsFilter) ([]*types.Validator, error)
 	UpsertValidators(ctx context.Context, validators []*types.Validator) error
@@ -34,6 +40,7 @@ type Validator interface {
 
 // DB define list API used by infoServer
 type Client interface {
+	Nodes
 	ping() error
 	dropCollection(collectionName string)
 	dropDatabase(ctx context.Context) error
