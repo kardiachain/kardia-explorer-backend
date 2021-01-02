@@ -83,6 +83,21 @@ func (s *Server) Nodes(c echo.Context) error {
 			PeersCount: len(node.Peers),
 		})
 	}
+	customNodes, err := s.dbClient.Nodes(ctx)
+	if err != nil {
+		// If cannot read nodes from db
+		// then return network nodes only
+		return api.OK.SetData(result).Build(c)
+	}
+
+	for _, n := range customNodes {
+		result = append(result, &NodeInfo{
+			ID:         n.ID,
+			Moniker:    n.Moniker,
+			PeersCount: len(n.Peers),
+		})
+	}
+
 	return api.OK.SetData(result).Build(c)
 }
 
@@ -943,4 +958,42 @@ func (s *Server) getValidatorsAddressAndRole(ctx context.Context) map[string]*va
 		}
 	}
 	return smcAddress
+}
+
+func (s *Server) UpsertNetworkNodes(c echo.Context) error {
+	//ctx := context.Background()
+	if c.Request().Header.Get("Authorization") != s.infoServer.HttpRequestSecret {
+		return api.Unauthorized.Build(c)
+	}
+	var nodeInfo *types.NodeInfo
+	if err := c.Bind(&nodeInfo); err != nil {
+		return api.Invalid.Build(c)
+	}
+	if nodeInfo.ID == "" || nodeInfo.Moniker == "" {
+		return api.Invalid.Build(c)
+	}
+	ctx := context.Background()
+	if err := s.dbClient.UpsertNode(ctx, nodeInfo); err != nil {
+		return api.InternalServer.Build(c)
+	}
+
+	return api.OK.Build(c)
+}
+
+func (s *Server) RemoveNetworkNodes(c echo.Context) error {
+	//ctx := context.Background()
+	if c.Request().Header.Get("Authorization") != s.infoServer.HttpRequestSecret {
+		return api.Unauthorized.Build(c)
+	}
+	nodesID := c.Param("nodeID")
+	if nodesID == "" {
+		return api.Invalid.Build(c)
+	}
+
+	ctx := context.Background()
+	if err := s.dbClient.RemoveNode(ctx, nodesID); err != nil {
+		return api.InternalServer.Build(c)
+	}
+
+	return api.OK.Build(c)
 }

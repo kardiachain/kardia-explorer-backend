@@ -27,8 +27,15 @@ type Config struct {
 	Logger *zap.Logger
 }
 
+type Nodes interface {
+	UpsertNode(ctx context.Context, node *types.NodeInfo) error
+	Nodes(ctx context.Context) ([]*types.NodeInfo, error)
+	RemoveNode(ctx context.Context, id string) error
+}
+
 // DB define list API used by infoServer
 type Client interface {
+	Nodes
 	ping() error
 	dropCollection(collectionName string)
 	dropDatabase(ctx context.Context) error

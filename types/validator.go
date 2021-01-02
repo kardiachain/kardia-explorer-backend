@@ -96,9 +96,9 @@ type RPCPeerInfo struct {
 }
 
 type PeerInfo struct {
-	Duration uint64 `json:"Duration,omitempty"`
-	Moniker  string `json:"moniker,omitempty"` // arbitrary moniker
-	RemoteIP string `json:"remote_ip,omitempty"`
+	Duration uint64 `json:"Duration,omitempty" bson:"duration"`
+	Moniker  string `json:"moniker,omitempty" bson:"moniker"` // arbitrary moniker
+	RemoteIP string `json:"remote_ip,omitempty" bson:"remoteIp"`
 }
 
 type ProtocolVersion struct {
@@ -108,19 +108,19 @@ type ProtocolVersion struct {
 }
 
 type DefaultNodeInfoOther struct {
-	TxIndex    string `json:"tx_index"`
-	RPCAddress string `json:"rpc_address"`
+	TxIndex    string `json:"tx_index" bson:"txIndex"`
+	RPCAddress string `json:"rpc_address" bson:"rpcAddress"`
 }
 
 type NodeInfo struct {
-	ProtocolVersion ProtocolVersion      `json:"protocol_version"`
-	ID              string               `json:"id"`              // authenticated identifier
-	ListenAddr      string               `json:"listen_addr"`     // accepting incoming
-	Network         string               `json:"network"`         // network/chain ID
-	Version         string               `json:"version"`         // major.minor.revision
-	Moniker         string               `json:"moniker"`         // arbitrary moniker
-	Peers           map[string]*PeerInfo `json:"peers,omitempty"` // peers details
-	Other           DefaultNodeInfoOther `json:"other"`           // other application specific data
+	ProtocolVersion ProtocolVersion      `json:"protocol_version" bson:"protocolVersion"`
+	ID              string               `json:"id" bson:"id"`                  // authenticated identifier
+	ListenAddr      string               `json:"listen_addr" bson:"listenAddr"` // accepting incoming
+	Network         string               `json:"network" bson:"network"`        // network/chain ID
+	Version         string               `json:"version" bson:"version"`        // major.minor.revision
+	Moniker         string               `json:"moniker" bson:"moniker"`        // arbitrary moniker
+	Peers           map[string]*PeerInfo `json:"peers,omitempty" bson:"peers"`  // peers details
+	Other           DefaultNodeInfoOther `json:"other" bson:"other"`            // other application specific data
 }
 
 type ValidatorsByDelegator struct {
