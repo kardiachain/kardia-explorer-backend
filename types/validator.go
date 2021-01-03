@@ -7,16 +7,6 @@ import (
 	"github.com/kardiachain/go-kardia/lib/common"
 )
 
-type StakingStats struct {
-	TotalValidators            int    `json:"totalValidators" bson:"totalValidators"`
-	TotalProposers             int    `json:"totalProposers" bson:"totalProposers"`
-	TotalCandidates            int    `json:"totalCandidates" bson:"totalCandidates"`
-	TotalDelegators            int    `json:"totalDelegators" bson:"totalDelegators"`
-	TotalStakedAmount          string `json:"totalStakedAmount" bson:"totalStakedAmount"`
-	TotalValidatorStakedAmount string `json:"totalValidatorStakedAmount" bson:"totalValidatorStakedAmount"`
-	TotalDelegatorStakedAmount string `json:"totalDelegatorStakedAmount" bson:"totalDelegatorStakedAmount"`
-}
-
 type Validators struct {
 	TotalValidators            int          `json:"totalValidators" bson:"totalValidators"`
 	TotalProposers             int          `json:"totalProposers" bson:"totalProposers"`
