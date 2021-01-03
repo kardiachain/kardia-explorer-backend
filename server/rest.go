@@ -14,7 +14,6 @@ import (
 
 	"github.com/kardiachain/go-kardia/lib/common"
 
-	"github.com/bxcodec/faker/v3"
 	"github.com/labstack/echo"
 	"go.uber.org/zap"
 
@@ -801,40 +800,6 @@ func (s *Server) AddressTxs(c echo.Context) error {
 		Limit: limit,
 		Total: total,
 		Data:  result,
-	}).Build(c)
-}
-
-func (s *Server) AddressHolders(c echo.Context) error {
-	var (
-		page, limit int
-		err         error
-	)
-	//blockHash := c.Param("blockHash")
-	pageParams := c.QueryParam("page")
-	limitParams := c.QueryParam("limit")
-	page, err = strconv.Atoi(pageParams)
-	if err != nil {
-		page = 0
-	}
-	limit, err = strconv.Atoi(limitParams)
-	if err != nil {
-		limit = 20
-	}
-
-	var holders []*types.TokenHolder
-	for i := 0; i < limit; i++ {
-		holder := &types.TokenHolder{}
-		if err := faker.FakeData(&holder); err != nil {
-			return err
-		}
-		holders = append(holders, holder)
-	}
-
-	return api.OK.SetData(PagingResponse{
-		Page:  page,
-		Limit: limit,
-		Total: uint64(limit * 15),
-		Data:  holders,
 	}).Build(c)
 }
 

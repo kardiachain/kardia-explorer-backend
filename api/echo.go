@@ -58,7 +58,6 @@ type EchoServer interface {
 	Addresses(c echo.Context) error
 	AddressInfo(c echo.Context) error
 	AddressTxs(c echo.Context) error
-	AddressHolders(c echo.Context) error
 	UpdateAddressName(c echo.Context) error
 
 	// Tx
