@@ -88,6 +88,7 @@ func listener(ctx context.Context, srv *server.Server, interval time.Duration) {
 						continue
 					}
 				}
+
 				prevHeader = latest
 				if latest%cfg.UpdateStatsInterval == 0 {
 					_ = srv.UpdateCurrentStats(ctx)

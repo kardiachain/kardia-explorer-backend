@@ -71,13 +71,13 @@ func main() {
 		Metrics: nil,
 		Logger:  logger.With(zap.String("service", "listener")),
 	}
-	w, err := server.NewValidatorWatcher(srvConfig)
+	validatorWatcher, err := server.NewValidatorWatcher(srvConfig)
 	if err != nil {
 		logger.Panic(err.Error())
 	}
 
 	// Start watcher in new go routine
-	go watchValidators(ctx, w, cfg.UpdateStatsInterval)
+	go watchValidators(ctx, validatorWatcher, cfg.UpdateStatsInterval)
 	<-waitExit
 	logger.Info("Stopped")
 }

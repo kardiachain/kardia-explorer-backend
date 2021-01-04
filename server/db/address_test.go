@@ -12,19 +12,6 @@ import (
 	"github.com/kardiachain/explorer-backend/utils"
 )
 
-var (
-	lgr     *zap.Logger
-	cfgTest = Config{
-		DbAdapter: "mgo",
-		DbName:    "explorer",
-		URL:       "mongodb://10.10.0.253:27017",
-		MinConn:   4,
-		MaxConn:   16,
-		FlushDB:   false,
-		Logger:    lgr,
-	}
-)
-
 func init() {
 	logger, err := zap.NewDevelopment()
 	if err != nil {
@@ -44,5 +31,4 @@ func TestAddress_Find(t *testing.T) {
 
 	addrMap := utils.ToAddressMap(addrs)
 	fmt.Printf("Addr map %+v \n", addrMap)
-
 }

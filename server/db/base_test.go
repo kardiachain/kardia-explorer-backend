@@ -16,8 +16,18 @@ import (
 )
 
 var (
-	dPool  *dockertest.Pool
-	mgoRes *dockertest.Resource
+	dPool   *dockertest.Pool
+	mgoRes  *dockertest.Resource
+	lgr     *zap.Logger
+	cfgTest = Config{
+		DbAdapter: "mgo",
+		DbName:    "explorer",
+		URL:       "mongodb://10.10.0.252:27017",
+		MinConn:   4,
+		MaxConn:   16,
+		FlushDB:   false,
+		Logger:    lgr,
+	}
 )
 
 func SetupMGO(lgr *zap.Logger) (*mongoDB, error) {

@@ -21,3 +21,12 @@ type Stats struct {
 	TotalAddresses    uint64    `json:"totalAddresses" bson:"totalAddresses"`
 	TotalContracts    uint64    `json:"totalContracts" bson:"totalContracts"`
 }
+
+type DailyStats struct {
+	Name      string    `json:"name" bson:"name"`
+	Timeline  time.Time `json:"timeline" bson:"timeline"`
+	Txs       uint64    `json:"txs" bson:"txs"`
+	Addresses uint64    `json:"addresses" bson:"addresses"`
+	Contracts uint64    `json:"contracts" bson:"contracts"`
+	Staking   uint64    `json:"staking" bson:"staking"`
+}

@@ -32,9 +32,6 @@ type InfoServer interface {
 	GetCurrentStats(ctx context.Context) error
 	UpdateCurrentStats(ctx context.Context) error
 
-	// DB
-	//LatestInsertBlockHeight(ctx context.Context) (uint64, error)
-
 	// Share interface
 	BlockByHeight(ctx context.Context, blockHeight uint64) (*types.Block, error)
 	BlockByHash(ctx context.Context, blockHash string) (*types.Block, error)

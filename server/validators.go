@@ -17,11 +17,6 @@ import (
 	"github.com/kardiachain/explorer-backend/types"
 )
 
-var (
-	tenPoweredBy5  = new(big.Int).Exp(big.NewInt(10), big.NewInt(5), nil)
-	tenPoweredBy18 = new(big.Int).Exp(big.NewInt(10), big.NewInt(18), nil)
-)
-
 type ValidatorWatcher interface {
 	SyncValidators(ctx context.Context) error
 }
@@ -134,6 +129,22 @@ func (s *watcher) SyncValidators(ctx context.Context) error {
 
 	fmt.Printf("Stats: %+v \n", stats)
 
+	for _, v := range validators.Validators {
+		if v.CommissionRate, err = calculateCommissionRate(v.CommissionRate); err != nil {
+			return err
+		}
+		if v.MaxRate, err = calculateCommissionRate(v.MaxRate); err != nil {
+			return err
+		}
+		if v.MaxChangeRate, err = calculateCommissionRate(v.MaxChangeRate); err != nil {
+			return err
+		}
+		if v.VotingPowerPercentage, err = calculateVotingPower(v.StakedAmount, stats.TotalStakedAmount); err != nil {
+			return err
+		}
+		v.SigningInfo.IndicatorRate = 100 - float64(v.SigningInfo.MissedBlockCounter)/100
+	}
+
 	if err := s.dbClient.UpsertValidators(ctx, validators.Validators); err != nil {
 		return err
 	}
@@ -161,61 +172,6 @@ func (s *watcher) SyncValidators(ctx context.Context) error {
 	return nil
 }
 
-func convertValidatorInfo(val *types.Validator, totalStakedAmount *big.Int, status int) (*types.Validator, error) {
-	var (
-		err  error
-		zero = new(big.Int).SetInt64(0)
-	)
-	if val.CommissionRate, err = convertBigIntToPercentage(val.CommissionRate); err != nil {
-		return nil, err
-	}
-	if val.MaxRate, err = convertBigIntToPercentage(val.MaxRate); err != nil {
-		return nil, err
-	}
-	if val.MaxChangeRate, err = convertBigIntToPercentage(val.MaxChangeRate); err != nil {
-		return nil, err
-	}
-	if totalStakedAmount != nil && totalStakedAmount.Cmp(zero) == 1 && status == 2 {
-		if val.VotingPowerPercentage, err = calculateVotingPower(val.StakedAmount, totalStakedAmount); err != nil {
-			return nil, err
-		}
-	} else {
-		val.VotingPowerPercentage = "0"
-	}
-	val.SigningInfo.IndicatorRate = 100 - float64(val.SigningInfo.MissedBlockCounter)/100
-	return val, nil
-}
-
-func convertBigIntToPercentage(raw string) (string, error) {
-	input, ok := new(big.Int).SetString(raw, 10)
-	if !ok {
-		return "", errors.New("cannot parse")
-	}
-	tmp := new(big.Int).Mul(input, tenPoweredBy18)
-	result := new(big.Int).Div(tmp, tenPoweredBy18).String()
-	result = fmt.Sprintf("%020s", result)
-	result = strings.TrimLeft(strings.TrimRight(strings.TrimRight(result[:len(result)-16]+"."+result[len(result)-16:], "0"), "."), "0")
-	if strings.HasPrefix(result, ".") {
-		result = "0" + result
-	}
-	return result, nil
-}
-
-func calculateVotingPower(raw string, total *big.Int) (string, error) {
-	valStakedAmount, ok := new(big.Int).SetString(raw, 10)
-	if !ok {
-		return "", errors.New("cannot parse ")
-	}
-	tmp := new(big.Int).Mul(valStakedAmount, tenPoweredBy5)
-	result := new(big.Int).Div(tmp, total).String()
-	result = fmt.Sprintf("%020s", result)
-	result = strings.TrimLeft(strings.TrimRight(strings.TrimRight(result[:len(result)-3]+"."+result[len(result)-3:], "0"), "."), "0")
-	if strings.HasPrefix(result, ".") {
-		result = "0" + result
-	}
-	return result, nil
-}
-
 type Role string
 
 var (
@@ -235,4 +191,51 @@ func GetRoleByStatus(status uint8) Role {
 	}
 	// todo: Notify something wrong here
 	return Candidate
+}
+
+var (
+	tenPoweredBy5  = new(big.Int).Exp(big.NewInt(10), big.NewInt(5), nil)
+	tenPoweredBy18 = new(big.Int).Exp(big.NewInt(10), big.NewInt(18), nil)
+	zero           = new(big.Int).SetInt64(0)
+)
+
+func calculateVotingPower(staked string, total string) (string, error) {
+	result := "0"
+	totalAmount, ok := new(big.Int).SetString(total, 10)
+	if !ok {
+		return result, errors.New("cannot parse total amount")
+	}
+
+	if totalAmount.Cmp(zero) == 0 {
+		return result, errors.New("total amount is 0")
+	}
+
+	stakedAmount, ok := new(big.Int).SetString(staked, 10)
+	if !ok {
+		return result, errors.New("cannot parse staked amount")
+	}
+
+	tmp := new(big.Int).Mul(stakedAmount, tenPoweredBy5)
+	result = new(big.Int).Div(tmp, totalAmount).String()
+	result = fmt.Sprintf("%020s", result)
+	result = strings.TrimLeft(strings.TrimRight(strings.TrimRight(result[:len(result)-3]+"."+result[len(result)-3:], "0"), "."), "0")
+	if strings.HasPrefix(result, ".") {
+		result = "0" + result
+	}
+	return result, nil
+}
+
+func calculateCommissionRate(commission string) (string, error) {
+	input, ok := new(big.Int).SetString(commission, 10)
+	if !ok {
+		return "", errors.New("cannot parse")
+	}
+	tmp := new(big.Int).Mul(input, tenPoweredBy18)
+	result := new(big.Int).Div(tmp, tenPoweredBy18).String()
+	result = fmt.Sprintf("%020s", result)
+	result = strings.TrimLeft(strings.TrimRight(strings.TrimRight(result[:len(result)-16]+"."+result[len(result)-16:], "0"), "."), "0")
+	if strings.HasPrefix(result, ".") {
+		result = "0" + result
+	}
+	return result, nil
 }
