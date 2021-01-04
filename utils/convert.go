@@ -36,7 +36,7 @@ func StrToUint64(data string) uint64 {
 
 func BalanceToFloat(balance string) float64 {
 	balanceBI, _ := new(big.Int).SetString(balance, 10)
-	balanceF, _ := new(big.Float).SetPrec(100).Quo(new(big.Float).SetInt(balanceBI), new(big.Float).SetInt(Hydro)).Float64() //converting to KAI from HYDRO
+	balanceF, _ := new(big.Float).SetPrec(10000).Quo(new(big.Float).SetInt(balanceBI), new(big.Float).SetInt(Hydro)).Float64() //converting to KAI from HYDRO
 	return balanceF
 }
 
