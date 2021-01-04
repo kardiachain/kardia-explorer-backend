@@ -11,9 +11,9 @@ import (
 	"github.com/kardiachain/go-kardia/types/time"
 	"go.uber.org/zap"
 
+	"github.com/kardiachain/explorer-backend/cache"
+	"github.com/kardiachain/explorer-backend/db"
 	"github.com/kardiachain/explorer-backend/kardia"
-	"github.com/kardiachain/explorer-backend/server/cache"
-	"github.com/kardiachain/explorer-backend/server/db"
 	"github.com/kardiachain/explorer-backend/types"
 )
 

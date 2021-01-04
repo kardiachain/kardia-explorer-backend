@@ -13,10 +13,10 @@ import (
 	"github.com/labstack/echo"
 
 	"github.com/kardiachain/explorer-backend/api"
+	"github.com/kardiachain/explorer-backend/cache"
 	"github.com/kardiachain/explorer-backend/cfg"
+	"github.com/kardiachain/explorer-backend/db"
 	"github.com/kardiachain/explorer-backend/server"
-	"github.com/kardiachain/explorer-backend/server/cache"
-	"github.com/kardiachain/explorer-backend/server/db"
 )
 
 func main() {

@@ -10,7 +10,7 @@ import (
 	"time"
 
 	"github.com/kardiachain/explorer-backend/cfg"
-	"github.com/kardiachain/explorer-backend/server/db"
+	"github.com/kardiachain/explorer-backend/db"
 
 	"github.com/kardiachain/go-kardia/lib/common"
 
