@@ -36,7 +36,7 @@ func StrToUint64(data string) uint64 {
 
 func BalanceToFloat(balance string) float64 {
 	balanceBI, _ := new(big.Int).SetString(balance, 10)
-	balanceF, _ := new(big.Float).SetPrec(10000).Quo(new(big.Float).SetInt(balanceBI), new(big.Float).SetInt(Hydro)).Float64() //converting to KAI from HYDRO
+	balanceF, _ := new(big.Float).SetPrec(1000000).Quo(new(big.Float).SetInt(balanceBI), new(big.Float).SetInt(Hydro)).Float64() //converting to KAI from HYDRO
 	return balanceF
 }
 
@@ -46,12 +46,4 @@ func ToAddressMap(addrs []*types.Address) map[string]*types.Address {
 		addrMap[a.Address] = a
 	}
 	return addrMap
-}
-
-func ToValidatorMap(validators []*types.Validator) map[string]*types.Validator {
-	validatorMap := make(map[string]*types.Validator)
-	for _, v := range validators {
-		validatorMap[v.Address.Hex()] = v
-	}
-	return validatorMap
 }

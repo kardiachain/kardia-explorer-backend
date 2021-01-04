@@ -163,6 +163,7 @@ func (s *watcher) SyncValidators(ctx context.Context) error {
 
 		proposers = append(proposers, &types.Address{
 			Address: v.Address.Hex(),
+			Name:    v.Name,
 			Balance: balance,
 		})
 	}
