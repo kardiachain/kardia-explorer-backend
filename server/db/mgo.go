@@ -24,6 +24,7 @@ import (
 	"time"
 
 	"github.com/kardiachain/explorer-backend/cfg"
+	"github.com/kardiachain/explorer-backend/utils"
 
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
@@ -607,6 +608,7 @@ func (m *mongoDB) AddressByHash(ctx context.Context, address string) (*types.Add
 }
 
 func (m *mongoDB) InsertAddress(ctx context.Context, address *types.Address) error {
+	address.BalanceFloat = utils.BalanceToFloat(address.BalanceString)
 	_, err := m.wrapper.C(cAddresses).Insert(address)
 	if err != nil {
 		return err
@@ -621,6 +623,7 @@ func (m *mongoDB) UpdateAddresses(ctx context.Context, addresses []*types.Addres
 	}
 	var updateAddressOperations []mongo.WriteModel
 	for _, info := range addresses {
+		info.BalanceFloat = utils.BalanceToFloat(info.BalanceString)
 		updateAddressOperations = append(updateAddressOperations,
 			mongo.NewUpdateOneModel().SetUpsert(true).SetFilter(bson.M{"address": info.Address}).SetUpdate(bson.M{"$set": info}))
 	}

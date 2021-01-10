@@ -19,10 +19,19 @@
 package utils
 
 import (
+	"math/big"
 	"strconv"
 )
+
+var Hydro = big.NewInt(1000000000000000000)
 
 func StrToUint64(data string) uint64 {
 	i, _ := strconv.ParseUint(data, 10, 64)
 	return i
+}
+
+func BalanceToFloat(balance string) float64 {
+	balanceBI, _ := new(big.Int).SetString(balance, 10)
+	balanceF, _ := new(big.Float).SetPrec(1000000).Quo(new(big.Float).SetInt(balanceBI), new(big.Float).SetInt(Hydro)).Float64() //converting to KAI from HYDRO
+	return balanceF
 }
