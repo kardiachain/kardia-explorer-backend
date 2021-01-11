@@ -680,4 +680,27 @@ func (m *mongoDB) GetListAddresses(ctx context.Context, sortDirection int, pagin
 	return addrs, nil
 }
 
+func (m *mongoDB) Addresses(ctx context.Context) ([]*types.Address, error) {
+	var addresses []*types.Address
+	cursor, err := m.wrapper.C(cAddresses).Find(bson.M{})
+	if err != nil {
+		return nil, err
+	}
+
+	defer func() {
+		if err := cursor.Close(ctx); err != nil {
+			return
+		}
+	}()
+
+	for cursor.Next(ctx) {
+		var a types.Address
+		if err := cursor.Decode(&a); err != nil {
+			return nil, err
+		}
+		addresses = append(addresses, &a)
+	}
+	return addresses, nil
+}
+
 //endregion Address

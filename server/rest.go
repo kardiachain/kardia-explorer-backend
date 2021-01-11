@@ -997,3 +997,29 @@ func (s *Server) RemoveNetworkNodes(c echo.Context) error {
 
 	return api.OK.Build(c)
 }
+
+func (s *Server) ReloadAddressesBalance(c echo.Context) error {
+	ctx := context.Background()
+	if c.Request().Header.Get("Authorization") != s.infoServer.HttpRequestSecret {
+		return api.Unauthorized.Build(c)
+	}
+
+	addresses, err := s.dbClient.Addresses(ctx)
+	if err != nil {
+		return api.Invalid.Build(c)
+	}
+
+	for id, a := range addresses {
+		balance, err := s.kaiClient.GetBalance(ctx, a.Address)
+		if err != nil {
+			continue
+		}
+		addresses[id].BalanceString = balance
+	}
+
+	if err := s.dbClient.UpdateAddresses(ctx, addresses); err != nil {
+		return api.Invalid.Build(c)
+	}
+
+	return api.OK.Build(c)
+}

@@ -77,6 +77,7 @@ type Client interface {
 	UpdateAddresses(ctx context.Context, addresses []*types.Address) error
 	GetTotalAddresses(ctx context.Context) (uint64, uint64, error)
 	GetListAddresses(ctx context.Context, sortDirection int, pagination *types.Pagination) ([]*types.Address, error)
+	Addresses(ctx context.Context) ([]*types.Address, error)
 }
 
 func NewClient(cfg Config) (Client, error) {
