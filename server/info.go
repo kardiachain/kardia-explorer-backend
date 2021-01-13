@@ -636,8 +636,8 @@ func (s *infoServer) mergeAdditionalInfoToTxs(txs []*types.Transaction, receipts
 		}
 
 		tx.Logs = receipts[receiptIndex].Logs
-		for i, log := range tx.Logs {
-			result, err := s.kaiClient.UnpackLog(&log)
+		for i := range tx.Logs {
+			result, err := s.kaiClient.UnpackLog(&tx.Logs[i])
 			if err == nil {
 				tx.Logs[i] = *result
 			}

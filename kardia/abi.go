@@ -145,9 +145,9 @@ func unpackLogIntoMap(a *abi.ABI, out map[string]interface{}, eventName string, 
 			indexed = append(indexed, arg)
 		}
 	}
-	var topics []common.Hash
-	for _, topic := range log.Topics[1:] { // exclude the eventID (log.Topic[0])
-		topics = append(topics, common.HexToHash(topic))
+	topics := make([]common.Hash, len(log.Topics)-1)
+	for i, topic := range log.Topics[1:] { // exclude the eventID (log.Topic[0])
+		topics[i] = common.HexToHash(topic)
 	}
 	return abi.ParseTopicsIntoMap(out, indexed, topics)
 }
