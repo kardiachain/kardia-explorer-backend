@@ -636,6 +636,13 @@ func (s *infoServer) mergeAdditionalInfoToTxs(txs []*types.Transaction, receipts
 		}
 
 		tx.Logs = receipts[receiptIndex].Logs
+		for i, log := range tx.Logs {
+			result, err := s.kaiClient.UnpackLog(&log)
+			if err == nil {
+				tx.Logs[i] = *result
+			}
+		}
+		// TODO: send staking event to telegram
 		tx.Root = receipts[receiptIndex].Root
 		tx.Status = receipts[receiptIndex].Status
 		tx.GasUsed = receipts[receiptIndex].GasUsed
