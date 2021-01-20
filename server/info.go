@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"errors"
 	"io/ioutil"
-	"math"
 	"math/big"
 	"net"
 	"net/http"
@@ -644,7 +643,7 @@ func (s *infoServer) mergeAdditionalInfoToTxs(txs []*types.Transaction, receipts
 		gasPrice = new(big.Int).SetUint64(tx.GasPrice)
 		gasUsed = new(big.Int).SetUint64(tx.GasUsed)
 		txFeeInHydro = new(big.Int).Mul(gasPrice, gasUsed)
-		tx.TxFee = new(big.Int).Mul(txFeeInHydro, big.NewInt(int64(math.Pow10(18)))).String()
+		tx.TxFee = txFeeInHydro.String()
 
 		receiptIndex++
 	}
