@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"errors"
 	"io/ioutil"
-	"math"
 	"math/big"
 	"net"
 	"net/http"
@@ -628,9 +627,9 @@ func (s *infoServer) mergeAdditionalInfoToTxs(txs []*types.Transaction, receipts
 	}
 	receiptIndex := 0
 	var (
-		gasPrice   *big.Int
-		gasUsed    *big.Int
-		txFeeInOxy *big.Int
+		gasPrice     *big.Int
+		gasUsed      *big.Int
+		txFeeInHydro *big.Int
 	)
 	for _, tx := range txs {
 		if decoded, err := s.kaiClient.DecodeInputData(tx.To, tx.InputData); err == nil {
@@ -649,8 +648,8 @@ func (s *infoServer) mergeAdditionalInfoToTxs(txs []*types.Transaction, receipts
 		// update txFee
 		gasPrice = new(big.Int).SetUint64(tx.GasPrice)
 		gasUsed = new(big.Int).SetUint64(tx.GasUsed)
-		txFeeInOxy = new(big.Int).Mul(gasPrice, gasUsed)
-		tx.TxFee = new(big.Int).Mul(txFeeInOxy, big.NewInt(int64(math.Pow10(9)))).String()
+		txFeeInHydro = new(big.Int).Mul(gasPrice, gasUsed)
+		tx.TxFee = txFeeInHydro.String()
 
 		receiptIndex++
 	}
