@@ -27,3 +27,8 @@ type Address struct {
 
 	UpdatedAt int64 `json:"updatedAt" bson:"updatedAt"`
 }
+
+type UpdateAddress struct {
+	Address string `json:"address"`
+	Name    string `json:"name"`
+}

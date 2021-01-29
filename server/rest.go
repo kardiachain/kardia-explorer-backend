@@ -3,6 +3,7 @@ package server
 
 import (
 	"context"
+	"fmt"
 	"math/big"
 	"strconv"
 	"strings"
@@ -1018,6 +1019,35 @@ func (s *Server) ReloadAddressesBalance(c echo.Context) error {
 	}
 
 	if err := s.dbClient.UpdateAddresses(ctx, addresses); err != nil {
+		return api.Invalid.Build(c)
+	}
+
+	return api.OK.Build(c)
+}
+
+func (s *Server) UpdateAddressName(c echo.Context) error {
+	ctx := context.Background()
+	if c.Request().Header.Get("Authorization") != s.infoServer.HttpRequestSecret {
+		return api.Unauthorized.Build(c)
+	}
+	var addressName types.UpdateAddress
+	if err := c.Bind(&addressName); err != nil {
+		fmt.Println("cannot bind ", err)
+		return api.Invalid.Build(c)
+	}
+
+	addressInfo, err := s.dbClient.AddressByHash(ctx, addressName.Address)
+	if err != nil {
+		fmt.Println("cannot get ", err)
+		return api.Invalid.Build(c)
+	}
+
+	addressInfo.Name = addressName.Name
+
+	fmt.Printf("AddressInfo: %+v \n", addressInfo)
+
+	if err := s.dbClient.UpdateAddresses(ctx, []*types.Address{addressInfo}); err != nil {
+		fmt.Println("cannot update ", err)
 		return api.Invalid.Build(c)
 	}
 

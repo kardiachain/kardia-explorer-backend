@@ -703,4 +703,13 @@ func (m *mongoDB) Addresses(ctx context.Context) ([]*types.Address, error) {
 	return addresses, nil
 }
 
+func (m *mongoDB) GetAddressInfo(ctx context.Context, hash string) (*types.Address, error) {
+	var address *types.Address
+	if err := m.wrapper.C(cAddresses).FindOne(bson.M{"address": hash}).Decode(&address); err != nil {
+		return nil, err
+	}
+
+	return address, nil
+}
+
 //endregion Address
