@@ -53,8 +53,8 @@ func (ec *Client) GetMaxProposers(ctx context.Context) (int64, error) {
 }
 
 // GetParams returns value of params by indexes
-func (ec *Client) GetParams(ctx context.Context) (map[string]*big.Int, error) {
-	params := make(map[string]*big.Int)
+func (ec *Client) GetParams(ctx context.Context) (map[string]string, error) {
+	params := make(map[string]string)
 	for i, paramName := range cfg.ParamKeys {
 		payload, err := ec.paramsUtil.Abi.Pack("getParam", uint8(i))
 		if err != nil {
@@ -74,7 +74,7 @@ func (ec *Client) GetParams(ctx context.Context) (map[string]*big.Int, error) {
 			ec.lgr.Error("Error unpacking params", zap.Int("id", i), zap.String("name", paramName), zap.Error(err))
 			return nil, err
 		}
-		params[cfg.ParamKeys[i]] = result.Value
+		params[cfg.ParamKeys[i]] = result.Value.String()
 	}
 	return params, nil
 }

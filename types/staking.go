@@ -10,7 +10,7 @@ type ProposalDetail struct {
 
 type ProposalMetadata struct {
 	ID        uint64 `json:"id"`
-	Proposer  string `json:"proposer"`
+	Proposer  string `json:"nominator"`
 	StartTime uint64 `json:"startTime"`
 	EndTime   uint64 `json:"endTime"`
 	Deposit   string `json:"deposit"`
