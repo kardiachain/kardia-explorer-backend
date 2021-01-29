@@ -50,6 +50,9 @@ type ClientInterface interface {
 
 	// params related methods
 	GetMaxProposers(ctx context.Context) (int64, error)
+	GetParams(ctx context.Context) (map[string]*big.Int, error)
+	GetProposalDetails(ctx context.Context, proposalId *big.Int) (*types.ProposalDetail, error)
+	GetProposals(ctx context.Context, pagination *types.Pagination) ([]*types.ProposalMetadata, uint64, error)
 
 	// utilities methods
 	DecodeInputData(to string, input string) (*types.FunctionCall, error)

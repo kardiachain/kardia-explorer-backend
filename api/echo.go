@@ -47,6 +47,11 @@ type EchoServer interface {
 	GetSlashEvents(c echo.Context) error
 	GetSlashedTokens(c echo.Context) error
 
+	// Proposal
+	GetProposalsList(c echo.Context) error
+	GetProposalDetails(c echo.Context) error
+	GetParams(c echo.Context) error
+
 	// Blocks
 	Blocks(c echo.Context) error
 	Block(c echo.Context) error
@@ -221,6 +226,26 @@ func bind(gr *echo.Group, srv EchoServer) {
 			method:      echo.GET,
 			path:        "/validators/slashed/tokens",
 			fn:          srv.GetSlashedTokens,
+			middlewares: nil,
+		},
+		// Proposal
+		{
+			method: echo.GET,
+			// Query params: ?page=0&limit=10
+			path:        "/proposal",
+			fn:          srv.GetProposalsList,
+			middlewares: nil,
+		},
+		{
+			method:      echo.GET,
+			path:        "/proposal/:id",
+			fn:          srv.GetProposalDetails,
+			middlewares: nil,
+		},
+		{
+			method:      echo.GET,
+			path:        "/proposal/params",
+			fn:          srv.GetParams,
 			middlewares: nil,
 		},
 		{
