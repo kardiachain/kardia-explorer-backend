@@ -677,7 +677,8 @@ func (s *Server) Addresses(c echo.Context) error {
 
 func (s *Server) AddressInfo(c echo.Context) error {
 	ctx := context.Background()
-	address := c.Param("address")
+	// Convert to addr and get back string to avoid wrong checksum
+	address := common.HexToAddress(c.Param("address")).String()
 	smcAddress := s.getValidatorsAddressAndRole(ctx)
 	addrInfo, err := s.dbClient.AddressByHash(ctx, address)
 	if err == nil {
