@@ -597,6 +597,12 @@ func (s *infoServer) getAddressBalances(ctx context.Context, addrs map[string]*t
 			Address: addr,
 			Name:    "",
 		}
+		// Override when addr existed
+		dbAddrInfo, err := s.dbClient.AddressByHash(ctx, addr)
+		if err == nil && dbAddrInfo != nil {
+			addressInfo = dbAddrInfo
+		}
+
 		addressInfo.BalanceString, err = s.kaiClient.GetBalance(ctx, addr)
 		if err != nil {
 			addressInfo.BalanceString = "0"
