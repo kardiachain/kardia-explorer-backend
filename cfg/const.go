@@ -205,4 +205,26 @@ var (
 		"0xbd1bAF45f227551827C2caFD781317642729D029",
 		"0x00ECEab9520E6B9fFB2bC801ddeAd8c45F1B3764",
 	}
+	ParamKeys = []string{
+		"baseProposerReward",
+		"bonusProposerReward",
+		"maxProposers",
+		"downtimeJailDuration",
+		"slashFractionDowntime",
+		"unbondingTime",
+		"slashFractionDoubleSign",
+		"signedBlockWindow",
+		"minSignedPerWindow",
+		"minStake",
+		"minValidatorStake",
+		"minAmountChangeName",
+		"minSelfDelegation",
+		"inflationRateChange",
+		"goalBonded",
+		"blocksPerYear",
+		"inflationMax",
+		"inflationMin",
+		"Deposit",
+		"VotingPeriod",
+	}
 )

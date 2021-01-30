@@ -27,41 +27,6 @@
   {
     "constant": true,
     "inputs": [],
-    "name": "mintParams",
-    "outputs": [
-      {
-        "internalType": "uint256",
-        "name": "inflationRateChange",
-        "type": "uint256"
-      },
-      {
-        "internalType": "uint256",
-        "name": "goalBonded",
-        "type": "uint256"
-      },
-      {
-        "internalType": "uint256",
-        "name": "blocksPerYear",
-        "type": "uint256"
-      },
-      {
-        "internalType": "uint256",
-        "name": "inflationMax",
-        "type": "uint256"
-      },
-      {
-        "internalType": "uint256",
-        "name": "inflationMin",
-        "type": "uint256"
-      }
-    ],
-    "payable": false,
-    "stateMutability": "view",
-    "type": "function"
-  },
-  {
-    "constant": true,
-    "inputs": [],
     "name": "owner",
     "outputs": [
       {
@@ -75,37 +40,74 @@
     "type": "function"
   },
   {
+    "constant": true,
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "name": "params",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "payable": false,
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "constant": true,
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "name": "proposals",
+    "outputs": [
+      {
+        "internalType": "address payable",
+        "name": "proposer",
+        "type": "address"
+      },
+      {
+        "internalType": "uint256",
+        "name": "startTime",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "endTime",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "deposit",
+        "type": "uint256"
+      },
+      {
+        "internalType": "enum Params.ProposalStatus",
+        "name": "status",
+        "type": "uint8"
+      }
+    ],
+    "payable": false,
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
     "constant": false,
     "inputs": [],
     "name": "renounceOwnership",
     "outputs": [],
     "payable": false,
     "stateMutability": "nonpayable",
-    "type": "function"
-  },
-  {
-    "constant": true,
-    "inputs": [],
-    "name": "stakingParams",
-    "outputs": [
-      {
-        "internalType": "uint256",
-        "name": "baseProposerReward",
-        "type": "uint256"
-      },
-      {
-        "internalType": "uint256",
-        "name": "bonusProposerReward",
-        "type": "uint256"
-      },
-      {
-        "internalType": "uint256",
-        "name": "maxProposers",
-        "type": "uint256"
-      }
-    ],
-    "payable": false,
-    "stateMutability": "view",
     "type": "function"
   },
   {
@@ -125,52 +127,33 @@
   },
   {
     "constant": true,
-    "inputs": [],
-    "name": "validatorParams",
+    "inputs": [
+      {
+        "internalType": "enum Params.ParamKey",
+        "name": "key",
+        "type": "uint8"
+      }
+    ],
+    "name": "getParam",
     "outputs": [
       {
         "internalType": "uint256",
-        "name": "downtimeJailDuration",
+        "name": "value",
         "type": "uint256"
-      },
+      }
+    ],
+    "payable": false,
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "constant": true,
+    "inputs": [],
+    "name": "allProposal",
+    "outputs": [
       {
         "internalType": "uint256",
-        "name": "slashFractionDowntime",
-        "type": "uint256"
-      },
-      {
-        "internalType": "uint256",
-        "name": "unbondingTime",
-        "type": "uint256"
-      },
-      {
-        "internalType": "uint256",
-        "name": "slashFractionDoubleSign",
-        "type": "uint256"
-      },
-      {
-        "internalType": "uint256",
-        "name": "signedBlockWindow",
-        "type": "uint256"
-      },
-      {
-        "internalType": "uint256",
-        "name": "minSignedPerWindow",
-        "type": "uint256"
-      },
-      {
-        "internalType": "uint256",
-        "name": "minStake",
-        "type": "uint256"
-      },
-      {
-        "internalType": "uint256",
-        "name": "minValidatorStake",
-        "type": "uint256"
-      },
-      {
-        "internalType": "uint256",
-        "name": "minAmountChangeName",
+        "name": "total",
         "type": "uint256"
       }
     ],
@@ -182,17 +165,43 @@
     "constant": false,
     "inputs": [
       {
-        "internalType": "uint256",
-        "name": "_baseProposerReward",
-        "type": "uint256"
+        "internalType": "enum Params.ParamKey[]",
+        "name": "keys",
+        "type": "uint8[]"
       },
       {
+        "internalType": "uint256[]",
+        "name": "values",
+        "type": "uint256[]"
+      }
+    ],
+    "name": "addProposal",
+    "outputs": [
+      {
         "internalType": "uint256",
-        "name": "_bonusProposerReward",
+        "name": "",
         "type": "uint256"
       }
     ],
-    "name": "updateBaseReward",
+    "payable": true,
+    "stateMutability": "payable",
+    "type": "function"
+  },
+  {
+    "constant": false,
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "proposalId",
+        "type": "uint256"
+      },
+      {
+        "internalType": "enum Params.VoteOption",
+        "name": "option",
+        "type": "uint8"
+      }
+    ],
+    "name": "addVote",
     "outputs": [],
     "payable": false,
     "stateMutability": "nonpayable",
@@ -203,104 +212,55 @@
     "inputs": [
       {
         "internalType": "uint256",
-        "name": "_maxProposers",
+        "name": "proposalId",
         "type": "uint256"
       }
     ],
-    "name": "updateMaxValidator",
+    "name": "confirmProposal",
     "outputs": [],
     "payable": false,
     "stateMutability": "nonpayable",
     "type": "function"
   },
   {
-    "constant": false,
+    "constant": true,
     "inputs": [
       {
         "internalType": "uint256",
-        "name": "_downtimeJailDuration",
-        "type": "uint256"
-      },
-      {
-        "internalType": "uint256",
-        "name": "_slashFractionDowntime",
-        "type": "uint256"
-      },
-      {
-        "internalType": "uint256",
-        "name": "_unbondingTime",
-        "type": "uint256"
-      },
-      {
-        "internalType": "uint256",
-        "name": "_slashFractionDoubleSign",
-        "type": "uint256"
-      },
-      {
-        "internalType": "uint256",
-        "name": "_signedBlockWindow",
-        "type": "uint256"
-      },
-      {
-        "internalType": "uint256",
-        "name": "_minSignedPerWindow",
-        "type": "uint256"
-      },
-      {
-        "internalType": "uint256",
-        "name": "_minStake",
-        "type": "uint256"
-      },
-      {
-        "internalType": "uint256",
-        "name": "_minValidatorStake",
-        "type": "uint256"
-      },
-      {
-        "internalType": "uint256",
-        "name": "_minAmountChangeName",
+        "name": "proposalId",
         "type": "uint256"
       }
     ],
-    "name": "updateValidatorParams",
-    "outputs": [],
-    "payable": false,
-    "stateMutability": "nonpayable",
-    "type": "function"
-  },
-  {
-    "constant": false,
-    "inputs": [
+    "name": "getProposalDetails",
+    "outputs": [
       {
         "internalType": "uint256",
-        "name": "_inflationRateChange",
+        "name": "voteYes",
         "type": "uint256"
       },
       {
         "internalType": "uint256",
-        "name": "_goalBonded",
+        "name": "voteNo",
         "type": "uint256"
       },
       {
         "internalType": "uint256",
-        "name": "_blocksPerYear",
+        "name": "voteAbstain",
         "type": "uint256"
       },
       {
-        "internalType": "uint256",
-        "name": "_inflationMax",
-        "type": "uint256"
+        "internalType": "enum Params.ParamKey[]",
+        "name": "paramKeys",
+        "type": "uint8[]"
       },
       {
-        "internalType": "uint256",
-        "name": "_inflationMin",
-        "type": "uint256"
+        "internalType": "uint256[]",
+        "name": "paramValues",
+        "type": "uint256[]"
       }
     ],
-    "name": "updateMintParams",
-    "outputs": [],
     "payable": false,
-    "stateMutability": "nonpayable",
+    "stateMutability": "view",
     "type": "function"
   },
   {
@@ -340,7 +300,7 @@
     "outputs": [
       {
         "internalType": "uint256",
-        "name": "maxProposers",
+        "name": "",
         "type": "uint256"
       }
     ],
@@ -547,6 +507,21 @@
     "constant": true,
     "inputs": [],
     "name": "getMinAmountChangeName",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "payable": false,
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "constant": true,
+    "inputs": [],
+    "name": "getMinSelfDelegation",
     "outputs": [
       {
         "internalType": "uint256",

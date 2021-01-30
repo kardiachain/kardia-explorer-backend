@@ -273,6 +273,45 @@ func (s *Server) GetSlashedTokens(c echo.Context) error {
 	return api.OK.SetData(result).Build(c)
 }
 
+func (s *Server) GetProposalsList(c echo.Context) error {
+	ctx := context.Background()
+	pagination, page, limit := getPagingOption(c)
+	result, total, err := s.kaiClient.GetProposals(ctx, pagination)
+	if err != nil {
+		fmt.Println("GetProposals err: ", err)
+		return api.Invalid.Build(c)
+	}
+	return api.OK.SetData(PagingResponse{
+		Page:  page,
+		Limit: limit,
+		Data:  result,
+		Total: total,
+	}).Build(c)
+}
+
+func (s *Server) GetProposalDetails(c echo.Context) error {
+	ctx := context.Background()
+	proposalID, ok := new(big.Int).SetString(c.Param("id"), 10)
+	if !ok {
+		return api.Invalid.Build(c)
+	}
+	result, err := s.kaiClient.GetProposalDetails(ctx, proposalID)
+	if err != nil {
+		fmt.Println("GetProposalDetails err: ", err)
+		return api.Invalid.Build(c)
+	}
+	return api.OK.SetData(result).Build(c)
+}
+
+func (s *Server) GetParams(c echo.Context) error {
+	ctx := context.Background()
+	result, err := s.kaiClient.GetParams(ctx)
+	if err != nil {
+		return api.Invalid.Build(c)
+	}
+	return api.OK.SetData(result).Build(c)
+}
+
 func (s *Server) Blocks(c echo.Context) error {
 	ctx := context.Background()
 	var (
