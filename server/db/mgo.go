@@ -719,22 +719,12 @@ func (m *mongoDB) GetAddressInfo(ctx context.Context, hash string) (*types.Addre
 
 // start region Proposal
 
-func (m *mongoDB) AddProposal(ctx context.Context, proposalInfo *types.ProposalDetail) error {
-	if err := m.upsertProposal(ctx, proposalInfo); err != nil {
-		return err
-	}
-	return nil
-}
-
 func (m *mongoDB) AddVoteToProposal(ctx context.Context, proposalInfo *types.ProposalDetail, voteOption uint64) error {
-	fmt.Println("@@@@@@@@@@@@@@@@@@@@@@@@@@@ AddVoteToProposal")
 	currentProposal, err := m.ProposalInfo(ctx, proposalInfo.ID)
 	if err != nil {
 		currentProposal = proposalInfo
-		if err == mongo.ErrNoDocuments {
-			_ = m.AddProposal(ctx, proposalInfo)
-		}
 	}
+	// update number of vote choices
 	if voteOption == 0 {
 		proposalInfo.NumberOfVoteAbstain = currentProposal.NumberOfVoteAbstain + 1
 	} else if voteOption == 1 {
@@ -742,29 +732,20 @@ func (m *mongoDB) AddVoteToProposal(ctx context.Context, proposalInfo *types.Pro
 	} else if voteOption == 2 {
 		proposalInfo.NumberOfVoteNo = currentProposal.NumberOfVoteNo + 1
 	}
-	fmt.Printf("proposalInfo after update: %+v\n", proposalInfo)
-	if err := m.upsertProposal(ctx, proposalInfo); err != nil {
+	if err := m.upsertProposal(proposalInfo); err != nil {
 		return err
 	}
 	return nil
 }
 
-func (m *mongoDB) ConfirmProposal(ctx context.Context, proposalInfo *types.ProposalDetail) error {
-	fmt.Println("@@@@@@@@@@@@@@@@@@@@@@@@@@@ ConfirmProposal")
+func (m *mongoDB) UpsertProposal(ctx context.Context, proposalInfo *types.ProposalDetail) error {
 	currentProposal, err := m.ProposalInfo(ctx, proposalInfo.ID)
-	if err != nil {
-		currentProposal = proposalInfo
-		if err == mongo.ErrNoDocuments {
-			_ = m.AddProposal(ctx, proposalInfo)
-		}
+	if err == nil { // need to update these stats from db first
+		proposalInfo.NumberOfVoteAbstain = currentProposal.NumberOfVoteAbstain
+		proposalInfo.NumberOfVoteYes = currentProposal.NumberOfVoteYes
+		proposalInfo.NumberOfVoteNo = currentProposal.NumberOfVoteNo
 	}
-	proposalInfo.NumberOfVoteAbstain = currentProposal.NumberOfVoteAbstain
-	proposalInfo.NumberOfVoteYes = currentProposal.NumberOfVoteYes
-	proposalInfo.NumberOfVoteNo = currentProposal.NumberOfVoteNo
-
-	fmt.Printf("proposalInfo after update: %+v\n", proposalInfo)
-
-	if err := m.upsertProposal(ctx, proposalInfo); err != nil {
+	if err := m.upsertProposal(proposalInfo); err != nil {
 		return err
 	}
 	return nil
@@ -779,7 +760,7 @@ func (m *mongoDB) ProposalInfo(ctx context.Context, proposalID uint64) (*types.P
 	return result, nil
 }
 
-func (m *mongoDB) upsertProposal(ctx context.Context, proposalInfo *types.ProposalDetail) error {
+func (m *mongoDB) upsertProposal(proposalInfo *types.ProposalDetail) error {
 	model := []mongo.WriteModel{
 		mongo.NewUpdateOneModel().SetUpsert(true).SetFilter(bson.M{"id": proposalInfo.ID}).SetUpdate(bson.M{"$set": proposalInfo}).SetHint(bson.M{"id": -1}),
 	}

@@ -80,9 +80,8 @@ type Client interface {
 	Addresses(ctx context.Context) ([]*types.Address, error)
 
 	// Proposal
-	AddProposal(ctx context.Context, proposalInfo *types.ProposalDetail) error
 	AddVoteToProposal(ctx context.Context, proposalInfo *types.ProposalDetail, voteOption uint64) error
-	ConfirmProposal(ctx context.Context, proposalInfo *types.ProposalDetail) error
+	UpsertProposal(ctx context.Context, proposalInfo *types.ProposalDetail) error
 	ProposalInfo(ctx context.Context, proposalID uint64) (*types.ProposalDetail, error)
 	GetListProposals(ctx context.Context, pagination *types.Pagination) ([]*types.ProposalDetail, uint64, error)
 }

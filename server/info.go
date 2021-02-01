@@ -642,7 +642,6 @@ func (s *infoServer) mergeAdditionalInfoToTxs(txs []*types.Transaction, receipts
 	)
 	for _, tx := range txs {
 		decoded, err := s.kaiClient.DecodeInputData(tx.To, tx.InputData)
-		s.logger.Info("@@@@@@@@@@@@@@@@@@@@@@@@@@@ params tx decoded", zap.Any("tx.InputData", tx.InputData), zap.Any("decoded", decoded))
 		if err == nil {
 			tx.DecodedInputData = decoded
 		}
@@ -665,12 +664,9 @@ func (s *infoServer) mergeAdditionalInfoToTxs(txs []*types.Transaction, receipts
 		receiptIndex++
 
 		// write external contract data to database
-		s.logger.Info("@@@@@@@@@@@@@@@@@@@@@@@@@@@ params tx decoded", zap.Any("tx.Status", tx.Status), zap.Any("decoded", decoded))
 		if strings.ToLower(tx.To) == strings.ToLower(cfg.ParamsContractAddr) && tx.Status == 1 && decoded != nil {
-			fmt.Printf("@@@@@@@@@@@@@@@@@@@@@@@@@@@ params tx decoded: %+v\n", decoded)
 			ctx := context.Background()
 			if decoded.MethodName == "addVote" {
-				fmt.Println("@@@@@@@@@@@@@@@@@@@@@@@@@@@ addVote")
 				proposalID, _ := new(big.Int).SetString(decoded.Arguments["proposalId"].(string), 10)
 				voteOption := new(big.Int).SetInt64(int64(decoded.Arguments["option"].(uint8)))
 				proposal, err := s.kaiClient.GetProposalDetails(ctx, proposalID)
@@ -685,7 +681,6 @@ func (s *infoServer) mergeAdditionalInfoToTxs(txs []*types.Transaction, receipts
 					s.logger.Info("cannot add vote to new proposal in db", zap.Any("decoded", decoded), zap.Error(err))
 				}
 			} else if decoded.MethodName == "confirmProposal" {
-				fmt.Println("@@@@@@@@@@@@@@@@@@@@@@@@@@@ confirmProposal")
 				proposalID, _ := new(big.Int).SetString(decoded.Arguments["proposalId"].(string), 10)
 				proposal, err := s.kaiClient.GetProposalDetails(ctx, proposalID)
 				if err != nil {
@@ -693,7 +688,7 @@ func (s *infoServer) mergeAdditionalInfoToTxs(txs []*types.Transaction, receipts
 					s.logger.Info("cannot get proposal by ID using RPC", zap.Any("proposal", proposalID), zap.Error(err))
 					continue
 				}
-				err = s.dbClient.ConfirmProposal(ctx, proposal)
+				err = s.dbClient.UpsertProposal(ctx, proposal)
 				if err != nil {
 					fmt.Printf("cannot confirm proposal in db: %+v %v\n", decoded, err)
 					s.logger.Info("cannot confirm proposal in db", zap.Any("decoded", decoded), zap.Error(err))
