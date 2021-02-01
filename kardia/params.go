@@ -180,14 +180,20 @@ func (ec *Client) GetTotalProposals(ctx context.Context) (*big.Int, error) {
 // GetProposals returns list of proposals
 func (ec *Client) GetProposals(ctx context.Context, pagination *types.Pagination) ([]*types.ProposalDetail, uint64, error) {
 	one := big.NewInt(1)
-	start := new(big.Int).SetInt64(int64(pagination.Skip))
-	end := new(big.Int).SetInt64(int64(pagination.Limit))
 	total, err := ec.GetTotalProposals(ctx)
 	if err != nil {
 		return nil, 0, err
 	}
-	if end.Cmp(total) == 1 {
-		end = total
+	var (
+		start = new(big.Int).SetInt64(0)
+		end   = total
+	)
+	if pagination != nil {
+		start = new(big.Int).SetInt64(int64(pagination.Skip))
+		end = new(big.Int).SetInt64(int64(pagination.Limit))
+		if end.Cmp(total) == 1 {
+			end = total
+		}
 	}
 	var result []*types.ProposalDetail
 	// i must be a new int so that it does not overwrite start

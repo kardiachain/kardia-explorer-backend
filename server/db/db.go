@@ -78,6 +78,13 @@ type Client interface {
 	GetTotalAddresses(ctx context.Context) (uint64, uint64, error)
 	GetListAddresses(ctx context.Context, sortDirection int, pagination *types.Pagination) ([]*types.Address, error)
 	Addresses(ctx context.Context) ([]*types.Address, error)
+
+	// Proposal
+	AddProposal(ctx context.Context, proposalInfo *types.ProposalDetail) error
+	AddVoteToProposal(ctx context.Context, proposalInfo *types.ProposalDetail, voteOption uint64) error
+	ConfirmProposal(ctx context.Context, proposalInfo *types.ProposalDetail) error
+	ProposalInfo(ctx context.Context, proposalID uint64) (*types.ProposalDetail, error)
+	GetListProposals(ctx context.Context, pagination *types.Pagination) ([]*types.ProposalDetail, uint64, error)
 }
 
 func NewClient(cfg Config) (Client, error) {

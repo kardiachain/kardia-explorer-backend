@@ -41,6 +41,7 @@ const (
 	cAddresses    = "Addresses"
 	cTxsByAddress = "TransactionsByAddress"
 	cStats        = "Stats"
+	cProposal     = "Proposal"
 )
 
 type mongoDB struct {
@@ -108,6 +109,8 @@ func createIndexes(dbClient *mongoDB) error {
 		{c: cAddresses, model: []mongo.IndexModel{{Keys: bson.M{"balanceFloat": -1}, Options: options.Index().SetSparse(true)}}},
 		{c: cAddresses, model: []mongo.IndexModel{{Keys: bson.M{"tokenName": 1}, Options: options.Index().SetSparse(true)}}},
 		{c: cAddresses, model: []mongo.IndexModel{{Keys: bson.M{"tokenSymbol": 1}, Options: options.Index().SetSparse(true)}}},
+		// indexing proposal collection
+		{c: cProposal, model: []mongo.IndexModel{{Keys: bson.M{"id": -1}, Options: options.Index().SetUnique(true).SetSparse(true)}}},
 	} {
 		if err := dbClient.wrapper.C(cIdx.c).EnsureIndex(cIdx.model); err != nil {
 			return err
@@ -713,3 +716,116 @@ func (m *mongoDB) GetAddressInfo(ctx context.Context, hash string) (*types.Addre
 }
 
 //endregion Address
+
+// start region Proposal
+
+func (m *mongoDB) AddProposal(ctx context.Context, proposalInfo *types.ProposalDetail) error {
+	if err := m.upsertProposal(ctx, proposalInfo); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (m *mongoDB) AddVoteToProposal(ctx context.Context, proposalInfo *types.ProposalDetail, voteOption uint64) error {
+	fmt.Println("@@@@@@@@@@@@@@@@@@@@@@@@@@@ AddVoteToProposal")
+	currentProposal, err := m.ProposalInfo(ctx, proposalInfo.ID)
+	if err != nil {
+		currentProposal = proposalInfo
+		if err == mongo.ErrNoDocuments {
+			_ = m.AddProposal(ctx, proposalInfo)
+		}
+	}
+	if voteOption == 0 {
+		proposalInfo.NumberOfVoteAbstain = currentProposal.NumberOfVoteAbstain + 1
+	} else if voteOption == 1 {
+		proposalInfo.NumberOfVoteYes = currentProposal.NumberOfVoteYes + 1
+	} else if voteOption == 2 {
+		proposalInfo.NumberOfVoteNo = currentProposal.NumberOfVoteNo + 1
+	}
+	fmt.Printf("proposalInfo after update: %+v\n", proposalInfo)
+	if err := m.upsertProposal(ctx, proposalInfo); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (m *mongoDB) ConfirmProposal(ctx context.Context, proposalInfo *types.ProposalDetail) error {
+	fmt.Println("@@@@@@@@@@@@@@@@@@@@@@@@@@@ ConfirmProposal")
+	currentProposal, err := m.ProposalInfo(ctx, proposalInfo.ID)
+	if err != nil {
+		currentProposal = proposalInfo
+		if err == mongo.ErrNoDocuments {
+			_ = m.AddProposal(ctx, proposalInfo)
+		}
+	}
+	proposalInfo.NumberOfVoteAbstain = currentProposal.NumberOfVoteAbstain
+	proposalInfo.NumberOfVoteYes = currentProposal.NumberOfVoteYes
+	proposalInfo.NumberOfVoteNo = currentProposal.NumberOfVoteNo
+
+	fmt.Printf("proposalInfo after update: %+v\n", proposalInfo)
+
+	if err := m.upsertProposal(ctx, proposalInfo); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (m *mongoDB) ProposalInfo(ctx context.Context, proposalID uint64) (*types.ProposalDetail, error) {
+	var result *types.ProposalDetail
+	err := m.wrapper.C(cProposal).FindOne(bson.M{"id": proposalID}).Decode(&result)
+	if err != nil {
+		return nil, err
+	}
+	return result, nil
+}
+
+func (m *mongoDB) upsertProposal(ctx context.Context, proposalInfo *types.ProposalDetail) error {
+	model := []mongo.WriteModel{
+		mongo.NewUpdateOneModel().SetUpsert(true).SetFilter(bson.M{"id": proposalInfo.ID}).SetUpdate(bson.M{"$set": proposalInfo}).SetHint(bson.M{"id": -1}),
+	}
+	if _, err := m.wrapper.C(cProposal).BulkWrite(model); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (m *mongoDB) GetListProposals(ctx context.Context, pagination *types.Pagination) ([]*types.ProposalDetail, uint64, error) {
+	var (
+		opts []*options.FindOptions
+		proposals []*types.ProposalDetail
+	)
+	if pagination != nil {
+		opts = []*options.FindOptions{
+			options.Find().SetHint(bson.M{"id": -1}),
+			options.Find().SetSort(bson.M{"id": 1}),
+			options.Find().SetSkip(int64(pagination.Skip)),
+			options.Find().SetLimit(int64(pagination.Limit)),
+		}
+	}
+	cursor, err := m.wrapper.C(cProposal).
+		Find(bson.M{}, opts...)
+	defer func() {
+		err = cursor.Close(ctx)
+		if err != nil {
+			m.logger.Warn("Error when close cursor", zap.Error(err))
+		}
+	}()
+	if err != nil {
+		return nil, 0, fmt.Errorf("failed to get list proposals: %v", err)
+	}
+	for cursor.Next(ctx) {
+		proposal := &types.ProposalDetail{}
+		if err := cursor.Decode(proposal); err != nil {
+			return nil, 0, err
+		}
+		proposals = append(proposals, proposal)
+	}
+	// get total transaction in block in database
+	total, err := m.wrapper.C(cProposal).Count(bson.M{})
+	if err != nil {
+		return nil, 0, err
+	}
+	return proposals, uint64(total), nil
+}
+
+// end region Proposal

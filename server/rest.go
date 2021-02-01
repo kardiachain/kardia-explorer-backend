@@ -276,16 +276,43 @@ func (s *Server) GetSlashedTokens(c echo.Context) error {
 func (s *Server) GetProposalsList(c echo.Context) error {
 	ctx := context.Background()
 	pagination, page, limit := getPagingOption(c)
-	result, total, err := s.kaiClient.GetProposals(ctx, pagination)
-	if err != nil {
-		fmt.Println("GetProposals err: ", err)
+	dbResult, dbTotal, dbErr := s.dbClient.GetListProposals(ctx, pagination)
+	if dbErr != nil {
 		return api.Invalid.Build(c)
+	}
+	rpcResult, rpcTotal, rpcErr := s.kaiClient.GetProposals(ctx, pagination)
+	if rpcErr != nil {
+		fmt.Println("GetProposals err: ", rpcErr)
+		return api.Invalid.Build(c)
+	}
+	s.logger.Info("DB Proposals: ", zap.Any("DB proposals", dbResult), zap.Any("dbTotal", dbTotal))
+	s.logger.Info("RPC Proposals: ", zap.Any("RPC proposals", rpcResult), zap.Any("dbTotal", dbTotal))
+	if dbTotal != rpcTotal {
+		isFound := false
+		for _, rpcProposal := range rpcResult {
+			isFound = false
+			for _, dbProposal := range dbResult	{
+				if dbProposal.ID == rpcProposal.ID {
+					isFound = true
+					break
+				}
+			}
+			if isFound {
+				continue
+			}
+			dbResult = append(dbResult, rpcProposal) // include new proposal in response
+			s.logger.Info("Inserting new proposal", zap.Any("proposal", rpcProposal))
+			err := s.dbClient.AddProposal(ctx, rpcProposal)
+			if err != nil {
+				s.logger.Debug("Cannot insert new proposal to DB", zap.Error(err))
+			}
+		}
 	}
 	return api.OK.SetData(PagingResponse{
 		Page:  page,
 		Limit: limit,
-		Data:  result,
-		Total: total,
+		Data:  dbResult,
+		Total: rpcTotal,
 	}).Build(c)
 }
 
@@ -295,7 +322,11 @@ func (s *Server) GetProposalDetails(c echo.Context) error {
 	if !ok {
 		return api.Invalid.Build(c)
 	}
-	result, err := s.kaiClient.GetProposalDetails(ctx, proposalID)
+	result, err := s.dbClient.ProposalInfo(ctx, proposalID.Uint64())
+	if err == nil {
+		return api.OK.SetData(result).Build(c)
+	}
+	result, err = s.kaiClient.GetProposalDetails(ctx, proposalID)
 	if err != nil {
 		fmt.Println("GetProposalDetails err: ", err)
 		return api.Invalid.Build(c)

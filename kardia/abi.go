@@ -53,9 +53,15 @@ func (ec *Client) DecodeInputData(to string, input string) (*types.FunctionCall,
 		if err != nil {
 			return nil, err
 		}
-	} else { // otherwise, search for a validator method
+	} else if ec.validatorUtil.ContractAddress.Equal(common.HexToAddress(to)) { // if not, search for a validator method
 		a = ec.validatorUtil.Abi
 		method, err = ec.validatorUtil.Abi.MethodById(sig)
+		if err != nil {
+			return nil, err
+		}
+	} else { // otherwise, search for a params method
+		a = ec.paramsUtil.Abi
+		method, err = ec.paramsUtil.Abi.MethodById(sig)
 		if err != nil {
 			return nil, err
 		}
