@@ -40,6 +40,8 @@ const (
 	TreasuryContractName      = "Treasury Contract"
 	KardiaDeployerAddr        = "0x14191195F9BB6e54465a341CeC6cce4491599ccC"
 	KardiaDeployerName        = "Kardia Deployer"
+	ParamsContractAddr        = "0x910cbd665263306807e5ace0351e4358dc6164d8"
+	ParamsContractName        = "Params Contract"
 	UpdateStatsInterval       = 10
 )
 
@@ -226,5 +228,13 @@ var (
 		"inflationMin",
 		"Deposit",
 		"VotingPeriod",
+	}
+	ParamKeysTypeNumber = map[string]bool{
+		"VotingPeriod":         true,
+		"blocksPerYear":        true,
+		"downtimeJailDuration": true,
+		"maxProposers":         true,
+		"signedBlockWindow":    true,
+		"unbondingTime":        true,
 	}
 )

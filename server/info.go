@@ -9,6 +9,7 @@ import (
 	"math/big"
 	"net"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/kardiachain/explorer-backend/cfg"
@@ -177,6 +178,7 @@ func (s *infoServer) GetCurrentStats(ctx context.Context) uint64 {
 	cfg.GenesisAddresses = append(cfg.GenesisAddresses, cfg.TreasuryContractAddr)
 	cfg.GenesisAddresses = append(cfg.GenesisAddresses, cfg.StakingContractAddr)
 	cfg.GenesisAddresses = append(cfg.GenesisAddresses, cfg.KardiaDeployerAddr)
+	cfg.GenesisAddresses = append(cfg.GenesisAddresses, cfg.ParamsContractAddr)
 	vals, _ := s.kaiClient.Validators(ctx)
 	_ = s.cacheClient.UpdateValidators(ctx, vals)
 	for _, val := range vals.Validators {
@@ -638,7 +640,8 @@ func (s *infoServer) mergeAdditionalInfoToTxs(txs []*types.Transaction, receipts
 		txFeeInHydro *big.Int
 	)
 	for _, tx := range txs {
-		if decoded, err := s.kaiClient.DecodeInputData(tx.To, tx.InputData); err == nil {
+		decoded, err := s.kaiClient.DecodeInputData(tx.To, tx.InputData)
+		if err == nil {
 			tx.DecodedInputData = decoded
 		}
 		if (receiptIndex > len(receipts)-1) || !(receipts[receiptIndex].TransactionHash == tx.Hash) {
@@ -658,6 +661,35 @@ func (s *infoServer) mergeAdditionalInfoToTxs(txs []*types.Transaction, receipts
 		tx.TxFee = txFeeInHydro.String()
 
 		receiptIndex++
+
+		// write external contract data to database
+		if strings.EqualFold(tx.To, cfg.ParamsContractAddr) && tx.Status == 1 && decoded != nil {
+			ctx := context.Background()
+			if decoded.MethodName == "addVote" {
+				proposalID, _ := new(big.Int).SetString(decoded.Arguments["proposalId"].(string), 10)
+				voteOption := new(big.Int).SetInt64(int64(decoded.Arguments["option"].(uint8)))
+				proposal, err := s.kaiClient.GetProposalDetails(ctx, proposalID)
+				if err != nil {
+					s.logger.Info("cannot get proposal by ID using RPC", zap.Any("proposal", proposalID), zap.Error(err))
+					continue
+				}
+				err = s.dbClient.AddVoteToProposal(ctx, proposal, voteOption.Uint64())
+				if err != nil {
+					s.logger.Info("cannot add vote to new proposal in db", zap.Any("decoded", decoded), zap.Error(err))
+				}
+			} else if decoded.MethodName == "confirmProposal" {
+				proposalID, _ := new(big.Int).SetString(decoded.Arguments["proposalId"].(string), 10)
+				proposal, err := s.kaiClient.GetProposalDetails(ctx, proposalID)
+				if err != nil {
+					s.logger.Info("cannot get proposal by ID using RPC", zap.Any("proposal", proposalID), zap.Error(err))
+					continue
+				}
+				err = s.dbClient.UpsertProposal(ctx, proposal)
+				if err != nil {
+					s.logger.Info("cannot confirm proposal in db", zap.Any("decoded", decoded), zap.Error(err))
+				}
+			}
+		}
 	}
 	return txs
 }

@@ -137,11 +137,6 @@ func NewKaiClient(config *Config) (ClientInterface, error) {
 		Abi:      &validatorSmcAbi,
 		Bytecode: cfg.ValidatorContractByteCode,
 	}
-	paramsSmcAddr, err := GetParamsSMCAddress(stakingUtil, defaultClient)
-	if err != nil {
-		config.lgr.Error("Error getting params contract address", zap.Error(err))
-		return nil, err
-	}
 	paramsABI, err := os.Open(path.Join(path.Dir(filename), "../kardia/abi/params.json"))
 	if err != nil {
 		panic("cannot read params ABI file")
@@ -153,8 +148,8 @@ func NewKaiClient(config *Config) (ClientInterface, error) {
 	}
 	paramsUtil := &SmcUtil{
 		Abi:             &paramsSmcAbi,
-		ContractAddress: paramsSmcAddr,
-		Bytecode:        cfg.ValidatorContractByteCode,
+		ContractAddress: common.HexToAddress(cfg.ParamsContractAddr),
+		Bytecode:        cfg.ParamsContractsByteCode,
 	}
 
 	return &Client{clientList, trustedClientList, defaultClient, 0, stakingUtil, validatorUtil, paramsUtil, config.lgr}, nil

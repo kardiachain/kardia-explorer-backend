@@ -276,16 +276,41 @@ func (s *Server) GetSlashedTokens(c echo.Context) error {
 func (s *Server) GetProposalsList(c echo.Context) error {
 	ctx := context.Background()
 	pagination, page, limit := getPagingOption(c)
-	result, total, err := s.kaiClient.GetProposals(ctx, pagination)
-	if err != nil {
-		fmt.Println("GetProposals err: ", err)
+	dbResult, dbTotal, dbErr := s.dbClient.GetListProposals(ctx, pagination)
+	if dbErr != nil {
 		return api.Invalid.Build(c)
+	}
+	rpcResult, rpcTotal, rpcErr := s.kaiClient.GetProposals(ctx, pagination)
+	if rpcErr != nil {
+		fmt.Println("GetProposals err: ", rpcErr)
+		return api.Invalid.Build(c)
+	}
+	if dbTotal != rpcTotal { // try to find out and insert missing proposals to db
+		isFound := false
+		for _, rpcProposal := range rpcResult {
+			isFound = false
+			for _, dbProposal := range dbResult {
+				if dbProposal.ID == rpcProposal.ID {
+					isFound = true
+					break
+				}
+			}
+			if isFound {
+				continue
+			}
+			dbResult = append(dbResult, rpcProposal) // include new proposal in response
+			s.logger.Info("Inserting new proposal", zap.Any("proposal", rpcProposal))
+			err := s.dbClient.UpsertProposal(ctx, rpcProposal) // insert missing proposal to db
+			if err != nil {
+				s.logger.Debug("Cannot insert new proposal to DB", zap.Error(err))
+			}
+		}
 	}
 	return api.OK.SetData(PagingResponse{
 		Page:  page,
 		Limit: limit,
-		Data:  result,
-		Total: total,
+		Data:  dbResult,
+		Total: rpcTotal,
 	}).Build(c)
 }
 
@@ -295,7 +320,11 @@ func (s *Server) GetProposalDetails(c echo.Context) error {
 	if !ok {
 		return api.Invalid.Build(c)
 	}
-	result, err := s.kaiClient.GetProposalDetails(ctx, proposalID)
+	result, err := s.dbClient.ProposalInfo(ctx, proposalID.Uint64())
+	if err == nil {
+		return api.OK.SetData(result).Build(c)
+	}
+	result, err = s.kaiClient.GetProposalDetails(ctx, proposalID)
 	if err != nil {
 		fmt.Println("GetProposalDetails err: ", err)
 		return api.Invalid.Build(c)
@@ -305,9 +334,13 @@ func (s *Server) GetProposalDetails(c echo.Context) error {
 
 func (s *Server) GetParams(c echo.Context) error {
 	ctx := context.Background()
-	result, err := s.kaiClient.GetParams(ctx)
+	params, err := s.kaiClient.GetParams(ctx)
 	if err != nil {
 		return api.Invalid.Build(c)
+	}
+	result := make(map[string]interface{})
+	for _, param := range params {
+		result[param.LabelName] = param.FromValue
 	}
 	return api.OK.SetData(result).Build(c)
 }
@@ -527,6 +560,7 @@ func (s *Server) BlockTxs(c echo.Context) error {
 			TxFee:            tx.TxFee,
 			Status:           tx.Status,
 			DecodedInputData: tx.DecodedInputData,
+			InputData:        tx.InputData,
 		}
 		if smcAddress[tx.To] != nil {
 			t.ToName = smcAddress[tx.To].Name
@@ -630,6 +664,7 @@ func (s *Server) Txs(c echo.Context) error {
 			TxFee:            tx.TxFee,
 			Status:           tx.Status,
 			DecodedInputData: tx.DecodedInputData,
+			InputData:        tx.InputData,
 		}
 
 		if smcAddress[tx.To] != nil {
@@ -811,6 +846,7 @@ func (s *Server) AddressTxs(c echo.Context) error {
 			TxFee:            tx.TxFee,
 			Status:           tx.Status,
 			DecodedInputData: tx.DecodedInputData,
+			InputData:        tx.InputData,
 		}
 		if smcAddress[tx.To] != nil {
 			t.ToName = smcAddress[tx.To].Name
