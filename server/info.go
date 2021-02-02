@@ -668,7 +668,7 @@ func (s *infoServer) mergeAdditionalInfoToTxs(txs []*types.Transaction, receipts
 			if decoded.MethodName == "addVote" {
 				proposalID, _ := new(big.Int).SetString(decoded.Arguments["proposalId"].(string), 10)
 				voteOption := new(big.Int).SetInt64(int64(decoded.Arguments["option"].(uint8)))
-				proposal, err := s.kaiClient.GetProposalDetails(ctx, proposalID)
+				proposal, err := s.dbClient.ProposalInfo(ctx, proposalID.Uint64())
 				if err != nil {
 					s.logger.Info("cannot get proposal by ID using RPC", zap.Any("proposal", proposalID), zap.Error(err))
 					continue
@@ -679,7 +679,7 @@ func (s *infoServer) mergeAdditionalInfoToTxs(txs []*types.Transaction, receipts
 				}
 			} else if decoded.MethodName == "confirmProposal" {
 				proposalID, _ := new(big.Int).SetString(decoded.Arguments["proposalId"].(string), 10)
-				proposal, err := s.kaiClient.GetProposalDetails(ctx, proposalID)
+				proposal, err := s.dbClient.ProposalInfo(ctx, proposalID.Uint64())
 				if err != nil {
 					s.logger.Info("cannot get proposal by ID using RPC", zap.Any("proposal", proposalID), zap.Error(err))
 					continue
