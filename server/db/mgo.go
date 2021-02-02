@@ -725,11 +725,12 @@ func (m *mongoDB) AddVoteToProposal(ctx context.Context, proposalInfo *types.Pro
 		currentProposal = proposalInfo
 	}
 	// update number of vote choices
-	if voteOption == 0 {
+	switch voteOption {
+	case 0:
 		proposalInfo.NumberOfVoteAbstain = currentProposal.NumberOfVoteAbstain + 1
-	} else if voteOption == 1 {
+	case 1:
 		proposalInfo.NumberOfVoteYes = currentProposal.NumberOfVoteYes + 1
-	} else if voteOption == 2 {
+	case 2:
 		proposalInfo.NumberOfVoteNo = currentProposal.NumberOfVoteNo + 1
 	}
 	proposalInfo.UpdateTime = time.Now().Unix()

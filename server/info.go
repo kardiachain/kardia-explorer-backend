@@ -663,7 +663,7 @@ func (s *infoServer) mergeAdditionalInfoToTxs(txs []*types.Transaction, receipts
 		receiptIndex++
 
 		// write external contract data to database
-		if strings.ToLower(tx.To) == strings.ToLower(cfg.ParamsContractAddr) && tx.Status == 1 && decoded != nil {
+		if strings.EqualFold(tx.To, cfg.ParamsContractAddr) && tx.Status == 1 && decoded != nil {
 			ctx := context.Background()
 			if decoded.MethodName == "addVote" {
 				proposalID, _ := new(big.Int).SetString(decoded.Arguments["proposalId"].(string), 10)

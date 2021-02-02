@@ -220,7 +220,6 @@ func (ec *Client) GetProposals(ctx context.Context, pagination *types.Pagination
 func ConvertNetworkParamValue(fieldName string, value *big.Int) interface{} {
 	if cfg.ParamKeysTypeNumber[fieldName] {
 		return value.Uint64()
-	} else {
-		return value.String()
 	}
+	return value.String()
 }
