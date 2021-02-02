@@ -51,6 +51,7 @@ type SimpleTransaction struct {
 	TxFee              string              `json:"txFee"`
 	Status             uint                `json:"status"`
 	DecodedInputData   *types.FunctionCall `json:"decodedInputData,omitempty"`
+	InputData          string              `json:"input"`
 }
 
 type Transaction struct {

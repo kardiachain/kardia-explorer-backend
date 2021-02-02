@@ -560,6 +560,7 @@ func (s *Server) BlockTxs(c echo.Context) error {
 			TxFee:            tx.TxFee,
 			Status:           tx.Status,
 			DecodedInputData: tx.DecodedInputData,
+			InputData:        tx.InputData,
 		}
 		if smcAddress[tx.To] != nil {
 			t.ToName = smcAddress[tx.To].Name
@@ -663,6 +664,7 @@ func (s *Server) Txs(c echo.Context) error {
 			TxFee:            tx.TxFee,
 			Status:           tx.Status,
 			DecodedInputData: tx.DecodedInputData,
+			InputData:        tx.InputData,
 		}
 
 		if smcAddress[tx.To] != nil {
@@ -844,6 +846,7 @@ func (s *Server) AddressTxs(c echo.Context) error {
 			TxFee:            tx.TxFee,
 			Status:           tx.Status,
 			DecodedInputData: tx.DecodedInputData,
+			InputData:        tx.InputData,
 		}
 		if smcAddress[tx.To] != nil {
 			t.ToName = smcAddress[tx.To].Name
