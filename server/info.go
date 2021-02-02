@@ -670,9 +670,15 @@ func (s *infoServer) mergeAdditionalInfoToTxs(txs []*types.Transaction, receipts
 				voteOption := new(big.Int).SetInt64(int64(decoded.Arguments["option"].(uint8)))
 				proposal, err := s.dbClient.ProposalInfo(ctx, proposalID.Uint64())
 				if err != nil {
-					s.logger.Info("cannot get proposal by ID using RPC", zap.Any("proposal", proposalID), zap.Error(err))
-					continue
+					s.logger.Info("cannot get proposal by ID in db", zap.Any("proposal", proposalID), zap.Error(err))
 				}
+				rpcProposal, err := s.kaiClient.GetProposalDetails(ctx, proposalID)
+				if err != nil {
+					s.logger.Info("cannot get proposal by ID from RPC", zap.Any("proposal", proposalID), zap.Error(err))
+				}
+				proposal.VoteYes = rpcProposal.VoteYes
+				proposal.VoteNo = rpcProposal.VoteNo
+				proposal.VoteAbstain = rpcProposal.VoteAbstain
 				err = s.dbClient.AddVoteToProposal(ctx, proposal, voteOption.Uint64())
 				if err != nil {
 					s.logger.Info("cannot add vote to new proposal in db", zap.Any("decoded", decoded), zap.Error(err))
@@ -682,8 +688,14 @@ func (s *infoServer) mergeAdditionalInfoToTxs(txs []*types.Transaction, receipts
 				proposal, err := s.dbClient.ProposalInfo(ctx, proposalID.Uint64())
 				if err != nil {
 					s.logger.Info("cannot get proposal by ID using RPC", zap.Any("proposal", proposalID), zap.Error(err))
-					continue
 				}
+				rpcProposal, err := s.kaiClient.GetProposalDetails(ctx, proposalID)
+				if err != nil {
+					s.logger.Info("cannot get proposal by ID from RPC", zap.Any("proposal", proposalID), zap.Error(err))
+				}
+				proposal.VoteYes = rpcProposal.VoteYes
+				proposal.VoteNo = rpcProposal.VoteNo
+				proposal.VoteAbstain = rpcProposal.VoteAbstain
 				err = s.dbClient.UpsertProposal(ctx, proposal)
 				if err != nil {
 					s.logger.Info("cannot confirm proposal in db", zap.Any("decoded", decoded), zap.Error(err))
