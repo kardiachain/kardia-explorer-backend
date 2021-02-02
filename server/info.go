@@ -5,7 +5,6 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"io/ioutil"
 	"math/big"
 	"net"
@@ -671,26 +670,22 @@ func (s *infoServer) mergeAdditionalInfoToTxs(txs []*types.Transaction, receipts
 				voteOption := new(big.Int).SetInt64(int64(decoded.Arguments["option"].(uint8)))
 				proposal, err := s.kaiClient.GetProposalDetails(ctx, proposalID)
 				if err != nil {
-					fmt.Printf("cannot get proposal by ID using RPC: %+v %v\n", proposalID, err)
 					s.logger.Info("cannot get proposal by ID using RPC", zap.Any("proposal", proposalID), zap.Error(err))
 					continue
 				}
 				err = s.dbClient.AddVoteToProposal(ctx, proposal, voteOption.Uint64())
 				if err != nil {
-					fmt.Printf("cannot add vote to new proposal in db: %+v %v\n", decoded, err)
 					s.logger.Info("cannot add vote to new proposal in db", zap.Any("decoded", decoded), zap.Error(err))
 				}
 			} else if decoded.MethodName == "confirmProposal" {
 				proposalID, _ := new(big.Int).SetString(decoded.Arguments["proposalId"].(string), 10)
 				proposal, err := s.kaiClient.GetProposalDetails(ctx, proposalID)
 				if err != nil {
-					fmt.Printf("cannot get proposal by ID using RPC: %+v %v\n", proposalID, err)
 					s.logger.Info("cannot get proposal by ID using RPC", zap.Any("proposal", proposalID), zap.Error(err))
 					continue
 				}
 				err = s.dbClient.UpsertProposal(ctx, proposal)
 				if err != nil {
-					fmt.Printf("cannot confirm proposal in db: %+v %v\n", decoded, err)
 					s.logger.Info("cannot confirm proposal in db", zap.Any("decoded", decoded), zap.Error(err))
 				}
 			}

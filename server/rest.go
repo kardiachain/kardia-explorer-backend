@@ -289,7 +289,7 @@ func (s *Server) GetProposalsList(c echo.Context) error {
 		isFound := false
 		for _, rpcProposal := range rpcResult {
 			isFound = false
-			for _, dbProposal := range dbResult	{
+			for _, dbProposal := range dbResult {
 				if dbProposal.ID == rpcProposal.ID {
 					isFound = true
 					break

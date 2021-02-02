@@ -772,7 +772,7 @@ func (m *mongoDB) upsertProposal(proposalInfo *types.ProposalDetail) error {
 
 func (m *mongoDB) GetListProposals(ctx context.Context, pagination *types.Pagination) ([]*types.ProposalDetail, uint64, error) {
 	var (
-		opts []*options.FindOptions
+		opts      []*options.FindOptions
 		proposals []*types.ProposalDetail
 	)
 	if pagination != nil {

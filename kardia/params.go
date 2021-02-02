@@ -53,8 +53,8 @@ func (ec *Client) GetMaxProposers(ctx context.Context) (int64, error) {
 }
 
 // GetParams returns value of params by indexes
-func (ec *Client) GetParams(ctx context.Context) (map[string]string, error) {
-	params := make(map[string]string)
+func (ec *Client) GetParams(ctx context.Context) ([]*types.NetworkParams, error) {
+	params := make([]*types.NetworkParams, len(cfg.ParamKeys))
 	for i, paramName := range cfg.ParamKeys {
 		payload, err := ec.paramsUtil.Abi.Pack("getParam", uint8(i))
 		if err != nil {
@@ -74,7 +74,10 @@ func (ec *Client) GetParams(ctx context.Context) (map[string]string, error) {
 			ec.lgr.Error("Error unpacking params", zap.Int("id", i), zap.String("name", paramName), zap.Error(err))
 			return nil, err
 		}
-		params[cfg.ParamKeys[i]] = result.Value.String()
+		params[i] = &types.NetworkParams{
+			LabelName: paramName,
+			FromValue: ConvertNetworkParamValue(paramName, result.Value),
+		}
 	}
 	return params, nil
 }
@@ -112,10 +115,17 @@ func (ec *Client) GetProposalDetails(ctx context.Context, proposalID *big.Int) (
 		VoteYes:          result.VoteYes.Uint64(),
 		VoteNo:           result.VoteNo.Uint64(),
 		VoteAbstain:      result.VoteAbstain.Uint64(),
-		Params:           make(map[string]string),
 	}
-	for i, key := range result.ParamKeys {
-		detail.Params[cfg.ParamKeys[key]] = result.ParamValues[i].String()
+	currentNetworkParams, err := ec.GetParams(ctx)
+	if err != nil {
+		return nil, err
+	}
+	for i, param := range result.ParamKeys {
+		detail.Params = append(detail.Params, &types.NetworkParams{
+			LabelName: cfg.ParamKeys[param],
+			FromValue: currentNetworkParams[param].FromValue,
+			ToValue:   ConvertNetworkParamValue(cfg.ParamKeys[param], result.ParamValues[i]),
+		})
 	}
 	return detail, nil
 }
@@ -198,11 +208,19 @@ func (ec *Client) GetProposals(ctx context.Context, pagination *types.Pagination
 	var result []*types.ProposalDetail
 	// i must be a new int so that it does not overwrite start
 	for i := new(big.Int).Set(start); i.Cmp(end) < 0; i.Add(i, one) {
-		metadata, err := ec.GetProposalDetails(ctx, i)
+		detail, err := ec.GetProposalDetails(ctx, i)
 		if err != nil {
 			continue
 		}
-		result = append(result, metadata)
+		result = append(result, detail)
 	}
 	return result, total.Uint64(), nil
+}
+
+func ConvertNetworkParamValue(fieldName string, value *big.Int) interface{} {
+	if cfg.ParamKeysTypeNumber[fieldName] {
+		return value.Uint64()
+	} else {
+		return value.String()
+	}
 }

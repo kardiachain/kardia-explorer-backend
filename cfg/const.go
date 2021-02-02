@@ -229,4 +229,12 @@ var (
 		"Deposit",
 		"VotingPeriod",
 	}
+	ParamKeysTypeNumber = map[string]bool{
+		"VotingPeriod": true,
+		"blocksPerYear": true,
+		"downtimeJailDuration": true,
+		"maxProposers": true,
+		"signedBlockWindow": true,
+		"unbondingTime": true,
+	}
 )
