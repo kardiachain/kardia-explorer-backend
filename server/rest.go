@@ -285,7 +285,7 @@ func (s *Server) GetProposalsList(c echo.Context) error {
 		fmt.Println("GetProposals err: ", rpcErr)
 		return api.Invalid.Build(c)
 	}
-	if dbTotal != rpcTotal {
+	if dbTotal != rpcTotal { // try to find out and insert missing proposals to db
 		isFound := false
 		for _, rpcProposal := range rpcResult {
 			isFound = false
@@ -300,7 +300,7 @@ func (s *Server) GetProposalsList(c echo.Context) error {
 			}
 			dbResult = append(dbResult, rpcProposal) // include new proposal in response
 			s.logger.Info("Inserting new proposal", zap.Any("proposal", rpcProposal))
-			err := s.dbClient.UpsertProposal(ctx, rpcProposal)
+			err := s.dbClient.UpsertProposal(ctx, rpcProposal) // insert missing proposal to db
 			if err != nil {
 				s.logger.Debug("Cannot insert new proposal to DB", zap.Error(err))
 			}

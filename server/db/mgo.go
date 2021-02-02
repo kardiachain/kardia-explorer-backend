@@ -732,6 +732,7 @@ func (m *mongoDB) AddVoteToProposal(ctx context.Context, proposalInfo *types.Pro
 	} else if voteOption == 2 {
 		proposalInfo.NumberOfVoteNo = currentProposal.NumberOfVoteNo + 1
 	}
+	proposalInfo.UpdateTime = time.Now().Unix()
 	if err := m.upsertProposal(proposalInfo); err != nil {
 		return err
 	}
@@ -745,6 +746,7 @@ func (m *mongoDB) UpsertProposal(ctx context.Context, proposalInfo *types.Propos
 		proposalInfo.NumberOfVoteYes = currentProposal.NumberOfVoteYes
 		proposalInfo.NumberOfVoteNo = currentProposal.NumberOfVoteNo
 	}
+	proposalInfo.UpdateTime = time.Now().Unix()
 	if err := m.upsertProposal(proposalInfo); err != nil {
 		return err
 	}

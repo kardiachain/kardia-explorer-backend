@@ -9,7 +9,7 @@ type ProposalDetail struct {
 	NumberOfVoteYes     uint64                   `json:"numberOfVoteYes" bson:"numberOfVoteYes"`
 	NumberOfVoteNo      uint64                   `json:"numberOfVoteNo" bson:"numberOfVoteNo"`
 	NumberOfVoteAbstain uint64                   `json:"numberOfVoteAbstain" bson:"numberOfVoteAbstain"`
-	UpdateTime          uint64                   `json:"updateTime" bson:"updateTime"`
+	UpdateTime          int64                   `json:"updateTime" bson:"updateTime"`
 }
 
 type ProposalMetadata struct {
