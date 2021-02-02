@@ -334,9 +334,13 @@ func (s *Server) GetProposalDetails(c echo.Context) error {
 
 func (s *Server) GetParams(c echo.Context) error {
 	ctx := context.Background()
-	result, err := s.kaiClient.GetParams(ctx)
+	params, err := s.kaiClient.GetParams(ctx)
 	if err != nil {
 		return api.Invalid.Build(c)
+	}
+	result := make(map[string]interface{})
+	for _, param := range params {
+		result[param.LabelName] = param.FromValue
 	}
 	return api.OK.SetData(result).Build(c)
 }
