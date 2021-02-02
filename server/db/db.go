@@ -84,6 +84,10 @@ type Client interface {
 	UpsertProposal(ctx context.Context, proposalInfo *types.ProposalDetail) error
 	ProposalInfo(ctx context.Context, proposalID uint64) (*types.ProposalDetail, error)
 	GetListProposals(ctx context.Context, pagination *types.Pagination) ([]*types.ProposalDetail, uint64, error)
+
+	// Contracts
+	InsertEvents(event *types.FunctionCall) error
+	GetListEvents(ctx context.Context, pagination *types.Pagination) ([]*types.FunctionCall, uint64, error)
 }
 
 func NewClient(cfg Config) (Client, error) {

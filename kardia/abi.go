@@ -24,6 +24,7 @@ import (
 	"math/big"
 	"reflect"
 	"strings"
+	"time"
 
 	"github.com/kardiachain/go-kardia/lib/abi"
 	"github.com/kardiachain/go-kardia/lib/common"
@@ -87,10 +88,12 @@ func (ec *Client) DecodeInputData(to string, input string) (*types.FunctionCall,
 		arguments[i] = parseBytesArrayIntoString(arg)
 	}
 	return &types.FunctionCall{
-		Function:   method.String(),
-		MethodID:   "0x" + hex.EncodeToString(sig),
-		MethodName: method.Name,
-		Arguments:  arguments,
+		ContractAddress: to,
+		Function:        method.String(),
+		MethodID:        "0x" + hex.EncodeToString(sig),
+		MethodName:      method.Name,
+		Arguments:       arguments,
+		Timestamp:       time.Now().Unix(),
 	}, nil
 }
 

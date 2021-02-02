@@ -642,7 +642,12 @@ func (s *infoServer) mergeAdditionalInfoToTxs(txs []*types.Transaction, receipts
 	for _, tx := range txs {
 		decoded, err := s.kaiClient.DecodeInputData(tx.To, tx.InputData)
 		if err == nil {
+			decoded.TxHash = tx.Hash
 			tx.DecodedInputData = decoded
+			err := s.dbClient.InsertEvents(decoded)
+			if err != nil {
+				s.logger.Warn("cannot insert contract event to db", zap.Any("event", decoded), zap.Error(err))
+			}
 		}
 		if (receiptIndex > len(receipts)-1) || !(receipts[receiptIndex].TransactionHash == tx.Hash) {
 			tx.Status = 0

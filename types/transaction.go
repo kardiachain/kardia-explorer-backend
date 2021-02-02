@@ -32,10 +32,13 @@ type Transaction struct {
 }
 
 type FunctionCall struct {
-	Function   string                 `json:"function"`
-	MethodID   string                 `json:"methodID"`
-	MethodName string                 `json:"methodName"`
-	Arguments  map[string]interface{} `json:"arguments"`
+	ContractAddress string                 `json:"contractAddress" bson:"contractAddress"`
+	TxHash          string                 `json:"txHash" bson:"txHash"`
+	Function        string                 `json:"function" bson:"function"`
+	MethodID        string                 `json:"methodID" bson:"methodID"`
+	MethodName      string                 `json:"methodName" bson:"methodName"`
+	Arguments       map[string]interface{} `json:"arguments" bson:"arguments"`
+	Timestamp       int64                  `json:"timestamp" bson:"timestamp"`
 }
 
 type Log struct {

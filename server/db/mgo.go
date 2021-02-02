@@ -36,12 +36,13 @@ import (
 )
 
 const (
-	cBlocks       = "Blocks"
-	cTxs          = "Transactions"
-	cAddresses    = "Addresses"
-	cTxsByAddress = "TransactionsByAddress"
-	cStats        = "Stats"
-	cProposal     = "Proposal"
+	cBlocks         = "Blocks"
+	cTxs            = "Transactions"
+	cAddresses      = "Addresses"
+	cTxsByAddress   = "TransactionsByAddress"
+	cStats          = "Stats"
+	cProposal       = "Proposal"
+	cContractEvents = "ContractEvents"
 )
 
 type mongoDB struct {
@@ -111,6 +112,11 @@ func createIndexes(dbClient *mongoDB) error {
 		{c: cAddresses, model: []mongo.IndexModel{{Keys: bson.M{"tokenSymbol": 1}, Options: options.Index().SetSparse(true)}}},
 		// indexing proposal collection
 		{c: cProposal, model: []mongo.IndexModel{{Keys: bson.M{"id": -1}, Options: options.Index().SetUnique(true).SetSparse(true)}}},
+		// indexing contract events collection
+		{c: cContractEvents, model: []mongo.IndexModel{{Keys: bson.M{"txHash": 1}, Options: options.Index().SetUnique(true).SetSparse(true)}}},
+		{c: cContractEvents, model: []mongo.IndexModel{{Keys: bson.M{"contractAddress": 1}, Options: options.Index().SetSparse(true)}}},
+		{c: cContractEvents, model: []mongo.IndexModel{{Keys: bson.M{"methodName": 1}, Options: options.Index().SetSparse(true)}}},
+		{c: cContractEvents, model: []mongo.IndexModel{{Keys: bson.M{"timestamp": -1}, Options: options.Index().SetSparse(true)}}},
 	} {
 		if err := dbClient.wrapper.C(cIdx.c).EnsureIndex(cIdx.model); err != nil {
 			return err
@@ -783,16 +789,15 @@ func (m *mongoDB) upsertProposal(proposalInfo *types.ProposalDetail) error {
 
 func (m *mongoDB) GetListProposals(ctx context.Context, pagination *types.Pagination) ([]*types.ProposalDetail, uint64, error) {
 	var (
-		opts      []*options.FindOptions
-		proposals []*types.ProposalDetail
-	)
-	if pagination != nil {
 		opts = []*options.FindOptions{
 			options.Find().SetHint(bson.M{"id": -1}),
 			options.Find().SetSort(bson.M{"id": 1}),
-			options.Find().SetSkip(int64(pagination.Skip)),
-			options.Find().SetLimit(int64(pagination.Limit)),
 		}
+		proposals []*types.ProposalDetail
+	)
+	if pagination != nil {
+		opts = append(opts, options.Find().SetSkip(int64(pagination.Skip)))
+		opts = append(opts, options.Find().SetLimit(int64(pagination.Limit)))
 	}
 	cursor, err := m.wrapper.C(cProposal).
 		Find(bson.M{}, opts...)
@@ -821,3 +826,51 @@ func (m *mongoDB) GetListProposals(ctx context.Context, pagination *types.Pagina
 }
 
 // end region Proposal
+
+// Contracts
+func (m *mongoDB) InsertEvents(event *types.FunctionCall) error {
+	if _, err := m.wrapper.C(cContractEvents).Insert(event); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (m *mongoDB) GetListEvents(ctx context.Context, pagination *types.Pagination) ([]*types.FunctionCall, uint64, error) {
+	var (
+		opts = []*options.FindOptions{
+			options.Find().SetHint(bson.M{"timestamp": -1}),
+			options.Find().SetSort(bson.M{"timestamp": -1}),
+		}
+		events []*types.FunctionCall
+	)
+	if pagination != nil {
+		opts = append(opts, options.Find().SetSkip(int64(pagination.Skip)))
+		opts = append(opts, options.Find().SetLimit(int64(pagination.Limit)))
+	}
+	cursor, err := m.wrapper.C(cContractEvents).
+		Find(bson.M{}, opts...)
+	defer func() {
+		err = cursor.Close(ctx)
+		if err != nil {
+			m.logger.Warn("Error when close cursor", zap.Error(err))
+		}
+	}()
+	if err != nil {
+		return nil, 0, fmt.Errorf("failed to get contract events: %v", err)
+	}
+	for cursor.Next(ctx) {
+		event := &types.FunctionCall{}
+		if err := cursor.Decode(event); err != nil {
+			return nil, 0, err
+		}
+		events = append(events, event)
+	}
+	// get total transaction in block in database
+	total, err := m.wrapper.C(cContractEvents).Count(bson.M{})
+	if err != nil {
+		return nil, 0, err
+	}
+	return events, uint64(total), nil
+}
+
+// end region Contracts

@@ -70,6 +70,9 @@ type EchoServer interface {
 	// Tx
 	Txs(c echo.Context) error
 	TxByHash(c echo.Context) error
+
+	// Contracts
+	ContractEvents(c echo.Context) error
 }
 
 type restDefinition struct {
@@ -252,6 +255,14 @@ func bind(gr *echo.Group, srv EchoServer) {
 			method:      echo.PUT,
 			path:        "/addresses",
 			fn:          srv.UpdateAddressName,
+			middlewares: nil,
+		},
+		// Contracts
+		{
+			method: echo.PUT,
+			// Query params: ?page=0&limit=10
+			path:        "/contracts/events",
+			fn:          srv.ContractEvents,
 			middlewares: nil,
 		},
 	}
