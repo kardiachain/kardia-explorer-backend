@@ -720,7 +720,7 @@ func (m *mongoDB) GetAddressInfo(ctx context.Context, hash string) (*types.Addre
 // start region Proposal
 
 func (m *mongoDB) AddVoteToProposal(ctx context.Context, proposalInfo *types.ProposalDetail, voteOption uint64) error {
-	m.logger.Info("AddVoteToProposal", zap.Any("proposal", proposalInfo))
+	m.logger.Warn("AddVoteToProposal", zap.Any("proposal", proposalInfo))
 	currentProposal, _ := m.ProposalInfo(ctx, proposalInfo.ID)
 	if currentProposal == nil {
 		currentProposal = proposalInfo
@@ -729,12 +729,17 @@ func (m *mongoDB) AddVoteToProposal(ctx context.Context, proposalInfo *types.Pro
 	switch voteOption {
 	case 0:
 		proposalInfo.NumberOfVoteAbstain = currentProposal.NumberOfVoteAbstain + 1
+		proposalInfo.NumberOfVoteYes = currentProposal.NumberOfVoteYes
+		proposalInfo.NumberOfVoteNo = currentProposal.NumberOfVoteNo
 	case 1:
 		proposalInfo.NumberOfVoteYes = currentProposal.NumberOfVoteYes + 1
+		proposalInfo.NumberOfVoteAbstain = currentProposal.NumberOfVoteAbstain
+		proposalInfo.NumberOfVoteNo = currentProposal.NumberOfVoteNo
 	case 2:
 		proposalInfo.NumberOfVoteNo = currentProposal.NumberOfVoteNo + 1
+		proposalInfo.NumberOfVoteAbstain = currentProposal.NumberOfVoteAbstain
+		proposalInfo.NumberOfVoteYes = currentProposal.NumberOfVoteYes
 	}
-	proposalInfo.UpdateTime = time.Now().Unix()
 	if err := m.upsertProposal(proposalInfo); err != nil {
 		return err
 	}
@@ -742,14 +747,13 @@ func (m *mongoDB) AddVoteToProposal(ctx context.Context, proposalInfo *types.Pro
 }
 
 func (m *mongoDB) UpsertProposal(ctx context.Context, proposalInfo *types.ProposalDetail) error {
-	m.logger.Info("UpsertProposal", zap.Any("proposal", proposalInfo))
+	m.logger.Warn("UpsertProposal", zap.Any("proposal", proposalInfo))
 	currentProposal, _ := m.ProposalInfo(ctx, proposalInfo.ID)
 	if currentProposal != nil { // need to update these stats from db first
 		proposalInfo.NumberOfVoteAbstain = currentProposal.NumberOfVoteAbstain
 		proposalInfo.NumberOfVoteYes = currentProposal.NumberOfVoteYes
 		proposalInfo.NumberOfVoteNo = currentProposal.NumberOfVoteNo
 	}
-	proposalInfo.UpdateTime = time.Now().Unix()
 	if err := m.upsertProposal(proposalInfo); err != nil {
 		return err
 	}
@@ -766,6 +770,7 @@ func (m *mongoDB) ProposalInfo(ctx context.Context, proposalID uint64) (*types.P
 }
 
 func (m *mongoDB) upsertProposal(proposalInfo *types.ProposalDetail) error {
+	proposalInfo.UpdateTime = time.Now().Unix()
 	m.logger.Warn("upsertProposal", zap.Any("proposal", proposalInfo))
 	model := []mongo.WriteModel{
 		mongo.NewUpdateOneModel().SetUpsert(true).SetFilter(bson.M{"id": proposalInfo.ID}).SetUpdate(bson.M{"$set": proposalInfo}).SetHint(bson.M{"id": -1}),

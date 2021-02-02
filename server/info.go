@@ -665,40 +665,32 @@ func (s *infoServer) mergeAdditionalInfoToTxs(txs []*types.Transaction, receipts
 		// write external contract data to database
 		if strings.EqualFold(tx.To, cfg.ParamsContractAddr) && tx.Status == 1 && decoded != nil {
 			ctx := context.Background()
+
+			// get proposal info
+			proposalID, _ := new(big.Int).SetString(decoded.Arguments["proposalId"].(string), 10)
+			proposal, err := s.dbClient.ProposalInfo(ctx, proposalID.Uint64())
+			if err != nil {
+				s.logger.Warn("cannot get proposal by ID in db", zap.Any("proposal", proposalID), zap.Error(err))
+			}
+			rpcProposal, err := s.kaiClient.GetProposalDetails(ctx, proposalID)
+			if err != nil {
+				s.logger.Warn("cannot get proposal by ID from RPC", zap.Any("proposal", proposalID), zap.Error(err))
+			}
+			proposal.VoteYes = rpcProposal.VoteYes
+			proposal.VoteNo = rpcProposal.VoteNo
+			proposal.VoteAbstain = rpcProposal.VoteAbstain
+
+			// insert to db
 			if decoded.MethodName == "addVote" {
-				proposalID, _ := new(big.Int).SetString(decoded.Arguments["proposalId"].(string), 10)
 				voteOption := new(big.Int).SetInt64(int64(decoded.Arguments["option"].(uint8)))
-				proposal, err := s.dbClient.ProposalInfo(ctx, proposalID.Uint64())
-				if err != nil {
-					s.logger.Info("cannot get proposal by ID in db", zap.Any("proposal", proposalID), zap.Error(err))
-				}
-				rpcProposal, err := s.kaiClient.GetProposalDetails(ctx, proposalID)
-				if err != nil {
-					s.logger.Info("cannot get proposal by ID from RPC", zap.Any("proposal", proposalID), zap.Error(err))
-				}
-				proposal.VoteYes = rpcProposal.VoteYes
-				proposal.VoteNo = rpcProposal.VoteNo
-				proposal.VoteAbstain = rpcProposal.VoteAbstain
 				err = s.dbClient.AddVoteToProposal(ctx, proposal, voteOption.Uint64())
 				if err != nil {
-					s.logger.Info("cannot add vote to new proposal in db", zap.Any("decoded", decoded), zap.Error(err))
+					s.logger.Warn("cannot add vote to new proposal in db", zap.Any("decoded", decoded), zap.Error(err))
 				}
 			} else if decoded.MethodName == "confirmProposal" {
-				proposalID, _ := new(big.Int).SetString(decoded.Arguments["proposalId"].(string), 10)
-				proposal, err := s.dbClient.ProposalInfo(ctx, proposalID.Uint64())
-				if err != nil {
-					s.logger.Info("cannot get proposal by ID using RPC", zap.Any("proposal", proposalID), zap.Error(err))
-				}
-				rpcProposal, err := s.kaiClient.GetProposalDetails(ctx, proposalID)
-				if err != nil {
-					s.logger.Info("cannot get proposal by ID from RPC", zap.Any("proposal", proposalID), zap.Error(err))
-				}
-				proposal.VoteYes = rpcProposal.VoteYes
-				proposal.VoteNo = rpcProposal.VoteNo
-				proposal.VoteAbstain = rpcProposal.VoteAbstain
 				err = s.dbClient.UpsertProposal(ctx, proposal)
 				if err != nil {
-					s.logger.Info("cannot confirm proposal in db", zap.Any("decoded", decoded), zap.Error(err))
+					s.logger.Warn("cannot confirm proposal in db", zap.Any("decoded", decoded), zap.Error(err))
 				}
 			}
 		}
