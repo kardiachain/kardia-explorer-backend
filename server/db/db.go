@@ -87,7 +87,7 @@ type Client interface {
 
 	// Contracts
 	InsertEvents(event *types.FunctionCall) error
-	GetListEvents(ctx context.Context, pagination *types.Pagination) ([]*types.FunctionCall, uint64, error)
+	GetListEvents(ctx context.Context, pagination *types.Pagination, contractAddress string, methodName string) ([]*types.FunctionCall, uint64, error)
 }
 
 func NewClient(cfg Config) (Client, error) {

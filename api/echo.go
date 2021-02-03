@@ -260,7 +260,7 @@ func bind(gr *echo.Group, srv EchoServer) {
 		// Contracts
 		{
 			method: echo.PUT,
-			// Query params: ?page=0&limit=10
+			// Query params: ?page=0&limit=10&contractAddress=0x&methodName=0x
 			path:        "/contracts/events",
 			fn:          srv.ContractEvents,
 			middlewares: nil,

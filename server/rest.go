@@ -1137,7 +1137,7 @@ func (s *Server) ContractEvents(c echo.Context) error {
 		err         error
 	)
 	pagination, page, limit := getPagingOption(c)
-	result, total, err := s.dbClient.GetListEvents(ctx, pagination)
+	result, total, err := s.dbClient.GetListEvents(ctx, pagination, c.QueryParam("contractAddress"), c.QueryParam("methodName"))
 	if err != nil {
 		s.logger.Warn("Cannot get events from db", zap.Error(err))
 	}

@@ -114,8 +114,8 @@ func createIndexes(dbClient *mongoDB) error {
 		{c: cProposal, model: []mongo.IndexModel{{Keys: bson.M{"id": -1}, Options: options.Index().SetUnique(true).SetSparse(true)}}},
 		// indexing contract events collection
 		{c: cContractEvents, model: []mongo.IndexModel{{Keys: bson.M{"txHash": 1}, Options: options.Index().SetUnique(true).SetSparse(true)}}},
-		{c: cContractEvents, model: []mongo.IndexModel{{Keys: bson.M{"contractAddress": 1}, Options: options.Index().SetSparse(true)}}},
-		{c: cContractEvents, model: []mongo.IndexModel{{Keys: bson.M{"methodName": 1}, Options: options.Index().SetSparse(true)}}},
+		{c: cContractEvents, model: []mongo.IndexModel{{Keys: bson.D{{Key: "contractAddress", Value: 1}, {Key: "timestamp", Value: -1}}, Options: options.Index().SetSparse(true)}}},
+		{c: cContractEvents, model: []mongo.IndexModel{{Keys: bson.D{{Key: "methodName", Value: 1}, {Key: "timestamp", Value: -1}}, Options: options.Index().SetSparse(true)}}},
 		{c: cContractEvents, model: []mongo.IndexModel{{Keys: bson.M{"timestamp": -1}, Options: options.Index().SetSparse(true)}}},
 	} {
 		if err := dbClient.wrapper.C(cIdx.c).EnsureIndex(cIdx.model); err != nil {
@@ -835,10 +835,13 @@ func (m *mongoDB) InsertEvents(event *types.FunctionCall) error {
 	return nil
 }
 
-func (m *mongoDB) GetListEvents(ctx context.Context, pagination *types.Pagination) ([]*types.FunctionCall, uint64, error) {
+func (m *mongoDB) GetListEvents(ctx context.Context, pagination *types.Pagination, contractAddress string, methodName string) ([]*types.FunctionCall, uint64, error) {
 	var (
 		opts = []*options.FindOptions{
 			options.Find().SetHint(bson.M{"timestamp": -1}),
+			options.Find().SetHint(bson.M{"txHash": 1}),
+			options.Find().SetHint(bson.D{{Key: "contractAddress", Value: 1}, {Key: "timestamp", Value: -1}}),
+			options.Find().SetHint(bson.D{{Key: "methodName", Value: 1}, {Key: "timestamp", Value: -1}}),
 			options.Find().SetSort(bson.M{"timestamp": -1}),
 		}
 		events []*types.FunctionCall
@@ -847,8 +850,15 @@ func (m *mongoDB) GetListEvents(ctx context.Context, pagination *types.Paginatio
 		opts = append(opts, options.Find().SetSkip(int64(pagination.Skip)))
 		opts = append(opts, options.Find().SetLimit(int64(pagination.Limit)))
 	}
+	var filter []bson.M
+	if contractAddress != "" {
+		filter = append(filter, bson.M{"contractAddress": contractAddress})
+	}
+	if methodName != "" {
+		filter = append(filter, bson.M{"methodName": methodName})
+	}
 	cursor, err := m.wrapper.C(cContractEvents).
-		Find(bson.M{}, opts...)
+		Find(bson.M{"$and": filter}, opts...)
 	defer func() {
 		err = cursor.Close(ctx)
 		if err != nil {
@@ -866,7 +876,7 @@ func (m *mongoDB) GetListEvents(ctx context.Context, pagination *types.Paginatio
 		events = append(events, event)
 	}
 	// get total transaction in block in database
-	total, err := m.wrapper.C(cContractEvents).Count(bson.M{})
+	total, err := m.wrapper.C(cContractEvents).Count(bson.M{"$and": filter})
 	if err != nil {
 		return nil, 0, err
 	}
