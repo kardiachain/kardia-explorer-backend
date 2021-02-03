@@ -42,15 +42,17 @@ type FunctionCall struct {
 }
 
 type Log struct {
-	Address     string   `json:"address"`
-	Topics      []string `json:"topics"`
-	Data        string   `json:"data"`
-	BlockHeight uint64   `json:"blockHeight"`
-	TxHash      string   `json:"transactionHash"`
-	TxIndex     uint     `json:"transactionIndex"`
-	BlockHash   string   `json:"blockHash"`
-	Index       uint     `json:"logIndex"`
-	Removed     bool     `json:"removed"`
+	ContractAddress string                 `json:"contractAddress" bson:"contractAddress"`
+	Name            string                 `json:"name" bson:"name"`
+	Arguments       map[string]interface{} `json:"arguments" bson:"arguments"`
+	Topics          []string               `json:"topics" bson:"topics"`
+	Data            string                 `json:"data" bson:"data"`
+	BlockHeight     uint64                 `json:"blockHeight" bson:"blockHeight"`
+	TxHash          string                 `json:"transactionHash"  bson:"transactionHash"`
+	TxIndex         uint                   `json:"transactionIndex" bson:"transactionIndex"`
+	BlockHash       string                 `json:"blockHash" bson:"blockHash"`
+	Index           uint                   `json:"logIndex" bson:"logIndex"`
+	Removed         bool                   `json:"removed" bson:"removed"`
 }
 
 type Receipt struct {

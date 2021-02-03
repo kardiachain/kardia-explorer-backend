@@ -56,6 +56,7 @@ type ClientInterface interface {
 
 	// utilities methods
 	DecodeInputData(to string, input string) (*types.FunctionCall, error)
+	UnpackLog(log *types.Log) (*types.Log, error)
 }
 
 type Config struct {

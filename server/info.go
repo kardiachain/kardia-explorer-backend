@@ -640,6 +640,11 @@ func (s *infoServer) mergeAdditionalInfoToTxs(txs []*types.Transaction, receipts
 		txFeeInHydro *big.Int
 	)
 	for _, tx := range txs {
+		if (receiptIndex > len(receipts)-1) || !(receipts[receiptIndex].TransactionHash == tx.Hash) {
+			tx.Status = 0
+			continue
+		}
+
 		decoded, err := s.kaiClient.DecodeInputData(tx.To, tx.InputData)
 		if err == nil {
 			decoded.TxHash = tx.Hash
@@ -649,12 +654,15 @@ func (s *infoServer) mergeAdditionalInfoToTxs(txs []*types.Transaction, receipts
 				s.logger.Warn("cannot insert contract event to db", zap.Any("event", decoded), zap.Error(err))
 			}
 		}
-		if (receiptIndex > len(receipts)-1) || !(receipts[receiptIndex].TransactionHash == tx.Hash) {
-			tx.Status = 0
-			continue
-		}
 
 		tx.Logs = receipts[receiptIndex].Logs
+		for i := range tx.Logs {
+			result, err := s.kaiClient.UnpackLog(&tx.Logs[i])
+			if err == nil {
+				tx.Logs[i] = *result
+			}
+		}
+		// TODO: send staking event to telegram
 		tx.Root = receipts[receiptIndex].Root
 		tx.Status = receipts[receiptIndex].Status
 		tx.GasUsed = receipts[receiptIndex].GasUsed
