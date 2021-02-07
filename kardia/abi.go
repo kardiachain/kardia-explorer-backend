@@ -53,15 +53,15 @@ func (ec *Client) DecodeInputData(to string, input string) (*types.FunctionCall,
 		if err != nil {
 			return nil, err
 		}
-	} else if ec.validatorUtil.ContractAddress.Equal(common.HexToAddress(to)) { // if not, search for a validator method
-		a = ec.validatorUtil.Abi
-		method, err = ec.validatorUtil.Abi.MethodById(sig)
+	} else if ec.paramsUtil.ContractAddress.Equal(common.HexToAddress(to)) { // if not, search for a params method
+		a = ec.paramsUtil.Abi
+		method, err = ec.paramsUtil.Abi.MethodById(sig)
 		if err != nil {
 			return nil, err
 		}
-	} else { // otherwise, search for a params method
-		a = ec.paramsUtil.Abi
-		method, err = ec.paramsUtil.Abi.MethodById(sig)
+	} else { // otherwise, search for a validator method
+		a = ec.validatorUtil.Abi
+		method, err = ec.validatorUtil.Abi.MethodById(sig)
 		if err != nil {
 			return nil, err
 		}
@@ -112,7 +112,10 @@ func (ec *Client) getInputArguments(a *abi.ABI, name string, data []byte) (abi.A
 // parseBytesArrayIntoString is a utility function. It converts address, bytes and string arguments into their hex representation.
 func parseBytesArrayIntoString(v interface{}) interface{} {
 	if reflect.TypeOf(v).Kind() == reflect.Array {
-		arr := v.([32]byte)
+		arr, ok := v.([32]byte)
+		if !ok {
+			return v
+		}
 		slice := arr[:]
 		// convert any array of uint8 into a hex string
 		if reflect.TypeOf(slice).Elem().Kind() == reflect.Uint8 {
