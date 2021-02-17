@@ -501,7 +501,7 @@ func (c *Redis) UpdateValidators(ctx context.Context, validators *types.Validato
 	if err != nil {
 		return err
 	}
-	if err := c.client.Set(ctx, KeyValidatorsList, string(validatorsJSON), 0).Err(); err != nil {
+	if err := c.client.Set(ctx, KeyValidatorsList, string(validatorsJSON), 15*time.Second).Err(); err != nil {
 		c.logger.Warn("cannot set validators list to cache")
 		return err
 	}

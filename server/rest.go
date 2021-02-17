@@ -987,6 +987,10 @@ func (s *Server) TxByHash(c echo.Context) error {
 }
 
 func (s *Server) getValidatorsList(ctx context.Context) (*types.Validators, error) {
+	validators, err := s.cacheClient.Validators(ctx)
+	if err == nil && len(validators.Validators) != 0 {
+		return validators, nil
+	}
 	valsList, err := s.kaiClient.Validators(ctx)
 	if err != nil {
 		s.logger.Warn("cannot get validators list from RPC", zap.Error(err))
