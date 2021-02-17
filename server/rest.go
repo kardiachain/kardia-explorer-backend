@@ -1129,3 +1129,19 @@ func (s *Server) UpdateAddressName(c echo.Context) error {
 
 	return api.OK.Build(c)
 }
+
+func (s *Server) ReloadValidators(c echo.Context) error {
+	ctx := context.Background()
+	if c.Request().Header.Get("Authorization") != s.infoServer.HttpRequestSecret {
+		return api.Unauthorized.Build(c)
+	}
+
+	validators, err := s.kaiClient.Validators(ctx)
+	if err != nil {
+		return api.Invalid.Build(c)
+	}
+
+	fmt.Println("Validators ", validators)
+
+	return nil
+}

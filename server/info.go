@@ -18,10 +18,10 @@ import (
 
 	"github.com/kardiachain/go-kardia/lib/common"
 
+	"github.com/kardiachain/explorer-backend/cache"
+	"github.com/kardiachain/explorer-backend/db"
 	"github.com/kardiachain/explorer-backend/kardia"
 	"github.com/kardiachain/explorer-backend/metrics"
-	"github.com/kardiachain/explorer-backend/server/cache"
-	"github.com/kardiachain/explorer-backend/server/db"
 	"github.com/kardiachain/explorer-backend/types"
 	"github.com/kardiachain/explorer-backend/utils"
 )
