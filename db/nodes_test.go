@@ -11,7 +11,7 @@ import (
 	"github.com/kardiachain/explorer-backend/types"
 )
 
-func GetMgo() (*mongoDB, error) {
+func GetTestMgo() (*mongoDB, error) {
 	lgr, err := zap.NewDevelopment()
 	if err != nil {
 		return nil, err
@@ -35,7 +35,7 @@ func GetMgo() (*mongoDB, error) {
 
 func TestMGO_UpsertNode(t *testing.T) {
 	ctx := context.Background()
-	mgo, err := GetMgo()
+	mgo, err := GetTestMgo()
 	assert.Nil(t, err)
 	nodes := &types.NodeInfo{
 		ProtocolVersion: types.ProtocolVersion{},
@@ -69,7 +69,7 @@ func TestMGO_UpsertNode(t *testing.T) {
 
 func TestMGO_Nodes(t *testing.T) {
 	ctx := context.Background()
-	mgo, err := GetMgo()
+	mgo, err := GetTestMgo()
 	assert.Nil(t, err)
 	nodes, err := mgo.Nodes(ctx)
 	assert.Nil(t, err)

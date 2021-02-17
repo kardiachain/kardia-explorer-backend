@@ -11,7 +11,7 @@ import (
 
 func Test_mongoDB_GetAddressInfo(t *testing.T) {
 	ctx := context.Background()
-	mgo, err := GetMgo()
+	mgo, err := GetTestMgo()
 	assert.Nil(t, err)
 
 	address, err := mgo.AddressByHash(ctx, "0x4f36A53DC32272b97Ae5FF511387E2741D727bdb")
