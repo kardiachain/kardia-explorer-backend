@@ -21,7 +21,6 @@ package kardia
 import (
 	"context"
 	"math/big"
-	"time"
 
 	"github.com/kardiachain/go-kardia/lib/common"
 	"go.uber.org/zap"
@@ -112,21 +111,22 @@ func (ec *Client) GetDelegatorStakedAmount(ctx context.Context, valSmcAddr commo
 }
 
 // GetUDBEntry returns unbonded amount and withdrawable amount of a delegation
-func (ec *Client) GetUDBEntries(ctx context.Context, valSmcAddr common.Address, delegatorAddr common.Address) (*big.Int, *big.Int, error) {
+func (ec *Client) GetUDBEntries(ctx context.Context, valSmcAddr common.Address, delegatorAddr common.Address) ([]*types.UnbondedRecord, error) {
 	payload, err := ec.validatorUtil.Abi.Pack("getUBDEntries", delegatorAddr)
 	if err != nil {
 		ec.lgr.Error("Error packing UDB entry payload: ", zap.Error(err))
-		return nil, nil, err
+		return nil, err
 	}
 	res, err := ec.KardiaCall(ctx, contructCallArgs(valSmcAddr.Hex(), payload))
 	if err != nil {
 		ec.lgr.Error("GetUDBEntry KardiaCall error: ", zap.Error(err))
-		return nil, nil, err
+		return nil, err
 	}
 	if len(res) == 0 {
-		return nil, nil, ErrEmptyList
+		return nil, ErrEmptyList
 	}
 
+	var records []*types.UnbondedRecord
 	var result struct {
 		Balances        []*big.Int
 		CompletionTimes []*big.Int
@@ -135,19 +135,15 @@ func (ec *Client) GetUDBEntries(ctx context.Context, valSmcAddr common.Address, 
 	err = ec.validatorUtil.Abi.UnpackIntoInterface(&result, "getUBDEntries", res)
 	if err != nil {
 		ec.lgr.Error("Error unpacking UDB entry: ", zap.Error(err))
-		return nil, nil, err
+		return nil, err
 	}
-	totalAmount := new(big.Int).SetInt64(0)
-	withdrawableAmount := new(big.Int).SetInt64(0)
-	now := new(big.Int).SetInt64(time.Now().Unix())
-	for i, balance := range result.Balances {
-		if result.CompletionTimes[i].Cmp(now) == -1 {
-			withdrawableAmount = new(big.Int).Add(withdrawableAmount, balance)
-		} else {
-			totalAmount = new(big.Int).Add(totalAmount, balance)
-		}
+	for id := range result.CompletionTimes {
+		records = append(records, &types.UnbondedRecord{
+			Balances:        result.Balances[id],
+			CompletionTimes: result.CompletionTimes[id],
+		})
 	}
-	return totalAmount, withdrawableAmount, nil
+	return records, nil
 }
 
 // GetSigningInfo returns signing info of this validator

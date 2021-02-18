@@ -79,7 +79,7 @@ func (ec *Client) GetValidatorsByDelegator(ctx context.Context, delAddr common.A
 		if err != nil {
 			continue
 		}
-		unbondedAmount, withdrawableAmount, err := ec.GetUDBEntries(ctx, val, delAddr)
+		unbondedRecords, err := ec.GetUDBEntries(ctx, val, delAddr)
 		if err != nil {
 			continue
 		}
@@ -93,8 +93,7 @@ func (ec *Client) GetValidatorsByDelegator(ctx context.Context, delAddr common.A
 			ValidatorRole:         valInfo.Role,
 			StakedAmount:          stakedAmount.String(),
 			ClaimableRewards:      reward.String(),
-			UnbondedAmount:        unbondedAmount.String(),
-			WithdrawableAmount:    withdrawableAmount.String(),
+			UnbondedRecords:       unbondedRecords,
 		}
 		valsList = append(valsList, validator)
 	}

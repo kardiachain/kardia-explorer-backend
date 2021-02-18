@@ -124,13 +124,12 @@ type NodeInfo struct {
 }
 
 type ValidatorsByDelegator struct {
-	Name                  string         `json:"name"`
-	Validator             common.Address `json:"validator"`
-	ValidatorContractAddr common.Address `json:"validatorContractAddr"`
-	ValidatorStatus       uint8          `json:"validatorStatus"`
-	ValidatorRole         int            `json:"validatorRole"`
-	StakedAmount          string         `json:"stakedAmount"`
-	ClaimableRewards      string         `json:"claimableRewards"`
-	UnbondedAmount        string         `json:"unbondedAmount"`
-	WithdrawableAmount    string         `json:"withdrawableAmount"`
+	Name                  string            `json:"name"`
+	Validator             common.Address    `json:"validator"`
+	ValidatorContractAddr common.Address    `json:"validatorContractAddr"`
+	ValidatorStatus       uint8             `json:"validatorStatus"`
+	ValidatorRole         int               `json:"validatorRole"`
+	StakedAmount          string            `json:"stakedAmount"`
+	ClaimableRewards      string            `json:"claimableRewards"`
+	UnbondedRecords       []*UnbondedRecord `json:"unbondedRecords"`
 }
