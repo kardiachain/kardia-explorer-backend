@@ -22,7 +22,11 @@ import (
 )
 
 func (s *Server) Ping(c echo.Context) error {
-	return api.OK.Build(c)
+	type pingStat struct {
+		Version string `json:"version"`
+	}
+	stats := &pingStat{Version: cfg.ServerVersion}
+	return api.OK.SetData(stats).Build(c)
 }
 
 func (s *Server) Stats(c echo.Context) error {

@@ -24,6 +24,10 @@ import (
 	"time"
 )
 
+var (
+	ServerVersion = "1.1.1"
+)
+
 const (
 	// redis list length
 	LatestTxsLength = 1000
