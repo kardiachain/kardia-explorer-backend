@@ -9,16 +9,15 @@ import (
 	"strings"
 	"time"
 
-	"github.com/kardiachain/explorer-backend/cfg"
-
 	"github.com/kardiachain/go-kardia/lib/common"
 
 	"github.com/bxcodec/faker/v3"
 	"github.com/labstack/echo"
 	"go.uber.org/zap"
 
-	"github.com/kardiachain/explorer-backend/api"
-	"github.com/kardiachain/explorer-backend/types"
+	"github.com/kardiachain/kardia-explorer-backend/api"
+	"github.com/kardiachain/kardia-explorer-backend/cfg"
+	"github.com/kardiachain/kardia-explorer-backend/types"
 )
 
 func (s *Server) Ping(c echo.Context) error {

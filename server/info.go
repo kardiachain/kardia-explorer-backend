@@ -12,18 +12,17 @@ import (
 	"strings"
 	"time"
 
-	"github.com/kardiachain/explorer-backend/cfg"
-
 	"go.uber.org/zap"
 
 	"github.com/kardiachain/go-kardia/lib/common"
 
-	"github.com/kardiachain/explorer-backend/kardia"
-	"github.com/kardiachain/explorer-backend/metrics"
-	"github.com/kardiachain/explorer-backend/server/cache"
-	"github.com/kardiachain/explorer-backend/server/db"
-	"github.com/kardiachain/explorer-backend/types"
-	"github.com/kardiachain/explorer-backend/utils"
+	"github.com/kardiachain/kardia-explorer-backend/cache"
+	"github.com/kardiachain/kardia-explorer-backend/cfg"
+	"github.com/kardiachain/kardia-explorer-backend/db"
+	"github.com/kardiachain/kardia-explorer-backend/kardia"
+	"github.com/kardiachain/kardia-explorer-backend/metrics"
+	"github.com/kardiachain/kardia-explorer-backend/types"
+	"github.com/kardiachain/kardia-explorer-backend/utils"
 )
 
 type InfoServer interface {

@@ -24,7 +24,7 @@ import (
 
 	"go.uber.org/zap"
 
-	"github.com/kardiachain/explorer-backend/server"
+	"github.com/kardiachain/kardia-explorer-backend/server"
 )
 
 func verify(ctx context.Context, srv *server.Server, interval time.Duration) {

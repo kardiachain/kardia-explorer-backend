@@ -24,8 +24,8 @@ import (
 
 	"go.uber.org/zap"
 
-	"github.com/kardiachain/explorer-backend/cfg"
-	"github.com/kardiachain/explorer-backend/server"
+	"github.com/kardiachain/kardia-explorer-backend/cfg"
+	"github.com/kardiachain/kardia-explorer-backend/server"
 )
 
 var prevHeader uint64 = 0 // the highest persistent block in database, don't need to backfill blocks have blockHeight < prevHeader

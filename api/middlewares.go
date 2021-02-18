@@ -24,7 +24,7 @@ import (
 
 	"github.com/labstack/echo"
 
-	"github.com/kardiachain/explorer-backend/types"
+	"github.com/kardiachain/kardia-explorer-backend/types"
 )
 
 func checkPagination() echo.MiddlewareFunc {

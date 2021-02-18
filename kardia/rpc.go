@@ -36,8 +36,8 @@ import (
 	"github.com/kardiachain/go-kardia/lib/common"
 	"github.com/kardiachain/go-kardia/rpc"
 
-	"github.com/kardiachain/explorer-backend/cfg"
-	"github.com/kardiachain/explorer-backend/types"
+	"github.com/kardiachain/kardia-explorer-backend/cfg"
+	"github.com/kardiachain/kardia-explorer-backend/types"
 )
 
 var (

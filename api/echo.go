@@ -22,7 +22,7 @@ import (
 	"github.com/labstack/echo"
 	"github.com/labstack/echo/middleware"
 
-	"github.com/kardiachain/explorer-backend/cfg"
+	"github.com/kardiachain/kardia-explorer-backend/cfg"
 )
 
 // EchoServer define all API expose

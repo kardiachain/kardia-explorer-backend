@@ -5,7 +5,7 @@ import (
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 
-	"github.com/kardiachain/explorer-backend/cfg"
+	"github.com/kardiachain/kardia-explorer-backend/cfg"
 )
 
 func newLogger(sCfg cfg.ExplorerConfig) (*zap.Logger, error) {

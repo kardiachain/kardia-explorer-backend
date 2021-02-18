@@ -28,10 +28,10 @@ import (
 	"github.com/joho/godotenv"
 	"go.uber.org/zap"
 
-	"github.com/kardiachain/explorer-backend/cfg"
-	"github.com/kardiachain/explorer-backend/server"
-	"github.com/kardiachain/explorer-backend/server/cache"
-	"github.com/kardiachain/explorer-backend/server/db"
+	"github.com/kardiachain/kardia-explorer-backend/cache"
+	"github.com/kardiachain/kardia-explorer-backend/cfg"
+	"github.com/kardiachain/kardia-explorer-backend/db"
+	"github.com/kardiachain/kardia-explorer-backend/server"
 )
 
 func main() {

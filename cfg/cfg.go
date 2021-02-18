@@ -25,7 +25,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/kardiachain/explorer-backend/types"
+	"github.com/kardiachain/kardia-explorer-backend/types"
 )
 
 const (

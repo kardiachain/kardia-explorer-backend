@@ -28,7 +28,7 @@ import (
 	"github.com/kardiachain/go-kardia/lib/abi"
 	"github.com/kardiachain/go-kardia/lib/common"
 
-	"github.com/kardiachain/explorer-backend/types"
+	"github.com/kardiachain/kardia-explorer-backend/types"
 )
 
 // DecodeInputData returns decoded transaction input data if it match any function in staking and validator contract.
