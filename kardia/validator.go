@@ -111,7 +111,7 @@ func (ec *Client) GetDelegatorStakedAmount(ctx context.Context, valSmcAddr commo
 }
 
 // GetUDBEntry returns unbonded amount and withdrawable amount of a delegation
-func (ec *Client) GetUDBEntries(ctx context.Context, valSmcAddr common.Address, delegatorAddr common.Address) ([]*types.UnbondedRecord, error) {
+func (ec *Client) GetUDBEntries(ctx context.Context, valSmcAddr common.Address, delegatorAddr common.Address) ([]*UnbondedRecord, error) {
 	payload, err := ec.validatorUtil.Abi.Pack("getUBDEntries", delegatorAddr)
 	if err != nil {
 		ec.lgr.Error("Error packing UDB entry payload: ", zap.Error(err))
@@ -126,7 +126,7 @@ func (ec *Client) GetUDBEntries(ctx context.Context, valSmcAddr common.Address, 
 		return nil, ErrEmptyList
 	}
 
-	var records []*types.UnbondedRecord
+	var records []*UnbondedRecord
 	var result struct {
 		Balances        []*big.Int
 		CompletionTimes []*big.Int
@@ -137,10 +137,11 @@ func (ec *Client) GetUDBEntries(ctx context.Context, valSmcAddr common.Address, 
 		ec.lgr.Error("Error unpacking UDB entry: ", zap.Error(err))
 		return nil, err
 	}
+
 	for id := range result.CompletionTimes {
-		records = append(records, &types.UnbondedRecord{
-			Balances:        result.Balances[id],
-			CompletionTimes: result.CompletionTimes[id],
+		records = append(records, &UnbondedRecord{
+			Balance:        result.Balances[id],
+			CompletionTime: result.CompletionTimes[id],
 		})
 	}
 	return records, nil

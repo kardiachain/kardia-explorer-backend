@@ -22,6 +22,7 @@ import (
 	"context"
 	"math/big"
 
+	"github.com/kardiachain/go-kardia/types/time"
 	"go.uber.org/zap"
 
 	"github.com/kardiachain/go-kardia/lib/common"
@@ -83,17 +84,36 @@ func (ec *Client) GetValidatorsByDelegator(ctx context.Context, delAddr common.A
 		if err != nil {
 			continue
 		}
+
+		// Preprocess unbonded records
+		var ubdRecords []*types.UnbondedRecord
+		totalUnbondedAmount := new(big.Int).SetInt64(0)
+		totalWithdrawableAmount := new(big.Int).SetInt64(0)
+		now := new(big.Int).SetInt64(time.Now().Unix())
+		for _, r := range unbondedRecords {
+			if r.CompletionTime.Cmp(now) == -1 {
+				totalWithdrawableAmount = new(big.Int).Add(totalWithdrawableAmount, r.Balance)
+			}
+			totalUnbondedAmount = new(big.Int).Add(totalUnbondedAmount, r.Balance)
+			ubdRecords = append(ubdRecords, &types.UnbondedRecord{
+				Balances:        r.Balance.String(),
+				CompletionTimes: r.CompletionTime.String(),
+			})
+		}
+
 		// re-update validator role based on his status
 		valInfo.Role = ec.getValidatorRole(valsSet, valInfo.ValAddr, valInfo.Status)
 		validator := &types.ValidatorsByDelegator{
-			Name:                  string(name),
-			Validator:             owner,
-			ValidatorContractAddr: val,
-			ValidatorStatus:       valInfo.Status,
-			ValidatorRole:         valInfo.Role,
-			StakedAmount:          stakedAmount.String(),
-			ClaimableRewards:      reward.String(),
-			UnbondedRecords:       unbondedRecords,
+			Name:                    string(name),
+			Validator:               owner,
+			ValidatorContractAddr:   val,
+			ValidatorStatus:         valInfo.Status,
+			ValidatorRole:           valInfo.Role,
+			StakedAmount:            stakedAmount.String(),
+			ClaimableRewards:        reward.String(),
+			UnbondedRecords:         ubdRecords,
+			TotalUnbondedAmount:     totalUnbondedAmount.String(),
+			TotalWithdrawableAmount: totalWithdrawableAmount.String(),
 		}
 		valsList = append(valsList, validator)
 	}
