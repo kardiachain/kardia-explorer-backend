@@ -38,7 +38,7 @@ type ClientInterface interface {
 	GetCode(ctx context.Context, account string) (common.Bytes, error)
 	NodesInfo(ctx context.Context) ([]*types.NodeInfo, error)
 	Validator(ctx context.Context, address string) (*types.Validator, error)
-	Validators(ctx context.Context) (*types.Validators, error)
+	Validators(ctx context.Context) ([]*types.Validator, error)
 
 	// staking related methods
 	GetValidatorsByDelegator(ctx context.Context, delAddr common.Address) ([]*types.ValidatorsByDelegator, error)

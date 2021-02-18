@@ -35,6 +35,8 @@ type Nodes interface {
 
 // DB define list API used by infoServer
 type Client interface {
+	IValidators
+	IDelegators
 	Nodes
 	ping() error
 	dropCollection(collectionName string)

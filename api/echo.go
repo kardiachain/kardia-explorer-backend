@@ -70,6 +70,7 @@ type EchoServer interface {
 	// Tx
 	Txs(c echo.Context) error
 	TxByHash(c echo.Context) error
+	ReloadValidators(c echo.Context) error
 }
 
 type restDefinition struct {
@@ -252,6 +253,12 @@ func bind(gr *echo.Group, srv EchoServer) {
 			method:      echo.PUT,
 			path:        "/addresses",
 			fn:          srv.UpdateAddressName,
+			middlewares: nil,
+		},
+		{
+			method:      echo.POST,
+			path:        "/validators/reload",
+			fn:          srv.ReloadValidators,
 			middlewares: nil,
 		},
 	}

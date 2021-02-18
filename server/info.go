@@ -179,8 +179,9 @@ func (s *infoServer) GetCurrentStats(ctx context.Context) uint64 {
 	cfg.GenesisAddresses = append(cfg.GenesisAddresses, cfg.KardiaDeployerAddr)
 	cfg.GenesisAddresses = append(cfg.GenesisAddresses, cfg.ParamsContractAddr)
 	vals, _ := s.kaiClient.Validators(ctx)
-	_ = s.cacheClient.UpdateValidators(ctx, vals)
-	for _, val := range vals.Validators {
+	//todo: longnd - Temp remove
+	//_ = s.cacheClient.UpdateValidators(ctx, vals)
+	for _, val := range vals {
 		cfg.GenesisAddresses = append(cfg.GenesisAddresses, val.SmcAddress.String())
 	}
 	for _, addr := range cfg.GenesisAddresses {
