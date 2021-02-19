@@ -275,6 +275,10 @@ func (s *infoServer) ImportBlock(ctx context.Context, block *types.Block, writeT
 	// because getBlockByHash/Height API returns 2 array contains txs and receipts separately
 	block.Txs = s.mergeAdditionalInfoToTxs(block.Txs, block.Receipts)
 
+	if err := s.filterStakingEvent(ctx, block.Txs); err != nil {
+		s.logger.Warn("Filter staking event failed", zap.Error(err))
+	}
+
 	// Start import block
 	startTime := time.Now()
 	if err := s.dbClient.InsertBlock(ctx, block); err != nil {
@@ -322,6 +326,40 @@ func (s *infoServer) ImportBlock(ctx context.Context, block *types.Block, writeT
 	if _, err := s.cacheClient.UpdateTotalTxs(ctx, block.NumTxs); err != nil {
 		return err
 	}
+	return nil
+}
+
+func (s *infoServer) filterStakingEvent(ctx context.Context, txs []*types.Transaction) error {
+	lgr := s.logger.With(zap.String("method", "filterStakingEvent"))
+	// Get current validators list
+	dbValidators, err := s.dbClient.Validators(ctx, db.ValidatorsFilter{})
+	if err != nil {
+		return err
+	}
+
+	validatorMap := make(map[string]*types.Validator)
+	for _, v := range dbValidators {
+		validatorMap[v.SmcAddress.String()] = v
+	}
+
+	// Just reload one per block
+	for _, tx := range txs {
+		v, ok := validatorMap[tx.To]
+		if !ok || v == nil {
+			continue
+		}
+		lgr.Debug("Start reload validators list ")
+		validators, err := s.kaiClient.Validators(ctx)
+		if err != nil {
+			return err
+		}
+
+		if err := s.dbClient.UpsertValidators(ctx, validators); err != nil {
+			return err
+		}
+		break
+	}
+
 	return nil
 }
 
