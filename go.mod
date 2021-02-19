@@ -1,4 +1,4 @@
-module github.com/kardiachain/explorer-backend
+module github.com/kardiachain/kardia-explorer-backend
 
 go 1.14
 

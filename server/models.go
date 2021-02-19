@@ -5,7 +5,7 @@ import (
 
 	coreTypes "github.com/kardiachain/go-kardia/types"
 
-	"github.com/kardiachain/explorer-backend/types"
+	"github.com/kardiachain/kardia-explorer-backend/types"
 )
 
 type PagingResponse struct {

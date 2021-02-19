@@ -25,8 +25,8 @@ import (
 
 	"github.com/kardiachain/go-kardia/lib/common"
 
-	"github.com/kardiachain/explorer-backend/cfg"
-	"github.com/kardiachain/explorer-backend/utils"
+	"github.com/kardiachain/kardia-explorer-backend/cfg"
+	"github.com/kardiachain/kardia-explorer-backend/utils"
 
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
@@ -34,7 +34,7 @@ import (
 	"go.uber.org/zap"
 	"gopkg.in/mgo.v2"
 
-	"github.com/kardiachain/explorer-backend/types"
+	"github.com/kardiachain/kardia-explorer-backend/types"
 )
 
 const (

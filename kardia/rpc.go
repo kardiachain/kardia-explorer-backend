@@ -36,8 +36,8 @@ import (
 	"github.com/kardiachain/go-kardia/lib/common"
 	"github.com/kardiachain/go-kardia/rpc"
 
-	"github.com/kardiachain/explorer-backend/cfg"
-	"github.com/kardiachain/explorer-backend/types"
+	"github.com/kardiachain/kardia-explorer-backend/cfg"
+	"github.com/kardiachain/kardia-explorer-backend/types"
 )
 
 var (
@@ -357,7 +357,7 @@ func (ec *Client) Validator(ctx context.Context, address string) (*types.Validat
 	return convertedVal, nil
 }
 
-func (ec *Client) Validators(ctx context.Context) (*types.Validators, error) {
+func (ec *Client) Validators(ctx context.Context) ([]*types.Validator, error) {
 	var (
 		proposersStakedAmount = big.NewInt(0)
 		validators            []*types.Validator
@@ -430,18 +430,95 @@ func (ec *Client) Validators(ctx context.Context) (*types.Validators, error) {
 		}
 		returnValsList = append(returnValsList, convertedVal)
 	}
-	result := &types.Validators{
-		TotalValidators:            totalValidators,
-		TotalDelegators:            len(delegators),
-		TotalProposers:             totalProposers,
-		TotalCandidates:            totalCandidates,
-		TotalStakedAmount:          totalStakedAmount.String(),
-		TotalValidatorStakedAmount: new(big.Int).Sub(totalStakedAmount, totalDelegatorStakedAmount).String(),
-		TotalDelegatorStakedAmount: totalDelegatorStakedAmount.String(),
-		Validators:                 returnValsList,
-	}
-	return result, nil
+
+	return returnValsList, nil
 }
+
+//func (ec *Client) Validators(ctx context.Context) (*types.Validators, error) {
+//	var (
+//		proposersStakedAmount = big.NewInt(0)
+//		validators            []*types.Validator
+//	)
+//	err := ec.defaultClient.c.CallContext(ctx, &validators, "kai_validators", true)
+//	if err != nil {
+//		return nil, err
+//	}
+//	// compare staked amount btw validators to determine their status
+//	sort.Slice(validators, func(i, j int) bool {
+//		iAmount, _ := new(big.Int).SetString(validators[i].StakedAmount, 10)
+//		jAmount, _ := new(big.Int).SetString(validators[j].StakedAmount, 10)
+//		return iAmount.Cmp(jAmount) == 1
+//	})
+//	var (
+//		delegators                 = make(map[string]bool)
+//		totalProposers             = 0
+//		totalValidators            = 0
+//		totalCandidates            = 0
+//		totalStakedAmount          = big.NewInt(0)
+//		totalDelegatorStakedAmount = big.NewInt(0)
+//
+//		valStakedAmount *big.Int
+//		delStakedAmount *big.Int
+//		ok              bool
+//	)
+//	valsSet, err := ec.GetValidatorSets(ctx)
+//	if err != nil {
+//		return nil, err
+//	}
+//	for _, val := range validators {
+//		for _, del := range val.Delegators {
+//			delegators[del.Address.Hex()] = true
+//			// exclude validator self delegation
+//			if del.Address.Equal(val.Address) {
+//				continue
+//			}
+//			delStakedAmount, ok = new(big.Int).SetString(del.StakedAmount, 10)
+//			if !ok {
+//				return nil, ErrParsingBigIntFromString
+//			}
+//			totalDelegatorStakedAmount = new(big.Int).Add(totalDelegatorStakedAmount, delStakedAmount)
+//		}
+//		valStakedAmount, ok = new(big.Int).SetString(val.StakedAmount, 10)
+//		if !ok {
+//			return nil, ErrParsingBigIntFromString
+//		}
+//		totalStakedAmount = new(big.Int).Add(totalStakedAmount, valStakedAmount)
+//		val.Role = ec.getValidatorRole(valsSet, val.Address, val.Status)
+//		// validator who started a node and not in validators set is a normal validator
+//		if val.Role == 2 {
+//			totalProposers++
+//			totalValidators++
+//			valStakedAmount, ok = new(big.Int).SetString(val.StakedAmount, 10)
+//			if !ok {
+//				return nil, ErrParsingBigIntFromString
+//			}
+//			proposersStakedAmount = new(big.Int).Add(proposersStakedAmount, valStakedAmount)
+//		} else if val.Role == 1 {
+//			totalValidators++
+//		} else if val.Role == 0 {
+//			totalCandidates++
+//		}
+//	}
+//	var returnValsList []*types.Validator
+//	for _, val := range validators {
+//		convertedVal, err := convertValidatorInfo(val, proposersStakedAmount, val.Role)
+//		if err != nil {
+//			return nil, err
+//		}
+//		returnValsList = append(returnValsList, convertedVal)
+//	}
+//	result := &types.Validators{
+//		TotalValidators:            totalValidators,
+//		TotalDelegators:            len(delegators),
+//		TotalProposers:             totalProposers,
+//		TotalCandidates:            totalCandidates,
+//		TotalStakedAmount:          totalStakedAmount.String(),
+//		TotalValidatorStakedAmount: new(big.Int).Sub(totalStakedAmount, totalDelegatorStakedAmount).String(),
+//		TotalDelegatorStakedAmount: totalDelegatorStakedAmount.String(),
+//		Validators:                 returnValsList,
+//	}
+//	return result, nil
+//}
 
 func (ec *Client) getBlock(ctx context.Context, method string, args ...interface{}) (*types.Block, error) {
 	var raw types.Block

@@ -24,7 +24,7 @@ import (
 
 	"go.uber.org/zap"
 
-	"github.com/kardiachain/explorer-backend/server"
+	"github.com/kardiachain/kardia-explorer-backend/server"
 )
 
 var (

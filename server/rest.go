@@ -3,13 +3,12 @@ package server
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"math/big"
 	"strconv"
 	"strings"
 	"time"
-
-	"github.com/kardiachain/explorer-backend/cfg"
 
 	"github.com/kardiachain/go-kardia/lib/common"
 
@@ -17,8 +16,10 @@ import (
 	"github.com/labstack/echo"
 	"go.uber.org/zap"
 
-	"github.com/kardiachain/explorer-backend/api"
-	"github.com/kardiachain/explorer-backend/types"
+	"github.com/kardiachain/kardia-explorer-backend/api"
+	"github.com/kardiachain/kardia-explorer-backend/cfg"
+	"github.com/kardiachain/kardia-explorer-backend/db"
+	"github.com/kardiachain/kardia-explorer-backend/types"
 )
 
 func (s *Server) Ping(c echo.Context) error {
@@ -162,12 +163,9 @@ func (s *Server) ValidatorStats(c echo.Context) error {
 	pagination, page, limit := getPagingOption(c)
 
 	// get validators list from cache
-	valsList, err := s.cacheClient.Validators(ctx)
+	validators, err := s.getValidators(ctx)
 	if err != nil {
-		valsList, err = s.getValidatorsList(ctx)
-		if err != nil {
-			return api.Invalid.Build(c)
-		}
+		return api.Invalid.Build(c)
 	}
 
 	// get delegation details
@@ -176,7 +174,7 @@ func (s *Server) ValidatorStats(c echo.Context) error {
 		s.logger.Warn("cannot get validator info from RPC, use cached validator info instead", zap.Error(err))
 	}
 	// get validator additional info such as commission rate
-	for _, val := range valsList.Validators {
+	for _, val := range validators {
 		if strings.ToLower(val.Address.Hex()) == strings.ToLower(c.Param("address")) {
 			if validator == nil {
 				validator = val
@@ -213,18 +211,29 @@ func (s *Server) ValidatorStats(c echo.Context) error {
 
 func (s *Server) Validators(c echo.Context) error {
 	ctx := context.Background()
-	valsList, err := s.getValidatorsList(ctx)
+	validators, err := s.getValidators(ctx)
 	if err != nil {
 		return api.Invalid.Build(c)
 	}
-	var result []*types.Validator
-	for _, val := range valsList.Validators {
-		if val.Role != 0 {
-			result = append(result, val)
+
+	stats, err := s.CalculateValidatorStats(ctx, validators)
+	if err != nil {
+		return api.Invalid.Build(c)
+	}
+
+	var resp struct {
+		*types.ValidatorStats
+		Validators []*types.Validator `json:"validators"`
+	}
+
+	resp.ValidatorStats = stats
+
+	for _, v := range validators {
+		if v.Role != 0 {
+			resp.Validators = append(resp.Validators, v)
 		}
 	}
-	valsList.Validators = result
-	return api.OK.SetData(valsList).Build(c)
+	return api.OK.SetData(resp).Build(c)
 }
 
 func (s *Server) GetValidatorsByDelegator(c echo.Context) error {
@@ -239,7 +248,7 @@ func (s *Server) GetValidatorsByDelegator(c echo.Context) error {
 
 func (s *Server) GetCandidatesList(c echo.Context) error {
 	ctx := context.Background()
-	valsList, err := s.getValidatorsList(ctx)
+	validators, err := s.getValidators(ctx)
 	if err != nil {
 		return api.Invalid.Build(c)
 	}
@@ -247,15 +256,14 @@ func (s *Server) GetCandidatesList(c echo.Context) error {
 		result    []*types.Validator
 		valsCount = 0
 	)
-	for _, val := range valsList.Validators {
+	for _, val := range validators {
 		if val.Role == 0 {
 			result = append(result, val)
 		} else {
 			valsCount++
 		}
 	}
-	valsList.Validators = result
-	return api.OK.SetData(valsList).Build(c)
+	return api.OK.SetData(validators).Build(c)
 }
 
 func (s *Server) GetSlashEvents(c echo.Context) error {
@@ -367,16 +375,17 @@ func (s *Server) Blocks(c echo.Context) error {
 	}
 
 	smcAddress := map[string]*valInfoResponse{}
-	vals, err := s.cacheClient.Validators(ctx)
+	vals, err := s.getValidators(ctx)
 	if err != nil {
-		vals, err = s.getValidatorsList(ctx)
-		if err != nil {
-			smcAddress = make(map[string]*valInfoResponse)
-			vals = &types.Validators{}
-		}
+		smcAddress = make(map[string]*valInfoResponse)
+		vals = []*types.Validator{}
 	}
+	//vals, err := s.cacheClient.Validators(ctx)
+	//if err != nil {
+	//
+	//}
 
-	for _, v := range vals.Validators {
+	for _, v := range vals {
 		smcAddress[v.Address.String()] = &valInfoResponse{
 			Name: v.Name,
 			Role: v.Role,
@@ -452,16 +461,17 @@ func (s *Server) Block(c echo.Context) error {
 	}
 
 	smcAddress := map[string]*valInfoResponse{}
-	vals, err := s.cacheClient.Validators(ctx)
+	validators, err := s.getValidators(ctx)
 	if err != nil {
-		vals, err = s.getValidatorsList(ctx)
-		if err != nil {
-			smcAddress = make(map[string]*valInfoResponse)
-			vals = &types.Validators{}
-		}
+		smcAddress = make(map[string]*valInfoResponse)
+		validators = []*types.Validator{}
 	}
-
-	for _, v := range vals.Validators {
+	//vals, err := s.cacheClient.Validators(ctx)
+	//if err != nil {
+	//
+	//}
+	//
+	for _, v := range validators {
 		smcAddress[v.Address.String()] = &valInfoResponse{
 			Name: v.Name,
 			Role: v.Role,
@@ -600,16 +610,17 @@ func (s *Server) BlocksByProposer(c echo.Context) error {
 	}
 
 	smcAddress := map[string]*valInfoResponse{}
-	vals, err := s.cacheClient.Validators(ctx)
+	validators, err := s.getValidators(ctx)
 	if err != nil {
-		vals, err = s.getValidatorsList(ctx)
-		if err != nil {
-			smcAddress = make(map[string]*valInfoResponse)
-			vals = &types.Validators{}
-		}
+		smcAddress = make(map[string]*valInfoResponse)
+		validators = []*types.Validator{}
 	}
+	//vals, err := s.cacheClient.Validators(ctx)
+	//if err != nil {
+	//
+	//}
 
-	for _, v := range vals.Validators {
+	for _, v := range validators {
 		smcAddress[v.Address.String()] = &valInfoResponse{
 			Name: v.Name,
 			Role: v.Role,
@@ -990,21 +1001,95 @@ func (s *Server) TxByHash(c echo.Context) error {
 	return api.OK.SetData(result).Build(c)
 }
 
-func (s *Server) getValidatorsList(ctx context.Context) (*types.Validators, error) {
-	validators, err := s.cacheClient.Validators(ctx)
-	if err == nil && len(validators.Validators) != 0 {
-		return validators, nil
+//getValidators
+func (s *Server) getValidators(ctx context.Context) ([]*types.Validator, error) {
+	//validators, err := s.cacheClient.Validators(ctx)
+	//if err == nil && len(validators.Validators) != 0 {
+	//	return validators, nil
+	//}
+	// Try from db
+	dbValidators, err := s.dbClient.Validators(ctx, db.ValidatorsFilter{})
+	if err == nil {
+		//s.logger.Debug("get validators from storage", zap.Any("Validators", dbValidators))
+		stats, err := s.CalculateValidatorStats(ctx, dbValidators)
+		if err == nil {
+			s.logger.Debug("stats ", zap.Any("stats", stats))
+		}
+		return dbValidators, nil
+		//return dbValidators, nil
 	}
-	valsList, err := s.kaiClient.Validators(ctx)
+	validators, err := s.kaiClient.Validators(ctx)
 	if err != nil {
 		s.logger.Warn("cannot get validators list from RPC", zap.Error(err))
 		return nil, err
 	}
-	err = s.cacheClient.UpdateValidators(ctx, valsList)
-	if err != nil {
-		s.logger.Warn("cannot store validators list to cache", zap.Error(err))
+	//err = s.cacheClient.UpdateValidators(ctx, vasList)
+	//if err != nil {
+	//	s.logger.Warn("cannot store validators list to cache", zap.Error(err))
+	//}
+	return validators, nil
+}
+
+func (s *Server) CalculateValidatorStats(ctx context.Context, validators []*types.Validator) (*types.ValidatorStats, error) {
+	var stats types.ValidatorStats
+	var (
+		ErrParsingBigIntFromString = errors.New("cannot parse big.Int from string")
+		proposersStakedAmount      = big.NewInt(0)
+		delegatorsMap              = make(map[string]bool)
+		totalProposers             = 0
+		totalValidators            = 0
+		totalCandidates            = 0
+		totalStakedAmount          = big.NewInt(0)
+		totalDelegatorStakedAmount = big.NewInt(0)
+		totalDelegators            = 0
+
+		valStakedAmount *big.Int
+		delStakedAmount *big.Int
+		ok              bool
+	)
+	for _, val := range validators {
+		// Calculate total staked amount
+		valStakedAmount, ok = new(big.Int).SetString(val.StakedAmount, 10)
+		if !ok {
+			return nil, ErrParsingBigIntFromString
+		}
+		totalStakedAmount = new(big.Int).Add(totalStakedAmount, valStakedAmount)
+
+		for _, d := range val.Delegators {
+			if !delegatorsMap[d.Address.String()] {
+				delegatorsMap[d.Address.String()] = true
+				totalDelegators++
+			}
+			delStakedAmount, ok = new(big.Int).SetString(d.StakedAmount, 10)
+			if !ok {
+				return nil, ErrParsingBigIntFromString
+			}
+			if d.Address == val.Address {
+				proposersStakedAmount = new(big.Int).Add(proposersStakedAmount, delStakedAmount)
+			} else {
+
+				totalDelegatorStakedAmount = new(big.Int).Add(totalDelegatorStakedAmount, delStakedAmount)
+			}
+		}
+		//val.Role = ec.getValidatorRole(valsSet, val.Address, val.Status)
+		// validator who started a node and not in validators set is a normal validator
+		if val.Role == 2 {
+			totalProposers++
+			totalValidators++
+		} else if val.Role == 1 {
+			totalValidators++
+		} else if val.Role == 0 {
+			totalCandidates++
+		}
 	}
-	return valsList, nil
+	stats.TotalStakedAmount = totalStakedAmount.String()
+	stats.TotalDelegatorStakedAmount = totalDelegatorStakedAmount.String()
+	stats.TotalValidatorStakedAmount = proposersStakedAmount.String()
+	stats.TotalDelegators = totalDelegators
+	stats.TotalCandidates = totalCandidates
+	stats.TotalValidators = totalValidators
+	stats.TotalProposers = totalProposers
+	return &stats, nil
 }
 
 func getPagingOption(c echo.Context) (*types.Pagination, int, int) {
@@ -1027,16 +1112,18 @@ func getPagingOption(c echo.Context) (*types.Pagination, int, int) {
 }
 
 func (s *Server) getValidatorsAddressAndRole(ctx context.Context) map[string]*valInfoResponse {
-	vals, err := s.cacheClient.Validators(ctx)
+
+	validators, err := s.getValidators(ctx)
 	if err != nil {
-		vals, err = s.getValidatorsList(ctx)
-		if err != nil {
-			return make(map[string]*valInfoResponse)
-		}
+		return make(map[string]*valInfoResponse)
 	}
+	//vals, err := s.cacheClient.Validators(ctx)
+	//if err != nil {
+	//
+	//}
 
 	smcAddress := map[string]*valInfoResponse{}
-	for _, v := range vals.Validators {
+	for _, v := range validators {
 		smcAddress[v.SmcAddress.String()] = &valInfoResponse{
 			Name: v.Name,
 			Role: v.Role,
@@ -1119,19 +1206,33 @@ func (s *Server) UpdateAddressName(c echo.Context) error {
 		fmt.Println("cannot bind ", err)
 		return api.Invalid.Build(c)
 	}
-
 	addressInfo, err := s.dbClient.AddressByHash(ctx, addressName.Address)
 	if err != nil {
-		fmt.Println("cannot get ", err)
 		return api.Invalid.Build(c)
 	}
 
 	addressInfo.Name = addressName.Name
 
-	fmt.Printf("AddressInfo: %+v \n", addressInfo)
-
 	if err := s.dbClient.UpdateAddresses(ctx, []*types.Address{addressInfo}); err != nil {
 		fmt.Println("cannot update ", err)
+		return api.Invalid.Build(c)
+	}
+
+	return api.OK.Build(c)
+}
+
+func (s *Server) ReloadValidators(c echo.Context) error {
+	ctx := context.Background()
+	if c.Request().Header.Get("Authorization") != s.infoServer.HttpRequestSecret {
+		return api.Unauthorized.Build(c)
+	}
+
+	validators, err := s.kaiClient.Validators(ctx)
+	if err != nil {
+		return api.Invalid.Build(c)
+	}
+
+	if err := s.dbClient.UpsertValidators(ctx, validators); err != nil {
 		return api.Invalid.Build(c)
 	}
 

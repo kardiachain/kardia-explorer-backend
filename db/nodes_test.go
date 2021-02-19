@@ -8,7 +8,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/zap"
 
-	"github.com/kardiachain/explorer-backend/types"
+	"github.com/kardiachain/kardia-explorer-backend/types"
 )
 
 func GetMgo() (*mongoDB, error) {

@@ -7,7 +7,7 @@ import (
 
 	"go.uber.org/zap"
 
-	"github.com/kardiachain/explorer-backend/types"
+	"github.com/kardiachain/kardia-explorer-backend/types"
 )
 
 type Adapter string
@@ -35,6 +35,8 @@ type Nodes interface {
 
 // DB define list API used by infoServer
 type Client interface {
+	IValidators
+	IDelegators
 	Nodes
 	ping() error
 	dropCollection(collectionName string)

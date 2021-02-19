@@ -27,7 +27,7 @@ import (
 
 	"github.com/kardiachain/go-kardia/lib/common"
 
-	"github.com/kardiachain/explorer-backend/types"
+	"github.com/kardiachain/kardia-explorer-backend/types"
 )
 
 func (ec *Client) GetValidatorsByDelegator(ctx context.Context, delAddr common.Address) ([]*types.ValidatorsByDelegator, error) {
@@ -93,8 +93,10 @@ func (ec *Client) GetValidatorsByDelegator(ctx context.Context, delAddr common.A
 		for _, r := range unbondedRecords {
 			if r.CompletionTime.Cmp(now) == -1 {
 				totalWithdrawableAmount = new(big.Int).Add(totalWithdrawableAmount, r.Balance)
+			} else {
+				totalUnbondedAmount = new(big.Int).Add(totalUnbondedAmount, r.Balance)
 			}
-			totalUnbondedAmount = new(big.Int).Add(totalUnbondedAmount, r.Balance)
+
 			ubdRecords = append(ubdRecords, &types.UnbondedRecord{
 				Balances:        r.Balance.String(),
 				CompletionTimes: r.CompletionTime.String(),

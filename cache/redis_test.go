@@ -13,8 +13,8 @@ import (
 	"go.uber.org/zap"
 	"gotest.tools/assert"
 
-	"github.com/kardiachain/explorer-backend/cfg"
-	"github.com/kardiachain/explorer-backend/types"
+	"github.com/kardiachain/kardia-explorer-backend/cfg"
+	"github.com/kardiachain/kardia-explorer-backend/types"
 )
 
 func setup() (*redis.Client, *zap.Logger, error) {
