@@ -215,13 +215,25 @@ func (s *Server) Validators(c echo.Context) error {
 	if err != nil {
 		return api.Invalid.Build(c)
 	}
-	var result []*types.Validator
+
+	stats, err := s.CalculateValidatorStats(ctx, validators)
+	if err != nil {
+		return api.Invalid.Build(c)
+	}
+
+	var resp struct {
+		*types.ValidatorStats
+		Validators []*types.Validator `json:"validators"`
+	}
+
+	resp.ValidatorStats = stats
+
 	for _, v := range validators {
 		if v.Role != 0 {
-			result = append(result, v)
+			resp.Validators = append(resp.Validators, v)
 		}
 	}
-	return api.OK.SetData(validators).Build(c)
+	return api.OK.SetData(resp).Build(c)
 }
 
 func (s *Server) GetValidatorsByDelegator(c echo.Context) error {
@@ -998,7 +1010,11 @@ func (s *Server) getValidators(ctx context.Context) ([]*types.Validator, error) 
 	// Try from db
 	dbValidators, err := s.dbClient.Validators(ctx, db.ValidatorsFilter{})
 	if err == nil {
-		s.logger.Debug("get validators from storage", zap.Any("Validators", dbValidators))
+		//s.logger.Debug("get validators from storage", zap.Any("Validators", dbValidators))
+		stats, err := s.CalculateValidatorStats(ctx, dbValidators)
+		if err == nil {
+			s.logger.Debug("stats ", zap.Any("stats", stats))
+		}
 		return dbValidators, nil
 		//return dbValidators, nil
 	}
@@ -1016,59 +1032,63 @@ func (s *Server) getValidators(ctx context.Context) ([]*types.Validator, error) 
 
 func (s *Server) CalculateValidatorStats(ctx context.Context, validators []*types.Validator) (*types.ValidatorStats, error) {
 	var stats types.ValidatorStats
-	//valsSet, err := s.kaiClient.GetValidatorSets(ctx)
-	//if err != nil {
-	//	return nil, err
-	//}
 	var (
 		ErrParsingBigIntFromString = errors.New("cannot parse big.Int from string")
 		proposersStakedAmount      = big.NewInt(0)
-		delegators                 = make(map[string]bool)
+		delegatorsMap              = make(map[string]bool)
 		totalProposers             = 0
 		totalValidators            = 0
 		totalCandidates            = 0
 		totalStakedAmount          = big.NewInt(0)
 		totalDelegatorStakedAmount = big.NewInt(0)
+		totalDelegators            = 0
 
 		valStakedAmount *big.Int
 		delStakedAmount *big.Int
 		ok              bool
 	)
 	for _, val := range validators {
-		for _, del := range val.Delegators {
-			delegators[del.Address.Hex()] = true
-			// exclude validator self delegation
-			if del.Address.Equal(val.Address) {
-				continue
-			}
-			delStakedAmount, ok = new(big.Int).SetString(del.StakedAmount, 10)
-			if !ok {
-				return nil, ErrParsingBigIntFromString
-			}
-			totalDelegatorStakedAmount = new(big.Int).Add(totalDelegatorStakedAmount, delStakedAmount)
-		}
+		// Calculate total staked amount
 		valStakedAmount, ok = new(big.Int).SetString(val.StakedAmount, 10)
 		if !ok {
 			return nil, ErrParsingBigIntFromString
 		}
 		totalStakedAmount = new(big.Int).Add(totalStakedAmount, valStakedAmount)
+
+		for _, d := range val.Delegators {
+			if !delegatorsMap[d.Address.String()] {
+				delegatorsMap[d.Address.String()] = true
+				totalDelegators++
+			}
+			delStakedAmount, ok = new(big.Int).SetString(d.StakedAmount, 10)
+			if !ok {
+				return nil, ErrParsingBigIntFromString
+			}
+			if d.Address == val.Address {
+				proposersStakedAmount = new(big.Int).Add(proposersStakedAmount, delStakedAmount)
+			} else {
+
+				totalDelegatorStakedAmount = new(big.Int).Add(totalDelegatorStakedAmount, delStakedAmount)
+			}
+		}
 		//val.Role = ec.getValidatorRole(valsSet, val.Address, val.Status)
 		// validator who started a node and not in validators set is a normal validator
 		if val.Role == 2 {
 			totalProposers++
 			totalValidators++
-			valStakedAmount, ok = new(big.Int).SetString(val.StakedAmount, 10)
-			if !ok {
-				return nil, ErrParsingBigIntFromString
-			}
-			proposersStakedAmount = new(big.Int).Add(proposersStakedAmount, valStakedAmount)
 		} else if val.Role == 1 {
 			totalValidators++
 		} else if val.Role == 0 {
 			totalCandidates++
 		}
 	}
-
+	stats.TotalStakedAmount = totalStakedAmount.String()
+	stats.TotalDelegatorStakedAmount = totalDelegatorStakedAmount.String()
+	stats.TotalValidatorStakedAmount = proposersStakedAmount.String()
+	stats.TotalDelegators = totalDelegators
+	stats.TotalCandidates = totalCandidates
+	stats.TotalValidators = totalValidators
+	stats.TotalProposers = totalProposers
 	return &stats, nil
 }
 

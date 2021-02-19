@@ -31,13 +31,8 @@ type EchoServer interface {
 	Ping(c echo.Context) error
 	Stats(c echo.Context) error
 	TotalHolders(c echo.Context) error
-
-	// Info
 	TokenInfo(c echo.Context) error
-	UpdateSupplyAmounts(c echo.Context) error
 	Nodes(c echo.Context) error
-	UpsertNetworkNodes(c echo.Context) error
-	RemoveNetworkNodes(c echo.Context) error
 
 	// Staking-related
 	ValidatorStats(c echo.Context) error
@@ -64,13 +59,18 @@ type EchoServer interface {
 	AddressInfo(c echo.Context) error
 	AddressTxs(c echo.Context) error
 	AddressHolders(c echo.Context) error
-	ReloadAddressesBalance(c echo.Context) error
-	UpdateAddressName(c echo.Context) error
 
 	// Tx
 	Txs(c echo.Context) error
 	TxByHash(c echo.Context) error
+
+	// Admin sector
+	ReloadAddressesBalance(c echo.Context) error
 	ReloadValidators(c echo.Context) error
+	UpdateAddressName(c echo.Context) error
+	UpsertNetworkNodes(c echo.Context) error
+	RemoveNetworkNodes(c echo.Context) error
+	UpdateSupplyAmounts(c echo.Context) error
 }
 
 type restDefinition struct {
