@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"log"
 
 	"github.com/joho/godotenv"
@@ -58,9 +59,10 @@ func main() {
 	}
 	srv, err := server.New(srvConfig)
 	if err != nil {
-
 		log.Panicf("cannot create server instance %s", err.Error())
 	}
+	ctx := context.Background()
+	srv.LoadBootData(ctx)
 
 	api.Start(srv, serviceCfg)
 }

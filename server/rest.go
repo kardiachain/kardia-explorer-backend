@@ -466,11 +466,6 @@ func (s *Server) Block(c echo.Context) error {
 		smcAddress = make(map[string]*valInfoResponse)
 		validators = []*types.Validator{}
 	}
-	//vals, err := s.cacheClient.Validators(ctx)
-	//if err != nil {
-	//
-	//}
-	//
 	for _, v := range validators {
 		smcAddress[v.Address.String()] = &valInfoResponse{
 			Name: v.Name,
@@ -1012,12 +1007,14 @@ func (s *Server) getValidators(ctx context.Context) ([]*types.Validator, error) 
 	if err == nil {
 		//s.logger.Debug("get validators from storage", zap.Any("Validators", dbValidators))
 		stats, err := s.CalculateValidatorStats(ctx, dbValidators)
-		if err == nil {
+		if err == nil && len(dbValidators) != 0 {
 			s.logger.Debug("stats ", zap.Any("stats", stats))
 		}
 		return dbValidators, nil
 		//return dbValidators, nil
 	}
+
+	s.logger.Debug("Load validator from network")
 	validators, err := s.kaiClient.Validators(ctx)
 	if err != nil {
 		s.logger.Warn("cannot get validators list from RPC", zap.Error(err))
