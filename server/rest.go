@@ -1007,7 +1007,7 @@ func (s *Server) getValidators(ctx context.Context) ([]*types.Validator, error) 
 		s.logger.Warn("cannot get validators list from RPC", zap.Error(err))
 		return nil, err
 	}
-	//err = s.cacheClient.UpdateValidators(ctx, valsList)
+	//err = s.cacheClient.UpdateValidators(ctx, vasList)
 	//if err != nil {
 	//	s.logger.Warn("cannot store validators list to cache", zap.Error(err))
 	//}
