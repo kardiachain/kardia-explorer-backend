@@ -263,7 +263,7 @@ func (s *Server) GetCandidatesList(c echo.Context) error {
 			valsCount++
 		}
 	}
-	return api.OK.SetData(validators).Build(c)
+	return api.OK.SetData(result).Build(c)
 }
 
 func (s *Server) GetSlashEvents(c echo.Context) error {
