@@ -252,18 +252,24 @@ func (s *Server) GetCandidatesList(c echo.Context) error {
 	if err != nil {
 		return api.Invalid.Build(c)
 	}
-	var (
-		result    []*types.Validator
-		valsCount = 0
-	)
+
+	stats, err := s.CalculateValidatorStats(ctx, validators)
+	if err != nil {
+		return api.Invalid.Build(c)
+	}
+
+	var resp struct {
+		*types.ValidatorStats
+		Validators []*types.Validator `json:"validators"`
+	}
+
+	resp.ValidatorStats = stats
 	for _, val := range validators {
 		if val.Role == 0 {
-			result = append(result, val)
-		} else {
-			valsCount++
+			resp.Validators = append(resp.Validators, val)
 		}
 	}
-	return api.OK.SetData(result).Build(c)
+	return api.OK.SetData(resp).Build(c)
 }
 
 func (s *Server) GetSlashEvents(c echo.Context) error {
@@ -1229,6 +1235,9 @@ func (s *Server) ReloadValidators(c echo.Context) error {
 		return api.Invalid.Build(c)
 	}
 
+	if err := s.dbClient.ClearValidators(ctx); err != nil {
+		return api.Invalid.Build(c)
+	}
 	if err := s.dbClient.UpsertValidators(ctx, validators); err != nil {
 		return api.Invalid.Build(c)
 	}

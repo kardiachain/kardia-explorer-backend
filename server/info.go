@@ -181,6 +181,7 @@ func (s *infoServer) LoadBootData(ctx context.Context) uint64 {
 	vals, _ := s.kaiClient.Validators(ctx)
 	//todo: longnd - Temp remove
 	//_ = s.cacheClient.UpdateValidators(ctx, vals)
+	_ = s.dbClient.ClearValidators(ctx)
 	_ = s.dbClient.UpsertValidators(ctx, vals)
 
 	for _, val := range vals {
@@ -220,6 +221,7 @@ func (s *infoServer) GetCurrentStats(ctx context.Context) uint64 {
 	vals, _ := s.kaiClient.Validators(ctx)
 	//todo: longnd - Temp remove
 	//_ = s.cacheClient.UpdateValidators(ctx, vals)
+	_ = s.dbClient.ClearValidators(ctx)
 	_ = s.dbClient.UpsertValidators(ctx, vals)
 	for _, val := range vals {
 		cfg.GenesisAddresses = append(cfg.GenesisAddresses, val.SmcAddress.String())
@@ -381,23 +383,38 @@ func (s *infoServer) filterStakingEvent(ctx context.Context, txs []*types.Transa
 	for _, v := range dbValidators {
 		validatorMap[v.SmcAddress.String()] = v
 	}
-
+	isReload := false
 	// Just reload one per block
 	for _, tx := range txs {
+		// Call to staking SMC
+		if tx.To == cfg.StakingContractAddr {
+			isReload = true
+			break
+		}
+
+		// Call to validator smc
 		v, ok := validatorMap[tx.To]
 		if !ok || v == nil {
 			continue
 		}
-		lgr.Debug("Start reload validators list ")
+
+		isReload = true
+		break
+	}
+
+	if isReload {
+		// Clear firsts
+		lgr.Debug("reload validators")
+		if err := s.dbClient.ClearValidators(ctx); err != nil {
+			return err
+		}
 		validators, err := s.kaiClient.Validators(ctx)
 		if err != nil {
 			return err
 		}
-
 		if err := s.dbClient.UpsertValidators(ctx, validators); err != nil {
 			return err
 		}
-		break
 	}
 
 	return nil

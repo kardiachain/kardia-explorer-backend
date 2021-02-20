@@ -19,6 +19,7 @@ var (
 type IValidators interface {
 	UpsertValidators(ctx context.Context, validators []*types.Validator) error
 	Validators(ctx context.Context, filter ValidatorsFilter) ([]*types.Validator, error)
+	ClearValidators(ctx context.Context) error
 }
 
 type ValidatorsFilter struct {
@@ -50,4 +51,11 @@ func (m *mongoDB) Validators(ctx context.Context, filter ValidatorsFilter) ([]*t
 	}
 
 	return validators, nil
+}
+
+func (m *mongoDB) ClearValidators(ctx context.Context) error {
+	if _, err := m.wrapper.C(cValidators).RemoveAll(bson.M{}); err != nil {
+		return err
+	}
+	return nil
 }
