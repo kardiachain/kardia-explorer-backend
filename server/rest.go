@@ -405,6 +405,10 @@ func (s *Server) Blocks(c echo.Context) error {
 			b.ProposerName = smcAddress[b.ProposerAddress].Name
 		}
 
+		if !ok || p == nil {
+			s.logger.Warn("try to get with addr", zap.String("Addr", b.ProposerAddress))
+		}
+
 		result = append(result, b)
 	}
 	total := s.cacheClient.LatestBlockHeight(ctx)
