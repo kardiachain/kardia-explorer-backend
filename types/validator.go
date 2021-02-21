@@ -144,4 +144,6 @@ type ValidatorsByDelegator struct {
 	UnbondedRecords         []*UnbondedRecord `json:"unbondedRecords"`
 	TotalWithdrawableAmount string            `json:"totalWithdrawableAmount"`
 	TotalUnbondedAmount     string            `json:"totalUnbondedAmount"`
+	UnbondedAmount          string            `json:"unbondedAmount"`
+	WithdrawableAmount      string            `json:"withdrawableAmount"`
 }

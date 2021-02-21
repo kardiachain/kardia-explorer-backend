@@ -116,6 +116,8 @@ func (ec *Client) GetValidatorsByDelegator(ctx context.Context, delAddr common.A
 			UnbondedRecords:         ubdRecords,
 			TotalUnbondedAmount:     totalUnbondedAmount.String(),
 			TotalWithdrawableAmount: totalWithdrawableAmount.String(),
+			UnbondedAmount:          totalUnbondedAmount.String(),
+			WithdrawableAmount:      totalWithdrawableAmount.String(),
 		}
 		valsList = append(valsList, validator)
 	}
