@@ -400,7 +400,10 @@ func (s *Server) Blocks(c echo.Context) error {
 			GasUsed:         block.GasUsed,
 			Rewards:         block.Rewards,
 		}
-		b.ProposerName = smcAddress[b.ProposerAddress].Name
+		p, ok := smcAddress[b.ProposerAddress]
+		if ok && p != nil {
+			b.ProposerName = smcAddress[b.ProposerAddress].Name
+		}
 		result = append(result, b)
 	}
 	total := s.cacheClient.LatestBlockHeight(ctx)
@@ -469,9 +472,15 @@ func (s *Server) Block(c echo.Context) error {
 			Role: v.Role,
 		}
 	}
+	var proposerName string
+	p, ok := smcAddress[block.ProposerAddress]
+	if ok && p != nil {
+		proposerName = p.Name
+	}
+
 	result := &Block{
 		Block:        *block,
-		ProposerName: smcAddress[block.ProposerAddress].Name,
+		ProposerName: proposerName,
 	}
 	return api.OK.SetData(result).Build(c)
 }
@@ -630,11 +639,11 @@ func (s *Server) BlocksByProposer(c echo.Context) error {
 			GasUsed:         block.GasUsed,
 			Rewards:         block.Rewards,
 		}
-		b.ProposerName = smcAddress[b.ProposerAddress].Name
-		//p, ok := smcAddress[b.ProposerAddress]
-		//if ok && p != nil {
-		//
-		//}
+
+		p, ok := smcAddress[b.ProposerAddress]
+		if ok && p != nil {
+			b.ProposerName = smcAddress[b.ProposerAddress].Name
+		}
 
 		result = append(result, b)
 	}

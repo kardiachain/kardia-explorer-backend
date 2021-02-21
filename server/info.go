@@ -405,11 +405,12 @@ func (s *infoServer) filterStakingEvent(ctx context.Context, txs []*types.Transa
 	if isReload {
 		// Clear firsts
 		lgr.Debug("reload validators")
-		if err := s.dbClient.ClearValidators(ctx); err != nil {
-			return err
-		}
 		validators, err := s.kaiClient.Validators(ctx)
 		if err != nil {
+			return err
+		}
+
+		if err := s.dbClient.ClearValidators(ctx); err != nil {
 			return err
 		}
 		if err := s.dbClient.UpsertValidators(ctx, validators); err != nil {
