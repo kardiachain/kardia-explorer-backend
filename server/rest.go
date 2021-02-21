@@ -387,7 +387,7 @@ func (s *Server) Blocks(c echo.Context) error {
 			Role: v.Role,
 		}
 	}
-
+	s.logger.Debug("List validators", zap.Any("smc", smcAddress))
 	var result Blocks
 	for _, block := range blocks {
 		b := SimpleBlock{
@@ -400,15 +400,7 @@ func (s *Server) Blocks(c echo.Context) error {
 			GasUsed:         block.GasUsed,
 			Rewards:         block.Rewards,
 		}
-		p, ok := smcAddress[b.ProposerAddress]
-		if ok && p != nil {
-			b.ProposerName = smcAddress[b.ProposerAddress].Name
-		}
-
-		if !ok || p == nil {
-			s.logger.Warn("try to get with addr", zap.String("Addr", b.ProposerAddress))
-		}
-
+		b.ProposerName = smcAddress[b.ProposerAddress].Name
 		result = append(result, b)
 	}
 	total := s.cacheClient.LatestBlockHeight(ctx)
@@ -477,15 +469,9 @@ func (s *Server) Block(c echo.Context) error {
 			Role: v.Role,
 		}
 	}
-	var proposerName string
-	p, ok := smcAddress[block.ProposerAddress]
-	if ok && p != nil {
-		proposerName = p.Name
-	}
-
 	result := &Block{
 		Block:        *block,
-		ProposerName: proposerName,
+		ProposerName: smcAddress[block.ProposerAddress].Name,
 	}
 	return api.OK.SetData(result).Build(c)
 }
@@ -644,10 +630,11 @@ func (s *Server) BlocksByProposer(c echo.Context) error {
 			GasUsed:         block.GasUsed,
 			Rewards:         block.Rewards,
 		}
-		p, ok := smcAddress[b.ProposerAddress]
-		if ok && p != nil {
-			b.ProposerName = smcAddress[b.ProposerAddress].Name
-		}
+		b.ProposerName = smcAddress[b.ProposerAddress].Name
+		//p, ok := smcAddress[b.ProposerAddress]
+		//if ok && p != nil {
+		//
+		//}
 
 		result = append(result, b)
 	}
