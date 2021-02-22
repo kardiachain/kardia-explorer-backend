@@ -764,17 +764,19 @@ func (s *infoServer) mergeAdditionalInfoToTxs(txs []*types.Transaction, receipts
 
 			// get proposal info
 			proposalID, _ := new(big.Int).SetString(decoded.Arguments["proposalId"].(string), 10)
+			proposalDetail := &types.ProposalDetail{}
 			proposal, err := s.dbClient.ProposalInfo(ctx, proposalID.Uint64())
-			if err != nil {
-				s.logger.Warn("cannot get proposal by ID in db", zap.Any("proposal", proposalID), zap.Error(err))
+			if err == nil {
+				proposalDetail = proposal
 			}
 			rpcProposal, err := s.kaiClient.GetProposalDetails(ctx, proposalID)
 			if err != nil {
 				s.logger.Warn("cannot get proposal by ID from RPC", zap.Any("proposal", proposalID), zap.Error(err))
 			}
-			proposal.VoteYes = rpcProposal.VoteYes
-			proposal.VoteNo = rpcProposal.VoteNo
-			proposal.VoteAbstain = rpcProposal.VoteAbstain
+
+			proposalDetail.VoteYes = rpcProposal.VoteYes
+			proposalDetail.VoteNo = rpcProposal.VoteNo
+			proposalDetail.VoteAbstain = rpcProposal.VoteAbstain
 
 			// insert to db
 			if decoded.MethodName == "addVote" {
