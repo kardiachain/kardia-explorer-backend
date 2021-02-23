@@ -1246,3 +1246,21 @@ func (s *Server) ReloadValidators(c echo.Context) error {
 
 	return api.OK.Build(c)
 }
+
+func (s *Server) Contracts(c echo.Context) error {
+	var resp []*types.Contract
+	return api.OK.SetData(resp).Build(c)
+}
+
+func (s *Server) Contract(c echo.Context) error {
+	var resp *types.Contract
+	return api.OK.SetData(resp).Build(c)
+}
+
+func (s *Server) InsertContract(c echo.Context) error {
+	return api.OK.Build(c)
+}
+
+func (s *Server) UpdateContract(c echo.Context) error {
+	return api.OK.Build(c)
+}
