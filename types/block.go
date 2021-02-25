@@ -3,6 +3,8 @@ package types
 import (
 	"encoding/json"
 	"time"
+
+	"github.com/kardiachain/go-kardia/types"
 )
 
 type Header struct {
@@ -19,9 +21,9 @@ type Header struct {
 
 	LastBlock string `json:"lastBlock" bson:"lastBlock"`
 
-	DataHash     string `json:"dataHash" bson:"dataHash"`
-	ReceiptsRoot string `json:"receiptsRoot" bson:"receiptsRoot"`
-	LogsBloom    string `json:"logsBloom" bson:"logsBloom"`
+	DataHash     string      `json:"dataHash" bson:"dataHash"`
+	ReceiptsRoot string      `json:"receiptsRoot" bson:"receiptsRoot"`
+	LogsBloom    types.Bloom `json:"logsBloom" bson:"logsBloom"`
 
 	ValidatorHash     string `json:"validatorHash" bson:"validatorHash"`
 	NextValidatorHash string `json:"nextValidatorHash" bson:"nextValidatorHash"` // validators for the next block
@@ -48,9 +50,9 @@ type Block struct {
 
 	LastBlock string `json:"lastBlock,omitempty" bson:"lastBlock"`
 
-	DataHash     string `json:"dataHash,omitempty" bson:"dataHash"`
-	ReceiptsRoot string `json:"receiptsRoot,omitempty" bson:"receiptsRoot"`
-	LogsBloom    string `json:"logsBloom,omitempty" bson:"logsBloom"`
+	DataHash     string      `json:"dataHash,omitempty" bson:"dataHash"`
+	ReceiptsRoot string      `json:"receiptsRoot,omitempty" bson:"receiptsRoot"`
+	LogsBloom    types.Bloom `json:"logsBloom,omitempty" bson:"logsBloom"`
 
 	ValidatorHash     string `json:"validatorHash,omitempty" bson:"validatorHash"`
 	NextValidatorHash string `json:"nextValidatorHash,omitempty" bson:"nextValidatorHash"` // validators for the next block
