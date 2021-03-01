@@ -18,9 +18,18 @@ var (
 )
 
 type IEvents interface {
-	createIndexes() []mongo.IndexModel
+	createEventsCollectionIndexes() []mongo.IndexModel
 	InsertEvents(event *types.FunctionCall) error
 	GetListEvents(ctx context.Context, pagination *types.Pagination, contractAddress string, methodName string) ([]*types.FunctionCall, uint64, error)
+}
+
+func (m *mongoDB) createEventsCollectionIndexes() []mongo.IndexModel {
+	return []mongo.IndexModel{
+		{Keys: bson.M{"txHash": 1}, Options: options.Index().SetUnique(true).SetSparse(true)},
+		{Keys: bson.D{{Key: "contractAddress", Value: 1}, {Key: "timestamp", Value: -1}}, Options: options.Index().SetSparse(true)},
+		{Keys: bson.D{{Key: "methodName", Value: 1}, {Key: "timestamp", Value: -1}}, Options: options.Index().SetSparse(true)},
+		{Keys: bson.M{"timestamp": -1}, Options: options.Index().SetSparse(true)},
+	}
 }
 
 func (m *mongoDB) InsertEvents(event *types.FunctionCall) error {
