@@ -22,6 +22,7 @@ import (
 	"context"
 	"math/big"
 
+	"github.com/kardiachain/go-kardia/lib/abi"
 	"github.com/kardiachain/go-kardia/lib/common"
 	"go.uber.org/zap"
 
@@ -56,6 +57,9 @@ type ClientInterface interface {
 
 	// utilities methods
 	DecodeInputData(to string, input string) (*types.FunctionCall, error)
+	NonceAt(ctx context.Context, account string) (uint64, error)
+	KardiaCall(ctx context.Context, args types.CallArgsJSON) (common.Bytes, error)
+	DecodeInputWithABI(to string, input string, smcABI *abi.ABI) (*types.FunctionCall, error)
 }
 
 type Config struct {
