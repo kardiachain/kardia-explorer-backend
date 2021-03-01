@@ -1246,3 +1246,22 @@ func (s *Server) ReloadValidators(c echo.Context) error {
 
 	return api.OK.Build(c)
 }
+
+func (s *Server) ContractEvents(c echo.Context) error {
+	ctx := context.Background()
+	var (
+		page, limit int
+		err         error
+	)
+	pagination, page, limit := getPagingOption(c)
+	result, total, err := s.dbClient.GetListEvents(ctx, pagination, c.QueryParam("contractAddress"), c.QueryParam("methodName"))
+	if err != nil {
+		s.logger.Warn("Cannot get events from db", zap.Error(err))
+	}
+	return api.OK.SetData(PagingResponse{
+		Page:  page,
+		Limit: limit,
+		Total: total,
+		Data:  result,
+	}).Build(c)
+}

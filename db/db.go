@@ -38,6 +38,7 @@ type Client interface {
 	IValidators
 	IDelegators
 	Nodes
+	IEvents
 	ping() error
 	dropCollection(collectionName string)
 	dropDatabase(ctx context.Context) error

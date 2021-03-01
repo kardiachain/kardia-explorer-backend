@@ -71,6 +71,9 @@ type EchoServer interface {
 	UpsertNetworkNodes(c echo.Context) error
 	RemoveNetworkNodes(c echo.Context) error
 	UpdateSupplyAmounts(c echo.Context) error
+
+	// Contract events
+	ContractEvents(c echo.Context) error
 }
 
 type restDefinition struct {
@@ -259,6 +262,14 @@ func bind(gr *echo.Group, srv EchoServer) {
 			method:      echo.POST,
 			path:        "/validators/reload",
 			fn:          srv.ReloadValidators,
+			middlewares: nil,
+		},
+		// Contracts
+		{
+			method: echo.GET,
+			// Query params: ?page=0&limit=10&contractAddress=0x&methodName=0x
+			path:        "/contracts/events",
+			fn:          srv.ContractEvents,
 			middlewares: nil,
 		},
 	}
