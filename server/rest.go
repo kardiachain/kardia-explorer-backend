@@ -1283,10 +1283,12 @@ func (s *Server) Contract(c echo.Context) error {
 
 func (s *Server) InsertContract(c echo.Context) error {
 	lgr := s.logger.With(zap.String("method", "InsertContract"))
-	//ctx := context.Background()
+
 	if c.Request().Header.Get("Authorization") != s.infoServer.HttpRequestSecret {
 		return api.Unauthorized.Build(c)
 	}
+
+	lgr.Debug("Start insert contract")
 	var contract types.Contract
 	if err := c.Bind(&contract); err != nil {
 		lgr.Error("cannot bind data", zap.Error(err))
