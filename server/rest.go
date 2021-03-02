@@ -962,13 +962,9 @@ func (s *Server) TxByHash(c echo.Context) error {
 	}
 
 	// Get contract details
-	contract, err := s.dbClient.Contract(ctx, tx.To)
-	if err != nil {
-		// Do not support this contract
-	}
-
 	var functionCall *types.FunctionCall
-	if contract == nil {
+	contract, err := s.dbClient.Contract(ctx, tx.To)
+	if err != nil || contract == nil {
 		decoded, err := s.kaiClient.DecodeInputData(tx.To, tx.InputData)
 		if err == nil {
 			functionCall = decoded
@@ -990,10 +986,6 @@ func (s *Server) TxByHash(c echo.Context) error {
 		tx.DecodedInputData = functionCall
 	}
 
-	//// add name of recipient, if any
-	//if decoded, err := s.kaiClient.DecodeInputData(tx.To, tx.InputData); err == nil {
-	//	tx.DecodedInputData = decoded
-	//}
 	result := &Transaction{
 		BlockHash:        tx.BlockHash,
 		BlockNumber:      tx.BlockNumber,
