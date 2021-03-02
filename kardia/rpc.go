@@ -29,6 +29,7 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/kardiachain/go-kardia/lib/abi/bind"
 	"go.uber.org/zap"
 
 	"github.com/kardiachain/go-kardia"
@@ -55,6 +56,8 @@ type SmcUtil struct {
 	Abi             *abi.ABI
 	ContractAddress common.Address
 	Bytecode        string
+
+	*bind.BoundContract
 }
 
 // Client return an *rpc.Client instance
@@ -519,6 +522,16 @@ func (ec *Client) Validators(ctx context.Context) ([]*types.Validator, error) {
 //	}
 //	return result, nil
 //}
+
+//
+//
+//// NonceAt returns the account nonce of the given account.
+//func (ec *Client) NonceAt(ctx context.Context, account string) (uint64, error) {
+//	var result uint64
+//	err := ec.defaultClient.c.CallContext(ctx, &result, "account_nonce", common.HexToAddress(account))
+//	return result, err
+//}
+//
 
 func (ec *Client) getBlock(ctx context.Context, method string, args ...interface{}) (*types.Block, error) {
 	var raw types.Block

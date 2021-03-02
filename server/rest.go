@@ -2,7 +2,9 @@
 package server
 
 import (
+	"bytes"
 	"context"
+	"encoding/base64"
 	"errors"
 	"fmt"
 	"math/big"
@@ -10,6 +12,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/kardiachain/go-kardia/lib/abi"
 	"github.com/kardiachain/go-kardia/lib/common"
 
 	"github.com/bxcodec/faker/v3"
@@ -958,10 +961,31 @@ func (s *Server) TxByHash(c echo.Context) error {
 		}
 	}
 
-	// add name of recipient, if any
-	if decoded, err := s.kaiClient.DecodeInputData(tx.To, tx.InputData); err == nil {
-		tx.DecodedInputData = decoded
+	// Get contract details
+	var functionCall *types.FunctionCall
+	contract, err := s.dbClient.Contract(ctx, tx.To)
+	if err != nil || contract == nil {
+		decoded, err := s.kaiClient.DecodeInputData(tx.To, tx.InputData)
+		if err == nil {
+			functionCall = decoded
+		}
+	} else {
+		abiData, err := base64.StdEncoding.DecodeString(contract.ABI)
+		if err == nil {
+			smcABI, err := abi.JSON(bytes.NewReader(abiData))
+			if err == nil {
+				decoded, err := s.kaiClient.DecodeInputWithABI(tx.To, tx.InputData, &smcABI)
+				if err == nil {
+					functionCall = decoded
+				}
+			}
+		}
 	}
+
+	if functionCall != nil {
+		tx.DecodedInputData = functionCall
+	}
+
 	result := &Transaction{
 		BlockHash:        tx.BlockHash,
 		BlockNumber:      tx.BlockNumber,
@@ -1242,6 +1266,56 @@ func (s *Server) ReloadValidators(c echo.Context) error {
 
 	if err := s.dbClient.UpsertValidators(ctx, validators); err != nil {
 		return api.Invalid.Build(c)
+	}
+
+	return api.OK.Build(c)
+}
+
+func (s *Server) Contracts(c echo.Context) error {
+	var resp []*types.Contract
+	return api.OK.SetData(resp).Build(c)
+}
+
+func (s *Server) Contract(c echo.Context) error {
+	var resp *types.Contract
+	return api.OK.SetData(resp).Build(c)
+}
+
+func (s *Server) InsertContract(c echo.Context) error {
+	lgr := s.logger.With(zap.String("method", "InsertContract"))
+	//ctx := context.Background()
+	if c.Request().Header.Get("Authorization") != s.infoServer.HttpRequestSecret {
+		return api.Unauthorized.Build(c)
+	}
+	var contract types.Contract
+	if err := c.Bind(&contract); err != nil {
+		lgr.Error("cannot bind data", zap.Error(err))
+		return api.Invalid.Build(c)
+	}
+	ctx := context.Background()
+	if err := s.dbClient.InsertContract(ctx, &contract); err != nil {
+		lgr.Error("cannot bind insert", zap.Error(err))
+		return api.InternalServer.Build(c)
+	}
+
+	return api.OK.Build(c)
+}
+
+func (s *Server) UpdateContract(c echo.Context) error {
+	//ctx := context.Background()
+	if c.Request().Header.Get("Authorization") != s.infoServer.HttpRequestSecret {
+		return api.Unauthorized.Build(c)
+	}
+	var nodeInfo *types.NodeInfo
+	if err := c.Bind(&nodeInfo); err != nil {
+		return api.Invalid.Build(c)
+	}
+	if nodeInfo.ID == "" || nodeInfo.Moniker == "" {
+		return api.Invalid.Build(c)
+	}
+	ctx := context.Background()
+	if err := s.dbClient.UpsertNode(ctx, nodeInfo); err != nil {
+		return api.InternalServer.Build(c)
 	}
 
 	return api.OK.Build(c)

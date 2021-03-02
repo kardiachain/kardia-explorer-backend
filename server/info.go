@@ -68,7 +68,6 @@ type infoServer struct {
 }
 
 func (s *infoServer) TokenInfo(ctx context.Context) (*types.TokenInfo, error) {
-
 	type CMQuote struct {
 		Price            float64 `json:"price"`
 		Volume24h        float64 `json:"volume_24h"`
@@ -165,46 +164,6 @@ func (s *infoServer) TokenInfo(ctx context.Context) (*types.TokenInfo, error) {
 	}
 
 	return tokenInfo, nil
-}
-
-func (s *infoServer) LoadBootData(ctx context.Context) uint64 {
-	stats := s.dbClient.Stats(ctx)
-	s.logger.Info("Load boot data", zap.Uint64("UpdatedAtBlock", stats.UpdatedAtBlock),
-		zap.Uint64("TotalTransactions", stats.TotalTransactions), zap.Uint64("TotalAddresses", stats.TotalAddresses),
-		zap.Uint64("TotalContracts", stats.TotalContracts))
-	_ = s.cacheClient.SetTotalTxs(ctx, stats.TotalTransactions)
-	_ = s.cacheClient.UpdateTotalHolders(ctx, stats.TotalAddresses, stats.TotalContracts)
-	cfg.GenesisAddresses = append(cfg.GenesisAddresses, cfg.TreasuryContractAddr)
-	cfg.GenesisAddresses = append(cfg.GenesisAddresses, cfg.StakingContractAddr)
-	cfg.GenesisAddresses = append(cfg.GenesisAddresses, cfg.KardiaDeployerAddr)
-	cfg.GenesisAddresses = append(cfg.GenesisAddresses, cfg.ParamsContractAddr)
-	vals, _ := s.kaiClient.Validators(ctx)
-	//todo: longnd - Temp remove
-	//_ = s.cacheClient.UpdateValidators(ctx, vals)
-	_ = s.dbClient.ClearValidators(ctx)
-	_ = s.dbClient.UpsertValidators(ctx, vals)
-
-	for _, val := range vals {
-		cfg.GenesisAddresses = append(cfg.GenesisAddresses, val.SmcAddress.String())
-	}
-	for _, addr := range cfg.GenesisAddresses {
-		balance, _ := s.kaiClient.GetBalance(ctx, addr)
-		balanceInBigInt, _ := new(big.Int).SetString(balance, 10)
-		balanceFloat, _ := new(big.Float).SetPrec(100).Quo(new(big.Float).SetInt(balanceInBigInt), new(big.Float).SetInt(cfg.Hydro)).Float64() //converting to KAI from HYDRO
-		addrInfo := &types.Address{
-			Address:       addr,
-			BalanceFloat:  balanceFloat,
-			BalanceString: balance,
-			IsContract:    false,
-		}
-		code, _ := s.kaiClient.GetCode(ctx, addr)
-		if len(code) > 0 {
-			addrInfo.IsContract = true
-		}
-		// write this address to db
-		_ = s.dbClient.InsertAddress(ctx, addrInfo)
-	}
-	return stats.UpdatedAtBlock
 }
 
 func (s *infoServer) GetCurrentStats(ctx context.Context) uint64 {
