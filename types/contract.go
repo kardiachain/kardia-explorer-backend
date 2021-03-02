@@ -1,7 +1,7 @@
 // Package types
 package types
 
-//Contract define simple information about a SMC in kardia system
+// Contract define simple information about a SMC in kardia system
 type Contract struct {
 	Name         string `json:"name" bson:"name"`
 	Address      string `json:"address" bson:"address"`

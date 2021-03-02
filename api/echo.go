@@ -221,7 +221,6 @@ func bind(gr *echo.Group, srv EchoServer) {
 }
 
 func bindContractAPIs(gr *echo.Group, srv EchoServer) {
-
 	apis := []restDefinition{
 		{
 			method:      echo.POST,
