@@ -5,22 +5,30 @@ import (
 	"context"
 	"math/big"
 
+	"go.uber.org/zap"
+
 	"github.com/kardiachain/kardia-explorer-backend/cfg"
 	"github.com/kardiachain/kardia-explorer-backend/types"
 )
 
 func (s *infoServer) LoadBootData(ctx context.Context) error {
+	lgr := s.logger
+	lgr.Debug("Start load boot data")
 	stats := s.dbClient.Stats(ctx)
 	_ = s.cacheClient.SetTotalTxs(ctx, stats.TotalTransactions)
 	_ = s.cacheClient.UpdateTotalHolders(ctx, stats.TotalAddresses, stats.TotalContracts)
 
 	validators, err := s.kaiClient.Validators(ctx)
-	if err != nil {
+	if err != nil || len(validators) == 0 {
+		lgr.Error("cannot get list validators", zap.Error(err))
 		return err
 	}
+
 	if err := s.dbClient.ClearValidators(ctx); err != nil {
 		return err
 	}
+
+	validators = []*types.Validator{}
 	if err := s.dbClient.UpsertValidators(ctx, validators); err != nil {
 		return err
 	}
@@ -47,7 +55,9 @@ func (s *infoServer) LoadBootData(ctx context.Context) error {
 			addrInfo.IsContract = true
 		}
 		// write this address to db
-		_ = s.dbClient.InsertAddress(ctx, addrInfo)
+		if err := s.dbClient.InsertAddress(ctx, addrInfo); err != nil {
+			lgr.Debug("cannot insert address", zap.Error(err))
+		}
 	}
 	return nil
 }
