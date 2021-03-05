@@ -365,7 +365,7 @@ func (s *infoServer) filterStakingEvent(ctx context.Context, txs []*types.Transa
 		// Clear firsts
 		lgr.Debug("reload validators")
 		validators, err := s.kaiClient.Validators(ctx)
-		if err != nil {
+		if err != nil || len(validators) == 0 {
 			return err
 		}
 

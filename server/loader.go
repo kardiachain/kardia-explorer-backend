@@ -27,8 +27,6 @@ func (s *infoServer) LoadBootData(ctx context.Context) error {
 	if err := s.dbClient.ClearValidators(ctx); err != nil {
 		return err
 	}
-
-	validators = []*types.Validator{}
 	if err := s.dbClient.UpsertValidators(ctx, validators); err != nil {
 		return err
 	}
