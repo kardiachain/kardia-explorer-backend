@@ -9,7 +9,6 @@ import (
 	"math/big"
 	"net"
 	"net/http"
-	"strings"
 	"time"
 
 	"go.uber.org/zap"
@@ -260,7 +259,8 @@ func (s *infoServer) BlockByHeightFromRPC(ctx context.Context, blockHeight uint6
 
 // ImportBlock handle workflow of import block into system
 func (s *infoServer) ImportBlock(ctx context.Context, block *types.Block, writeToCache bool) error {
-	s.logger.Info("Importing block:", zap.Uint64("Height", block.Height),
+	lgr := s.logger.With(zap.String("method", "ImportBlock"))
+	lgr.Info("Importing block:", zap.Uint64("Height", block.Height),
 		zap.Int("Txs length", len(block.Txs)), zap.Int("Receipts length", len(block.Receipts)))
 	if isExist, err := s.dbClient.IsBlockExist(ctx, block.Height); err != nil || isExist {
 		return types.ErrRecordExist
@@ -278,6 +278,10 @@ func (s *infoServer) ImportBlock(ctx context.Context, block *types.Block, writeT
 
 	if err := s.filterStakingEvent(ctx, block.Txs); err != nil {
 		s.logger.Warn("Filter staking event failed", zap.Error(err))
+	}
+
+	if err := s.filterProposalEvent(ctx, block.Txs); err != nil {
+		s.logger.Warn("Filter proposal event failed", zap.Error(err))
 	}
 
 	// Start import block
@@ -327,56 +331,6 @@ func (s *infoServer) ImportBlock(ctx context.Context, block *types.Block, writeT
 	if _, err := s.cacheClient.UpdateTotalTxs(ctx, block.NumTxs); err != nil {
 		return err
 	}
-	return nil
-}
-
-func (s *infoServer) filterStakingEvent(ctx context.Context, txs []*types.Transaction) error {
-	lgr := s.logger.With(zap.String("method", "filterStakingEvent"))
-	// Get current validators list
-	dbValidators, err := s.dbClient.Validators(ctx, db.ValidatorsFilter{})
-	if err != nil {
-		return err
-	}
-
-	validatorMap := make(map[string]*types.Validator)
-	for _, v := range dbValidators {
-		validatorMap[v.SmcAddress.String()] = v
-	}
-	isReload := false
-	// Just reload one per block
-	for _, tx := range txs {
-		// Call to staking SMC
-		if tx.To == cfg.StakingContractAddr {
-			isReload = true
-			break
-		}
-
-		// Call to validator smc
-		v, ok := validatorMap[tx.To]
-		if !ok || v == nil {
-			continue
-		}
-
-		isReload = true
-		break
-	}
-
-	if isReload {
-		// Clear firsts
-		lgr.Debug("reload validators")
-		validators, err := s.kaiClient.Validators(ctx)
-		if err != nil || len(validators) == 0 {
-			return err
-		}
-
-		if err := s.dbClient.ClearValidators(ctx); err != nil {
-			return err
-		}
-		if err := s.dbClient.UpsertValidators(ctx, validators); err != nil {
-			return err
-		}
-	}
-
 	return nil
 }
 
@@ -716,41 +670,6 @@ func (s *infoServer) mergeAdditionalInfoToTxs(txs []*types.Transaction, receipts
 		tx.TxFee = txFeeInHydro.String()
 
 		receiptIndex++
-
-		// write external contract data to database
-		if strings.EqualFold(tx.To, cfg.ParamsContractAddr) && tx.Status == 1 && decoded != nil {
-			ctx := context.Background()
-
-			// get proposal info
-			proposalID, _ := new(big.Int).SetString(decoded.Arguments["proposalId"].(string), 10)
-			proposalDetail := &types.ProposalDetail{}
-			proposal, err := s.dbClient.ProposalInfo(ctx, proposalID.Uint64())
-			if err == nil {
-				proposalDetail = proposal
-			}
-			rpcProposal, err := s.kaiClient.GetProposalDetails(ctx, proposalID)
-			if err != nil {
-				s.logger.Warn("cannot get proposal by ID from RPC", zap.Any("proposal", proposalID), zap.Error(err))
-			}
-
-			proposalDetail.VoteYes = rpcProposal.VoteYes
-			proposalDetail.VoteNo = rpcProposal.VoteNo
-			proposalDetail.VoteAbstain = rpcProposal.VoteAbstain
-
-			// insert to db
-			if decoded.MethodName == "addVote" {
-				voteOption := new(big.Int).SetInt64(int64(decoded.Arguments["option"].(uint8)))
-				err = s.dbClient.AddVoteToProposal(ctx, proposal, voteOption.Uint64())
-				if err != nil {
-					s.logger.Warn("cannot add vote to new proposal in db", zap.Any("decoded", decoded), zap.Error(err))
-				}
-			} else if decoded.MethodName == "confirmProposal" {
-				err = s.dbClient.UpsertProposal(ctx, proposal)
-				if err != nil {
-					s.logger.Warn("cannot confirm proposal in db", zap.Any("decoded", decoded), zap.Error(err))
-				}
-			}
-		}
 	}
 	return txs
 }
