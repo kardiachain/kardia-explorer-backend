@@ -25,57 +25,6 @@ import (
 	"github.com/kardiachain/kardia-explorer-backend/cfg"
 )
 
-// EchoServer define all API expose
-type EchoServer interface {
-	// General
-	Ping(c echo.Context) error
-	Stats(c echo.Context) error
-	TotalHolders(c echo.Context) error
-	TokenInfo(c echo.Context) error
-	Nodes(c echo.Context) error
-
-	// Staking-related
-	ValidatorStats(c echo.Context) error
-	Validators(c echo.Context) error
-	GetValidatorsByDelegator(c echo.Context) error
-	GetCandidatesList(c echo.Context) error
-	GetSlashEvents(c echo.Context) error
-	GetSlashedTokens(c echo.Context) error
-
-	// Proposal
-	GetProposalsList(c echo.Context) error
-	GetProposalDetails(c echo.Context) error
-	GetParams(c echo.Context) error
-
-	// Blocks
-	Blocks(c echo.Context) error
-	Block(c echo.Context) error
-	BlockTxs(c echo.Context) error
-	BlocksByProposer(c echo.Context) error
-	PersistentErrorBlocks(c echo.Context) error
-
-	// Addresses
-	Addresses(c echo.Context) error
-	AddressInfo(c echo.Context) error
-	AddressTxs(c echo.Context) error
-	AddressHolders(c echo.Context) error
-
-	// Tx
-	Txs(c echo.Context) error
-	TxByHash(c echo.Context) error
-
-	// Admin sector
-	ReloadAddressesBalance(c echo.Context) error
-	ReloadValidators(c echo.Context) error
-	UpdateAddressName(c echo.Context) error
-	UpsertNetworkNodes(c echo.Context) error
-	RemoveNetworkNodes(c echo.Context) error
-	UpdateSupplyAmounts(c echo.Context) error
-
-	// Contract events
-	ContractEvents(c echo.Context) error
-}
-
 type restDefinition struct {
 	method      string
 	path        string
@@ -264,14 +213,6 @@ func bind(gr *echo.Group, srv EchoServer) {
 			fn:          srv.ReloadValidators,
 			middlewares: nil,
 		},
-		// Contracts
-		{
-			method: echo.GET,
-			// Query params: ?page=0&limit=10&contractAddress=0x&methodName=0x
-			path:        "/contracts/events",
-			fn:          srv.ContractEvents,
-			middlewares: nil,
-		},
 	}
 	bindContractAPIs(gr, srv)
 	for _, api := range apis {
@@ -303,6 +244,13 @@ func bindContractAPIs(gr *echo.Group, srv EchoServer) {
 			method:      echo.GET,
 			path:        "/contracts/:contractAddress",
 			fn:          srv.Contract,
+			middlewares: nil,
+		},
+		{
+			method: echo.GET,
+			// Query params: ?page=0&limit=10&contractAddress=0x&methodName=0x
+			path:        "/contracts/events",
+			fn:          srv.ContractEvents,
 			middlewares: nil,
 		},
 	}
