@@ -24,6 +24,7 @@ import (
 	"github.com/labstack/echo"
 )
 
+//todo: Improve response structure
 var (
 	OK             = EchoResponse{StatusCode: http.StatusOK, Code: 1000, Msg: "Success"}
 	InternalServer = EchoResponse{StatusCode: http.StatusInternalServerError, Code: 1100, Msg: "Server busy..."}

@@ -6,6 +6,7 @@ require (
 	github.com/bxcodec/faker/v3 v3.5.0
 	github.com/go-redis/redis/v8 v8.2.3
 	github.com/joho/godotenv v1.3.0
+	github.com/kardiachain/go-kaiclient v0.0.0-20210304040403-cba9e7b6025c
 	github.com/kardiachain/go-kardia v0.11.0
 	github.com/kr/text v0.2.0 // indirect
 	github.com/labstack/echo v3.3.10+incompatible

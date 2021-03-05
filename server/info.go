@@ -9,7 +9,6 @@ import (
 	"math/big"
 	"net"
 	"net/http"
-	"strings"
 	"time"
 
 	"go.uber.org/zap"
@@ -68,7 +67,6 @@ type infoServer struct {
 }
 
 func (s *infoServer) TokenInfo(ctx context.Context) (*types.TokenInfo, error) {
-
 	type CMQuote struct {
 		Price            float64 `json:"price"`
 		Volume24h        float64 `json:"volume_24h"`
@@ -167,46 +165,6 @@ func (s *infoServer) TokenInfo(ctx context.Context) (*types.TokenInfo, error) {
 	return tokenInfo, nil
 }
 
-func (s *infoServer) LoadBootData(ctx context.Context) uint64 {
-	stats := s.dbClient.Stats(ctx)
-	s.logger.Info("Load boot data", zap.Uint64("UpdatedAtBlock", stats.UpdatedAtBlock),
-		zap.Uint64("TotalTransactions", stats.TotalTransactions), zap.Uint64("TotalAddresses", stats.TotalAddresses),
-		zap.Uint64("TotalContracts", stats.TotalContracts))
-	_ = s.cacheClient.SetTotalTxs(ctx, stats.TotalTransactions)
-	_ = s.cacheClient.UpdateTotalHolders(ctx, stats.TotalAddresses, stats.TotalContracts)
-	cfg.GenesisAddresses = append(cfg.GenesisAddresses, cfg.TreasuryContractAddr)
-	cfg.GenesisAddresses = append(cfg.GenesisAddresses, cfg.StakingContractAddr)
-	cfg.GenesisAddresses = append(cfg.GenesisAddresses, cfg.KardiaDeployerAddr)
-	cfg.GenesisAddresses = append(cfg.GenesisAddresses, cfg.ParamsContractAddr)
-	vals, _ := s.kaiClient.Validators(ctx)
-	//todo: longnd - Temp remove
-	//_ = s.cacheClient.UpdateValidators(ctx, vals)
-	_ = s.dbClient.ClearValidators(ctx)
-	_ = s.dbClient.UpsertValidators(ctx, vals)
-
-	for _, val := range vals {
-		cfg.GenesisAddresses = append(cfg.GenesisAddresses, val.SmcAddress.String())
-	}
-	for _, addr := range cfg.GenesisAddresses {
-		balance, _ := s.kaiClient.GetBalance(ctx, addr)
-		balanceInBigInt, _ := new(big.Int).SetString(balance, 10)
-		balanceFloat, _ := new(big.Float).SetPrec(100).Quo(new(big.Float).SetInt(balanceInBigInt), new(big.Float).SetInt(cfg.Hydro)).Float64() //converting to KAI from HYDRO
-		addrInfo := &types.Address{
-			Address:       addr,
-			BalanceFloat:  balanceFloat,
-			BalanceString: balance,
-			IsContract:    false,
-		}
-		code, _ := s.kaiClient.GetCode(ctx, addr)
-		if len(code) > 0 {
-			addrInfo.IsContract = true
-		}
-		// write this address to db
-		_ = s.dbClient.InsertAddress(ctx, addrInfo)
-	}
-	return stats.UpdatedAtBlock
-}
-
 func (s *infoServer) GetCurrentStats(ctx context.Context) uint64 {
 	stats := s.dbClient.Stats(ctx)
 	s.logger.Info("Current stats of network", zap.Uint64("UpdatedAtBlock", stats.UpdatedAtBlock),
@@ -301,7 +259,8 @@ func (s *infoServer) BlockByHeightFromRPC(ctx context.Context, blockHeight uint6
 
 // ImportBlock handle workflow of import block into system
 func (s *infoServer) ImportBlock(ctx context.Context, block *types.Block, writeToCache bool) error {
-	s.logger.Info("Importing block:", zap.Uint64("Height", block.Height),
+	lgr := s.logger.With(zap.String("method", "ImportBlock"))
+	lgr.Info("Importing block:", zap.Uint64("Height", block.Height),
 		zap.Int("Txs length", len(block.Txs)), zap.Int("Receipts length", len(block.Receipts)))
 	if isExist, err := s.dbClient.IsBlockExist(ctx, block.Height); err != nil || isExist {
 		return types.ErrRecordExist
@@ -319,6 +278,10 @@ func (s *infoServer) ImportBlock(ctx context.Context, block *types.Block, writeT
 
 	if err := s.filterStakingEvent(ctx, block.Txs); err != nil {
 		s.logger.Warn("Filter staking event failed", zap.Error(err))
+	}
+
+	if err := s.filterProposalEvent(ctx, block.Txs); err != nil {
+		s.logger.Warn("Filter proposal event failed", zap.Error(err))
 	}
 
 	// Start import block
@@ -368,56 +331,6 @@ func (s *infoServer) ImportBlock(ctx context.Context, block *types.Block, writeT
 	if _, err := s.cacheClient.UpdateTotalTxs(ctx, block.NumTxs); err != nil {
 		return err
 	}
-	return nil
-}
-
-func (s *infoServer) filterStakingEvent(ctx context.Context, txs []*types.Transaction) error {
-	lgr := s.logger.With(zap.String("method", "filterStakingEvent"))
-	// Get current validators list
-	dbValidators, err := s.dbClient.Validators(ctx, db.ValidatorsFilter{})
-	if err != nil {
-		return err
-	}
-
-	validatorMap := make(map[string]*types.Validator)
-	for _, v := range dbValidators {
-		validatorMap[v.SmcAddress.String()] = v
-	}
-	isReload := false
-	// Just reload one per block
-	for _, tx := range txs {
-		// Call to staking SMC
-		if tx.To == cfg.StakingContractAddr {
-			isReload = true
-			break
-		}
-
-		// Call to validator smc
-		v, ok := validatorMap[tx.To]
-		if !ok || v == nil {
-			continue
-		}
-
-		isReload = true
-		break
-	}
-
-	if isReload {
-		// Clear firsts
-		lgr.Debug("reload validators")
-		validators, err := s.kaiClient.Validators(ctx)
-		if err != nil {
-			return err
-		}
-
-		if err := s.dbClient.ClearValidators(ctx); err != nil {
-			return err
-		}
-		if err := s.dbClient.UpsertValidators(ctx, validators); err != nil {
-			return err
-		}
-	}
-
 	return nil
 }
 
@@ -757,41 +670,6 @@ func (s *infoServer) mergeAdditionalInfoToTxs(txs []*types.Transaction, receipts
 		tx.TxFee = txFeeInHydro.String()
 
 		receiptIndex++
-
-		// write external contract data to database
-		if strings.EqualFold(tx.To, cfg.ParamsContractAddr) && tx.Status == 1 && decoded != nil {
-			ctx := context.Background()
-
-			// get proposal info
-			proposalID, _ := new(big.Int).SetString(decoded.Arguments["proposalId"].(string), 10)
-			proposalDetail := &types.ProposalDetail{}
-			proposal, err := s.dbClient.ProposalInfo(ctx, proposalID.Uint64())
-			if err == nil {
-				proposalDetail = proposal
-			}
-			rpcProposal, err := s.kaiClient.GetProposalDetails(ctx, proposalID)
-			if err != nil {
-				s.logger.Warn("cannot get proposal by ID from RPC", zap.Any("proposal", proposalID), zap.Error(err))
-			}
-
-			proposalDetail.VoteYes = rpcProposal.VoteYes
-			proposalDetail.VoteNo = rpcProposal.VoteNo
-			proposalDetail.VoteAbstain = rpcProposal.VoteAbstain
-
-			// insert to db
-			if decoded.MethodName == "addVote" {
-				voteOption := new(big.Int).SetInt64(int64(decoded.Arguments["option"].(uint8)))
-				err = s.dbClient.AddVoteToProposal(ctx, proposal, voteOption.Uint64())
-				if err != nil {
-					s.logger.Warn("cannot add vote to new proposal in db", zap.Any("decoded", decoded), zap.Error(err))
-				}
-			} else if decoded.MethodName == "confirmProposal" {
-				err = s.dbClient.UpsertProposal(ctx, proposal)
-				if err != nil {
-					s.logger.Warn("cannot confirm proposal in db", zap.Any("decoded", decoded), zap.Error(err))
-				}
-			}
-		}
 	}
 	return txs
 }

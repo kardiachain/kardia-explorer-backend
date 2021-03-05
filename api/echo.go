@@ -273,11 +273,42 @@ func bind(gr *echo.Group, srv EchoServer) {
 			middlewares: nil,
 		},
 	}
-
+	bindContractAPIs(gr, srv)
 	for _, api := range apis {
 		gr.Add(api.method, api.path, api.fn, api.middlewares...)
 	}
+}
 
+func bindContractAPIs(gr *echo.Group, srv EchoServer) {
+	apis := []restDefinition{
+		{
+			method:      echo.POST,
+			path:        "/contracts",
+			fn:          srv.InsertContract,
+			middlewares: nil,
+		},
+		{
+			method:      echo.PUT,
+			path:        "/contracts",
+			fn:          srv.UpdateContract,
+			middlewares: nil,
+		},
+		{
+			method:      echo.GET,
+			path:        "/contracts",
+			fn:          srv.Contracts,
+			middlewares: nil,
+		},
+		{
+			method:      echo.GET,
+			path:        "/contracts/:contractAddress",
+			fn:          srv.Contract,
+			middlewares: nil,
+		},
+	}
+	for _, api := range apis {
+		gr.Add(api.method, api.path, api.fn, api.middlewares...)
+	}
 }
 
 func Start(srv EchoServer, cfg cfg.ExplorerConfig) {

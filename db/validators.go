@@ -7,7 +7,6 @@ import (
 
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
-	"go.uber.org/zap"
 
 	"github.com/kardiachain/kardia-explorer-backend/types"
 )
@@ -26,7 +25,6 @@ type ValidatorsFilter struct {
 }
 
 func (m *mongoDB) UpsertValidators(ctx context.Context, validators []*types.Validator) error {
-	m.logger.Debug("Upsert", zap.Any("Validators", validators))
 	var models []mongo.WriteModel
 	for _, v := range validators {
 		models = append(models, mongo.NewUpdateOneModel().SetUpsert(true).SetFilter(bson.M{"smcAddress": v.SmcAddress}).SetUpdate(bson.M{"$set": v}))
