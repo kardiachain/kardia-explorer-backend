@@ -60,6 +60,7 @@ type IContract interface {
 	Contract(c echo.Context) error
 	InsertContract(c echo.Context) error
 	UpdateContract(c echo.Context) error
+	UpdateSMCABIByType(c echo.Context) error
 
 	ContractEvents(c echo.Context) error
 }

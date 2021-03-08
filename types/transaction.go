@@ -39,8 +39,9 @@ type FunctionCall struct {
 }
 
 type Log struct {
-	ContractAddress string                 `json:"contractAddress" bson:"contractAddress"`
-	Name            string                 `json:"name" bson:"name"`
+	ContractAddress string                 `json:"address" bson:"address"`
+	MethodName      string                 `json:"methodName" bson:"methodName"`
+	ArgumentsName   string                 `json:"argumentsName" bson:"argumentsName"`
 	Arguments       map[string]interface{} `json:"arguments" bson:"arguments"`
 	Topics          []string               `json:"topics" bson:"topics"`
 	Data            string                 `json:"data" bson:"data"`

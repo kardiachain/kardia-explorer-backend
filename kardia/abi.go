@@ -138,16 +138,7 @@ func (ec *Client) DecodeInputData(to string, input string) (*types.FunctionCall,
 }
 
 // UnpackLog returns a log detail
-func (ec *Client) UnpackLog(log *types.Log) (*types.Log, error) {
-	var a *abi.ABI
-	// check if the to address is staking contract, then we search for an event in staking contract ABI
-	if ec.stakingUtil.ContractAddress.Equal(common.HexToAddress(log.ContractAddress)) {
-		a = ec.stakingUtil.Abi
-	} else if ec.paramsUtil.ContractAddress.Equal(common.HexToAddress(log.ContractAddress)) {
-		a = ec.paramsUtil.Abi
-	} else { // otherwise, search for a validator contract event
-		a = ec.validatorUtil.Abi
-	}
+func (ec *Client) UnpackLog(log *types.Log, a *abi.ABI) (*types.Log, error) {
 	event, err := a.EventByID(common.HexToHash(log.Topics[0]))
 	if err != nil {
 		return nil, err
@@ -163,16 +154,16 @@ func (ec *Client) UnpackLog(log *types.Log) (*types.Log, error) {
 	}
 	// append unpacked data
 	log.Arguments = argumentsValue
-	log.Name = event.RawName + "("
+	log.MethodName = event.RawName
 	order := int64(1)
 	for _, arg := range event.Inputs {
 		if arg.Indexed {
-			log.Name += "index_topic_" + strconv.FormatInt(order, 10) + " "
+			log.ArgumentsName += "index_topic_" + strconv.FormatInt(order, 10) + " "
 			order++
 		}
-		log.Name += arg.Type.String() + " " + arg.Name + ", "
+		log.ArgumentsName += arg.Type.String() + " " + arg.Name + ", "
 	}
-	log.Name = strings.TrimRight(log.Name, ", ") + ")"
+	log.ArgumentsName = strings.TrimRight(log.ArgumentsName, ", ")
 	return log, nil
 }
 

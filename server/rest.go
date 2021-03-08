@@ -1341,3 +1341,19 @@ func (s *Server) UpdateContract(c echo.Context) error {
 
 	return api.OK.Build(c)
 }
+
+func (s *Server) UpdateSMCABIByType(c echo.Context) error {
+	if c.Request().Header.Get("Authorization") != s.infoServer.HttpRequestSecret {
+		return api.Unauthorized.Build(c)
+	}
+	ctx := context.Background()
+	var smcABI *types.ContractABI
+	if err := c.Bind(&smcABI); err != nil {
+		return api.Invalid.Build(c)
+	}
+	err := s.dbClient.UpsertSMCABIByType(ctx, smcABI.Type, smcABI.ABI)
+	if err != nil {
+		return api.Invalid.Build(c)
+	}
+	return api.OK.Build(c)
+}

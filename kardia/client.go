@@ -60,6 +60,7 @@ type ClientInterface interface {
 	NonceAt(ctx context.Context, account string) (uint64, error)
 	KardiaCall(ctx context.Context, args types.CallArgsJSON) (common.Bytes, error)
 	DecodeInputWithABI(to string, input string, smcABI *abi.ABI) (*types.FunctionCall, error)
+	UnpackLog(log *types.Log, a *abi.ABI) (*types.Log, error)
 }
 
 type Config struct {

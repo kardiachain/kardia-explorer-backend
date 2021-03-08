@@ -2,7 +2,9 @@
 package server
 
 import (
+	"bytes"
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"io/ioutil"
@@ -13,8 +15,8 @@ import (
 
 	"go.uber.org/zap"
 
+	"github.com/kardiachain/go-kardia/lib/abi"
 	"github.com/kardiachain/go-kardia/lib/common"
-
 	"github.com/kardiachain/kardia-explorer-backend/cache"
 	"github.com/kardiachain/kardia-explorer-backend/cfg"
 	"github.com/kardiachain/kardia-explorer-backend/db"
@@ -274,7 +276,7 @@ func (s *infoServer) ImportBlock(ctx context.Context, block *types.Block, writeT
 
 	// merge receipts into corresponding transactions
 	// because getBlockByHash/Height API returns 2 array contains txs and receipts separately
-	block.Txs = s.mergeAdditionalInfoToTxs(block.Txs, block.Receipts)
+	block.Txs = s.mergeAdditionalInfoToTxs(ctx, block.Txs, block.Receipts)
 
 	if err := s.filterStakingEvent(ctx, block.Txs); err != nil {
 		s.logger.Warn("Filter staking event failed", zap.Error(err))
@@ -638,7 +640,7 @@ func (s *infoServer) getAddressBalances(ctx context.Context, addrs map[string]*t
 	return result
 }
 
-func (s *infoServer) mergeAdditionalInfoToTxs(txs []*types.Transaction, receipts []*types.Receipt) []*types.Transaction {
+func (s *infoServer) mergeAdditionalInfoToTxs(ctx context.Context, txs []*types.Transaction, receipts []*types.Receipt) []*types.Transaction {
 	if receipts == nil || len(receipts) == 0 {
 		return txs
 	}
@@ -659,6 +661,12 @@ func (s *infoServer) mergeAdditionalInfoToTxs(txs []*types.Transaction, receipts
 		}
 
 		tx.Logs = receipts[receiptIndex].Logs
+		if len(tx.Logs) > 0 {
+			err := s.storeEvents(ctx, tx.Logs)
+			if err != nil {
+				s.logger.Warn("Cannot store events to db", zap.Error(err))
+			}
+		}
 		tx.Root = receipts[receiptIndex].Root
 		tx.Status = receipts[receiptIndex].Status
 		tx.GasUsed = receipts[receiptIndex].GasUsed
@@ -680,4 +688,71 @@ func (s *infoServer) LatestBlockHeight(ctx context.Context) (uint64, error) {
 
 func (s *infoServer) BlockCacheSize(ctx context.Context) (int64, error) {
 	return s.cacheClient.ListSize(ctx, cache.KeyBlocks)
+}
+
+func (s *infoServer) storeEvents(ctx context.Context, logs []types.Log) error {
+	for i, log := range logs {
+		decodedLog, err := s.decodeEvent(ctx, &log)
+		if err != nil {
+			decodedLog = &log
+		}
+		logs[i] = *decodedLog
+	}
+	return s.dbClient.InsertEvents(logs)
+}
+
+func (s *infoServer) decodeEvent(ctx context.Context, log *types.Log) (*types.Log, error) {
+	smcABI, err := s.cacheClient.SMCAbi(ctx, log.ContractAddress)
+	if err != nil {
+		smc, err := s.dbClient.Contract(ctx, log.ContractAddress)
+		if err != nil {
+			s.logger.Warn("Cannot get smc info from db", zap.Error(err), zap.String("smcAddr", log.ContractAddress))
+			return nil, err
+		}
+		if smc.Type != "" {
+			smcABI, err = s.cacheClient.SMCAbi(ctx, cfg.SMCTypePrefix+smc.Type)
+			if err != nil {
+				// query then reinsert abi of this SMC type to cache
+				smcABIBase64, err := s.dbClient.SMCABIByType(ctx, smc.Type)
+				if err != nil {
+					s.logger.Warn("Cannot get smc abi by type from DB", zap.Error(err))
+					return nil, err
+				}
+				err = s.cacheClient.UpdateSMCAbi(ctx, cfg.SMCTypePrefix+smc.Type, smcABIBase64)
+				if err != nil {
+					s.logger.Warn("Cannot store smc abi by type to cache", zap.Error(err))
+					return nil, err
+				}
+				err = s.cacheClient.UpdateSMCAbi(ctx, log.ContractAddress, cfg.SMCTypePrefix+smc.Type)
+				if err != nil {
+					s.logger.Warn("Cannot store smc abi to cache", zap.Error(err))
+					return nil, err
+				}
+				smcABI, err = s.cacheClient.SMCAbi(ctx, cfg.SMCTypePrefix+smc.Type)
+				if err != nil {
+					s.logger.Warn("Cannot get smc abi from cache", zap.Error(err))
+					return nil, err
+				}
+			}
+		} else if smc.ABI != "" {
+			abiData, err := base64.StdEncoding.DecodeString(smc.ABI)
+			if err != nil {
+				s.logger.Warn("Cannot decode smc abi", zap.Error(err))
+				return nil, err
+			}
+			jsonABI, err := abi.JSON(bytes.NewReader(abiData))
+			if err != nil {
+				s.logger.Warn("Cannot convert decoded smc abi to JSON abi", zap.Error(err))
+				return nil, err
+			}
+			// store this abi to cache
+			err = s.cacheClient.UpdateSMCAbi(ctx, log.ContractAddress, smc.ABI)
+			if err != nil {
+				s.logger.Warn("Cannot store smc abi to cache", zap.Error(err))
+				return nil, err
+			}
+			smcABI = &jsonABI
+		}
+	}
+	return s.kaiClient.UnpackLog(log, smcABI)
 }

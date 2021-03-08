@@ -19,36 +19,46 @@ var (
 
 type IEvents interface {
 	createEventsCollectionIndexes() []mongo.IndexModel
-	InsertEvents(event *types.FunctionCall) error
-	GetListEvents(ctx context.Context, pagination *types.Pagination, contractAddress string, methodName string) ([]*types.FunctionCall, uint64, error)
+	InsertEvents(events []types.Log) error
+	GetListEvents(ctx context.Context, pagination *types.Pagination, contractAddress string, methodName string) ([]*types.Log, uint64, error)
 }
 
 func (m *mongoDB) createEventsCollectionIndexes() []mongo.IndexModel {
 	return []mongo.IndexModel{
-		{Keys: bson.M{"txHash": 1}, Options: options.Index().SetUnique(true).SetSparse(true)},
-		{Keys: bson.D{{Key: "contractAddress", Value: 1}, {Key: "timestamp", Value: -1}}, Options: options.Index().SetSparse(true)},
+		{Keys: bson.M{"transactionHash": 1}, Options: options.Index().SetSparse(true)},
+		{Keys: bson.D{{Key: "address", Value: 1}, {Key: "timestamp", Value: -1}}, Options: options.Index().SetSparse(true)},
 		{Keys: bson.D{{Key: "methodName", Value: 1}, {Key: "timestamp", Value: -1}}, Options: options.Index().SetSparse(true)},
-		{Keys: bson.M{"timestamp": -1}, Options: options.Index().SetSparse(true)},
+		{Keys: bson.M{"blockHeight": -1}, Options: options.Index().SetSparse(true)},
 	}
 }
 
-func (m *mongoDB) InsertEvents(event *types.FunctionCall) error {
-	if _, err := m.wrapper.C(cEvents).Insert(event); err != nil {
-		return err
+func (m *mongoDB) InsertEvents(events []types.Log) error {
+	var (
+		eventsBulkWriter []mongo.WriteModel
+	)
+	for _, e := range events {
+		txModel := mongo.NewInsertOneModel().SetDocument(e)
+		eventsBulkWriter = append(eventsBulkWriter, txModel)
 	}
+	if len(eventsBulkWriter) > 0 {
+		if _, err := m.wrapper.C(cEvents).BulkWrite(eventsBulkWriter); err != nil {
+			return err
+		}
+	}
+
 	return nil
 }
 
-func (m *mongoDB) GetListEvents(ctx context.Context, pagination *types.Pagination, contractAddress string, methodName string) ([]*types.FunctionCall, uint64, error) {
+func (m *mongoDB) GetListEvents(ctx context.Context, pagination *types.Pagination, contractAddress string, methodName string) ([]*types.Log, uint64, error) {
 	var (
 		opts = []*options.FindOptions{
-			options.Find().SetHint(bson.M{"timestamp": -1}),
-			options.Find().SetHint(bson.M{"txHash": 1}),
-			options.Find().SetHint(bson.D{{Key: "contractAddress", Value: 1}, {Key: "timestamp", Value: -1}}),
+			options.Find().SetHint(bson.M{"blockHeight": -1}),
+			options.Find().SetHint(bson.M{"transactionHash": 1}),
+			options.Find().SetHint(bson.D{{Key: "address", Value: 1}, {Key: "timestamp", Value: -1}}),
 			options.Find().SetHint(bson.D{{Key: "methodName", Value: 1}, {Key: "timestamp", Value: -1}}),
-			options.Find().SetSort(bson.M{"timestamp": -1}),
+			options.Find().SetSort(bson.M{"blockHeight": -1}),
 		}
-		events []*types.FunctionCall
+		events []*types.Log
 	)
 	if pagination != nil {
 		opts = append(opts, options.Find().SetSkip(int64(pagination.Skip)))
@@ -56,7 +66,7 @@ func (m *mongoDB) GetListEvents(ctx context.Context, pagination *types.Paginatio
 	}
 	var filter []bson.M
 	if contractAddress != "" {
-		filter = append(filter, bson.M{"contractAddress": contractAddress})
+		filter = append(filter, bson.M{"address": contractAddress})
 	}
 	if methodName != "" {
 		filter = append(filter, bson.M{"methodName": methodName})
@@ -73,7 +83,7 @@ func (m *mongoDB) GetListEvents(ctx context.Context, pagination *types.Paginatio
 		return nil, 0, fmt.Errorf("failed to get contract events: %v", err)
 	}
 	for cursor.Next(ctx) {
-		event := &types.FunctionCall{}
+		event := &types.Log{}
 		if err := cursor.Decode(event); err != nil {
 			return nil, 0, err
 		}

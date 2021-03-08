@@ -247,6 +247,12 @@ func bindContractAPIs(gr *echo.Group, srv EchoServer) {
 			middlewares: nil,
 		},
 		{
+			method:      echo.PUT,
+			path:        "/contracts/abi",
+			fn:          srv.UpdateSMCABIByType,
+			middlewares: nil,
+		},
+		{
 			method: echo.GET,
 			// Query params: ?page=0&limit=10&contractAddress=0x&methodName=0x
 			path:        "/contracts/events",
