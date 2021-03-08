@@ -710,6 +710,11 @@ func (s *infoServer) decodeEvent(ctx context.Context, log *types.Log) (*types.Lo
 			return nil, err
 		}
 		if smc.Type != "" {
+			err = s.cacheClient.UpdateSMCAbi(ctx, log.ContractAddress, cfg.SMCTypePrefix+smc.Type)
+			if err != nil {
+				s.logger.Warn("Cannot store smc abi to cache", zap.Error(err))
+				return nil, err
+			}
 			smcABI, err = s.cacheClient.SMCAbi(ctx, cfg.SMCTypePrefix+smc.Type)
 			if err != nil {
 				// query then reinsert abi of this SMC type to cache
@@ -721,11 +726,6 @@ func (s *infoServer) decodeEvent(ctx context.Context, log *types.Log) (*types.Lo
 				err = s.cacheClient.UpdateSMCAbi(ctx, cfg.SMCTypePrefix+smc.Type, smcABIBase64)
 				if err != nil {
 					s.logger.Warn("Cannot store smc abi by type to cache", zap.Error(err))
-					return nil, err
-				}
-				err = s.cacheClient.UpdateSMCAbi(ctx, log.ContractAddress, cfg.SMCTypePrefix+smc.Type)
-				if err != nil {
-					s.logger.Warn("Cannot store smc abi to cache", zap.Error(err))
 					return nil, err
 				}
 				smcABI, err = s.cacheClient.SMCAbi(ctx, cfg.SMCTypePrefix+smc.Type)
