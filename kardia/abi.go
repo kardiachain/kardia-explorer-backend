@@ -211,6 +211,10 @@ func (ec *Client) getInputArguments(a *abi.ABI, name string, data []byte) (abi.A
 // parseBytesArrayIntoString is a utility function. It converts address, bytes and string arguments into their hex representation.
 func parseBytesArrayIntoString(v interface{}) interface{} {
 	if reflect.TypeOf(v).Kind() == reflect.Array {
+		addr, ok := v.(common.Address)
+		if ok {
+			return addr.Hex()
+		}
 		arr, ok := v.([32]byte)
 		if !ok {
 			return v
