@@ -702,15 +702,15 @@ func (s *infoServer) storeEvents(ctx context.Context, logs []types.Log) error {
 }
 
 func (s *infoServer) decodeEvent(ctx context.Context, log *types.Log) (*types.Log, error) {
-	smcABI, err := s.cacheClient.SMCAbi(ctx, log.ContractAddress)
+	smcABI, err := s.cacheClient.SMCAbi(ctx, log.Address)
 	if err != nil {
-		smc, err := s.dbClient.Contract(ctx, log.ContractAddress)
+		smc, err := s.dbClient.Contract(ctx, log.Address)
 		if err != nil {
-			s.logger.Warn("Cannot get smc info from db", zap.Error(err), zap.String("smcAddr", log.ContractAddress))
+			s.logger.Warn("Cannot get smc info from db", zap.Error(err), zap.String("smcAddr", log.Address))
 			return nil, err
 		}
 		if smc.Type != "" {
-			err = s.cacheClient.UpdateSMCAbi(ctx, log.ContractAddress, cfg.SMCTypePrefix+smc.Type)
+			err = s.cacheClient.UpdateSMCAbi(ctx, log.Address, cfg.SMCTypePrefix+smc.Type)
 			if err != nil {
 				s.logger.Warn("Cannot store smc abi to cache", zap.Error(err))
 				return nil, err
@@ -746,7 +746,7 @@ func (s *infoServer) decodeEvent(ctx context.Context, log *types.Log) (*types.Lo
 				return nil, err
 			}
 			// store this abi to cache
-			err = s.cacheClient.UpdateSMCAbi(ctx, log.ContractAddress, smc.ABI)
+			err = s.cacheClient.UpdateSMCAbi(ctx, log.Address, smc.ABI)
 			if err != nil {
 				s.logger.Warn("Cannot store smc abi to cache", zap.Error(err))
 				return nil, err

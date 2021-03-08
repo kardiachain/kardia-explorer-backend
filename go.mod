@@ -6,7 +6,7 @@ require (
 	github.com/bxcodec/faker/v3 v3.5.0
 	github.com/go-redis/redis/v8 v8.2.3
 	github.com/joho/godotenv v1.3.0
-	github.com/kardiachain/go-kaiclient v0.0.0-20210304040403-cba9e7b6025c
+	github.com/kardiachain/go-kaiclient v0.0.0-20210308081704-fb85b109341c
 	github.com/kardiachain/go-kardia v0.11.0
 	github.com/kr/text v0.2.0 // indirect
 	github.com/labstack/echo v3.3.10+incompatible
@@ -20,6 +20,7 @@ require (
 	go.uber.org/zap v1.16.0
 	golang.org/x/sync v0.0.0-20200625203802-6e8e738ad208 // indirect
 	golang.org/x/sys v0.0.0-20200625212154-ddb9806d33ae // indirect
+	golang.org/x/tools v0.0.0-20200103221440-774c71fcf114
 	gopkg.in/check.v1 v1.0.0-20200227125254-8fa46927fb4f // indirect
 	gopkg.in/mgo.v2 v2.0.0-20180705113604-9856a29383ce
 	gotest.tools v2.2.0+incompatible

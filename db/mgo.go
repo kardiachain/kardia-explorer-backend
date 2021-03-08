@@ -832,3 +832,30 @@ func (m *mongoDB) GetListProposals(ctx context.Context, pagination *types.Pagina
 }
 
 // end region Proposal
+
+func (m *mongoDB) AddressByName(ctx context.Context, name string) (common.Address, error) {
+	var addr *types.Address
+	if err := m.wrapper.C(cAddresses).FindOne(bson.M{"name": name}).Decode(&addr); err != nil {
+		return common.Address{}, err
+	}
+
+	return common.HexToAddress(addr.Address), nil
+}
+
+func (m *mongoDB) ValidatorByName(ctx context.Context, name string) (common.Address, error) {
+	var validator *types.Validator
+	if err := m.wrapper.C(cValidators).FindOne(bson.M{"name": name}).Decode(&validator); err != nil {
+		return common.Address{}, err
+	}
+
+	return validator.SmcAddress, nil
+}
+
+func (m *mongoDB) ContractByName(ctx context.Context, name string) (common.Address, error) {
+	var c *types.Contract
+	if err := m.wrapper.C(cContract).FindOne(bson.M{"name": name}).Decode(&c); err != nil {
+		return common.Address{}, err
+	}
+
+	return common.HexToAddress(c.Address), nil
+}

@@ -5,6 +5,7 @@ import (
 	"context"
 	"errors"
 
+	"github.com/kardiachain/go-kardia/lib/common"
 	"go.uber.org/zap"
 
 	"github.com/kardiachain/kardia-explorer-backend/types"
@@ -36,7 +37,7 @@ type Nodes interface {
 // DB define list API used by infoServer
 type Client interface {
 	IContract
-	IValidators
+	IValidator
 	IDelegators
 	Nodes
 	IEvents
@@ -80,6 +81,10 @@ type Client interface {
 	GetTotalAddresses(ctx context.Context) (uint64, uint64, error)
 	GetListAddresses(ctx context.Context, sortDirection int, pagination *types.Pagination) ([]*types.Address, error)
 	Addresses(ctx context.Context) ([]*types.Address, error)
+
+	AddressByName(ctx context.Context, name string) (common.Address, error)
+	ValidatorByName(ctx context.Context, name string) (common.Address, error)
+	ContractByName(ctx context.Context, name string) (common.Address, error)
 
 	// Proposal
 	AddVoteToProposal(ctx context.Context, proposalInfo *types.ProposalDetail, voteOption uint64) error

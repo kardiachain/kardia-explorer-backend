@@ -15,10 +15,12 @@ var (
 	cValidators = "Validators"
 )
 
-type IValidators interface {
+type IValidator interface {
 	UpsertValidators(ctx context.Context, validators []*types.Validator) error
 	Validators(ctx context.Context, filter ValidatorsFilter) ([]*types.Validator, error)
 	ClearValidators(ctx context.Context) error
+
+	UpsertValidator(ctx context.Context, validator *types.Validator) error
 }
 
 type ValidatorsFilter struct {
@@ -53,6 +55,17 @@ func (m *mongoDB) Validators(ctx context.Context, filter ValidatorsFilter) ([]*t
 
 func (m *mongoDB) ClearValidators(ctx context.Context) error {
 	if _, err := m.wrapper.C(cValidators).RemoveAll(bson.M{}); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (m *mongoDB) UpsertValidator(ctx context.Context, validator *types.Validator) error {
+	var models []mongo.WriteModel
+	models = append(models, mongo.NewUpdateOneModel().SetUpsert(true).SetFilter(bson.M{"smcAddress": validator.SmcAddress}).SetUpdate(bson.M{"$set": validator}))
+
+	if _, err := m.wrapper.C(cValidators).BulkWrite(models); err != nil {
+		fmt.Println("Cannot write list model", err)
 		return err
 	}
 	return nil
