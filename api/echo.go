@@ -213,6 +213,12 @@ func bind(gr *echo.Group, srv EchoServer) {
 			fn:          srv.ReloadValidators,
 			middlewares: nil,
 		},
+		{
+			method:      echo.GET,
+			path:        "/search",
+			fn:          srv.SearchAddressByName,
+			middlewares: nil,
+		},
 	}
 	bindContractAPIs(gr, srv)
 	for _, api := range apis {

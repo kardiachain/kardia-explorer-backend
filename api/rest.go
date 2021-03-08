@@ -53,6 +53,9 @@ type EchoServer interface {
 	UpdateSupplyAmounts(c echo.Context) error
 
 	IContract
+
+	//
+	SearchAddressByName(c echo.Context) error
 }
 
 type IContract interface {

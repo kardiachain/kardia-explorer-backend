@@ -1322,3 +1322,27 @@ func (s *Server) UpdateContract(c echo.Context) error {
 
 	return api.OK.Build(c)
 }
+
+func (s *Server) SearchAddressByName(c echo.Context) error {
+	ctx := context.Background()
+	name := c.QueryParam("name")
+	if name == "" {
+		return api.Invalid.Build(c)
+	}
+
+	address, err := s.dbClient.AddressByName(ctx, name)
+	if err == nil && !address.Equal(common.Address{}) {
+		return api.OK.SetData(address).Build(c)
+	}
+
+	validator, err := s.dbClient.ValidatorByName(ctx, name)
+	if err == nil && !validator.Equal(common.Address{}) {
+		return api.OK.SetData(address).Build(c)
+	}
+	contract, err := s.dbClient.ContractByName(ctx, name)
+	if err == nil && !contract.Equal(common.Address{}) {
+		return api.OK.SetData(address).Build(c)
+	}
+
+	return api.Invalid.Build(c)
+}
