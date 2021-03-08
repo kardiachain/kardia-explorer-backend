@@ -33,12 +33,10 @@ func (m *mongoDB) createEventsCollectionIndexes() []mongo.IndexModel {
 }
 
 func (m *mongoDB) InsertEvents(events []types.Log) error {
-	var (
-		eventsBulkWriter []mongo.WriteModel
-	)
-	for _, e := range events {
-		txModel := mongo.NewInsertOneModel().SetDocument(e)
-		eventsBulkWriter = append(eventsBulkWriter, txModel)
+	eventsBulkWriter := make([]mongo.WriteModel, len(events))
+	for i := range events {
+		txModel := mongo.NewInsertOneModel().SetDocument(events[i])
+		eventsBulkWriter[i] = txModel
 	}
 	if len(eventsBulkWriter) > 0 {
 		if _, err := m.wrapper.C(cEvents).BulkWrite(eventsBulkWriter); err != nil {

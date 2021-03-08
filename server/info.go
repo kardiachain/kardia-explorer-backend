@@ -691,10 +691,10 @@ func (s *infoServer) BlockCacheSize(ctx context.Context) (int64, error) {
 }
 
 func (s *infoServer) storeEvents(ctx context.Context, logs []types.Log) error {
-	for i, log := range logs {
-		decodedLog, err := s.decodeEvent(ctx, &log)
+	for i := range logs {
+		decodedLog, err := s.decodeEvent(ctx, &logs[i])
 		if err != nil {
-			decodedLog = &log
+			decodedLog = &logs[i]
 		}
 		logs[i] = *decodedLog
 	}
