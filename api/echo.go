@@ -254,7 +254,7 @@ func bindContractAPIs(gr *echo.Group, srv EchoServer) {
 		},
 		{
 			method: echo.GET,
-			// Query params: ?page=0&limit=10&contractAddress=0x&methodName=0x
+			// Query params: ?page=0&limit=10&contractAddress=0x&methodName=0x&txHash=0x
 			path:        "/contracts/events",
 			fn:          srv.ContractEvents,
 			middlewares: nil,

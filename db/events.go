@@ -20,7 +20,7 @@ var (
 type IEvents interface {
 	createEventsCollectionIndexes() []mongo.IndexModel
 	InsertEvents(events []types.Log) error
-	GetListEvents(ctx context.Context, pagination *types.Pagination, contractAddress string, methodName string) ([]*types.Log, uint64, error)
+	GetListEvents(ctx context.Context, pagination *types.Pagination, contractAddress string, methodName string, txHash string) ([]*types.Log, uint64, error)
 }
 
 func (m *mongoDB) createEventsCollectionIndexes() []mongo.IndexModel {
@@ -49,7 +49,7 @@ func (m *mongoDB) InsertEvents(events []types.Log) error {
 	return nil
 }
 
-func (m *mongoDB) GetListEvents(ctx context.Context, pagination *types.Pagination, contractAddress string, methodName string) ([]*types.Log, uint64, error) {
+func (m *mongoDB) GetListEvents(ctx context.Context, pagination *types.Pagination, contractAddress string, methodName string, txHash string) ([]*types.Log, uint64, error) {
 	var (
 		opts = []*options.FindOptions{
 			options.Find().SetHint(bson.M{"blockHeight": -1}),
@@ -70,6 +70,9 @@ func (m *mongoDB) GetListEvents(ctx context.Context, pagination *types.Paginatio
 	}
 	if methodName != "" {
 		filter = append(filter, bson.M{"methodName": methodName})
+	}
+	if txHash != "" {
+		filter = append(filter, bson.M{"transactionHash": txHash})
 	}
 	cursor, err := m.wrapper.C(cEvents).
 		Find(bson.M{"$and": filter}, opts...)
