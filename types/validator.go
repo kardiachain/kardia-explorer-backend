@@ -75,6 +75,7 @@ type RPCDelegator struct {
 }
 
 type Delegator struct {
+	ValidatorSMC common.Address `json:"validatorSmc" bson:"validatorSmc"`
 	Address      common.Address `json:"address" bson:"address"`
 	Name         string         `json:"name,omitempty" bson:"name"`
 	StakedAmount string         `json:"stakedAmount" bson:"stakedAmount"`

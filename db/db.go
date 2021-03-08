@@ -37,7 +37,7 @@ type Nodes interface {
 // DB define list API used by infoServer
 type Client interface {
 	IContract
-	IValidators
+	IValidator
 	IDelegators
 	Nodes
 	ping() error

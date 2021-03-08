@@ -841,7 +841,7 @@ func (m *mongoDB) ValidatorByName(ctx context.Context, name string) (common.Addr
 		return common.Address{}, err
 	}
 
-	return validator.Address, nil
+	return validator.SmcAddress, nil
 }
 
 func (m *mongoDB) ContractByName(ctx context.Context, name string) (common.Address, error) {
