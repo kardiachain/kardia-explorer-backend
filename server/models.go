@@ -115,6 +115,7 @@ type KRCTokenInfo struct {
 	Type          string `json:"type" bson:"type"`
 	BalanceString string `json:"balance" bson:"balanceString"` // high precise balance for API
 	Info          string `json:"info" bson:"info"`             // additional info of this address
+	Logo          string `json:"logo" bson:"logo"`
 
 	// SMC
 	IsContract bool `json:"isContract" bson:"isContract"`
@@ -139,4 +140,5 @@ type SimpleKRCTokenInfo struct {
 	Address string `json:"address" bson:"address"`
 	Info    string `json:"info" bson:"info"`
 	Type    string `json:"type" bson:"type"`
+	Logo    string `json:"logo" bson:"logo"`
 }

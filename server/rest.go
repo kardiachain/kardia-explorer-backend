@@ -1310,6 +1310,7 @@ func (s *Server) Contracts(c echo.Context) error {
 			Address: result[i].Address,
 			Info:    result[i].Info,
 			Type:    result[i].Type,
+			Logo:    result[i].Logo,
 		}
 	}
 	return api.OK.SetData(PagingResponse{

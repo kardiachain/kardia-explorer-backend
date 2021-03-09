@@ -5,13 +5,14 @@ package types
 type Contract struct {
 	Name         string `json:"name" bson:"name"`
 	Address      string `json:"address" bson:"address"`
-	Bytecode     string `json:"bytecode" bson:"bytecode"`
+	Bytecode     string `json:"bytecode,omitempty" bson:"bytecode"`
 	ABI          string `json:"abi" bson:"abi"`
-	OwnerAddress string `json:"ownerAddress" bson:"ownerAddress"`
-	TxHash       string `json:"txHash" bson:"txHash"`
+	OwnerAddress string `json:"ownerAddress,omitempty" bson:"ownerAddress"`
+	TxHash       string `json:"txHash,omitempty" bson:"txHash"`
 	CreatedAt    int64  `json:"createdAt" bson:"createdAt"`
 	Type         string `json:"type" bson:"type"`
 	Info         string `json:"info" bson:"info"`
+	Logo         string `json:"logo" bson:"logo"`
 }
 
 type ContractABI struct {
