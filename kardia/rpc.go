@@ -114,7 +114,6 @@ func NewKaiClient(config *Config) (ClientInterface, error) {
 	if err != nil {
 		panic("cannot read staking ABI file")
 	}
-	defer stakingABI.Close()
 	stakingSmcABI, err := abi.JSON(stakingABI)
 	if err != nil {
 		config.lgr.Error("Error reading staking contract abi", zap.Error(err))
@@ -129,7 +128,6 @@ func NewKaiClient(config *Config) (ClientInterface, error) {
 	if err != nil {
 		panic("cannot read validator ABI file")
 	}
-	defer validatorABI.Close()
 	validatorSmcAbi, err := abi.JSON(validatorABI)
 	if err != nil {
 		config.lgr.Error("Error reading validator contract abi", zap.Error(err))
@@ -143,7 +141,6 @@ func NewKaiClient(config *Config) (ClientInterface, error) {
 	if err != nil {
 		panic("cannot read params ABI file")
 	}
-	defer paramsABI.Close()
 	paramsSmcAbi, err := abi.JSON(paramsABI)
 	if err != nil {
 		config.lgr.Error("Error reading params contract abi", zap.Error(err))
