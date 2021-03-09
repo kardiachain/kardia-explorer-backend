@@ -62,11 +62,14 @@ func main() {
 		logger.Panic("cannot create server instance %s", zap.Error(err))
 	}
 	ctx := context.Background()
-	if err := srv.LoadBootData(ctx); err != nil {
-		logger.Panic("cannot load boot data", zap.Error(err))
-	}
-	if err := srv.LoadBootContracts(ctx); err != nil {
-		logger.Panic("cannot load boot contracts", zap.Error(err))
+
+	if serviceCfg.IsReloadBootData {
+		if err := srv.LoadBootData(ctx); err != nil {
+			logger.Panic("cannot load boot data", zap.Error(err))
+		}
+		if err := srv.LoadBootContracts(ctx); err != nil {
+			logger.Panic("cannot load boot contracts", zap.Error(err))
+		}
 	}
 
 	api.Start(srv, serviceCfg)

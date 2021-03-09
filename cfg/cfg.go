@@ -40,6 +40,8 @@ type ExplorerConfig struct {
 
 	LogLevel string
 
+	IsReloadBootData bool
+
 	DefaultAPITimeout     time.Duration
 	DefaultBlockFetchTime time.Duration
 
@@ -73,6 +75,12 @@ type ExplorerConfig struct {
 }
 
 func New() (ExplorerConfig, error) {
+	isReloadBootDataStr := os.Getenv("IS_RELOAD_BOOT_DATA")
+	isReloadBootData, err := strconv.ParseBool(isReloadBootDataStr)
+	if err != nil {
+		isReloadBootData = true
+	}
+
 	apiDefaultTimeoutStr := os.Getenv("DEFAULT_API_TIMEOUT")
 	apiDefaultTimeout, err := strconv.Atoi(apiDefaultTimeoutStr)
 	if err != nil {
@@ -176,6 +184,7 @@ func New() (ExplorerConfig, error) {
 		Port:                  os.Getenv("PORT"),
 		HttpRequestSecret:     os.Getenv("HTTP_REQUEST_SECRET"),
 		LogLevel:              os.Getenv("LOG_LEVEL"),
+		IsReloadBootData:      isReloadBootData,
 		DefaultAPITimeout:     time.Duration(apiDefaultTimeout) * time.Second,
 		DefaultBlockFetchTime: time.Duration(apiDefaultBlockFetchTime) * time.Millisecond,
 		BufferedBlocks:        int64(bufferBlocks),
