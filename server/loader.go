@@ -143,13 +143,13 @@ func (s *infoServer) LoadBootContracts(ctx context.Context) error {
 			Name:         val.Name,
 			Address:      val.SmcAddress.Hex(),
 			OwnerAddress: cfg.StakingContractAddr,
-			CreatedAt:    time.Now().String(),
+			CreatedAt:    time.Now().Unix(),
 			Type:         "Validator",
 		})
 	}
 	bootSMCs = append(bootSMCs, bootContracts()...)
 	for _, smc := range bootSMCs {
-		err = s.dbClient.InsertContract(ctx, smc)
+		err = s.dbClient.InsertContract(ctx, smc, nil)
 		if err != nil {
 			s.logger.Warn("Cannot insert SMC to db", zap.Error(err))
 		}
@@ -173,20 +173,20 @@ func bootContracts() []*types.Contract {
 		Name:      cfg.StakingContractName,
 		Address:   cfg.StakingContractAddr,
 		Bytecode:  cfg.StakingContractByteCode,
-		CreatedAt: time.Now().String(),
+		CreatedAt: time.Now().Unix(),
 		Type:      "Staking",
 	})
 	bootSMCs = append(bootSMCs, &types.Contract{
 		Name:      cfg.ParamsContractName,
 		Address:   cfg.ParamsContractAddr,
 		Bytecode:  cfg.ParamsContractsByteCode,
-		CreatedAt: time.Now().String(),
+		CreatedAt: time.Now().Unix(),
 		Type:      "Params",
 	})
 	bootSMCs = append(bootSMCs, &types.Contract{
 		Name:      cfg.TreasuryContractName,
 		Address:   cfg.TreasuryContractAddr,
-		CreatedAt: time.Now().String(),
+		CreatedAt: time.Now().Unix(),
 		Type:      "Treasury",
 	})
 

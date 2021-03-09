@@ -5,8 +5,10 @@ import (
 	"bytes"
 	"context"
 	"encoding/base64"
+	"encoding/json"
 	"errors"
 	"fmt"
+	"io/ioutil"
 	"math/big"
 	"strconv"
 	"strings"
@@ -963,7 +965,7 @@ func (s *Server) TxByHash(c echo.Context) error {
 
 	// Get contract details
 	var functionCall *types.FunctionCall
-	contract, err := s.dbClient.Contract(ctx, tx.To)
+	contract, _, err := s.dbClient.Contract(ctx, tx.To)
 	if err != nil || contract == nil {
 		decoded, err := s.kaiClient.DecodeInputData(tx.To, tx.InputData)
 		if err == nil {
@@ -1291,13 +1293,65 @@ func (s *Server) ContractEvents(c echo.Context) error {
 }
 
 func (s *Server) Contracts(c echo.Context) error {
-	var resp []*types.Contract
-	return api.OK.SetData(resp).Build(c)
+	ctx := context.Background()
+	pagination, page, limit := getPagingOption(c)
+	filterCrit := &types.ContractsFilter{
+		Type:       c.QueryParam("type"),
+		Pagination: pagination,
+	}
+	result, total, err := s.dbClient.Contracts(ctx, filterCrit)
+	if err != nil {
+		return api.Invalid.Build(c)
+	}
+	finalResult := make([]*SimpleKRCTokenInfo, len(result))
+	for i := range result {
+		finalResult[i] = &SimpleKRCTokenInfo{
+			Name:    result[i].Name,
+			Address: result[i].Address,
+			Info:    result[i].Info,
+			Type:    result[i].Type,
+		}
+	}
+	return api.OK.SetData(PagingResponse{
+		Page:  page,
+		Limit: limit,
+		Total: total,
+		Data:  finalResult,
+	}).Build(c)
 }
 
 func (s *Server) Contract(c echo.Context) error {
-	var resp *types.Contract
-	return api.OK.SetData(resp).Build(c)
+	ctx := context.Background()
+	smc, addrInfo, err := s.dbClient.Contract(ctx, c.Param("contractAddress"))
+	if err != nil {
+		return api.Invalid.Build(c)
+	}
+	if smc.ABI == "" && smc.Type != "" {
+		abiStr, err := s.cacheClient.SMCAbi(ctx, cfg.SMCTypePrefix+smc.Type)
+		if err == nil {
+			smc.ABI = abiStr
+		}
+	}
+	var result *KRCTokenInfo
+	// map smc info to result
+	smcJSON, err := json.Marshal(smc)
+	if err != nil {
+		return api.Invalid.Build(c)
+	}
+	err = json.Unmarshal(smcJSON, &result)
+	if err != nil {
+		return api.Invalid.Build(c)
+	}
+	// map address info to result
+	addrInfoJSON, err := json.Marshal(addrInfo)
+	if err != nil {
+		return api.Invalid.Build(c)
+	}
+	err = json.Unmarshal(addrInfoJSON, &result)
+	if err != nil {
+		return api.Invalid.Build(c)
+	}
+	return api.OK.SetData(result).Build(c)
 }
 
 func (s *Server) InsertContract(c echo.Context) error {
@@ -1308,13 +1362,23 @@ func (s *Server) InsertContract(c echo.Context) error {
 	}
 
 	lgr.Debug("Start insert contract")
-	var contract types.Contract
+	var (
+		contract     types.Contract
+		addrInfo     types.Address
+		bodyBytes, _ = ioutil.ReadAll(c.Request().Body)
+	)
+	c.Request().Body = ioutil.NopCloser(bytes.NewBuffer(bodyBytes))
 	if err := c.Bind(&contract); err != nil {
 		lgr.Error("cannot bind data", zap.Error(err))
 		return api.Invalid.Build(c)
 	}
+	c.Request().Body = ioutil.NopCloser(bytes.NewBuffer(bodyBytes))
+	if err := c.Bind(&addrInfo); err != nil {
+		lgr.Error("cannot bind data", zap.Error(err))
+		return api.Invalid.Build(c)
+	}
 	ctx := context.Background()
-	if err := s.dbClient.InsertContract(ctx, &contract); err != nil {
+	if err := s.dbClient.InsertContract(ctx, &contract, &addrInfo); err != nil {
 		lgr.Error("cannot bind insert", zap.Error(err))
 		return api.InternalServer.Build(c)
 	}
@@ -1323,19 +1387,31 @@ func (s *Server) InsertContract(c echo.Context) error {
 }
 
 func (s *Server) UpdateContract(c echo.Context) error {
-	//ctx := context.Background()
+	lgr := s.logger.With(zap.String("method", "InsertContract"))
+
 	if c.Request().Header.Get("Authorization") != s.infoServer.HttpRequestSecret {
 		return api.Unauthorized.Build(c)
 	}
-	var nodeInfo *types.NodeInfo
-	if err := c.Bind(&nodeInfo); err != nil {
+
+	lgr.Debug("Start insert contract")
+	var (
+		contract     types.Contract
+		addrInfo     types.Address
+		bodyBytes, _ = ioutil.ReadAll(c.Request().Body)
+	)
+	c.Request().Body = ioutil.NopCloser(bytes.NewBuffer(bodyBytes))
+	if err := c.Bind(&contract); err != nil {
+		lgr.Error("cannot bind data", zap.Error(err))
 		return api.Invalid.Build(c)
 	}
-	if nodeInfo.ID == "" || nodeInfo.Moniker == "" {
+	c.Request().Body = ioutil.NopCloser(bytes.NewBuffer(bodyBytes))
+	if err := c.Bind(&addrInfo); err != nil {
+		lgr.Error("cannot bind data", zap.Error(err))
 		return api.Invalid.Build(c)
 	}
 	ctx := context.Background()
-	if err := s.dbClient.UpsertNode(ctx, nodeInfo); err != nil {
+	if err := s.dbClient.UpdateContract(ctx, &contract, &addrInfo); err != nil {
+		lgr.Error("cannot bind insert", zap.Error(err))
 		return api.InternalServer.Build(c)
 	}
 

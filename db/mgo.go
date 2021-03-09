@@ -115,6 +115,7 @@ func createIndexes(dbClient *mongoDB) error {
 		{c: cProposal, model: []mongo.IndexModel{{Keys: bson.M{"id": -1}, Options: options.Index().SetUnique(true).SetSparse(true)}}},
 		// indexing contract & ABI collection
 		{c: cContract, model: []mongo.IndexModel{{Keys: bson.M{"name": 1}, Options: options.Index().SetSparse(true)}}},
+		{c: cContract, model: []mongo.IndexModel{{Keys: bson.M{"type": 1}, Options: options.Index().SetSparse(true)}}},
 		{c: cContract, model: []mongo.IndexModel{{Keys: bson.M{"address": 1}, Options: options.Index().SetUnique(true).SetSparse(true)}}},
 		{c: cABI, model: []mongo.IndexModel{{Keys: bson.M{"type": 1}, Options: options.Index().SetUnique(true).SetSparse(true)}}},
 		// indexing contract events collection
