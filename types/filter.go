@@ -45,12 +45,12 @@ func (f *TimeFilter) Sanitize() {
 }
 
 type ContractsFilter struct {
-	Pagination
-	SortFilter
-	ContractName string
-	TokenName    string
-	TokenSymbol  string
-	ErcType      string
+	Type       string      `bson:"type,omitempty"`
+	Pagination *Pagination `bson:"-"`
+
+	ContractName string `bson:"name,omitempty"`
+	TokenName    string `bson:"tokenName,omitempty"`
+	TokenSymbol  string `bson:"tokenSymbol,omitempty"`
 }
 
 type InternalTxsFilter struct {

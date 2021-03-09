@@ -103,3 +103,40 @@ type valInfoResponse struct {
 	Name string
 	Role int
 }
+
+type KRCTokenInfo struct {
+	Name          string `json:"name" bson:"name"`
+	Address       string `json:"address" bson:"address"`
+	Bytecode      string `json:"bytecode" bson:"bytecode"`
+	ABI           string `json:"abi" bson:"abi"`
+	OwnerAddress  string `json:"ownerAddress" bson:"ownerAddress"`
+	TxHash        string `json:"txHash" bson:"txHash"`
+	CreatedAt     int64  `json:"createdAt" bson:"createdAt"`
+	Type          string `json:"type" bson:"type"`
+	BalanceString string `json:"balance" bson:"balanceString"` // high precise balance for API
+	Info          string `json:"info" bson:"info"`             // additional info of this address
+
+	// SMC
+	IsContract bool `json:"isContract" bson:"isContract"`
+
+	// Token
+	TokenName   string `json:"tokenName" bson:"tokenName"`
+	TokenSymbol string `json:"tokenSymbol" bson:"tokenSymbol"`
+	Decimals    int64  `json:"decimals" bson:"decimals"`
+	TotalSupply string `json:"totalSupply" bson:"totalSupply"`
+
+	// Stats
+	TxCount         int `json:"txCount" bson:"txCount"`
+	HolderCount     int `json:"holderCount" bson:"holderCount"`
+	InternalTxCount int `json:"internalTxCount" bson:"internalTxCount"`
+	TokenTxCount    int `json:"tokenTxCount" bson:"tokenTxCount"`
+
+	UpdatedAt int64 `json:"updatedAt" bson:"updatedAt"`
+}
+
+type SimpleKRCTokenInfo struct {
+	Name    string `json:"name" bson:"name"`
+	Address string `json:"address" bson:"address"`
+	Info    string `json:"info" bson:"info"`
+	Type    string `json:"type" bson:"type"`
+}

@@ -9,8 +9,9 @@ type Contract struct {
 	ABI          string `json:"abi" bson:"abi"`
 	OwnerAddress string `json:"ownerAddress" bson:"ownerAddress"`
 	TxHash       string `json:"txHash" bson:"txHash"`
-	CreatedAt    string `json:"createdAt" bson:"createdAt"`
+	CreatedAt    int64  `json:"createdAt" bson:"createdAt"`
 	Type         string `json:"type" bson:"type"`
+	Info         string `json:"info" bson:"info"`
 }
 
 type ContractABI struct {

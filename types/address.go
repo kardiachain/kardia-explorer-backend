@@ -6,6 +6,7 @@ type Address struct {
 	BalanceFloat  float64 `json:"-" bson:"balanceFloat"`        // low precise balance for sorting purposes
 	BalanceString string  `json:"balance" bson:"balanceString"` // high precise balance for API
 	Name          string  `json:"name" bson:"name"`             // alias of an address
+	Info          string  `json:"info" bson:"info"`             // additional info of this address
 
 	// Token
 	TokenName   string `json:"tokenName" bson:"tokenName"`
@@ -14,10 +15,9 @@ type Address struct {
 	TotalSupply string `json:"totalSupply" bson:"totalSupply"`
 
 	// SMC
-	IsContract   bool     `json:"isContract" bson:"isContract"`
-	ErcTypes     []string `json:"ercTypes" bson:"ercTypes"`
-	Interfaces   []string `json:"interfaces" bson:"interfaces"`
-	OwnerAddress string   `json:"ownerAddress" bson:"ownerAddress"`
+	IsContract   bool   `json:"isContract" bson:"isContract"`
+	ErcTypes     string `json:"type" bson:"type"`
+	OwnerAddress string `json:"ownerAddress" bson:"ownerAddress"`
 
 	// Stats
 	TxCount         int `json:"txCount" bson:"txCount"`
