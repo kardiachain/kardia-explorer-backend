@@ -21,13 +21,32 @@ func (ec *Client) getValidators(ctx context.Context) ([]*types.Validator, error)
 		return nil, err
 	}
 	startLoadValidatorTime := time.Now()
-	validators, err := node.Validators(ctx)
+	nValidators, err := node.Validators(ctx)
 	if err != nil {
 		return nil, err
 	}
 	fmt.Println("TotalTime: ", time.Now().Sub(startLoadValidatorTime))
-	fmt.Println("ValidatorInfo", validators)
-	return nil, nil
+	var validators []*types.Validator
+	for _, v := range nValidators {
+		validators = append(validators, &types.Validator{
+			Address:               v.Signer,
+			SmcAddress:            v.SMCAddress,
+			Status:                v.Status,
+			Role:                  0,
+			Jailed:                v.Jailed,
+			Name:                  validatorNameInString(v.Name),
+			VotingPowerPercentage: "",
+			StakedAmount:          "",
+			AccumulatedCommission: "",
+			UpdateTime:            0,
+			CommissionRate:        "",
+			TotalDelegators:       0,
+			MaxRate:               "",
+			MaxChangeRate:         "",
+			SigningInfo:           nil,
+		})
+	}
+	return validators, nil
 }
 
 func (ec *Client) getValidator(ctx context.Context, validatorSMCAddr string) (*types.Validator, error) {

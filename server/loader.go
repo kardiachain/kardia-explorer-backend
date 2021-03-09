@@ -37,9 +37,11 @@ func (s *infoServer) LoadBootData(ctx context.Context) error {
 	if err := s.dbClient.UpsertValidators(ctx, validators); err != nil {
 		return err
 	}
+
 	for _, val := range validators {
 		cfg.GenesisAddresses = append(cfg.GenesisAddresses, val.SmcAddress.String())
 	}
+
 	cfg.GenesisAddresses = append(cfg.GenesisAddresses, cfg.TreasuryContractAddr)
 	cfg.GenesisAddresses = append(cfg.GenesisAddresses, cfg.StakingContractAddr)
 	cfg.GenesisAddresses = append(cfg.GenesisAddresses, cfg.KardiaDeployerAddr)
@@ -55,15 +57,19 @@ func (s *infoServer) LoadBootData(ctx context.Context) error {
 			BalanceString: balance,
 			IsContract:    false,
 		}
+
 		code, _ := s.kaiClient.GetCode(ctx, addr)
 		if len(code) > 0 {
 			addrInfo.IsContract = true
 		}
+
 		// write this address to db
 		if err := s.dbClient.InsertAddress(ctx, addrInfo); err != nil {
 			lgr.Debug("cannot insert address", zap.Error(err))
 		}
+
 	}
+	fmt.Println("Finished load boot data")
 	return nil
 }
 
