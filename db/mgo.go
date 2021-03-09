@@ -25,16 +25,16 @@ import (
 
 	"github.com/kardiachain/go-kardia/lib/common"
 
-	"github.com/kardiachain/kardia-explorer-backend/cfg"
-	"github.com/kardiachain/kardia-explorer-backend/utils"
-
 	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 	"go.uber.org/zap"
 	"gopkg.in/mgo.v2"
 
+	"github.com/kardiachain/kardia-explorer-backend/cfg"
 	"github.com/kardiachain/kardia-explorer-backend/types"
+	"github.com/kardiachain/kardia-explorer-backend/utils"
 )
 
 const (
@@ -115,6 +115,7 @@ func createIndexes(dbClient *mongoDB) error {
 		{c: cProposal, model: []mongo.IndexModel{{Keys: bson.M{"id": -1}, Options: options.Index().SetUnique(true).SetSparse(true)}}},
 		// indexing contract & ABI collection
 		{c: cContract, model: []mongo.IndexModel{{Keys: bson.M{"name": 1}, Options: options.Index().SetSparse(true)}}},
+		{c: cContract, model: []mongo.IndexModel{{Keys: bson.M{"type": 1}, Options: options.Index().SetSparse(true)}}},
 		{c: cContract, model: []mongo.IndexModel{{Keys: bson.M{"address": 1}, Options: options.Index().SetUnique(true).SetSparse(true)}}},
 		{c: cABI, model: []mongo.IndexModel{{Keys: bson.M{"type": 1}, Options: options.Index().SetUnique(true).SetSparse(true)}}},
 		// indexing contract events collection
@@ -835,7 +836,8 @@ func (m *mongoDB) GetListProposals(ctx context.Context, pagination *types.Pagina
 
 func (m *mongoDB) AddressByName(ctx context.Context, name string) (common.Address, error) {
 	var addr *types.Address
-	if err := m.wrapper.C(cAddresses).FindOne(bson.M{"name": name}).Decode(&addr); err != nil {
+	if err := m.wrapper.C(cAddresses).FindOne(bson.M{"name": bson.D{
+		{"$regex", primitive.Regex{Pattern: name, Options: "i"}}}}).Decode(&addr); err != nil {
 		return common.Address{}, err
 	}
 
@@ -844,7 +846,8 @@ func (m *mongoDB) AddressByName(ctx context.Context, name string) (common.Addres
 
 func (m *mongoDB) ValidatorByName(ctx context.Context, name string) (common.Address, error) {
 	var validator *types.Validator
-	if err := m.wrapper.C(cValidators).FindOne(bson.M{"name": name}).Decode(&validator); err != nil {
+	if err := m.wrapper.C(cValidators).FindOne(bson.M{"name": bson.D{
+		{"$regex", primitive.Regex{Pattern: name, Options: "i"}}}}).Decode(&validator); err != nil {
 		return common.Address{}, err
 	}
 
@@ -853,7 +856,8 @@ func (m *mongoDB) ValidatorByName(ctx context.Context, name string) (common.Addr
 
 func (m *mongoDB) ContractByName(ctx context.Context, name string) (common.Address, error) {
 	var c *types.Contract
-	if err := m.wrapper.C(cContract).FindOne(bson.M{"name": name}).Decode(&c); err != nil {
+	if err := m.wrapper.C(cContract).FindOne(bson.M{"name": bson.D{
+		{"$regex", primitive.Regex{Pattern: name, Options: "i"}}}}).Decode(&c); err != nil {
 		return common.Address{}, err
 	}
 

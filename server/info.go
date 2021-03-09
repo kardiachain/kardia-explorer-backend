@@ -702,9 +702,9 @@ func (s *infoServer) storeEvents(ctx context.Context, logs []types.Log) error {
 }
 
 func (s *infoServer) decodeEvent(ctx context.Context, log *types.Log) (*types.Log, error) {
-	smcABI, err := s.cacheClient.SMCAbi(ctx, log.Address)
+	smcABIStr, err := s.cacheClient.SMCAbi(ctx, log.Address)
 	if err != nil {
-		smc, err := s.dbClient.Contract(ctx, log.Address)
+		smc, _, err := s.dbClient.Contract(ctx, log.Address)
 		if err != nil {
 			s.logger.Warn("Cannot get smc info from db", zap.Error(err), zap.String("smcAddr", log.Address))
 			return nil, err
@@ -715,7 +715,7 @@ func (s *infoServer) decodeEvent(ctx context.Context, log *types.Log) (*types.Lo
 				s.logger.Warn("Cannot store smc abi to cache", zap.Error(err))
 				return nil, err
 			}
-			smcABI, err = s.cacheClient.SMCAbi(ctx, cfg.SMCTypePrefix+smc.Type)
+			smcABIStr, err = s.cacheClient.SMCAbi(ctx, cfg.SMCTypePrefix+smc.Type)
 			if err != nil {
 				// query then reinsert abi of this SMC type to cache
 				smcABIBase64, err := s.dbClient.SMCABIByType(ctx, smc.Type)
@@ -728,31 +728,31 @@ func (s *infoServer) decodeEvent(ctx context.Context, log *types.Log) (*types.Lo
 					s.logger.Warn("Cannot store smc abi by type to cache", zap.Error(err))
 					return nil, err
 				}
-				smcABI, err = s.cacheClient.SMCAbi(ctx, cfg.SMCTypePrefix+smc.Type)
+				smcABIStr, err = s.cacheClient.SMCAbi(ctx, cfg.SMCTypePrefix+smc.Type)
 				if err != nil {
 					s.logger.Warn("Cannot get smc abi from cache", zap.Error(err))
 					return nil, err
 				}
 			}
 		} else if smc.ABI != "" {
-			abiData, err := base64.StdEncoding.DecodeString(smc.ABI)
-			if err != nil {
-				s.logger.Warn("Cannot decode smc abi", zap.Error(err))
-				return nil, err
-			}
-			jsonABI, err := abi.JSON(bytes.NewReader(abiData))
-			if err != nil {
-				s.logger.Warn("Cannot convert decoded smc abi to JSON abi", zap.Error(err))
-				return nil, err
-			}
-			// store this abi to cache
-			err = s.cacheClient.UpdateSMCAbi(ctx, log.Address, smc.ABI)
-			if err != nil {
-				s.logger.Warn("Cannot store smc abi to cache", zap.Error(err))
-				return nil, err
-			}
-			smcABI = &jsonABI
+			smcABIStr = smc.ABI
 		}
 	}
-	return s.kaiClient.UnpackLog(log, smcABI)
+	abiData, err := base64.StdEncoding.DecodeString(smcABIStr)
+	if err != nil {
+		s.logger.Warn("Cannot decode smc abi", zap.Error(err))
+		return nil, err
+	}
+	jsonABI, err := abi.JSON(bytes.NewReader(abiData))
+	if err != nil {
+		s.logger.Warn("Cannot convert decoded smc abi to JSON abi", zap.Error(err))
+		return nil, err
+	}
+	// store this abi to cache
+	err = s.cacheClient.UpdateSMCAbi(ctx, log.Address, smcABIStr)
+	if err != nil {
+		s.logger.Warn("Cannot store smc abi to cache", zap.Error(err))
+		return nil, err
+	}
+	return s.kaiClient.UnpackLog(log, &jsonABI)
 }
