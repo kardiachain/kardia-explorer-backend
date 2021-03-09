@@ -5,16 +5,18 @@ import (
 )
 
 type Log struct {
-	Address string `json:"address" bson:"address"`        // SMC addr
-	TxHash  string `json:"transactionHash" bson:"txHash"` // Tx Hash
-	Index   uint   `json:"logIndex" bson:"index"`         //
-
-	Topics      []string `json:"topics" bson:"topics"`
-	Data        string   `json:"data" bson:"data"`
-	BlockHeight uint64   `json:"blockHeight" bson:"blockHeight"`
-	TxIndex     uint     `json:"transactionIndex" bson:"txIndex"`
-	BlockHash   string   `json:"blockHash" bson:"blockHash"`
-	Removed     bool     `json:"removed" bson:"removed"`
+	Address       string                 `json:"address" bson:"address"`
+	MethodName    string                 `json:"methodName" bson:"methodName"`
+	ArgumentsName string                 `json:"argumentsName" bson:"argumentsName"`
+	Arguments     map[string]interface{} `json:"arguments" bson:"arguments"`
+	Topics        []string               `json:"topics" bson:"topics"`
+	Data          string                 `json:"data" bson:"data"`
+	BlockHeight   uint64                 `json:"blockHeight" bson:"blockHeight"`
+	TxHash        string                 `json:"transactionHash"  bson:"transactionHash"`
+	TxIndex       uint                   `json:"transactionIndex" bson:"transactionIndex"`
+	BlockHash     string                 `json:"blockHash" bson:"blockHash"`
+	Index         uint                   `json:"logIndex" bson:"logIndex"`
+	Removed       bool                   `json:"removed" bson:"removed"`
 }
 
 type Receipt struct {

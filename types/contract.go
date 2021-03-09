@@ -10,4 +10,10 @@ type Contract struct {
 	OwnerAddress string `json:"ownerAddress" bson:"ownerAddress"`
 	TxHash       string `json:"txHash" bson:"txHash"`
 	CreatedAt    string `json:"createdAt" bson:"createdAt"`
+	Type         string `json:"type" bson:"type"`
+}
+
+type ContractABI struct {
+	Type string `json:"type" bson:"type"`
+	ABI  string `json:"abi" bson:"abi"`
 }

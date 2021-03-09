@@ -1271,6 +1271,25 @@ func (s *Server) ReloadValidators(c echo.Context) error {
 	return api.OK.Build(c)
 }
 
+func (s *Server) ContractEvents(c echo.Context) error {
+	ctx := context.Background()
+	var (
+		page, limit int
+		err         error
+	)
+	pagination, page, limit := getPagingOption(c)
+	result, total, err := s.dbClient.GetListEvents(ctx, pagination, c.QueryParam("contractAddress"), c.QueryParam("methodName"), c.QueryParam("txHash"))
+	if err != nil {
+		s.logger.Warn("Cannot get events from db", zap.Error(err))
+	}
+	return api.OK.SetData(PagingResponse{
+		Page:  page,
+		Limit: limit,
+		Total: total,
+		Data:  result,
+	}).Build(c)
+}
+
 func (s *Server) Contracts(c echo.Context) error {
 	var resp []*types.Contract
 	return api.OK.SetData(resp).Build(c)
@@ -1320,6 +1339,22 @@ func (s *Server) UpdateContract(c echo.Context) error {
 		return api.InternalServer.Build(c)
 	}
 
+	return api.OK.Build(c)
+}
+
+func (s *Server) UpdateSMCABIByType(c echo.Context) error {
+	if c.Request().Header.Get("Authorization") != s.infoServer.HttpRequestSecret {
+		return api.Unauthorized.Build(c)
+	}
+	ctx := context.Background()
+	var smcABI *types.ContractABI
+	if err := c.Bind(&smcABI); err != nil {
+		return api.Invalid.Build(c)
+	}
+	err := s.dbClient.UpsertSMCABIByType(ctx, smcABI.Type, smcABI.ABI)
+	if err != nil {
+		return api.Invalid.Build(c)
+	}
 	return api.OK.Build(c)
 }
 

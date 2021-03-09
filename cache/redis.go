@@ -2,12 +2,17 @@
 package cache
 
 import (
+	"bytes"
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"strconv"
+	"strings"
 	"time"
+
+	"github.com/kardiachain/go-kardia/lib/abi"
 
 	"github.com/go-redis/redis/v8"
 	"go.uber.org/zap"
@@ -38,6 +43,8 @@ const (
 
 	KeyValidatorsList = "#validators"
 	KeyNodesInfoList  = "#nodesInfo" // List
+
+	KeyContractABI = "#contracts#abi#%s"
 )
 
 type Redis struct {
@@ -539,4 +546,36 @@ func (c *Redis) getBlockInCache(ctx context.Context, height uint64, hash string)
 		}
 	}
 	return nil, errors.New("block not found in cache")
+}
+
+func (c *Redis) SMCAbi(ctx context.Context, key string) (*abi.ABI, error) {
+	keyABI := fmt.Sprintf(KeyContractABI, key)
+	result, err := c.client.Get(ctx, keyABI).Result()
+	if err != nil {
+		return nil, err
+	}
+	if strings.HasPrefix(result, cfg.SMCTypePrefix) {
+		// get the abi of this smc type
+		result, err = c.client.Get(ctx, result).Result()
+		if err != nil {
+			return nil, err
+		}
+	}
+	abiData, err := base64.StdEncoding.DecodeString(result)
+	if err != nil {
+		return nil, err
+	}
+	smcABI, err := abi.JSON(bytes.NewReader(abiData))
+	if err != nil {
+		return nil, err
+	}
+	return &smcABI, nil
+}
+
+func (c *Redis) UpdateSMCAbi(ctx context.Context, key, abi string) error {
+	keyABI := fmt.Sprintf(KeyContractABI, key)
+	if err := c.client.Set(ctx, keyABI, abi, 0).Err(); err != nil {
+		return err
+	}
+	return nil
 }

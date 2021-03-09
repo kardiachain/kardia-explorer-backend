@@ -8,7 +8,7 @@ type TokenTransfer struct {
 	From        string `json:"fromAddress" bson:"fromAddress"`
 	To          string `json:"toAddress" bson:"toAddress"`
 	Value       string `json:"value" bson:"value"`
-	BlockNumber uint64 `json:"blockNumber" bson:"blockNumber"`
+	BlockHeight uint64 `json:"blockHeight" bson:"blockHeight"`
 
 	UpdatedAt int64 `json:"updatedAt" bson:"updatedAt"`
 }

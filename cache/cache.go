@@ -6,6 +6,8 @@ import (
 	"errors"
 	"time"
 
+	"github.com/kardiachain/go-kardia/lib/abi"
+
 	"github.com/go-redis/redis/v8"
 	"go.uber.org/zap"
 
@@ -67,6 +69,9 @@ type Client interface {
 
 	Validators(ctx context.Context) (*types.Validators, error)
 	UpdateValidators(ctx context.Context, validators *types.Validators) error
+
+	SMCAbi(ctx context.Context, key string) (*abi.ABI, error)
+	UpdateSMCAbi(ctx context.Context, key, abi string) error
 }
 
 func New(cfg Config) (Client, error) {

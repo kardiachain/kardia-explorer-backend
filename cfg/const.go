@@ -47,6 +47,8 @@ const (
 	ParamsContractAddr        = "0x910cbd665263306807e5ace0351e4358dc6164d8"
 	ParamsContractName        = "Params Contract"
 	UpdateStatsInterval       = 10
+
+	SMCTypePrefix = "SMCType:"
 )
 
 var (

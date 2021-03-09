@@ -252,6 +252,19 @@ func bindContractAPIs(gr *echo.Group, srv EchoServer) {
 			fn:          srv.Contract,
 			middlewares: nil,
 		},
+		{
+			method:      echo.PUT,
+			path:        "/contracts/abi",
+			fn:          srv.UpdateSMCABIByType,
+			middlewares: nil,
+		},
+		{
+			method: echo.GET,
+			// Query params: ?page=0&limit=10&contractAddress=0x&methodName=0x&txHash=0x
+			path:        "/contracts/events",
+			fn:          srv.ContractEvents,
+			middlewares: nil,
+		},
 	}
 	for _, api := range apis {
 		gr.Add(api.method, api.path, api.fn, api.middlewares...)
