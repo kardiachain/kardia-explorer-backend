@@ -7,6 +7,7 @@ type Address struct {
 	BalanceString string  `json:"balance" bson:"balanceString"` // high precise balance for API
 	Name          string  `json:"name" bson:"name"`             // alias of an address
 	Info          string  `json:"info" bson:"info"`             // additional info of this address
+	Logo          string  `json:"logo" bson:"logo"`
 
 	// Token
 	TokenName   string `json:"tokenName" bson:"tokenName"`
@@ -17,13 +18,13 @@ type Address struct {
 	// SMC
 	IsContract   bool   `json:"isContract" bson:"isContract"`
 	ErcTypes     string `json:"type" bson:"type"`
-	OwnerAddress string `json:"ownerAddress" bson:"ownerAddress"`
+	OwnerAddress string `json:"ownerAddress,omitempty" bson:"ownerAddress"`
 
 	// Stats
-	TxCount         int `json:"txCount" bson:"txCount"`
-	HolderCount     int `json:"holderCount" bson:"holderCount"`
-	InternalTxCount int `json:"internalTxCount" bson:"internalTxCount"`
-	TokenTxCount    int `json:"tokenTxCount" bson:"tokenTxCount"`
+	TxCount         int `json:"txCount,omitempty" bson:"txCount"`
+	HolderCount     int `json:"holderCount,omitempty" bson:"holderCount"`
+	InternalTxCount int `json:"internalTxCount,omitempty" bson:"internalTxCount"`
+	TokenTxCount    int `json:"tokenTxCount,omitempty" bson:"tokenTxCount"`
 
 	UpdatedAt int64 `json:"updatedAt" bson:"updatedAt"`
 }

@@ -1310,6 +1310,7 @@ func (s *Server) Contracts(c echo.Context) error {
 			Address: result[i].Address,
 			Info:    result[i].Info,
 			Type:    result[i].Type,
+			Logo:    result[i].Logo,
 		}
 	}
 	return api.OK.SetData(PagingResponse{
@@ -1435,25 +1436,49 @@ func (s *Server) UpdateSMCABIByType(c echo.Context) error {
 }
 
 func (s *Server) SearchAddressByName(c echo.Context) error {
-	ctx := context.Background()
-	name := c.QueryParam("name")
+	var (
+		ctx     = context.Background()
+		name    = c.QueryParam("name")
+		addrMap = make(map[string]*SimpleKRCTokenInfo)
+	)
 	if name == "" {
 		return api.Invalid.Build(c)
 	}
 
-	address, err := s.dbClient.AddressByName(ctx, name)
-	if err == nil && !address.Equal(common.Address{}) {
-		return api.OK.SetData(address).Build(c)
+	addresses, err := s.dbClient.AddressByName(ctx, name)
+	if err == nil && len(addresses) > 0 {
+		for _, addr := range addresses {
+			addrMap[addr.Address] = &SimpleKRCTokenInfo{
+				Name:    addr.Name,
+				Address: addr.Address,
+				Info:    addr.Info,
+				Type:    "Address",
+			}
+		}
 	}
 
-	validator, err := s.dbClient.ValidatorByName(ctx, name)
-	if err == nil && !validator.Equal(common.Address{}) {
-		return api.OK.SetData(address).Build(c)
-	}
-	contract, err := s.dbClient.ContractByName(ctx, name)
-	if err == nil && !contract.Equal(common.Address{}) {
-		return api.OK.SetData(address).Build(c)
+	contracts, err := s.dbClient.ContractByName(ctx, name)
+	if err == nil && len(contracts) > 0 {
+		for _, smc := range contracts {
+			if smc.Type == "" {
+				smc.Type = "SMC"
+			}
+			addrMap[smc.Address] = &SimpleKRCTokenInfo{
+				Name:    smc.Name,
+				Address: smc.Address,
+				Info:    smc.Info,
+				Logo:    smc.Logo,
+				Type:    smc.Type,
+			}
+		}
 	}
 
-	return api.Invalid.Build(c)
+	if len(addrMap) == 0 {
+		return api.Invalid.Build(c)
+	}
+	result := make([]*SimpleKRCTokenInfo, 0, len(addrMap))
+	for _, addr := range addrMap {
+		result = append(result, addr)
+	}
+	return api.OK.SetData(result).Build(c)
 }
