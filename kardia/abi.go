@@ -37,7 +37,7 @@ func (ec *Client) DecodeInputWithABI(to string, input string, smcABI *abi.ABI) (
 	if len(input) <= 2 {
 		return nil, nil
 	}
-	data, err := hex.DecodeString(strings.TrimLeft(input, "0x"))
+	data, err := hex.DecodeString(strings.TrimPrefix(input, "0x"))
 	if err != nil {
 		return nil, err
 	}
@@ -80,7 +80,7 @@ func (ec *Client) DecodeInputData(to string, input string) (*types.FunctionCall,
 	if len(input) <= 2 {
 		return nil, nil
 	}
-	data, err := hex.DecodeString(strings.TrimLeft(input, "0x"))
+	data, err := hex.DecodeString(strings.TrimPrefix(input, "0x"))
 	if err != nil {
 		return nil, err
 	}
