@@ -1467,6 +1467,7 @@ func (s *Server) SearchAddressByName(c echo.Context) error {
 			if addrMap[smc.Address] != nil {
 				addrMap[smc.Address].Type = smc.Type
 				addrMap[smc.Address].Name = smc.Name
+				addrMap[smc.Address].Logo = smc.Logo
 			} else {
 				addrMap[smc.Address] = &SimpleKRCTokenInfo{
 					Name:    smc.Name,
