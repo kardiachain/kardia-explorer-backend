@@ -136,9 +136,10 @@ type KRCTokenInfo struct {
 }
 
 type SimpleKRCTokenInfo struct {
-	Name    string `json:"name" bson:"name"`
-	Address string `json:"address" bson:"address"`
-	Info    string `json:"info" bson:"info"`
-	Type    string `json:"type" bson:"type"`
-	Logo    string `json:"logo" bson:"logo"`
+	Name        string `json:"name,omitempty" bson:"name"`
+	Address     string `json:"address,omitempty" bson:"address"`
+	Info        string `json:"info,omitempty" bson:"info"`
+	Type        string `json:"type,omitempty" bson:"type"`
+	TokenSymbol string `json:"symbol,omitempty" bson:"tokenSymbol"`
+	Logo        string `json:"logo,omitempty" bson:"logo"`
 }

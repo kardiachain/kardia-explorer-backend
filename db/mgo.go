@@ -21,6 +21,7 @@ package db
 import (
 	"context"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/kardiachain/go-kardia/lib/common"
@@ -113,6 +114,9 @@ func createIndexes(dbClient *mongoDB) error {
 		{c: cAddresses, model: []mongo.IndexModel{{Keys: bson.M{"tokenSymbol": 1}, Options: options.Index().SetSparse(true)}}},
 		// indexing proposal collection
 		{c: cProposal, model: []mongo.IndexModel{{Keys: bson.M{"id": -1}, Options: options.Index().SetUnique(true).SetSparse(true)}}},
+		// indexing validator collection
+		{c: cValidators, model: []mongo.IndexModel{{Keys: bson.M{"address": 1}, Options: options.Index().SetUnique(true).SetSparse(true)}}},
+		{c: cValidators, model: []mongo.IndexModel{{Keys: bson.M{"name": 1}, Options: options.Index().SetSparse(true)}}},
 		// indexing contract & ABI collection
 		{c: cContract, model: []mongo.IndexModel{{Keys: bson.M{"name": 1}, Options: options.Index().SetSparse(true)}}},
 		{c: cContract, model: []mongo.IndexModel{{Keys: bson.M{"type": 1}, Options: options.Index().SetSparse(true)}}},
@@ -834,32 +838,72 @@ func (m *mongoDB) GetListProposals(ctx context.Context, pagination *types.Pagina
 
 // end region Proposal
 
-func (m *mongoDB) AddressByName(ctx context.Context, name string) (common.Address, error) {
-	var addr *types.Address
-	if err := m.wrapper.C(cAddresses).FindOne(bson.M{"name": bson.D{
-		{"$regex", primitive.Regex{Pattern: name, Options: "i"}}}}).Decode(&addr); err != nil {
-		return common.Address{}, err
+func (m *mongoDB) AddressByName(ctx context.Context, name string) ([]*types.Address, error) {
+	var (
+		addrs []*types.Address
+		opts  = []*options.FindOptions{
+			options.Find().SetHint(bson.M{"address": 1}),
+			options.Find().SetHint(bson.M{"name": 1}),
+		}
+	)
+	crit := []bson.M{
+		{"name": bson.D{{"$regex", primitive.Regex{Pattern: name, Options: "i"}}}},
+	}
+	if strings.HasPrefix(name, "0x") {
+		crit = append(crit, bson.M{"address": bson.D{{"$regex", primitive.Regex{Pattern: name, Options: "i"}}}})
+	}
+	cursor, err := m.wrapper.C(cAddresses).Find(bson.M{"$or": crit}, opts...)
+	if err != nil {
+		return nil, err
+	}
+	defer func() {
+		err = cursor.Close(ctx)
+		if err != nil {
+			m.logger.Warn("Error when close cursor", zap.Error(err))
+		}
+	}()
+	for cursor.Next(ctx) {
+		addr := &types.Address{}
+		if err := cursor.Decode(&addr); err != nil {
+			return nil, err
+		}
+		addrs = append(addrs, addr)
 	}
 
-	return common.HexToAddress(addr.Address), nil
+	return addrs, nil
 }
 
-func (m *mongoDB) ValidatorByName(ctx context.Context, name string) (common.Address, error) {
-	var validator *types.Validator
-	if err := m.wrapper.C(cValidators).FindOne(bson.M{"name": bson.D{
-		{"$regex", primitive.Regex{Pattern: name, Options: "i"}}}}).Decode(&validator); err != nil {
-		return common.Address{}, err
+func (m *mongoDB) ContractByName(ctx context.Context, name string) ([]*types.Contract, error) {
+	var (
+		contracts []*types.Contract
+		opts      = []*options.FindOptions{
+			options.Find().SetHint(bson.M{"address": 1}),
+			options.Find().SetHint(bson.M{"name": 1}),
+		}
+	)
+	crit := []bson.M{
+		{"name": bson.D{{"$regex", primitive.Regex{Pattern: name, Options: "i"}}}},
+	}
+	if strings.HasPrefix(name, "0x") {
+		crit = append(crit, bson.M{"address": bson.D{{"$regex", primitive.Regex{Pattern: name, Options: "i"}}}})
+	}
+	cursor, err := m.wrapper.C(cContract).Find(bson.M{"$or": crit}, opts...)
+	if err != nil {
+		return nil, err
+	}
+	defer func() {
+		err = cursor.Close(ctx)
+		if err != nil {
+			m.logger.Warn("Error when close cursor", zap.Error(err))
+		}
+	}()
+	for cursor.Next(ctx) {
+		smc := &types.Contract{}
+		if err := cursor.Decode(&smc); err != nil {
+			return nil, err
+		}
+		contracts = append(contracts, smc)
 	}
 
-	return validator.SmcAddress, nil
-}
-
-func (m *mongoDB) ContractByName(ctx context.Context, name string) (common.Address, error) {
-	var c *types.Contract
-	if err := m.wrapper.C(cContract).FindOne(bson.M{"name": bson.D{
-		{"$regex", primitive.Regex{Pattern: name, Options: "i"}}}}).Decode(&c); err != nil {
-		return common.Address{}, err
-	}
-
-	return common.HexToAddress(c.Address), nil
+	return contracts, nil
 }
