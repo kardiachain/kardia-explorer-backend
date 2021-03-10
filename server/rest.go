@@ -4,7 +4,6 @@ package server
 import (
 	"bytes"
 	"context"
-	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -14,7 +13,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/kardiachain/go-kardia/lib/abi"
 	"github.com/kardiachain/go-kardia/lib/common"
 
 	"github.com/bxcodec/faker/v3"
@@ -965,22 +963,18 @@ func (s *Server) TxByHash(c echo.Context) error {
 
 	// Get contract details
 	var functionCall *types.FunctionCall
-	contract, _, err := s.dbClient.Contract(ctx, tx.To)
-	if err != nil || contract == nil {
+	smcABI, err := s.getSMCAbi(ctx, &types.Log{
+		Address: tx.To,
+	})
+	if err != nil || smcABI == nil {
 		decoded, err := s.kaiClient.DecodeInputData(tx.To, tx.InputData)
 		if err == nil {
 			functionCall = decoded
 		}
 	} else {
-		abiData, err := base64.StdEncoding.DecodeString(contract.ABI)
+		decoded, err := s.kaiClient.DecodeInputWithABI(tx.To, tx.InputData, smcABI)
 		if err == nil {
-			smcABI, err := abi.JSON(bytes.NewReader(abiData))
-			if err == nil {
-				decoded, err := s.kaiClient.DecodeInputWithABI(tx.To, tx.InputData, &smcABI)
-				if err == nil {
-					functionCall = decoded
-				}
-			}
+			functionCall = decoded
 		}
 	}
 
