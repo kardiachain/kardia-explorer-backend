@@ -651,7 +651,13 @@ func (s *infoServer) mergeAdditionalInfoToTxs(ctx context.Context, txs []*types.
 		txFeeInHydro *big.Int
 	)
 	for _, tx := range txs {
-		decoded, err := s.kaiClient.DecodeInputData(tx.To, tx.InputData)
+		smcABI, err := s.getSMCAbi(ctx, &types.Log{
+			Address: tx.To,
+		})
+		if err != nil {
+			continue
+		}
+		decoded, err := s.kaiClient.DecodeInputWithABI(tx.To, tx.InputData, smcABI)
 		if err == nil {
 			tx.DecodedInputData = decoded
 		}
@@ -692,7 +698,11 @@ func (s *infoServer) BlockCacheSize(ctx context.Context) (int64, error) {
 
 func (s *infoServer) storeEvents(ctx context.Context, logs []types.Log) error {
 	for i := range logs {
-		decodedLog, err := s.decodeEvent(ctx, &logs[i])
+		smcABI, err := s.getSMCAbi(ctx, &logs[i])
+		if err != nil {
+			continue
+		}
+		decodedLog, err := s.kaiClient.UnpackLog(&logs[i], smcABI)
 		if err != nil {
 			decodedLog = &logs[i]
 		}
@@ -701,7 +711,7 @@ func (s *infoServer) storeEvents(ctx context.Context, logs []types.Log) error {
 	return s.dbClient.InsertEvents(logs)
 }
 
-func (s *infoServer) decodeEvent(ctx context.Context, log *types.Log) (*types.Log, error) {
+func (s *infoServer) getSMCAbi(ctx context.Context, log *types.Log) (*abi.ABI, error) {
 	smcABIStr, err := s.cacheClient.SMCAbi(ctx, log.Address)
 	if err != nil {
 		smc, _, err := s.dbClient.Contract(ctx, log.Address)
@@ -754,5 +764,5 @@ func (s *infoServer) decodeEvent(ctx context.Context, log *types.Log) (*types.Lo
 		s.logger.Warn("Cannot store smc abi to cache", zap.Error(err))
 		return nil, err
 	}
-	return s.kaiClient.UnpackLog(log, &jsonABI)
+	return &jsonABI, nil
 }
