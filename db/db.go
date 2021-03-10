@@ -5,7 +5,6 @@ import (
 	"context"
 	"errors"
 
-	"github.com/kardiachain/go-kardia/lib/common"
 	"go.uber.org/zap"
 
 	"github.com/kardiachain/kardia-explorer-backend/types"
@@ -82,9 +81,8 @@ type Client interface {
 	GetListAddresses(ctx context.Context, sortDirection int, pagination *types.Pagination) ([]*types.Address, error)
 	Addresses(ctx context.Context) ([]*types.Address, error)
 
-	AddressByName(ctx context.Context, name string) (common.Address, error)
-	ValidatorByName(ctx context.Context, name string) (common.Address, error)
-	ContractByName(ctx context.Context, name string) (common.Address, error)
+	AddressByName(ctx context.Context, name string) ([]*types.Address, error)
+	ContractByName(ctx context.Context, name string) ([]*types.Contract, error)
 
 	// Proposal
 	AddVoteToProposal(ctx context.Context, proposalInfo *types.ProposalDetail, voteOption uint64) error
