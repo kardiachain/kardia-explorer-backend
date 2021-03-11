@@ -1283,10 +1283,8 @@ func (s *Server) ContractEvents(c echo.Context) error {
 	for i := range events {
 		krcTokenInfo, err = s.getKRCTokenInfo(ctx, events[i].Address)
 		if err != nil {
-			fmt.Printf("@@@@@@@@@@@@@@@@@ log: %+v err: %+v\n", events[i], err)
 			continue
 		}
-		fmt.Printf("@@@@@@@@@@@@@@@@@ log: %+v token: %+v\n", events[i], krcTokenInfo)
 		result[i] = &InternalTransaction{
 			Log:          events[i],
 			KRCTokenInfo: krcTokenInfo,
