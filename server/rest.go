@@ -908,21 +908,21 @@ func (s *Server) AddressHolders(c echo.Context) error {
 		ContractAddress: c.QueryParam("contractAddress"),
 		HolderAddress:   c.Param("address"),
 	}
-	tokens, total, err := s.dbClient.GetListHolders(ctx, filterCrit)
+	holders, total, err := s.dbClient.GetListHolders(ctx, filterCrit)
 	if err != nil {
 		s.logger.Warn("Cannot get events from db", zap.Error(err))
 	}
-	for i := range tokens {
-		krcTokenInfo, _ := s.getKRCTokenInfo(ctx, tokens[i].ContractAddress)
+	for i := range holders {
+		krcTokenInfo, _ := s.getKRCTokenInfo(ctx, holders[i].ContractAddress)
 		if krcTokenInfo != nil {
-			tokens[i].Logo = krcTokenInfo.Logo
+			holders[i].Logo = krcTokenInfo.Logo
 		}
 	}
 	return api.OK.SetData(PagingResponse{
 		Page:  page,
 		Limit: limit,
 		Total: total,
-		Data:  tokens,
+		Data:  holders,
 	}).Build(c)
 }
 
@@ -1537,4 +1537,33 @@ func (s *Server) SearchAddressByName(c echo.Context) error {
 		result = append(result, addr)
 	}
 	return api.OK.SetData(result).Build(c)
+}
+
+func (s *Server) GetHoldersListByToken(c echo.Context) error {
+	ctx := context.Background()
+	var (
+		page, limit int
+		err         error
+	)
+	pagination, page, limit := getPagingOption(c)
+	filterCrit := &types.HolderFilter{
+		Pagination:      pagination,
+		ContractAddress: c.Param("contractAddress"),
+	}
+	holders, total, err := s.dbClient.GetListHolders(ctx, filterCrit)
+	if err != nil {
+		s.logger.Warn("Cannot get events from db", zap.Error(err))
+	}
+	krcTokenInfo, _ := s.getKRCTokenInfo(ctx, c.Param("contractAddress"))
+	if krcTokenInfo != nil {
+		for i := range holders {
+			holders[i].Logo = krcTokenInfo.Logo
+		}
+	}
+	return api.OK.SetData(PagingResponse{
+		Page:  page,
+		Limit: limit,
+		Total: total,
+		Data:  holders,
+	}).Build(c)
 }

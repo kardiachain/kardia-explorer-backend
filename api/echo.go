@@ -226,6 +226,12 @@ func bind(gr *echo.Group, srv EchoServer) {
 			fn:          srv.SearchAddressByName,
 			middlewares: nil,
 		},
+		{
+			method:      echo.GET,
+			path:        "/token/holders/:contractAddress",
+			fn:          srv.GetHoldersListByToken,
+			middlewares: nil,
+		},
 	}
 	bindContractAPIs(gr, srv)
 	for _, api := range apis {
