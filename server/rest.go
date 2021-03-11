@@ -1283,8 +1283,10 @@ func (s *Server) ContractEvents(c echo.Context) error {
 	for i := range events {
 		krcTokenInfo, err = s.getKRCTokenInfo(ctx, events[i].Address)
 		if err != nil {
+			fmt.Printf("@@@@@@@@@@@@@@@@@ log: %+v err: %+v\n", events[i], err)
 			continue
 		}
+		fmt.Printf("@@@@@@@@@@@@@@@@@ log: %+v token: %+v\n", events[i], krcTokenInfo)
 		result[i] = &InternalTransaction{
 			Log:          events[i],
 			KRCTokenInfo: krcTokenInfo,
@@ -1303,8 +1305,10 @@ func (s *Server) getKRCTokenInfo(ctx context.Context, krcTokenAddr string) (*typ
 	if err == nil {
 		return krcTokenInfo, nil
 	}
+	s.logger.Warn("Cannot get KRC token info from cache, getting from database instead")
 	addrInfo, err := s.dbClient.AddressByHash(ctx, krcTokenAddr)
 	if err != nil {
+		s.logger.Warn("Cannot get KRC token info from db", zap.Error(err))
 		return nil, err
 	}
 	result := &types.KRCTokenInfo{
