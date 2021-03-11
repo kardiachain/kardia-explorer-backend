@@ -180,7 +180,7 @@ func (s *Server) ValidatorStats(c echo.Context) error {
 	}
 	// get validator additional info such as commission rate
 	for _, val := range validators {
-		if strings.ToLower(val.Address.Hex()) == strings.ToLower(c.Param("address")) {
+		if strings.ToLower(val.Address) == strings.ToLower(c.Param("address")) {
 			if validator == nil {
 				validator = val
 				break
@@ -387,7 +387,7 @@ func (s *Server) Blocks(c echo.Context) error {
 	}
 
 	for _, v := range vals {
-		smcAddress[v.Address.String()] = &valInfoResponse{
+		smcAddress[v.Address] = &valInfoResponse{
 			Name: v.Name,
 			Role: v.Role,
 		}
@@ -472,7 +472,7 @@ func (s *Server) Block(c echo.Context) error {
 		validators = []*types.Validator{}
 	}
 	for _, v := range validators {
-		smcAddress[v.Address.String()] = &valInfoResponse{
+		smcAddress[v.Address] = &valInfoResponse{
 			Name: v.Name,
 			Role: v.Role,
 		}
@@ -627,7 +627,7 @@ func (s *Server) BlocksByProposer(c echo.Context) error {
 	//}
 
 	for _, v := range validators {
-		smcAddress[v.Address.String()] = &valInfoResponse{
+		smcAddress[v.Address] = &valInfoResponse{
 			Name: v.Name,
 			Role: v.Role,
 		}
@@ -1090,8 +1090,8 @@ func (s *Server) CalculateValidatorStats(ctx context.Context, validators []*type
 		totalStakedAmount = new(big.Int).Add(totalStakedAmount, valStakedAmount)
 
 		for _, d := range val.Delegators {
-			if !delegatorsMap[d.Address.String()] {
-				delegatorsMap[d.Address.String()] = true
+			if !delegatorsMap[d.Address] {
+				delegatorsMap[d.Address] = true
 				totalDelegators++
 			}
 			delStakedAmount, ok = new(big.Int).SetString(d.StakedAmount, 10)
@@ -1158,7 +1158,7 @@ func (s *Server) getValidatorsAddressAndRole(ctx context.Context) map[string]*va
 
 	smcAddress := map[string]*valInfoResponse{}
 	for _, v := range validators {
-		smcAddress[v.SmcAddress.String()] = &valInfoResponse{
+		smcAddress[v.SmcAddress] = &valInfoResponse{
 			Name: v.Name,
 			Role: v.Role,
 		}

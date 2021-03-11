@@ -44,7 +44,7 @@ func main() {
 		StorageDB:      serviceCfg.StorageDB,
 		StorageIsFlush: serviceCfg.StorageIsFlush,
 
-		KardiaURLs:         serviceCfg.KardiaURLs,
+		KardiaURLs:         serviceCfg.KardiaPublicNodes,
 		KardiaTrustedNodes: serviceCfg.KardiaTrustedNodes,
 
 		CacheAdapter:      cache.Adapter(serviceCfg.CacheEngine),

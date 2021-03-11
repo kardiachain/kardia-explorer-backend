@@ -32,7 +32,7 @@ func (m *mongoDB) UpsertValidators(ctx context.Context, validators []*types.Vali
 		models = append(models, mongo.NewUpdateOneModel().SetUpsert(true).SetFilter(bson.M{"smcAddress": v.SmcAddress}).SetUpdate(bson.M{"$set": v}))
 	}
 
-	if _, err := m.wrapper.C(cValidators).BulkWrite(models); err != nil {
+	if _, err := m.wrapper.C(cValidators).BulkUpsert(models); err != nil {
 		fmt.Println("Cannot write list model", err)
 		return err
 	}
@@ -64,7 +64,7 @@ func (m *mongoDB) UpsertValidator(ctx context.Context, validator *types.Validato
 	var models []mongo.WriteModel
 	models = append(models, mongo.NewUpdateOneModel().SetUpsert(true).SetFilter(bson.M{"smcAddress": validator.SmcAddress}).SetUpdate(bson.M{"$set": validator}))
 
-	if _, err := m.wrapper.C(cValidators).BulkWrite(models); err != nil {
+	if _, err := m.wrapper.C(cValidators).BulkUpsert(models); err != nil {
 		fmt.Println("Cannot write list model", err)
 		return err
 	}

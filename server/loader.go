@@ -39,7 +39,7 @@ func (s *infoServer) LoadBootData(ctx context.Context) error {
 	}
 
 	for _, val := range validators {
-		cfg.GenesisAddresses = append(cfg.GenesisAddresses, val.SmcAddress.String())
+		cfg.GenesisAddresses = append(cfg.GenesisAddresses, val.SmcAddress)
 	}
 
 	cfg.GenesisAddresses = append(cfg.GenesisAddresses, cfg.TreasuryContractAddr)
@@ -147,7 +147,7 @@ func (s *infoServer) LoadBootContracts(ctx context.Context) error {
 	for _, val := range validators {
 		bootSMCs = append(bootSMCs, &types.Contract{
 			Name:         val.Name,
-			Address:      val.SmcAddress.Hex(),
+			Address:      val.SmcAddress,
 			OwnerAddress: cfg.StakingContractAddr,
 			CreatedAt:    time.Now().Unix(),
 			Type:         "Validator",

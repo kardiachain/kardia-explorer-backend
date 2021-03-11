@@ -6,13 +6,14 @@ require (
 	github.com/bxcodec/faker/v3 v3.5.0
 	github.com/go-redis/redis/v8 v8.2.3
 	github.com/joho/godotenv v1.3.0
-	github.com/kardiachain/go-kaiclient v0.0.0-20210308081704-fb85b109341c
+	github.com/kardiachain/go-kaiclient v0.0.0-20210311093817-48ee3b098eca
 	github.com/kardiachain/go-kardia v0.11.0
 	github.com/kr/text v0.2.0 // indirect
 	github.com/labstack/echo v3.3.10+incompatible
 	github.com/labstack/gommon v0.3.0 // indirect
 	github.com/mattn/go-colorable v0.1.8 // indirect
 	github.com/niemeyer/pretty v0.0.0-20200227124842-a10e7caefd8e // indirect
+	github.com/panjf2000/ants/v2 v2.4.3
 	github.com/stretchr/testify v1.6.1
 	github.com/tidwall/pretty v1.0.1 // indirect
 	github.com/xdg/stringprep v1.0.1-0.20180714160509-73f8eece6fdc // indirect

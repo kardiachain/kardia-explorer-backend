@@ -10,24 +10,23 @@ import (
 
 	"github.com/joho/godotenv"
 	"go.uber.org/zap"
+
+	"github.com/kardiachain/kardia-explorer-backend/cfg"
 )
 
 func main() {
+	runtime.GOMAXPROCS(runtime.NumCPU())
 	if err := godotenv.Load(); err != nil {
 		panic(err.Error())
 	}
 
-	runtime.GOMAXPROCS(runtime.NumCPU())
-	// Load env to config
-	logger := zap.S()
+	serviceCfg, err := cfg.New()
+	if err != nil {
+		panic(err.Error())
+	}
 
-	defer func() {
-		if err := recover(); err != nil {
-			logger.Error("cannot recover")
-		}
-	}()
-
-	_, cancel := context.WithCancel(context.Background())
+	zap.L().Info("Start subscribe event")
+	ctx, cancel := context.WithCancel(context.Background())
 	sigCh := make(chan os.Signal, 1)
 	waitExit := make(chan bool)
 	signal.Notify(sigCh, syscall.SIGINT, syscall.SIGTERM)
@@ -37,8 +36,9 @@ func main() {
 			waitExit <- true
 		}
 	}()
-	// logic code
+	//go subscribeNewBlock(ctx)
+	go runStakingSubscriber(ctx, serviceCfg)
 
 	<-waitExit
-	logger.Info("Stopped")
+	zap.L().Info("Stopped")
 }

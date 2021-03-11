@@ -33,6 +33,7 @@ func convertBigIntToPercentage(raw string) (string, error) {
 }
 
 func calculateVotingPower(raw string, total *big.Int) (string, error) {
+
 	valStakedAmount, ok := new(big.Int).SetString(raw, 10)
 	if !ok {
 		return "", ErrParsingBigIntFromString

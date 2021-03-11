@@ -7,6 +7,6 @@ import (
 	"github.com/kardiachain/kardia-explorer-backend/handler"
 )
 
-func watchNewBlock(ctx context.Context, h handler.Handler) {
+func subscribeNewBlock(ctx context.Context, h handler.Handler) {
 
 }

@@ -17,6 +17,7 @@ import (
 
 	"github.com/kardiachain/go-kardia/lib/abi"
 	"github.com/kardiachain/go-kardia/lib/common"
+
 	"github.com/kardiachain/kardia-explorer-backend/cache"
 	"github.com/kardiachain/kardia-explorer-backend/cfg"
 	"github.com/kardiachain/kardia-explorer-backend/db"
@@ -184,7 +185,7 @@ func (s *infoServer) GetCurrentStats(ctx context.Context) uint64 {
 	_ = s.dbClient.ClearValidators(ctx)
 	_ = s.dbClient.UpsertValidators(ctx, vals)
 	for _, val := range vals {
-		cfg.GenesisAddresses = append(cfg.GenesisAddresses, val.SmcAddress.String())
+		cfg.GenesisAddresses = append(cfg.GenesisAddresses, val.SmcAddress)
 	}
 	for _, addr := range cfg.GenesisAddresses {
 		balance, _ := s.kaiClient.GetBalance(ctx, addr)
@@ -597,7 +598,7 @@ func (s *infoServer) getAddressBalances(ctx context.Context, addrs map[string]*t
 	}
 	addressesName := map[string]string{}
 	for _, v := range vals.Validators {
-		addressesName[v.SmcAddress.String()] = v.Name
+		addressesName[v.SmcAddress] = v.Name
 	}
 	addressesName[cfg.StakingContractAddr] = cfg.StakingContractName
 

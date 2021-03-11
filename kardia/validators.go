@@ -51,8 +51,8 @@ func (ec *Client) getValidators(ctx context.Context) ([]*types.Validator, error)
 		}
 
 		validators = append(validators, &types.Validator{
-			Address:               v.Signer,
-			SmcAddress:            v.SMCAddress,
+			Address:               v.Signer.String(),
+			SmcAddress:            v.SMCAddress.String(),
 			Status:                v.Status,
 			Role:                  0,
 			Jailed:                v.Jailed,

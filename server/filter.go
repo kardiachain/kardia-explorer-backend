@@ -23,7 +23,7 @@ func (s *infoServer) filterStakingEvent(ctx context.Context, txs []*types.Transa
 
 	validatorMap := make(map[string]*types.Validator)
 	for _, v := range dbValidators {
-		validatorMap[v.SmcAddress.String()] = v
+		validatorMap[v.SmcAddress] = v
 	}
 	isReload := false
 	// Just reload one per block
