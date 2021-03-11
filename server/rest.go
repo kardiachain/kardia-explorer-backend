@@ -1564,7 +1564,6 @@ func (s *Server) GetHoldersListByToken(c echo.Context) error {
 			// remove redundant field
 			holders[i].TokenName = ""
 			holders[i].TokenSymbol = ""
-			holders[i].TokenDecimals = 0
 			holders[i].Logo = ""
 			holders[i].ContractAddress = ""
 		}
