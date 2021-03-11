@@ -1561,6 +1561,12 @@ func (s *Server) GetHoldersListByToken(c echo.Context) error {
 	if krcTokenInfo != nil {
 		for i := range holders {
 			holders[i].Logo = krcTokenInfo.Logo
+			// remove redundant field
+			holders[i].TokenName = ""
+			holders[i].TokenSymbol = ""
+			holders[i].TokenDecimals = 0
+			holders[i].Logo = ""
+			holders[i].ContractAddress = ""
 		}
 	}
 	return api.OK.SetData(PagingResponse{
