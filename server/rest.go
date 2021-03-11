@@ -1270,13 +1270,25 @@ func (s *Server) ReloadValidators(c echo.Context) error {
 func (s *Server) ContractEvents(c echo.Context) error {
 	ctx := context.Background()
 	var (
-		page, limit int
-		err         error
+		page, limit  int
+		err          error
+		krcTokenInfo *types.KRCTokenInfo
 	)
 	pagination, page, limit := getPagingOption(c)
-	result, total, err := s.dbClient.GetListEvents(ctx, pagination, c.QueryParam("contractAddress"), c.QueryParam("methodName"), c.QueryParam("txHash"))
+	events, total, err := s.dbClient.GetListEvents(ctx, pagination, c.QueryParam("contractAddress"), c.QueryParam("methodName"), c.QueryParam("txHash"))
 	if err != nil {
 		s.logger.Warn("Cannot get events from db", zap.Error(err))
+	}
+	result := make([]*InternalTransaction, len(events))
+	for i := range events {
+		krcTokenInfo, err = s.getKRCTokenInfo(ctx, events[i].Address)
+		if err != nil {
+			continue
+		}
+		result[i] = &InternalTransaction{
+			Log:          events[i],
+			KRCTokenInfo: krcTokenInfo,
+		}
 	}
 	return api.OK.SetData(PagingResponse{
 		Page:  page,
@@ -1284,6 +1296,29 @@ func (s *Server) ContractEvents(c echo.Context) error {
 		Total: total,
 		Data:  result,
 	}).Build(c)
+}
+
+func (s *Server) getKRCTokenInfo(ctx context.Context, krcTokenAddr string) (*types.KRCTokenInfo, error) {
+	krcTokenInfo, err := s.cacheClient.KRCTokenInfo(ctx, krcTokenAddr)
+	if err == nil {
+		return krcTokenInfo, nil
+	}
+	addrInfo, err := s.dbClient.AddressByHash(ctx, krcTokenAddr)
+	if err != nil {
+		return nil, err
+	}
+	result := &types.KRCTokenInfo{
+		Address:     addrInfo.Address,
+		TokenName:   addrInfo.TokenName,
+		TokenSymbol: addrInfo.TokenSymbol,
+		Decimals:    addrInfo.Decimals,
+	}
+	err = s.cacheClient.UpdateKRCTokenInfo(ctx, result)
+	if err != nil {
+		s.logger.Warn("Cannot store KRC token info to cache", zap.Error(err))
+		return nil, err
+	}
+	return result, nil
 }
 
 func (s *Server) Contracts(c echo.Context) error {

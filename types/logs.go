@@ -1,6 +1,8 @@
 package types
 
 import (
+	"time"
+
 	"github.com/kardiachain/go-kardia/types"
 )
 
@@ -12,6 +14,7 @@ type Log struct {
 	Topics        []string               `json:"topics" bson:"topics"`
 	Data          string                 `json:"data" bson:"data"`
 	BlockHeight   uint64                 `json:"blockHeight" bson:"blockHeight"`
+	Time          time.Time              `json:"time" bson:"time"`
 	TxHash        string                 `json:"transactionHash"  bson:"transactionHash"`
 	TxIndex       uint                   `json:"transactionIndex" bson:"transactionIndex"`
 	BlockHash     string                 `json:"blockHash" bson:"blockHash"`

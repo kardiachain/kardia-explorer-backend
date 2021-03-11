@@ -668,7 +668,7 @@ func (s *infoServer) mergeAdditionalInfoToTxs(ctx context.Context, txs []*types.
 
 		tx.Logs = receipts[receiptIndex].Logs
 		if len(tx.Logs) > 0 {
-			err := s.storeEvents(ctx, tx.Logs)
+			err := s.storeEvents(ctx, tx.Logs, txs[0].Time)
 			if err != nil {
 				s.logger.Warn("Cannot store events to db", zap.Error(err))
 			}
@@ -696,7 +696,7 @@ func (s *infoServer) BlockCacheSize(ctx context.Context) (int64, error) {
 	return s.cacheClient.ListSize(ctx, cache.KeyBlocks)
 }
 
-func (s *infoServer) storeEvents(ctx context.Context, logs []types.Log) error {
+func (s *infoServer) storeEvents(ctx context.Context, logs []types.Log, blockTime time.Time) error {
 	for i := range logs {
 		smcABI, err := s.getSMCAbi(ctx, &logs[i])
 		if err != nil {
@@ -706,6 +706,7 @@ func (s *infoServer) storeEvents(ctx context.Context, logs []types.Log) error {
 		if err != nil {
 			decodedLog = &logs[i]
 		}
+		decodedLog.Time = blockTime
 		logs[i] = *decodedLog
 	}
 	return s.dbClient.InsertEvents(logs)

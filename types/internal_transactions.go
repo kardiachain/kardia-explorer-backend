@@ -12,3 +12,10 @@ type TokenTransfer struct {
 
 	UpdatedAt int64 `json:"updatedAt" bson:"updatedAt"`
 }
+
+type KRCTokenInfo struct {
+	Address     string `json:"address" bson:"address"`
+	TokenName   string `json:"tokenName" bson:"tokenName"`
+	TokenSymbol string `json:"tokenSymbol" bson:"tokenSymbol"`
+	Decimals    int64  `json:"decimals" bson:"decimals"`
+}

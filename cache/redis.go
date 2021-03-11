@@ -41,6 +41,8 @@ const (
 	KeyNodesInfoList  = "#nodesInfo" // List
 
 	KeyContractABI = "#contracts#abi#%s"
+
+	KeyKRCTokenInfo = "#krc#info#%s"
 )
 
 type Redis struct {
@@ -563,6 +565,31 @@ func (c *Redis) SMCAbi(ctx context.Context, key string) (string, error) {
 func (c *Redis) UpdateSMCAbi(ctx context.Context, key, abi string) error {
 	keyABI := fmt.Sprintf(KeyContractABI, key)
 	if err := c.client.Set(ctx, keyABI, abi, 0).Err(); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (c *Redis) KRCTokenInfo(ctx context.Context, krcTokenAddr string) (*types.KRCTokenInfo, error) {
+	keyKRC := fmt.Sprintf(KeyKRCTokenInfo, krcTokenAddr)
+	result, err := c.client.Get(ctx, keyKRC).Result()
+	if err != nil {
+		return nil, err
+	}
+	var KRCTokenInfo *types.KRCTokenInfo
+	if err := json.Unmarshal([]byte(result), &KRCTokenInfo); err != nil {
+		return nil, err
+	}
+	return KRCTokenInfo, nil
+}
+
+func (c *Redis) UpdateKRCTokenInfo(ctx context.Context, krcTokenInfo *types.KRCTokenInfo) error {
+	keyKRC := fmt.Sprintf(KeyKRCTokenInfo, krcTokenInfo.Address)
+	data, err := json.Marshal(krcTokenInfo)
+	if err != nil {
+		return err
+	}
+	if err := c.client.Set(ctx, keyKRC, data, 0).Err(); err != nil {
 		return err
 	}
 	return nil

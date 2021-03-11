@@ -70,6 +70,9 @@ type Client interface {
 
 	SMCAbi(ctx context.Context, key string) (string, error)
 	UpdateSMCAbi(ctx context.Context, key, abi string) error
+
+	KRCTokenInfo(ctx context.Context, krcTokenAddr string) (*types.KRCTokenInfo, error)
+	UpdateKRCTokenInfo(ctx context.Context, krcTokenInfo *types.KRCTokenInfo) error
 }
 
 func New(cfg Config) (Client, error) {
