@@ -962,7 +962,10 @@ func (s *Server) TxByHash(c echo.Context) error {
 	}
 
 	// Get contract details
-	var functionCall *types.FunctionCall
+	var (
+		functionCall *types.FunctionCall
+		krcTokenInfo *types.KRCTokenInfo
+	)
 	smcABI, err := s.getSMCAbi(ctx, &types.Log{
 		Address: tx.To,
 	})
@@ -981,7 +984,17 @@ func (s *Server) TxByHash(c echo.Context) error {
 	if functionCall != nil {
 		tx.DecodedInputData = functionCall
 	}
-
+	internalTxs := make([]*InternalTransaction, len(tx.Logs))
+	for i := range tx.Logs {
+		krcTokenInfo, err = s.getKRCTokenInfo(ctx, tx.Logs[i].Address)
+		if err != nil {
+			continue
+		}
+		internalTxs[i] = &InternalTransaction{
+			Log:          &tx.Logs[i],
+			KRCTokenInfo: krcTokenInfo,
+		}
+	}
 	result := &Transaction{
 		BlockHash:        tx.BlockHash,
 		BlockNumber:      tx.BlockNumber,
@@ -999,7 +1012,7 @@ func (s *Server) TxByHash(c echo.Context) error {
 		Time:             tx.Time,
 		InputData:        tx.InputData,
 		DecodedInputData: tx.DecodedInputData,
-		Logs:             tx.Logs,
+		Logs:             internalTxs,
 		TransactionIndex: tx.TransactionIndex,
 		LogsBloom:        tx.LogsBloom,
 		Root:             tx.Root,
