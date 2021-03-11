@@ -15,7 +15,6 @@ import (
 
 	"github.com/kardiachain/go-kardia/lib/common"
 
-	"github.com/bxcodec/faker/v3"
 	"github.com/labstack/echo"
 	"go.uber.org/zap"
 
@@ -898,36 +897,26 @@ func (s *Server) AddressTxs(c echo.Context) error {
 }
 
 func (s *Server) AddressHolders(c echo.Context) error {
+	ctx := context.Background()
 	var (
 		page, limit int
 		err         error
 	)
-	//blockHash := c.Param("blockHash")
-	pageParams := c.QueryParam("page")
-	limitParams := c.QueryParam("limit")
-	page, err = strconv.Atoi(pageParams)
+	pagination, page, limit := getPagingOption(c)
+	filterCrit := &types.HolderFilter{
+		Pagination:      pagination,
+		ContractAddress: c.QueryParam("contractAddress"),
+		HolderAddress:   c.Param("address"),
+	}
+	tokens, total, err := s.dbClient.GetListHolders(ctx, filterCrit)
 	if err != nil {
-		page = 0
+		s.logger.Warn("Cannot get events from db", zap.Error(err))
 	}
-	limit, err = strconv.Atoi(limitParams)
-	if err != nil {
-		limit = 20
-	}
-
-	var holders []*types.TokenHolder
-	for i := 0; i < limit; i++ {
-		holder := &types.TokenHolder{}
-		if err := faker.FakeData(&holder); err != nil {
-			return err
-		}
-		holders = append(holders, holder)
-	}
-
 	return api.OK.SetData(PagingResponse{
 		Page:  page,
 		Limit: limit,
-		Total: uint64(limit * 15),
-		Data:  holders,
+		Total: total,
+		Data:  tokens,
 	}).Build(c)
 }
 
@@ -953,6 +942,19 @@ func (s *Server) TxByHash(c echo.Context) error {
 			s.Logger.Warn("cannot get receipt by hash from RPC:", zap.String("txHash", txHash))
 		}
 		if receipt != nil {
+			// decode logs first
+			for i := range receipt.Logs {
+				smcABI, err := s.getSMCAbi(ctx, &receipt.Logs[i])
+				if err != nil {
+					continue
+				}
+				decodedLog, err := s.kaiClient.UnpackLog(&receipt.Logs[i], smcABI)
+				if err != nil {
+					decodedLog = &receipt.Logs[i]
+				}
+				decodedLog.Time = tx.Time
+				receipt.Logs[i] = *decodedLog
+			}
 			tx.Logs = receipt.Logs
 			tx.Root = receipt.Root
 			tx.Status = receipt.Status
@@ -1311,31 +1313,6 @@ func (s *Server) ContractEvents(c echo.Context) error {
 	}).Build(c)
 }
 
-func (s *Server) getKRCTokenInfo(ctx context.Context, krcTokenAddr string) (*types.KRCTokenInfo, error) {
-	krcTokenInfo, err := s.cacheClient.KRCTokenInfo(ctx, krcTokenAddr)
-	if err == nil {
-		return krcTokenInfo, nil
-	}
-	s.logger.Warn("Cannot get KRC token info from cache, getting from database instead")
-	addrInfo, err := s.dbClient.AddressByHash(ctx, krcTokenAddr)
-	if err != nil {
-		s.logger.Warn("Cannot get KRC token info from db", zap.Error(err))
-		return nil, err
-	}
-	result := &types.KRCTokenInfo{
-		Address:     addrInfo.Address,
-		TokenName:   addrInfo.TokenName,
-		TokenSymbol: addrInfo.TokenSymbol,
-		Decimals:    addrInfo.Decimals,
-	}
-	err = s.cacheClient.UpdateKRCTokenInfo(ctx, result)
-	if err != nil {
-		s.logger.Warn("Cannot store KRC token info to cache", zap.Error(err))
-		return nil, err
-	}
-	return result, nil
-}
-
 func (s *Server) Contracts(c echo.Context) error {
 	ctx := context.Background()
 	pagination, page, limit := getPagingOption(c)
@@ -1423,6 +1400,17 @@ func (s *Server) InsertContract(c echo.Context) error {
 		return api.Invalid.Build(c)
 	}
 	ctx := context.Background()
+	if strings.HasPrefix(addrInfo.ErcTypes, "KRC") {
+		smcABI, err := s.getSMCAbi(ctx, &types.Log{
+			Address: addrInfo.Address,
+		})
+		if err == nil {
+			totalSupply, _ := s.kaiClient.GetKRCTotalSupply(ctx, smcABI, common.HexToAddress(addrInfo.Address))
+			if totalSupply != nil {
+				addrInfo.TotalSupply = totalSupply.String()
+			}
+		}
+	}
 	if err := s.dbClient.InsertContract(ctx, &contract, &addrInfo); err != nil {
 		lgr.Error("cannot bind insert", zap.Error(err))
 		return api.InternalServer.Build(c)
@@ -1455,6 +1443,17 @@ func (s *Server) UpdateContract(c echo.Context) error {
 		return api.Invalid.Build(c)
 	}
 	ctx := context.Background()
+	if strings.HasPrefix(addrInfo.ErcTypes, "KRC") {
+		smcABI, err := s.getSMCAbi(ctx, &types.Log{
+			Address: addrInfo.Address,
+		})
+		if err == nil {
+			totalSupply, _ := s.kaiClient.GetKRCTotalSupply(ctx, smcABI, common.HexToAddress(addrInfo.Address))
+			if totalSupply != nil {
+				addrInfo.TotalSupply = totalSupply.String()
+			}
+		}
+	}
 	if err := s.dbClient.UpdateContract(ctx, &contract, &addrInfo); err != nil {
 		lgr.Error("cannot bind insert", zap.Error(err))
 		return api.InternalServer.Build(c)

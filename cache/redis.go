@@ -455,7 +455,7 @@ func (c *Redis) PopUnverifiedBlockHeight(ctx context.Context) (uint64, error) {
 	return height, nil
 }
 
-// Holders summary
+// GetListHolders summary
 func (c *Redis) UpdateTotalHolders(ctx context.Context, holders uint64, contracts uint64) error {
 	if err := c.client.Set(ctx, KeyTotalHolders, holders, 0).Err(); err != nil {
 		// Handle error here
@@ -589,7 +589,7 @@ func (c *Redis) UpdateKRCTokenInfo(ctx context.Context, krcTokenInfo *types.KRCT
 	if err != nil {
 		return err
 	}
-	if err := c.client.Set(ctx, keyKRC, data, 0).Err(); err != nil {
+	if err := c.client.Set(ctx, keyKRC, data, 30*time.Minute).Err(); err != nil {
 		return err
 	}
 	return nil

@@ -140,6 +140,13 @@ func bind(gr *echo.Group, srv EchoServer) {
 			middlewares: nil,
 		},
 		{
+			method: echo.GET,
+			// Query params: ?page=0&limit=10&contractAddress=0x
+			path:        "/addresses/:address/tokens",
+			fn:          srv.AddressHolders,
+			middlewares: nil,
+		},
+		{
 			method:      echo.GET,
 			path:        "/nodes",
 			fn:          srv.Nodes,

@@ -7,6 +7,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io/ioutil"
 	"math/big"
 	"net"
@@ -697,6 +698,7 @@ func (s *infoServer) BlockCacheSize(ctx context.Context) (int64, error) {
 }
 
 func (s *infoServer) storeEvents(ctx context.Context, logs []types.Log, blockTime time.Time) error {
+	var holdersList []*types.TokenHolder
 	for i := range logs {
 		smcABI, err := s.getSMCAbi(ctx, &logs[i])
 		if err != nil {
@@ -708,6 +710,18 @@ func (s *infoServer) storeEvents(ctx context.Context, logs []types.Log, blockTim
 		}
 		decodedLog.Time = blockTime
 		logs[i] = *decodedLog
+		if logs[i].Topics[0] == cfg.KRCTransferTopic {
+			holders, err := s.getKRCHolder(ctx, decodedLog)
+			if err != nil {
+				continue
+			}
+			holdersList = append(holdersList, holders...)
+		}
+	}
+	// insert holders to db...
+	err := s.dbClient.UpdateHolders(ctx, holdersList)
+	if err != nil {
+		s.logger.Warn("Cannot update holder info to db", zap.Error(err), zap.Any("holdersList", holdersList))
 	}
 	return s.dbClient.InsertEvents(logs)
 }
@@ -766,4 +780,79 @@ func (s *infoServer) getSMCAbi(ctx context.Context, log *types.Log) (*abi.ABI, e
 		return nil, err
 	}
 	return &jsonABI, nil
+}
+
+func (s *infoServer) getKRCTokenInfo(ctx context.Context, krcTokenAddr string) (*types.KRCTokenInfo, error) {
+	krcTokenInfo, err := s.cacheClient.KRCTokenInfo(ctx, krcTokenAddr)
+	if err == nil {
+		return krcTokenInfo, nil
+	}
+	s.logger.Warn("Cannot get KRC token info from cache, getting from database instead")
+	addrInfo, err := s.dbClient.AddressByHash(ctx, krcTokenAddr)
+	if err != nil {
+		s.logger.Warn("Cannot get KRC token info from db", zap.Error(err))
+		return nil, err
+	}
+	result := &types.KRCTokenInfo{
+		Address:     addrInfo.Address,
+		TokenName:   addrInfo.TokenName,
+		TokenType:   addrInfo.ErcTypes,
+		TokenSymbol: addrInfo.TokenSymbol,
+		TotalSupply: addrInfo.TotalSupply,
+		Decimals:    addrInfo.Decimals,
+		Logo:        addrInfo.Logo,
+	}
+	err = s.cacheClient.UpdateKRCTokenInfo(ctx, result)
+	if err != nil {
+		s.logger.Warn("Cannot store KRC token info to cache", zap.Error(err))
+		return nil, err
+	}
+	return result, nil
+}
+
+func (s *infoServer) getKRCHolder(ctx context.Context, log *types.Log) ([]*types.TokenHolder, error) {
+	holdersList := make([]*types.TokenHolder, 2)
+	krcTokenInfo, err := s.getKRCTokenInfo(ctx, log.Address)
+	if err != nil {
+		return nil, err
+	}
+	if krcTokenInfo.TokenType != "KRC20" {
+		return nil, fmt.Errorf("not a KRC20 token")
+	}
+	if log.Arguments["from"] == "" || log.Arguments["to"] == "" {
+		return nil, fmt.Errorf("sender and receiver is not found")
+	}
+	krcABI, err := s.getSMCAbi(ctx, log)
+	if err != nil {
+		return nil, err
+	}
+	fromBalance, err := s.kaiClient.GetKRCBalanceByAddress(ctx, krcABI, common.HexToAddress(log.Address), common.HexToAddress(log.Arguments["from"].(string)))
+	if err != nil {
+		return nil, err
+	}
+	toBalance, err := s.kaiClient.GetKRCBalanceByAddress(ctx, krcABI, common.HexToAddress(log.Address), common.HexToAddress(log.Arguments["to"].(string)))
+	if err != nil {
+		return nil, err
+	}
+	holdersList[0] = &types.TokenHolder{
+		TokenName:       krcTokenInfo.TokenName,
+		TokenSymbol:     krcTokenInfo.TokenSymbol,
+		TokenDecimals:   krcTokenInfo.Decimals,
+		ContractAddress: log.Address,
+		HolderAddress:   log.Arguments["from"].(string),
+		BalanceString:   fromBalance.String(),
+		BalanceFloat:    new(big.Int).Div(fromBalance, new(big.Int).Exp(big.NewInt(10), big.NewInt(18), nil)).Int64(),
+		UpdatedAt:       time.Now().Unix(),
+	}
+	holdersList[0] = &types.TokenHolder{
+		TokenName:       krcTokenInfo.TokenName,
+		TokenSymbol:     krcTokenInfo.TokenSymbol,
+		TokenDecimals:   krcTokenInfo.Decimals,
+		ContractAddress: log.Address,
+		HolderAddress:   log.Arguments["from"].(string),
+		BalanceString:   toBalance.String(),
+		BalanceFloat:    new(big.Int).Div(toBalance, new(big.Int).Exp(big.NewInt(10), big.NewInt(18), nil)).Int64(),
+		UpdatedAt:       time.Now().Unix(),
+	}
+	return holdersList, nil
 }

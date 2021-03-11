@@ -61,6 +61,10 @@ type ClientInterface interface {
 	KardiaCall(ctx context.Context, args types.CallArgsJSON) (common.Bytes, error)
 	DecodeInputWithABI(to string, input string, smcABI *abi.ABI) (*types.FunctionCall, error)
 	UnpackLog(log *types.Log, a *abi.ABI) (*types.Log, error)
+
+	// KRC balance methods
+	GetKRCTotalSupply(ctx context.Context, a *abi.ABI, krcTokenAddr common.Address) (*big.Int, error)
+	GetKRCBalanceByAddress(ctx context.Context, a *abi.ABI, krcTokenAddr common.Address, holder common.Address) (*big.Int, error)
 }
 
 type Config struct {
