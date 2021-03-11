@@ -912,6 +912,12 @@ func (s *Server) AddressHolders(c echo.Context) error {
 	if err != nil {
 		s.logger.Warn("Cannot get events from db", zap.Error(err))
 	}
+	for i := range tokens {
+		krcTokenInfo, _ := s.getKRCTokenInfo(ctx, tokens[i].ContractAddress)
+		if krcTokenInfo != nil {
+			tokens[i].Logo = krcTokenInfo.Logo
+		}
+	}
 	return api.OK.SetData(PagingResponse{
 		Page:  page,
 		Limit: limit,
