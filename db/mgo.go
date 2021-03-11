@@ -126,6 +126,8 @@ func createIndexes(dbClient *mongoDB) error {
 		{c: cEvents, model: dbClient.createEventsCollectionIndexes()},
 		// indexing token holders collection
 		{c: cHolders, model: dbClient.createHoldersCollectionIndexes()},
+		// indexing internal txs collection
+		{c: cInternalTxs, model: dbClient.createInternalTxsCollectionIndexes()},
 	}
 	for _, cIdx := range indexes {
 		if err := dbClient.wrapper.C(cIdx.c).EnsureIndex(cIdx.model); err != nil {

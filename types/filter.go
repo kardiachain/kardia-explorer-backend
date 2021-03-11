@@ -54,9 +54,12 @@ type ContractsFilter struct {
 }
 
 type InternalTxsFilter struct {
-	Pagination
-	TokenTransactions bool
-	InternalAddress   string
+	Pagination *Pagination `bson:"-"`
+
+	TransactionHash string `bson:"txHash,omitempty"`
+	Contract        string `bson:"contractAddress,omitempty"`
+	From            string `bson:"from,omitempty"`
+	To              string `bson:"to,omitempty"`
 }
 
 type TxsFilter struct {

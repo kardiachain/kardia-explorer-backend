@@ -1575,3 +1575,45 @@ func (s *Server) GetHoldersListByToken(c echo.Context) error {
 		Data:  holders,
 	}).Build(c)
 }
+
+func (s *Server) GetInternalTxs(c echo.Context) error {
+	ctx := context.Background()
+	var (
+		page, limit int
+		err         error
+	)
+	pagination, page, limit := getPagingOption(c)
+	filterCrit := &types.InternalTxsFilter{
+		Pagination: pagination,
+		Contract:   c.QueryParam("contractAddress"),
+		From:       c.QueryParam("from"),
+		To:         c.QueryParam("to"),
+	}
+	iTxs, total, err := s.dbClient.GetListInternalTxs(ctx, filterCrit)
+	if err != nil {
+		s.logger.Warn("Cannot get internal txs from db", zap.Error(err))
+	}
+	result := make([]*InternalTransaction, len(iTxs))
+	for i := range iTxs {
+		result[i] = &InternalTransaction{
+			Log: &types.Log{
+				Address: iTxs[i].Contract,
+				Time:    iTxs[i].Time,
+				TxHash:  iTxs[i].TransactionHash,
+			},
+			From:  iTxs[i].From,
+			To:    iTxs[i].To,
+			Value: iTxs[i].Value,
+		}
+		krcTokenInfo, _ := s.getKRCTokenInfo(ctx, iTxs[i].Contract)
+		if krcTokenInfo != nil {
+			result[i].KRCTokenInfo = krcTokenInfo
+		}
+	}
+	return api.OK.SetData(PagingResponse{
+		Page:  page,
+		Limit: limit,
+		Total: total,
+		Data:  result,
+	}).Build(c)
+}

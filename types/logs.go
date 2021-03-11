@@ -7,19 +7,19 @@ import (
 )
 
 type Log struct {
-	Address       string                 `json:"address" bson:"address"`
-	MethodName    string                 `json:"methodName" bson:"methodName"`
-	ArgumentsName string                 `json:"argumentsName" bson:"argumentsName"`
-	Arguments     map[string]interface{} `json:"arguments" bson:"arguments"`
-	Topics        []string               `json:"topics" bson:"topics"`
-	Data          string                 `json:"data" bson:"data"`
-	BlockHeight   uint64                 `json:"blockHeight" bson:"blockHeight"`
+	Address       string                 `json:"address,omitempty" bson:"address"`
+	MethodName    string                 `json:"methodName,omitempty" bson:"methodName"`
+	ArgumentsName string                 `json:"argumentsName,omitempty" bson:"argumentsName"`
+	Arguments     map[string]interface{} `json:"arguments,omitempty" bson:"arguments"`
+	Topics        []string               `json:"topics,omitempty" bson:"topics"`
+	Data          string                 `json:"data,omitempty" bson:"data"`
+	BlockHeight   uint64                 `json:"blockHeight,omitempty" bson:"blockHeight"`
 	Time          time.Time              `json:"time" bson:"time"`
 	TxHash        string                 `json:"transactionHash"  bson:"transactionHash"`
-	TxIndex       uint                   `json:"transactionIndex" bson:"transactionIndex"`
-	BlockHash     string                 `json:"blockHash" bson:"blockHash"`
-	Index         uint                   `json:"logIndex" bson:"logIndex"`
-	Removed       bool                   `json:"removed" bson:"removed"`
+	TxIndex       uint                   `json:"transactionIndex,omitempty" bson:"transactionIndex"`
+	BlockHash     string                 `json:"blockHash,omitempty" bson:"blockHash"`
+	Index         uint                   `json:"logIndex,omitempty" bson:"logIndex"`
+	Removed       bool                   `json:"removed,omitempty" bson:"removed"`
 }
 
 type Receipt struct {

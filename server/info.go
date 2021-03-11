@@ -698,7 +698,10 @@ func (s *infoServer) BlockCacheSize(ctx context.Context) (int64, error) {
 }
 
 func (s *infoServer) storeEvents(ctx context.Context, logs []types.Log, blockTime time.Time) error {
-	var holdersList []*types.TokenHolder
+	var (
+		holdersList     []*types.TokenHolder
+		internalTxsList []*types.TokenTransfer
+	)
 	for i := range logs {
 		smcABI, err := s.getSMCAbi(ctx, &logs[i])
 		if err != nil {
@@ -716,13 +719,20 @@ func (s *infoServer) storeEvents(ctx context.Context, logs []types.Log, blockTim
 				continue
 			}
 			holdersList = append(holdersList, holders...)
+			iTx := s.getInternalTxs(ctx, decodedLog)
+			internalTxsList = append(internalTxsList, iTx)
 		}
 	}
-	// insert holders to db...
+	// insert holders and internal txs to db
 	err := s.dbClient.UpdateHolders(ctx, holdersList)
 	if err != nil {
 		s.logger.Warn("Cannot update holder info to db", zap.Error(err), zap.Any("holdersList", holdersList))
 	}
+	err = s.dbClient.UpdateInternalTxs(ctx, internalTxsList)
+	if err != nil {
+		s.logger.Warn("Cannot update internal txs to db", zap.Error(err), zap.Any("holdersList", holdersList))
+	}
+
 	return s.dbClient.InsertEvents(logs)
 }
 
@@ -855,4 +865,15 @@ func (s *infoServer) getKRCHolder(ctx context.Context, log *types.Log) ([]*types
 		UpdatedAt:       time.Now().Unix(),
 	}
 	return holdersList, nil
+}
+
+func (s *infoServer) getInternalTxs(ctx context.Context, log *types.Log) *types.TokenTransfer {
+	return &types.TokenTransfer{
+		TransactionHash: log.TxHash,
+		Contract:        log.Address,
+		From:            log.Arguments["from"].(string),
+		To:              log.Arguments["to"].(string),
+		Value:           log.Arguments["value"].(string),
+		Time:            log.Time,
+	}
 }
