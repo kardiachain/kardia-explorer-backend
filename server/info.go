@@ -844,12 +844,12 @@ func (s *infoServer) getKRCHolder(ctx context.Context, log *types.Log) ([]*types
 		BalanceFloat:    new(big.Int).Div(fromBalance, new(big.Int).Exp(big.NewInt(10), big.NewInt(18), nil)).Int64(),
 		UpdatedAt:       time.Now().Unix(),
 	}
-	holdersList[0] = &types.TokenHolder{
+	holdersList[1] = &types.TokenHolder{
 		TokenName:       krcTokenInfo.TokenName,
 		TokenSymbol:     krcTokenInfo.TokenSymbol,
 		TokenDecimals:   krcTokenInfo.Decimals,
 		ContractAddress: log.Address,
-		HolderAddress:   log.Arguments["from"].(string),
+		HolderAddress:   log.Arguments["to"].(string),
 		BalanceString:   toBalance.String(),
 		BalanceFloat:    new(big.Int).Div(toBalance, new(big.Int).Exp(big.NewInt(10), big.NewInt(18), nil)).Int64(),
 		UpdatedAt:       time.Now().Unix(),

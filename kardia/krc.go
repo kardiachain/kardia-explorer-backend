@@ -29,7 +29,7 @@ func (ec *Client) GetKRCTotalSupply(ctx context.Context, a *abi.ABI, krcTokenAdd
 
 	var totalSupply *big.Int
 	// unpack result
-	err = ec.validatorUtil.Abi.UnpackIntoInterface(&totalSupply, "totalSupply", res)
+	err = a.UnpackIntoInterface(&totalSupply, "totalSupply", res)
 	if err != nil {
 		ec.lgr.Error("Error unpacking get total supply error: ", zap.Error(err))
 		return nil, err
@@ -39,7 +39,7 @@ func (ec *Client) GetKRCTotalSupply(ctx context.Context, a *abi.ABI, krcTokenAdd
 
 // GetKRCBalanceByAddress returns balance of a KRC holder
 func (ec *Client) GetKRCBalanceByAddress(ctx context.Context, a *abi.ABI, krcTokenAddr common.Address, holder common.Address) (*big.Int, error) {
-	payload, err := a.Pack("balanceOf")
+	payload, err := a.Pack("balanceOf", holder)
 	if err != nil {
 		ec.lgr.Error("Error packing get balance payload: ", zap.Error(err))
 		return nil, err
@@ -56,7 +56,7 @@ func (ec *Client) GetKRCBalanceByAddress(ctx context.Context, a *abi.ABI, krcTok
 
 	var balance *big.Int
 	// unpack result
-	err = ec.validatorUtil.Abi.UnpackIntoInterface(&balance, "balanceOf", res)
+	err = a.UnpackIntoInterface(&balance, "balanceOf", res)
 	if err != nil {
 		ec.lgr.Error("Error unpacking get balance error: ", zap.Error(err))
 		return nil, err
