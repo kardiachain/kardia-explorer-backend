@@ -1144,6 +1144,9 @@ func (s *Server) CalculateValidatorStats(ctx context.Context, validators []*type
 func getPagingOption(c echo.Context) (*types.Pagination, int, int) {
 	pageParams := c.QueryParam("page")
 	limitParams := c.QueryParam("limit")
+	if pageParams == "" && limitParams == "" {
+		return nil, 0, 0
+	}
 	page, err := strconv.Atoi(pageParams)
 	if err != nil {
 		page = 0
