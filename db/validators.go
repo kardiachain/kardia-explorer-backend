@@ -24,6 +24,7 @@ type IValidator interface {
 }
 
 type ValidatorsFilter struct {
+	Role int // [0:candidates, 1:validators, 2:proposer]
 }
 
 func (m *mongoDB) UpsertValidators(ctx context.Context, validators []*types.Validator) error {
