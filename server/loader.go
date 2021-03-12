@@ -40,7 +40,7 @@ func (s *infoServer) LoadBootData(ctx context.Context) error {
 
 	for _, val := range validators {
 		cfg.GenesisAddresses = append(cfg.GenesisAddresses, &types.Address{
-			Address: val.SmcAddress.Hex(),
+			Address: val.SmcAddress,
 			Name:    val.Name,
 		})
 	}

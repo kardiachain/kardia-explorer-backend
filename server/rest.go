@@ -957,8 +957,8 @@ func (s *Server) CalculateValidatorStats(ctx context.Context, validators []*type
 		totalStakedAmount = new(big.Int).Add(totalStakedAmount, valStakedAmount)
 
 		for _, d := range val.Delegators {
-			if !delegatorsMap[d.Address.String()] {
-				delegatorsMap[d.Address.String()] = true
+			if !delegatorsMap[d.Address] {
+				delegatorsMap[d.Address] = true
 				totalDelegators++
 			}
 			delStakedAmount, ok = new(big.Int).SetString(d.StakedAmount, 10)
@@ -1029,7 +1029,7 @@ func (s *Server) getValidatorsAddressAndRole(ctx context.Context) map[string]*va
 
 	smcAddress := map[string]*valInfoResponse{}
 	for _, v := range validators {
-		smcAddress[v.SmcAddress.String()] = &valInfoResponse{
+		smcAddress[v.SmcAddress] = &valInfoResponse{
 			Name: v.Name,
 			Role: v.Role,
 		}
