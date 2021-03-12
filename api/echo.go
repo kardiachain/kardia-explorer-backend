@@ -25,54 +25,6 @@ import (
 	"github.com/kardiachain/kardia-explorer-backend/cfg"
 )
 
-// EchoServer define all API expose
-type EchoServer interface {
-	// General
-	Ping(c echo.Context) error
-	Stats(c echo.Context) error
-	TotalHolders(c echo.Context) error
-	TokenInfo(c echo.Context) error
-	Nodes(c echo.Context) error
-
-	// Staking-related
-	ValidatorStats(c echo.Context) error
-	Validators(c echo.Context) error
-	GetValidatorsByDelegator(c echo.Context) error
-	GetCandidatesList(c echo.Context) error
-	GetSlashEvents(c echo.Context) error
-	GetSlashedTokens(c echo.Context) error
-
-	// Proposal
-	GetProposalsList(c echo.Context) error
-	GetProposalDetails(c echo.Context) error
-	GetParams(c echo.Context) error
-
-	// Blocks
-	Blocks(c echo.Context) error
-	Block(c echo.Context) error
-	BlockTxs(c echo.Context) error
-	BlocksByProposer(c echo.Context) error
-	PersistentErrorBlocks(c echo.Context) error
-
-	// Addresses
-	Addresses(c echo.Context) error
-	AddressInfo(c echo.Context) error
-	AddressTxs(c echo.Context) error
-	AddressHolders(c echo.Context) error
-
-	// Tx
-	Txs(c echo.Context) error
-	TxByHash(c echo.Context) error
-
-	// Admin sector
-	ReloadAddressesBalance(c echo.Context) error
-	ReloadValidators(c echo.Context) error
-	UpdateAddressName(c echo.Context) error
-	UpsertNetworkNodes(c echo.Context) error
-	RemoveNetworkNodes(c echo.Context) error
-	UpdateSupplyAmounts(c echo.Context) error
-}
-
 type restDefinition struct {
 	method      string
 	path        string
@@ -188,45 +140,16 @@ func bind(gr *echo.Group, srv EchoServer) {
 			middlewares: nil,
 		},
 		{
+			method: echo.GET,
+			// Query params: ?page=0&limit=10&contractAddress=0x
+			path:        "/addresses/:address/tokens",
+			fn:          srv.AddressHolders,
+			middlewares: nil,
+		},
+		{
 			method:      echo.GET,
 			path:        "/nodes",
 			fn:          srv.Nodes,
-			middlewares: nil,
-		},
-		{
-			method:      echo.GET,
-			path:        "/validators",
-			fn:          srv.Validators,
-			middlewares: nil,
-		},
-		{
-			method:      echo.GET,
-			path:        "/validators/:address",
-			fn:          srv.ValidatorStats,
-			middlewares: nil,
-		},
-		{
-			method:      echo.GET,
-			path:        "/delegators/:address/validators",
-			fn:          srv.GetValidatorsByDelegator,
-			middlewares: nil,
-		},
-		{
-			method:      echo.GET,
-			path:        "/validators/candidates",
-			fn:          srv.GetCandidatesList,
-			middlewares: nil,
-		},
-		{
-			method:      echo.GET,
-			path:        "/validators/:address/slash",
-			fn:          srv.GetSlashEvents,
-			middlewares: nil,
-		},
-		{
-			method:      echo.GET,
-			path:        "/validators/slashed/tokens",
-			fn:          srv.GetSlashedTokens,
 			middlewares: nil,
 		},
 		// Proposal
@@ -261,12 +184,76 @@ func bind(gr *echo.Group, srv EchoServer) {
 			fn:          srv.ReloadValidators,
 			middlewares: nil,
 		},
+		{
+			method:      echo.GET,
+			path:        "/search",
+			fn:          srv.SearchAddressByName,
+			middlewares: nil,
+		},
+		{
+			method:      echo.GET,
+			path:        "/token/holders/:contractAddress",
+			fn:          srv.GetHoldersListByToken,
+			middlewares: nil,
+		},
+		{
+			method: echo.GET,
+			// Query params: ?page=0&limit=10&address=0x&contractAddress=0x
+			path:        "/token/txs",
+			fn:          srv.GetInternalTxs,
+			middlewares: nil,
+		},
 	}
-
+	bindContractAPIs(gr, srv)
+	bindStakingAPIs(gr, srv)
 	for _, api := range apis {
 		gr.Add(api.method, api.path, api.fn, api.middlewares...)
 	}
+}
 
+func bindContractAPIs(gr *echo.Group, srv EchoServer) {
+	apis := []restDefinition{
+		{
+			method:      echo.POST,
+			path:        "/contracts",
+			fn:          srv.InsertContract,
+			middlewares: nil,
+		},
+		{
+			method:      echo.PUT,
+			path:        "/contracts",
+			fn:          srv.UpdateContract,
+			middlewares: nil,
+		},
+		{
+			method:      echo.GET,
+			path:        "/contracts",
+			fn:          srv.Contracts,
+			middlewares: nil,
+		},
+		{
+			method:      echo.GET,
+			path:        "/contracts/:contractAddress",
+			fn:          srv.Contract,
+			middlewares: nil,
+		},
+		{
+			method:      echo.PUT,
+			path:        "/contracts/abi",
+			fn:          srv.UpdateSMCABIByType,
+			middlewares: nil,
+		},
+		{
+			method: echo.GET,
+			// Query params: ?page=0&limit=10&contractAddress=0x&methodName=0x&txHash=0x
+			path:        "/contracts/events",
+			fn:          srv.ContractEvents,
+			middlewares: nil,
+		},
+	}
+	for _, api := range apis {
+		gr.Add(api.method, api.path, api.fn, api.middlewares...)
+	}
 }
 
 func Start(srv EchoServer, cfg cfg.ExplorerConfig) {

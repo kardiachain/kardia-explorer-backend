@@ -2,9 +2,9 @@ package main
 
 import (
 	"context"
-	"log"
 
 	"github.com/joho/godotenv"
+	"go.uber.org/zap"
 
 	"github.com/kardiachain/kardia-explorer-backend/api"
 	"github.com/kardiachain/kardia-explorer-backend/cache"
@@ -44,7 +44,7 @@ func main() {
 		StorageDB:      serviceCfg.StorageDB,
 		StorageIsFlush: serviceCfg.StorageIsFlush,
 
-		KardiaURLs:         serviceCfg.KardiaURLs,
+		KardiaURLs:         serviceCfg.KardiaPublicNodes,
 		KardiaTrustedNodes: serviceCfg.KardiaTrustedNodes,
 
 		CacheAdapter:      cache.Adapter(serviceCfg.CacheEngine),
@@ -59,10 +59,18 @@ func main() {
 	}
 	srv, err := server.New(srvConfig)
 	if err != nil {
-		log.Panicf("cannot create server instance %s", err.Error())
+		logger.Panic("cannot create server instance %s", zap.Error(err))
 	}
 	ctx := context.Background()
-	srv.LoadBootData(ctx)
+
+	if serviceCfg.IsReloadBootData {
+		//if err := srv.LoadBootData(ctx); err != nil {
+		//	logger.Panic("cannot load boot data", zap.Error(err))
+		//}
+		if err := srv.LoadBootContracts(ctx); err != nil {
+			logger.Panic("cannot load boot contracts", zap.Error(err))
+		}
+	}
 
 	api.Start(srv, serviceCfg)
 }

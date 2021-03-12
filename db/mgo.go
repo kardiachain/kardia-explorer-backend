@@ -21,20 +21,21 @@ package db
 import (
 	"context"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/kardiachain/go-kardia/lib/common"
 
-	"github.com/kardiachain/kardia-explorer-backend/cfg"
-	"github.com/kardiachain/kardia-explorer-backend/utils"
-
 	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 	"go.uber.org/zap"
 	"gopkg.in/mgo.v2"
 
+	"github.com/kardiachain/kardia-explorer-backend/cfg"
 	"github.com/kardiachain/kardia-explorer-backend/types"
+	"github.com/kardiachain/kardia-explorer-backend/utils"
 )
 
 const (
@@ -91,7 +92,7 @@ func createIndexes(dbClient *mongoDB) error {
 		model []mongo.IndexModel
 	}
 
-	for _, cIdx := range []CIndex{
+	indexes := []CIndex{
 		// Add index to improve querying transactions by hash, block hash and block height
 		{c: cTxs, model: []mongo.IndexModel{{Keys: bson.M{"hash": -1}, Options: options.Index().SetUnique(true).SetSparse(true)}}},
 		{c: cTxs, model: []mongo.IndexModel{{Keys: bson.M{"blockNumber": -1}, Options: options.Index().SetSparse(true)}}},
@@ -113,7 +114,23 @@ func createIndexes(dbClient *mongoDB) error {
 		{c: cAddresses, model: []mongo.IndexModel{{Keys: bson.M{"tokenSymbol": 1}, Options: options.Index().SetSparse(true)}}},
 		// indexing proposal collection
 		{c: cProposal, model: []mongo.IndexModel{{Keys: bson.M{"id": -1}, Options: options.Index().SetUnique(true).SetSparse(true)}}},
-	} {
+		// indexing validator collection
+		{c: cValidators, model: []mongo.IndexModel{{Keys: bson.M{"address": 1}, Options: options.Index().SetUnique(true).SetSparse(true)}}},
+		{c: cValidators, model: []mongo.IndexModel{{Keys: bson.M{"name": 1}, Options: options.Index().SetSparse(true)}}},
+		// indexing contract & ABI collection
+		{c: cContract, model: []mongo.IndexModel{{Keys: bson.M{"name": 1}, Options: options.Index().SetSparse(true)}}},
+		{c: cContract, model: []mongo.IndexModel{{Keys: bson.M{"type": 1}, Options: options.Index().SetSparse(true)}}},
+		{c: cContract, model: []mongo.IndexModel{{Keys: bson.M{"address": 1}, Options: options.Index().SetUnique(true).SetSparse(true)}}},
+		{c: cABI, model: []mongo.IndexModel{{Keys: bson.M{"type": 1}, Options: options.Index().SetUnique(true).SetSparse(true)}}},
+		// indexing contract events collection
+		{c: cEvents, model: dbClient.createEventsCollectionIndexes()},
+		// indexing token holders collection
+		{c: cHolders, model: dbClient.createHoldersCollectionIndexes()},
+		// indexing internal txs collection
+		{c: cInternalTxs, model: dbClient.createInternalTxsCollectionIndexes()},
+		{c: cDelegator, model: createDelegatorCollectionIndexes()},
+	}
+	for _, cIdx := range indexes {
 		if err := dbClient.wrapper.C(cIdx.c).EnsureIndex(cIdx.model); err != nil {
 			return err
 		}
@@ -481,8 +498,9 @@ func (m *mongoDB) TxsByAddress(ctx context.Context, address string, pagination *
 		options.Find().SetHint(bson.D{{Key: "from", Value: 1}, {Key: "time", Value: -1}}),
 		options.Find().SetHint(bson.D{{Key: "to", Value: 1}, {Key: "time", Value: -1}}),
 		options.Find().SetSort(bson.M{"time": -1}),
-		options.Find().SetSkip(int64(pagination.Skip)),
-		options.Find().SetLimit(int64(pagination.Limit)),
+	}
+	if pagination != nil {
+		opts = append(opts, options.Find().SetSkip(int64(pagination.Skip)), options.Find().SetLimit(int64(pagination.Limit)))
 	}
 	cursor, err := m.wrapper.C(cTxs).
 		Find(bson.M{"$or": []bson.M{{"from": address}, {"to": address}}}, opts...)
@@ -825,3 +843,73 @@ func (m *mongoDB) GetListProposals(ctx context.Context, pagination *types.Pagina
 }
 
 // end region Proposal
+
+func (m *mongoDB) AddressByName(ctx context.Context, name string) ([]*types.Address, error) {
+	var (
+		addrs []*types.Address
+		opts  = []*options.FindOptions{
+			options.Find().SetHint(bson.M{"address": 1}),
+			options.Find().SetHint(bson.M{"name": 1}),
+		}
+	)
+	crit := []bson.M{
+		{"name": bson.D{{"$regex", primitive.Regex{Pattern: name, Options: "i"}}}},
+	}
+	if strings.HasPrefix(name, "0x") {
+		crit = append(crit, bson.M{"address": bson.D{{"$regex", primitive.Regex{Pattern: name, Options: "i"}}}})
+	}
+	cursor, err := m.wrapper.C(cAddresses).Find(bson.M{"$or": crit}, opts...)
+	if err != nil {
+		return nil, err
+	}
+	defer func() {
+		err = cursor.Close(ctx)
+		if err != nil {
+			m.logger.Warn("Error when close cursor", zap.Error(err))
+		}
+	}()
+	for cursor.Next(ctx) {
+		addr := &types.Address{}
+		if err := cursor.Decode(&addr); err != nil {
+			return nil, err
+		}
+		addrs = append(addrs, addr)
+	}
+
+	return addrs, nil
+}
+
+func (m *mongoDB) ContractByName(ctx context.Context, name string) ([]*types.Contract, error) {
+	var (
+		contracts []*types.Contract
+		opts      = []*options.FindOptions{
+			options.Find().SetHint(bson.M{"address": 1}),
+			options.Find().SetHint(bson.M{"name": 1}),
+		}
+	)
+	crit := []bson.M{
+		{"name": bson.D{{"$regex", primitive.Regex{Pattern: name, Options: "i"}}}},
+	}
+	if strings.HasPrefix(name, "0x") {
+		crit = append(crit, bson.M{"address": bson.D{{"$regex", primitive.Regex{Pattern: name, Options: "i"}}}})
+	}
+	cursor, err := m.wrapper.C(cContract).Find(bson.M{"$or": crit}, opts...)
+	if err != nil {
+		return nil, err
+	}
+	defer func() {
+		err = cursor.Close(ctx)
+		if err != nil {
+			m.logger.Warn("Error when close cursor", zap.Error(err))
+		}
+	}()
+	for cursor.Next(ctx) {
+		smc := &types.Contract{}
+		if err := cursor.Decode(&smc); err != nil {
+			return nil, err
+		}
+		contracts = append(contracts, smc)
+	}
+
+	return contracts, nil
+}

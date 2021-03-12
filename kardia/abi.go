@@ -23,6 +23,7 @@ import (
 	"fmt"
 	"math/big"
 	"reflect"
+	"strconv"
 	"strings"
 
 	"github.com/kardiachain/go-kardia/lib/abi"
@@ -31,13 +32,55 @@ import (
 	"github.com/kardiachain/kardia-explorer-backend/types"
 )
 
+func (ec *Client) DecodeInputWithABI(to string, input string, smcABI *abi.ABI) (*types.FunctionCall, error) {
+	// return nil if input data is too short
+	if len(input) <= 2 {
+		return nil, nil
+	}
+	data, err := hex.DecodeString(strings.TrimPrefix(input, "0x"))
+	if err != nil {
+		return nil, err
+	}
+	sig := data[0:4] // get the function signature (first 4 bytes of input data)
+	method, err := smcABI.MethodById(sig)
+	if err != nil {
+		return nil, err
+	}
+	// exclude the function signature, only decode and unpack the arguments
+	var body []byte
+	if len(data) <= 4 {
+		body = []byte{}
+	} else {
+		body = data[4:]
+	}
+	args, err := ec.getInputArguments(smcABI, method.Name, body)
+	if err != nil {
+		return nil, err
+	}
+	arguments := make(map[string]interface{})
+	err = args.UnpackIntoMap(arguments, body)
+	if err != nil {
+		return nil, err
+	}
+	// convert address, bytes and string arguments into their hex representations
+	for i, arg := range arguments {
+		arguments[i] = parseBytesArrayIntoString(arg)
+	}
+	return &types.FunctionCall{
+		Function:   method.String(),
+		MethodID:   "0x" + hex.EncodeToString(sig),
+		MethodName: method.Name,
+		Arguments:  arguments,
+	}, nil
+}
+
 // DecodeInputData returns decoded transaction input data if it match any function in staking and validator contract.
 func (ec *Client) DecodeInputData(to string, input string) (*types.FunctionCall, error) {
 	// return nil if input data is too short
 	if len(input) <= 2 {
 		return nil, nil
 	}
-	data, err := hex.DecodeString(strings.TrimLeft(input, "0x"))
+	data, err := hex.DecodeString(strings.TrimPrefix(input, "0x"))
 	if err != nil {
 		return nil, err
 	}
@@ -94,6 +137,62 @@ func (ec *Client) DecodeInputData(to string, input string) (*types.FunctionCall,
 	}, nil
 }
 
+// UnpackLog returns a log detail
+func (ec *Client) UnpackLog(log *types.Log, a *abi.ABI) (*types.Log, error) {
+	event, err := a.EventByID(common.HexToHash(log.Topics[0]))
+	if err != nil {
+		return nil, err
+	}
+	argumentsValue := make(map[string]interface{})
+	err = unpackLogIntoMap(a, argumentsValue, event.RawName, *log)
+	if err != nil {
+		return nil, err
+	}
+	// convert address, bytes and string arguments into their hex representations
+	for i, arg := range argumentsValue {
+		argumentsValue[i] = parseBytesArrayIntoString(arg)
+	}
+	// append unpacked data
+	log.Arguments = argumentsValue
+	log.MethodName = event.RawName
+	order := int64(1)
+	for _, arg := range event.Inputs {
+		if arg.Indexed {
+			log.ArgumentsName += "index_topic_" + strconv.FormatInt(order, 10) + " "
+			order++
+		}
+		log.ArgumentsName += arg.Type.String() + " " + arg.Name + ", "
+	}
+	log.ArgumentsName = strings.TrimRight(log.ArgumentsName, ", ")
+	return log, nil
+}
+
+// UnpackLogIntoMap unpacks a retrieved log into the provided map.
+func unpackLogIntoMap(a *abi.ABI, out map[string]interface{}, eventName string, log types.Log) error {
+	data, err := hex.DecodeString(log.Data)
+	if err != nil {
+		return err
+	}
+	// unpacking unindexed arguments
+	if len(data) > 0 {
+		if err := a.UnpackIntoMap(out, eventName, data); err != nil {
+			return err
+		}
+	}
+	// unpacking indexed arguments
+	var indexed abi.Arguments
+	for _, arg := range a.Events[eventName].Inputs {
+		if arg.Indexed {
+			indexed = append(indexed, arg)
+		}
+	}
+	topics := make([]common.Hash, len(log.Topics)-1)
+	for i, topic := range log.Topics[1:] { // exclude the eventID (log.Topic[0])
+		topics[i] = common.HexToHash(topic)
+	}
+	return abi.ParseTopicsIntoMap(out, indexed, topics)
+}
+
 // getInputArguments get input arguments of a contract call
 func (ec *Client) getInputArguments(a *abi.ABI, name string, data []byte) (abi.Arguments, error) {
 	var args abi.Arguments
@@ -112,6 +211,10 @@ func (ec *Client) getInputArguments(a *abi.ABI, name string, data []byte) (abi.A
 // parseBytesArrayIntoString is a utility function. It converts address, bytes and string arguments into their hex representation.
 func parseBytesArrayIntoString(v interface{}) interface{} {
 	if reflect.TypeOf(v).Kind() == reflect.Array {
+		addr, ok := v.(common.Address)
+		if ok {
+			return addr.Hex()
+		}
 		arr, ok := v.([32]byte)
 		if !ok {
 			return v

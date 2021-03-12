@@ -38,36 +38,6 @@ type FunctionCall struct {
 	Arguments  map[string]interface{} `json:"arguments"`
 }
 
-type Log struct {
-	Address     string   `json:"address"`
-	Topics      []string `json:"topics"`
-	Data        string   `json:"data"`
-	BlockHeight uint64   `json:"blockHeight"`
-	TxHash      string   `json:"transactionHash"`
-	TxIndex     uint     `json:"transactionIndex"`
-	BlockHash   string   `json:"blockHash"`
-	Index       uint     `json:"logIndex"`
-	Removed     bool     `json:"removed"`
-}
-
-type Receipt struct {
-	BlockHash   string `json:"blockHash"`
-	BlockHeight uint64 `json:"blockHeight"`
-
-	TransactionHash  string `json:"transactionHash"`
-	TransactionIndex uint64 `json:"transactionIndex"`
-
-	From              string      `json:"from"`
-	To                string      `json:"to"`
-	GasUsed           uint64      `json:"gasUsed"`
-	CumulativeGasUsed uint64      `json:"cumulativeGasUsed"`
-	ContractAddress   string      `json:"contractAddress"`
-	Logs              []Log       `json:"logs"`
-	LogsBloom         types.Bloom `json:"logsBloom"`
-	Root              string      `json:"root"`
-	Status            uint        `json:"status"`
-}
-
 type TransactionByAddress struct {
 	Address string    `json:"address" bson:"address"`
 	TxHash  string    `json:"txHash" bson:"txHash"`

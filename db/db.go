@@ -35,9 +35,13 @@ type Nodes interface {
 
 // DB define list API used by infoServer
 type Client interface {
-	IValidators
+	IContract
+	IValidator
 	IDelegators
 	Nodes
+	IEvents
+	IHolders
+	IInternalTransaction
 	ping() error
 	dropCollection(collectionName string)
 	dropDatabase(ctx context.Context) error
@@ -78,6 +82,9 @@ type Client interface {
 	GetTotalAddresses(ctx context.Context) (uint64, uint64, error)
 	GetListAddresses(ctx context.Context, sortDirection int, pagination *types.Pagination) ([]*types.Address, error)
 	Addresses(ctx context.Context) ([]*types.Address, error)
+
+	AddressByName(ctx context.Context, name string) ([]*types.Address, error)
+	ContractByName(ctx context.Context, name string) ([]*types.Contract, error)
 
 	// Proposal
 	AddVoteToProposal(ctx context.Context, proposalInfo *types.ProposalDetail, voteOption uint64) error

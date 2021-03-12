@@ -45,18 +45,20 @@ func (f *TimeFilter) Sanitize() {
 }
 
 type ContractsFilter struct {
-	Pagination
-	SortFilter
-	ContractName string
-	TokenName    string
-	TokenSymbol  string
-	ErcType      string
+	Type       string      `bson:"type,omitempty"`
+	Pagination *Pagination `bson:"-"`
+
+	ContractName string `bson:"name,omitempty"`
+	TokenName    string `bson:"tokenName,omitempty"`
+	TokenSymbol  string `bson:"tokenSymbol,omitempty"`
 }
 
 type InternalTxsFilter struct {
-	Pagination
-	TokenTransactions bool
-	InternalAddress   string
+	Pagination *Pagination `bson:"-"`
+
+	TransactionHash string `bson:"txHash,omitempty"`
+	Contract        string `bson:"contractAddress,omitempty"`
+	Address         string `bson:"address,omitempty"`
 }
 
 type TxsFilter struct {
@@ -72,4 +74,11 @@ type BlocksFilter struct {
 func (f *TxsFilter) Sanitize() {
 	f.Pagination.Sanitize()
 	f.TimeFilter.Sanitize()
+}
+
+type HolderFilter struct {
+	Pagination *Pagination `bson:"-"`
+
+	ContractAddress string `bson:"contractAddress,omitempty"`
+	HolderAddress   string `bson:"holderAddress,omitempty"`
 }

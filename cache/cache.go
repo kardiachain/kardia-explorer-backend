@@ -32,6 +32,8 @@ type Config struct {
 }
 
 type Client interface {
+	IStaking
+
 	InsertBlock(ctx context.Context, block *types.Block) error
 	InsertTxsOfBlock(ctx context.Context, block *types.Block) error
 	BlockByHeight(ctx context.Context, blockHeight uint64) (*types.Block, error)
@@ -56,7 +58,7 @@ type Client interface {
 	TotalTxs(ctx context.Context) uint64
 	LatestBlockHeight(ctx context.Context) uint64
 
-	// Holders summary
+	// GetListHolders summary
 	UpdateTotalHolders(ctx context.Context, holders uint64, contracts uint64) error
 	TotalHolders(ctx context.Context) (uint64, uint64)
 
@@ -67,6 +69,15 @@ type Client interface {
 
 	Validators(ctx context.Context) (*types.Validators, error)
 	UpdateValidators(ctx context.Context, validators *types.Validators) error
+
+	SMCAbi(ctx context.Context, key string) (string, error)
+	UpdateSMCAbi(ctx context.Context, key, abi string) error
+
+	KRCTokenInfo(ctx context.Context, krcTokenAddr string) (*types.KRCTokenInfo, error)
+	UpdateKRCTokenInfo(ctx context.Context, krcTokenInfo *types.KRCTokenInfo) error
+
+	AddressInfo(ctx context.Context, addr string) (*types.Address, error)
+	UpdateAddressInfo(ctx context.Context, addrInfo *types.Address) error
 }
 
 func New(cfg Config) (Client, error) {
