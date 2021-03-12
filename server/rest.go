@@ -936,6 +936,11 @@ func (s *Server) TxByHash(c echo.Context) error {
 			s.Logger.Warn("cannot get receipt by hash from RPC:", zap.String("txHash", txHash))
 		}
 		if receipt != nil {
+			tx.Logs = receipt.Logs
+			tx.Root = receipt.Root
+			tx.Status = receipt.Status
+			tx.GasUsed = receipt.GasUsed
+			tx.ContractAddress = receipt.ContractAddress
 			// decode logs first
 			for i := range receipt.Logs {
 				smcABI, err := s.getSMCAbi(ctx, &receipt.Logs[i])
@@ -950,10 +955,6 @@ func (s *Server) TxByHash(c echo.Context) error {
 				receipt.Logs[i] = *decodedLog
 			}
 			tx.Logs = receipt.Logs
-			tx.Root = receipt.Root
-			tx.Status = receipt.Status
-			tx.GasUsed = receipt.GasUsed
-			tx.ContractAddress = receipt.ContractAddress
 		}
 	}
 
