@@ -1132,8 +1132,9 @@ func getPagingOption(c echo.Context) (*types.Pagination, int, int) {
 	}
 	page, err := strconv.Atoi(pageParams)
 	if err != nil {
-		page = 0
+		page = 1
 	}
+	page = page - 1
 	limit, err := strconv.Atoi(limitParams)
 	if err != nil {
 		limit = 10
@@ -1143,7 +1144,7 @@ func getPagingOption(c echo.Context) (*types.Pagination, int, int) {
 		Limit: limit,
 	}
 	pagination.Sanitize()
-	return pagination, page, limit
+	return pagination, page + 1, limit
 }
 
 func (s *Server) getValidatorsAddressAndRole(ctx context.Context) map[string]*valInfoResponse {
@@ -1430,7 +1431,7 @@ func (s *Server) InsertContract(c echo.Context) error {
 }
 
 func (s *Server) UpdateContract(c echo.Context) error {
-	lgr := s.logger.With(zap.String("method", "InsertContract"))
+	lgr := s.logger.With(zap.String("method", "UpdateContract"))
 
 	if c.Request().Header.Get("Authorization") != s.infoServer.HttpRequestSecret {
 		return api.Unauthorized.Build(c)
@@ -1472,12 +1473,16 @@ func (s *Server) UpdateContract(c echo.Context) error {
 			}
 		}
 	}
+	currTokenInfo, _ := s.dbClient.AddressByHash(ctx, addrInfo.Address)
+	fmt.Printf("@@@@@@@@@@@@@@@@@@@@@@ currTokenInfo: %+v \n", currTokenInfo)
+	if currTokenInfo != nil && currTokenInfo.ErcTypes == "" && currTokenInfo.TokenName == "" && currTokenInfo.TokenSymbol == "" {
+		if err := s.insertHistoryTransferKRC(ctx, addrInfo.Address); err != nil {
+			lgr.Error("cannot retrieve history transfer of KRC token", zap.Error(err), zap.String("address", addrInfo.Address))
+		}
+	}
 	if err := s.dbClient.UpdateContract(ctx, &contract, &addrInfo); err != nil {
 		lgr.Error("cannot bind insert", zap.Error(err))
 		return api.InternalServer.Build(c)
-	}
-	if err := s.insertHistoryTransferKRC(ctx, addrInfo.Address); err != nil {
-		lgr.Error("cannot retrieve history transfer of KRC token", zap.Error(err), zap.String("address", addrInfo.Address))
 	}
 
 	return api.OK.Build(c)
