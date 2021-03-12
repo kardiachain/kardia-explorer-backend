@@ -58,8 +58,7 @@ type InternalTxsFilter struct {
 
 	TransactionHash string `bson:"txHash,omitempty"`
 	Contract        string `bson:"contractAddress,omitempty"`
-	From            string `bson:"from,omitempty"`
-	To              string `bson:"to,omitempty"`
+	Address         string `bson:"address,omitempty"`
 }
 
 type TxsFilter struct {
