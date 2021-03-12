@@ -896,7 +896,6 @@ func (s *infoServer) getInternalTxs(ctx context.Context, log *types.Log) *types.
 
 func (s *infoServer) insertHistoryTransferKRC(ctx context.Context, smcAddr string) error {
 	txs, _, err := s.dbClient.TxsByAddress(ctx, smcAddr, nil)
-	fmt.Printf("@@@@@@@@@@@@@@@@@@@@@@ txs: %+v err: %v\n", txs, err)
 	if err != nil {
 		return err
 	}

@@ -2,7 +2,6 @@ package db
 
 import (
 	"context"
-	"fmt"
 
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
@@ -63,7 +62,6 @@ func (m *mongoDB) GetListInternalTxs(ctx context.Context, filter *types.Internal
 	}
 	crit := bson.M{"$and": andCrit}
 
-	fmt.Printf("@@@@@@@@@@@@@@@@ crit: %+v\n", crit)
 	opts := []*options.FindOptions{
 		options.Find().SetHint(bson.M{"time": -1}),
 		options.Find().SetHint(bson.M{"txHash": 1}),
