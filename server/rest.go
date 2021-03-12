@@ -1479,6 +1479,15 @@ func (s *Server) UpdateContract(c echo.Context) error {
 		lgr.Error("cannot bind insert", zap.Error(err))
 		return api.InternalServer.Build(c)
 	}
+	_ = s.cacheClient.UpdateKRCTokenInfo(ctx, &types.KRCTokenInfo{
+		Address:     addrInfo.Address,
+		TokenName:   addrInfo.TokenName,
+		TokenType:   addrInfo.ErcTypes,
+		TokenSymbol: addrInfo.TokenSymbol,
+		TotalSupply: addrInfo.TotalSupply,
+		Decimals:    addrInfo.Decimals,
+		Logo:        addrInfo.Logo,
+	})
 	if currTokenInfo != nil && currTokenInfo.ErcTypes == "" && currTokenInfo.TokenName == "" && currTokenInfo.TokenSymbol == "" {
 		if err := s.insertHistoryTransferKRC(ctx, addrInfo.Address); err != nil {
 			lgr.Error("cannot retrieve history transfer of KRC token", zap.Error(err), zap.String("address", addrInfo.Address))

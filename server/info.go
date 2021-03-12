@@ -730,13 +730,13 @@ func (s *infoServer) storeEvents(ctx context.Context, logs []types.Log, blockTim
 		decodedLog.Time = blockTime
 		logs[i] = *decodedLog
 		if logs[i].Topics[0] == cfg.KRCTransferTopic {
+			iTx := s.getInternalTxs(ctx, decodedLog)
+			internalTxsList = append(internalTxsList, iTx)
 			holders, err := s.getKRCHolder(ctx, decodedLog)
 			if err != nil {
 				continue
 			}
 			holdersList = append(holdersList, holders...)
-			iTx := s.getInternalTxs(ctx, decodedLog)
-			internalTxsList = append(internalTxsList, iTx)
 		}
 	}
 	// insert holders and internal txs to db
@@ -895,17 +895,38 @@ func (s *infoServer) getInternalTxs(ctx context.Context, log *types.Log) *types.
 }
 
 func (s *infoServer) insertHistoryTransferKRC(ctx context.Context, smcAddr string) error {
-	txs, _, err := s.dbClient.TxsByAddress(ctx, smcAddr, nil)
+	events, _, err := s.dbClient.GetListEvents(ctx, nil, smcAddr, "", "")
 	if err != nil {
 		return err
 	}
-	for _, tx := range txs {
-		if len(tx.Logs) > 0 {
-			err = s.storeEvents(ctx, tx.Logs, txs[0].Time)
-			if err != nil {
-				s.logger.Warn("Cannot store events to db", zap.Error(err))
-			}
+	for _, e := range events {
+		if e.MethodName != "" {
+			continue
 		}
+		block, _ := s.dbClient.BlockByHeight(ctx, e.BlockHeight)
+		err = s.storeEvents(ctx, []types.Log{
+			{
+				Address:     smcAddr,
+				Topics:      e.Topics,
+				Data:        e.Data,
+				BlockHeight: e.BlockHeight,
+				Time:        block.Time,
+				TxHash:      e.TxHash,
+				TxIndex:     e.TxIndex,
+				BlockHash:   block.Hash,
+				Index:       e.Index,
+				Removed:     e.Removed,
+			},
+		}, block.Time)
+		if err != nil {
+			s.logger.Warn("Cannot store events to db", zap.Error(err))
+		}
+	}
+
+	err = s.dbClient.DeleteEmptyEvents(ctx, smcAddr)
+	if err != nil {
+		s.logger.Warn("Cannot delete empty events", zap.Error(err), zap.String("smcAddr", smcAddr))
+		return err
 	}
 	return nil
 }
