@@ -29,6 +29,12 @@ var (
 )
 
 const (
+	RoleProposer  = 2
+	RoleValidator = 1
+	RoleCandidate = 1
+)
+
+const (
 	// redis list length
 	LatestTxsLength = 1000
 

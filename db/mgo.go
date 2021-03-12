@@ -124,6 +124,7 @@ func createIndexes(dbClient *mongoDB) error {
 		{c: cABI, model: []mongo.IndexModel{{Keys: bson.M{"type": 1}, Options: options.Index().SetUnique(true).SetSparse(true)}}},
 		// indexing contract events collection
 		{c: cEvents, model: dbClient.createEventsCollectionIndexes()},
+		{c: cDelegator, model: createDelegatorCollectionIndexes()},
 	}
 	for _, cIdx := range indexes {
 		if err := dbClient.wrapper.C(cIdx.c).EnsureIndex(cIdx.model); err != nil {

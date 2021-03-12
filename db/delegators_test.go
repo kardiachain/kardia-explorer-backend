@@ -31,5 +31,4 @@ func TestDelegator_ValidatorsStakedAmount(t *testing.T) {
 	totalDelegators, err := dbClient.GetStakedOfAddresses(context.Background(), validatorAddresses)
 	assert.Nil(t, err)
 	fmt.Println("total delegators", totalDelegators)
-
 }

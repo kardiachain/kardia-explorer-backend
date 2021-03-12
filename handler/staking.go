@@ -179,11 +179,11 @@ func (h *handler) calculateStakingStats(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	totalProposer, err := h.db.Validators(ctx, db.ValidatorsFilter{})
+	totalProposer, err := h.db.Validators(ctx, db.ValidatorsFilter{Role: cfg.RoleProposer})
 	if err != nil {
 		return err
 	}
-	totalCandidate, err := h.db.Validators(ctx, db.ValidatorsFilter{})
+	totalCandidate, err := h.db.Validators(ctx, db.ValidatorsFilter{Role: cfg.RoleCandidate})
 	if err != nil {
 		return err
 	}
@@ -203,7 +203,7 @@ func (h *handler) calculateStakingStats(ctx context.Context) error {
 	TotalDelegatorsStakedAmount := new(big.Int).Sub(totalStaked, stakedAmountBigInt)
 
 	stats := &types.StakingStats{
-		TotalValidators:            len(totalValidator),
+		TotalValidators:            len(totalValidator) + len(totalProposer),
 		TotalProposers:             len(totalProposer),
 		TotalCandidates:            len(totalCandidate),
 		TotalDelegators:            totalUniqueDelegator,

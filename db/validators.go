@@ -18,13 +18,14 @@ var (
 type IValidator interface {
 	UpsertValidators(ctx context.Context, validators []*types.Validator) error
 	Validators(ctx context.Context, filter ValidatorsFilter) ([]*types.Validator, error)
+	Validator(ctx context.Context, validatorSMCAddress string) (*types.Validator, error)
 	ClearValidators(ctx context.Context) error
 
 	UpsertValidator(ctx context.Context, validator *types.Validator) error
 }
 
 type ValidatorsFilter struct {
-	Role int // [0:candidates, 1:validators, 2:proposer]
+	Role int // [1:candidates, 2:validators, 3:proposer]
 }
 
 func (m *mongoDB) UpsertValidators(ctx context.Context, validators []*types.Validator) error {
@@ -42,10 +43,25 @@ func (m *mongoDB) UpsertValidators(ctx context.Context, validators []*types.Vali
 
 func (m *mongoDB) Validators(ctx context.Context, filter ValidatorsFilter) ([]*types.Validator, error) {
 	var validators []*types.Validator
-	cursor, err := m.wrapper.C(cValidators).Find(bson.M{})
+
+	var mgoFilter []bson.M
+	if filter.Role != 0 {
+		// Using role-1 since default go int == 0
+		mgoFilter = append(mgoFilter, bson.M{"role": filter.Role - 1})
+	}
+	var (
+		cursor *mongo.Cursor
+		err    error
+	)
+	if len(mgoFilter) == 0 {
+		cursor, err = m.wrapper.C(cValidators).Find(bson.M{})
+	} else {
+		cursor, err = m.wrapper.C(cValidators).Find(bson.M{"$and": mgoFilter})
+	}
 	if err != nil {
 		return nil, err
 	}
+	defer cursor.Close(ctx)
 
 	if err := cursor.All(ctx, &validators); err != nil {
 		return nil, err
@@ -70,4 +86,12 @@ func (m *mongoDB) UpsertValidator(ctx context.Context, validator *types.Validato
 		return err
 	}
 	return nil
+}
+
+func (m *mongoDB) Validator(ctx context.Context, validatorSMCAddress string) (*types.Validator, error) {
+	var validator *types.Validator
+	if err := m.wrapper.C(cValidators).FindOne(bson.M{"smcAddress": validatorSMCAddress}).Decode(&validator); err != nil {
+		return nil, err
+	}
+	return validator, nil
 }

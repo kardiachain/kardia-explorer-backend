@@ -18,8 +18,8 @@ type EchoServer interface {
 	StakingStats(c echo.Context) error
 	Validator(c echo.Context) error
 	Validators(c echo.Context) error
-	GetValidatorsByDelegator(c echo.Context) error
-	GetCandidatesList(c echo.Context) error
+	ValidatorsByDelegator(c echo.Context) error
+	Candidates(c echo.Context) error
 
 	// Proposal
 	GetProposalsList(c echo.Context) error

@@ -284,6 +284,10 @@ github.com/kardiachain/go-kaiclient v0.0.0-20210311071336-04fced56979d h1:P3R/P2
 github.com/kardiachain/go-kaiclient v0.0.0-20210311071336-04fced56979d/go.mod h1:3zvgL/+YwUwp65R69O3FaM4YpaQ5A2LP1A1xRpUA2pw=
 github.com/kardiachain/go-kaiclient v0.0.0-20210311093817-48ee3b098eca h1:GUMHqj/PDwqdiGYltZADnSopVugrdDokXzN1FV4rOHQ=
 github.com/kardiachain/go-kaiclient v0.0.0-20210311093817-48ee3b098eca/go.mod h1:3zvgL/+YwUwp65R69O3FaM4YpaQ5A2LP1A1xRpUA2pw=
+github.com/kardiachain/go-kaiclient v0.0.0-20210312075256-2db163d5c647 h1:M414HHRhl0d17e+kw4mqZzVaBCZ80ss3yzMMWp+Z9mU=
+github.com/kardiachain/go-kaiclient v0.0.0-20210312075256-2db163d5c647/go.mod h1:3zvgL/+YwUwp65R69O3FaM4YpaQ5A2LP1A1xRpUA2pw=
+github.com/kardiachain/go-kaiclient v0.0.0-20210312084202-0c2eaa6a4212 h1:DnsInhA01kyBsCkoxVwZVPbAB+4Dj02SjmCu82qsPkc=
+github.com/kardiachain/go-kaiclient v0.0.0-20210312084202-0c2eaa6a4212/go.mod h1:3zvgL/+YwUwp65R69O3FaM4YpaQ5A2LP1A1xRpUA2pw=
 github.com/kardiachain/go-kardia v0.11.0 h1:8rD5tYjkGjTBRWVzu6c9DkLwFWhVTxDhgfIbmvslPeU=
 github.com/kardiachain/go-kardia v0.11.0/go.mod h1:qt2xzOyQlhqhyS8DGbByL5qTNXJffIx+2JzTZlNXibg=
 github.com/karrick/godirwalk v1.8.0/go.mod h1:H5KPZjojv4lE+QYImBI8xVtrBRgYrIVsaRPx4tDPEn4=

@@ -7,6 +7,7 @@ import (
 	"sync"
 
 	"github.com/kardiachain/go-kaiclient/kardia"
+	"github.com/kardiachain/go-kardia/lib/common"
 	"github.com/panjf2000/ants/v2"
 	"go.uber.org/zap"
 
@@ -97,6 +98,7 @@ func (w *Wrapper) ValidatorsWithWorker(ctx context.Context) ([]*types.Validator,
 		node    kardia.Node
 		smcAddr string
 	}
+
 	var validators []*types.Validator
 	// Use the pool with a function,
 	// set 10 to the capacity of goroutine pool and 1 second for expired duration.
@@ -126,6 +128,20 @@ func (w *Wrapper) ValidatorsWithWorker(ctx context.Context) ([]*types.Validator,
 	return validators, nil
 }
 
+func getValidatorRole(proposers []common.Address, validator *types.Validator) int {
+	for _, val := range proposers {
+		if val.Hex() == validator.Address {
+			return 2
+		}
+	}
+	// else if his node is started, he is a normal validator
+	if validator.Status == 2 {
+		return 1
+	}
+	// otherwise he is a candidate
+	return 0
+}
+
 func (w *Wrapper) Validators(ctx context.Context) ([]*types.Validator, error) {
 	validatorSMCAddresses, err := w.pickTrusted().ValidatorSMCAddresses(ctx)
 	if err != nil {
@@ -145,6 +161,12 @@ func (w *Wrapper) Validators(ctx context.Context) ([]*types.Validator, error) {
 
 func (w *Wrapper) Validator(ctx context.Context, validatorSMCAddress string) (*types.Validator, error) {
 	lgr := w.logger.With(zap.String("method", "Validator"))
+	proposers, err := w.TrustedNode().ValidatorSets(ctx)
+	if err != nil {
+		lgr.Error("cannot load proposer set", zap.Error(err))
+		return nil, err
+	}
+
 	nValidator, err := w.pickTrusted().ValidatorInfo(ctx, validatorSMCAddress)
 	if err != nil {
 		lgr.Error("cannot get validator info", zap.Error(err))
@@ -206,11 +228,19 @@ func (w *Wrapper) Validator(ctx context.Context, validatorSMCAddress string) (*t
 			JailedUntil:        signingInfo.JailedUntil.Uint64(),
 		},
 	}
+	v.Role = getValidatorRole(proposers, v)
 	return v, nil
 }
 
 func (w *Wrapper) validatorWithNode(ctx context.Context, validatorSMCAddress string, node kardia.Node) (*types.Validator, error) {
 	lgr := w.logger.With(zap.String("method", "validatorWithNode"))
+
+	proposers, err := w.TrustedNode().ValidatorSets(ctx)
+	if err != nil {
+		lgr.Error("cannot load proposer set", zap.Error(err))
+		return nil, err
+	}
+
 	nValidator, err := node.ValidatorInfo(ctx, validatorSMCAddress)
 	if err != nil {
 		lgr.Error("cannot get validator info", zap.Error(err))
@@ -254,7 +284,6 @@ func (w *Wrapper) validatorWithNode(ctx context.Context, validatorSMCAddress str
 		Address:               nValidator.Signer.String(),
 		SmcAddress:            validatorSMCAddress,
 		Status:                nValidator.Status,
-		Role:                  int(nValidator.Status),
 		Jailed:                nValidator.Jailed,
 		Name:                  validatorNameInString(nValidator.Name),
 		StakedAmount:          nValidator.Tokens.String(),
@@ -272,6 +301,7 @@ func (w *Wrapper) validatorWithNode(ctx context.Context, validatorSMCAddress str
 			JailedUntil:        signingInfo.JailedUntil.Uint64(),
 		},
 	}
+	v.Role = getValidatorRole(proposers, v)
 	return v, nil
 }
 
@@ -285,7 +315,6 @@ func (w *Wrapper) DelegatorsWithWorker(ctx context.Context, validatorSMC string)
 
 	var wg sync.WaitGroup
 	nodesSize := len(w.publicNodes)
-	lgr.Info("Start load delegators with node size", zap.Int("Size", nodesSize))
 	type inputArgs struct {
 		node             kardia.Node
 		validatorSMCAddr string
@@ -299,6 +328,7 @@ func (w *Wrapper) DelegatorsWithWorker(ctx context.Context, validatorSMC string)
 		input := i.(inputArgs)
 		v, err := w.DelegatorWithNode(ctx, input.node, input.validatorSMCAddr, input.delegatorAddr)
 		if err != nil {
+			lgr.Debug("cannot get delegator", zap.Error(err))
 			return
 		}
 		delegators = append(delegators, v)

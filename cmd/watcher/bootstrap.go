@@ -90,7 +90,7 @@ func loadStakingBootData(ctx context.Context, cfg cfg.ExplorerConfig) error {
 			return err
 		}
 
-		lgr.Info("delegator size", zap.Int("delegatorSize", len(delegators)))
+		lgr.Debug("Delegator", zap.Int("Size", len(delegators)))
 
 		if err := dbClient.UpsertDelegators(ctx, delegators); err != nil {
 			lgr.Error("cannot upsert delegators", zap.Error(err))
@@ -99,23 +99,30 @@ func loadStakingBootData(ctx context.Context, cfg cfg.ExplorerConfig) error {
 	}
 	totalValidator, err := dbClient.Validators(ctx, db.ValidatorsFilter{})
 	if err != nil {
+		lgr.Error("cannot calculate total validators", zap.Error(err))
 		return err
 	}
-	totalProposer, err := dbClient.Validators(ctx, db.ValidatorsFilter{})
+	// todo: Do not hard code here
+	totalProposer, err := dbClient.Validators(ctx, db.ValidatorsFilter{Role: 3})
 	if err != nil {
+		lgr.Error("cannot calculate total proposers", zap.Error(err))
 		return err
 	}
-	totalCandidate, err := dbClient.Validators(ctx, db.ValidatorsFilter{})
+	// todo: Fix hard code
+	totalCandidate, err := dbClient.Validators(ctx, db.ValidatorsFilter{Role: 1})
 	if err != nil {
+		lgr.Error("cannot calculate total candidates", zap.Error(err))
 		return err
 	}
 	totalUniqueDelegator, err := dbClient.UniqueDelegators(ctx)
 	if err != nil {
+		lgr.Error("cannot calculate total unique delegators", zap.Error(err))
 		return err
 	}
 
 	totalValidatorStakedAmount, err := dbClient.GetStakedOfAddresses(ctx, validatorAddresses)
 	if err != nil {
+		lgr.Error("cannot calculate total validator staked amount", zap.Error(err))
 		return err
 	}
 	stakedAmountBigInt, ok := new(big.Int).SetString(totalValidatorStakedAmount, 10)
@@ -125,7 +132,7 @@ func loadStakingBootData(ctx context.Context, cfg cfg.ExplorerConfig) error {
 	TotalDelegatorsStakedAmount := new(big.Int).Sub(totalStaked, stakedAmountBigInt)
 
 	stats := &types.StakingStats{
-		TotalValidators:            len(totalValidator),
+		TotalValidators:            len(totalValidator) + len(totalProposer),
 		TotalProposers:             len(totalProposer),
 		TotalCandidates:            len(totalCandidate),
 		TotalDelegators:            totalUniqueDelegator,
@@ -135,13 +142,15 @@ func loadStakingBootData(ctx context.Context, cfg cfg.ExplorerConfig) error {
 	}
 
 	if err := cacheClient.UpdateStakingStats(ctx, stats); err != nil {
+		lgr.Error("cannot update staking stats", zap.Error(err))
 		return err
 	}
 
 	if err := dbClient.UpsertValidators(ctx, validators); err != nil {
+		lgr.Error("cannot upsert validators", zap.Error(err))
 		return err
 	}
-	lgr.Debug("Total time for boot ", zap.Any("time", time.Now().Sub(loadBootDataTime)))
+	lgr.Debug("Finished loading boot data ", zap.Any("Total", time.Now().Sub(loadBootDataTime)))
 
 	return nil
 }
