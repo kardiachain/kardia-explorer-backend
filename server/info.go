@@ -892,34 +892,18 @@ func (s *infoServer) getInternalTxs(ctx context.Context, log *types.Log) *types.
 }
 
 func (s *infoServer) insertHistoryTransferKRC(ctx context.Context, smcAddr string) error {
-	events, _, err := s.dbClient.GetListEvents(ctx, nil, smcAddr, "", "")
+	txs, _, err := s.dbClient.TxsByAddress(ctx, smcAddr, nil)
 	if err != nil {
 		return err
 	}
-	for _, e := range events {
-		if e.MethodName != "" {
-			continue
-		}
-		block, _ := s.dbClient.BlockByHeight(ctx, e.BlockHeight)
-		err = s.storeEvents(ctx, []types.Log{
-			{
-				Address:     smcAddr,
-				Topics:      e.Topics,
-				Data:        e.Data,
-				BlockHeight: e.BlockHeight,
-				Time:        block.Time,
-				TxHash:      e.TxHash,
-				TxIndex:     e.TxIndex,
-				BlockHash:   block.Hash,
-				Index:       e.Index,
-				Removed:     e.Removed,
-			},
-		}, block.Time)
-		if err != nil {
-			s.logger.Warn("Cannot store events to db", zap.Error(err))
+	for _, tx := range txs {
+		if len(tx.Logs) > 0 {
+			err = s.storeEvents(ctx, tx.Logs, txs[0].Time)
+			if err != nil {
+				s.logger.Warn("Cannot store events to db", zap.Error(err))
+			}
 		}
 	}
-
 	err = s.dbClient.DeleteEmptyEvents(ctx, smcAddr)
 	if err != nil {
 		s.logger.Warn("Cannot delete empty events", zap.Error(err), zap.String("smcAddr", smcAddr))
