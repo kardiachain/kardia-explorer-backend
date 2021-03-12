@@ -176,50 +176,51 @@ func (s *infoServer) GetCurrentStats(ctx context.Context) uint64 {
 		zap.Uint64("TotalContracts", stats.TotalContracts))
 	_ = s.cacheClient.SetTotalTxs(ctx, stats.TotalTransactions)
 	_ = s.cacheClient.UpdateTotalHolders(ctx, stats.TotalAddresses, stats.TotalContracts)
-
-	cfg.GenesisAddresses = append(cfg.GenesisAddresses, &types.Address{
-		Address: cfg.TreasuryContractAddr,
-		Name:    cfg.TreasuryContractName,
-	})
-	cfg.GenesisAddresses = append(cfg.GenesisAddresses, &types.Address{
-		Address: cfg.StakingContractAddr,
-		Name:    cfg.StakingContractName,
-	})
-	cfg.GenesisAddresses = append(cfg.GenesisAddresses, &types.Address{
-		Address: cfg.KardiaDeployerAddr,
-		Name:    cfg.KardiaDeployerName,
-	})
-	cfg.GenesisAddresses = append(cfg.GenesisAddresses, &types.Address{
-		Address: cfg.ParamsContractAddr,
-		Name:    cfg.ParamsContractName,
-	})
-	vals, _ := s.kaiClient.Validators(ctx)
-	//todo: longnd - Temp remove
-	//_ = s.cacheClient.UpdateValidators(ctx, vals)
-	_ = s.dbClient.ClearValidators(ctx)
-	_ = s.dbClient.UpsertValidators(ctx, vals)
-	for _, val := range vals {
-		cfg.GenesisAddresses = append(cfg.GenesisAddresses, &types.Address{
-			Address: val.SmcAddress,
-			Name:    val.Name,
-		})
-	}
-	for i, addr := range cfg.GenesisAddresses {
-		balance, _ := s.kaiClient.GetBalance(ctx, addr.Address)
-		balanceInBigInt, _ := new(big.Int).SetString(balance, 10)
-		balanceFloat, _ := new(big.Float).SetPrec(100).Quo(new(big.Float).SetInt(balanceInBigInt), new(big.Float).SetInt(cfg.Hydro)).Float64() //converting to KAI from HYDRO
-
-		cfg.GenesisAddresses[i].BalanceFloat = balanceFloat
-		cfg.GenesisAddresses[i].BalanceString = balance
-		code, _ := s.kaiClient.GetCode(ctx, addr.Address)
-		if len(code) > 0 {
-			cfg.GenesisAddresses[i].IsContract = true
-		}
-
-		// write this address to db
-		_ = s.dbClient.InsertAddress(ctx, cfg.GenesisAddresses[i])
-	}
 	return stats.UpdatedAtBlock
+	// Look like those code make delay
+	//cfg.GenesisAddresses = append(cfg.GenesisAddresses, &types.Address{
+	//	Address: cfg.TreasuryContractAddr,
+	//	Name:    cfg.TreasuryContractName,
+	//})
+	//cfg.GenesisAddresses = append(cfg.GenesisAddresses, &types.Address{
+	//	Address: cfg.StakingContractAddr,
+	//	Name:    cfg.StakingContractName,
+	//})
+	//cfg.GenesisAddresses = append(cfg.GenesisAddresses, &types.Address{
+	//	Address: cfg.KardiaDeployerAddr,
+	//	Name:    cfg.KardiaDeployerName,
+	//})
+	//cfg.GenesisAddresses = append(cfg.GenesisAddresses, &types.Address{
+	//	Address: cfg.ParamsContractAddr,
+	//	Name:    cfg.ParamsContractName,
+	//})
+	//vals, _ := s.kaiClient.Validators(ctx)
+	////todo: longnd - Temp remove
+	////_ = s.cacheClient.UpdateValidators(ctx, vals)
+	////_ = s.dbClient.ClearValidators(ctx)
+	////_ = s.dbClient.UpsertValidators(ctx, vals)
+	//for _, val := range vals {
+	//	cfg.GenesisAddresses = append(cfg.GenesisAddresses, &types.Address{
+	//		Address: val.SmcAddress,
+	//		Name:    val.Name,
+	//	})
+	//}
+	//for i, addr := range cfg.GenesisAddresses {
+	//	balance, _ := s.kaiClient.GetBalance(ctx, addr.Address)
+	//	balanceInBigInt, _ := new(big.Int).SetString(balance, 10)
+	//	balanceFloat, _ := new(big.Float).SetPrec(100).Quo(new(big.Float).SetInt(balanceInBigInt), new(big.Float).SetInt(cfg.Hydro)).Float64() //converting to KAI from HYDRO
+	//
+	//	cfg.GenesisAddresses[i].BalanceFloat = balanceFloat
+	//	cfg.GenesisAddresses[i].BalanceString = balance
+	//	code, _ := s.kaiClient.GetCode(ctx, addr.Address)
+	//	if len(code) > 0 {
+	//		cfg.GenesisAddresses[i].IsContract = true
+	//	}
+	//
+	//	// write this address to db
+	//	_ = s.dbClient.InsertAddress(ctx, cfg.GenesisAddresses[i])
+	//}
+	//return stats.UpdatedAtBlock
 }
 
 func (s *infoServer) UpdateCurrentStats(ctx context.Context) error {
