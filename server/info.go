@@ -669,12 +669,11 @@ func (s *infoServer) mergeAdditionalInfoToTxs(ctx context.Context, txs []*types.
 		smcABI, err := s.getSMCAbi(ctx, &types.Log{
 			Address: tx.To,
 		})
-		if err != nil {
-			continue
-		}
-		decoded, err := s.kaiClient.DecodeInputWithABI(tx.To, tx.InputData, smcABI)
 		if err == nil {
-			tx.DecodedInputData = decoded
+			decoded, err := s.kaiClient.DecodeInputWithABI(tx.To, tx.InputData, smcABI)
+			if err == nil {
+				tx.DecodedInputData = decoded
+			}
 		}
 		if (receiptIndex > len(receipts)-1) || !(receipts[receiptIndex].TransactionHash == tx.Hash) {
 			tx.Status = 0
@@ -717,6 +716,9 @@ func (s *infoServer) storeEvents(ctx context.Context, logs []types.Log, blockTim
 		internalTxsList []*types.TokenTransfer
 	)
 	for i := range logs {
+		if logs[i].Address == "" || logs[i].Address == "0x" {
+			continue
+		}
 		smcABI, err := s.getSMCAbi(ctx, &logs[i])
 		if err != nil {
 			continue
