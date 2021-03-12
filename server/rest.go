@@ -805,19 +805,6 @@ func (s *Server) TxByHash(c echo.Context) error {
 			s.Logger.Warn("cannot get receipt by hash from RPC:", zap.String("txHash", txHash))
 		}
 		if receipt != nil {
-			// decode logs first
-			for i := range receipt.Logs {
-				smcABI, err := s.getSMCAbi(ctx, &receipt.Logs[i])
-				if err != nil {
-					continue
-				}
-				decodedLog, err := s.kaiClient.UnpackLog(&receipt.Logs[i], smcABI)
-				if err != nil {
-					decodedLog = &receipt.Logs[i]
-				}
-				decodedLog.Time = tx.Time
-				receipt.Logs[i] = *decodedLog
-			}
 			tx.Logs = receipt.Logs
 			tx.Root = receipt.Root
 			tx.Status = receipt.Status
@@ -849,6 +836,20 @@ func (s *Server) TxByHash(c echo.Context) error {
 	if functionCall != nil {
 		tx.DecodedInputData = functionCall
 	}
+
+	// decode logs first
+	for i := range tx.Logs {
+		smcABI, err := s.getSMCAbi(ctx, &tx.Logs[i])
+		if err != nil {
+			continue
+		}
+		decodedLog, err := s.kaiClient.UnpackLog(&tx.Logs[i], smcABI)
+		if err != nil {
+			decodedLog = &tx.Logs[i]
+		}
+		decodedLog.Time = tx.Time
+		tx.Logs[i] = *decodedLog
+	}
 	internalTxs := make([]*InternalTransaction, len(tx.Logs))
 	for i := range tx.Logs {
 		krcTokenInfo, err = s.getKRCTokenInfo(ctx, tx.Logs[i].Address)
@@ -860,6 +861,7 @@ func (s *Server) TxByHash(c echo.Context) error {
 			KRCTokenInfo: krcTokenInfo,
 		}
 	}
+
 	result := &Transaction{
 		BlockHash:        tx.BlockHash,
 		BlockNumber:      tx.BlockNumber,
@@ -1145,9 +1147,6 @@ func (s *Server) ReloadValidators(c echo.Context) error {
 }
 
 func (s *Server) ContractEvents(c echo.Context) error {
-	if c.Request().Header.Get("Authorization") != s.infoServer.HttpRequestSecret {
-		return api.Unauthorized.Build(c)
-	}
 	ctx := context.Background()
 	var (
 		page, limit  int
@@ -1343,15 +1342,23 @@ func (s *Server) UpdateContract(c echo.Context) error {
 		}
 	}
 	currTokenInfo, _ := s.dbClient.AddressByHash(ctx, addrInfo.Address)
-	fmt.Printf("@@@@@@@@@@@@@@@@@@@@@@ currTokenInfo: %+v \n", currTokenInfo)
+	if err := s.dbClient.UpdateContract(ctx, &contract, &addrInfo); err != nil {
+		lgr.Error("cannot bind insert", zap.Error(err))
+		return api.InternalServer.Build(c)
+	}
+	_ = s.cacheClient.UpdateKRCTokenInfo(ctx, &types.KRCTokenInfo{
+		Address:     addrInfo.Address,
+		TokenName:   addrInfo.TokenName,
+		TokenType:   addrInfo.ErcTypes,
+		TokenSymbol: addrInfo.TokenSymbol,
+		TotalSupply: addrInfo.TotalSupply,
+		Decimals:    addrInfo.Decimals,
+		Logo:        addrInfo.Logo,
+	})
 	if currTokenInfo != nil && currTokenInfo.ErcTypes == "" && currTokenInfo.TokenName == "" && currTokenInfo.TokenSymbol == "" {
 		if err := s.insertHistoryTransferKRC(ctx, addrInfo.Address); err != nil {
 			lgr.Error("cannot retrieve history transfer of KRC token", zap.Error(err), zap.String("address", addrInfo.Address))
 		}
-	}
-	if err := s.dbClient.UpdateContract(ctx, &contract, &addrInfo); err != nil {
-		lgr.Error("cannot bind insert", zap.Error(err))
-		return api.InternalServer.Build(c)
 	}
 
 	return api.OK.Build(c)

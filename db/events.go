@@ -21,6 +21,7 @@ type IEvents interface {
 	createEventsCollectionIndexes() []mongo.IndexModel
 	InsertEvents(events []types.Log) error
 	GetListEvents(ctx context.Context, pagination *types.Pagination, contractAddress string, methodName string, txHash string) ([]*types.Log, uint64, error)
+	DeleteEmptyEvents(ctx context.Context, contractAddress string) error
 }
 
 func (m *mongoDB) createEventsCollectionIndexes() []mongo.IndexModel {
@@ -95,4 +96,9 @@ func (m *mongoDB) GetListEvents(ctx context.Context, pagination *types.Paginatio
 		return nil, 0, err
 	}
 	return events, uint64(total), nil
+}
+
+func (m *mongoDB) DeleteEmptyEvents(ctx context.Context, contractAddress string) error {
+	_, err := m.wrapper.C(cEvents).RemoveAll(bson.M{"address": contractAddress, "methodName": ""})
+	return err
 }
