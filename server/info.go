@@ -279,10 +279,6 @@ func (s *infoServer) ImportBlock(ctx context.Context, block *types.Block, writeT
 	// because getBlockByHash/Height API returns 2 array contains txs and receipts separately
 	block.Txs = s.mergeAdditionalInfoToTxs(ctx, block.Txs, block.Receipts)
 
-	if err := s.filterStakingEvent(ctx, block.Txs); err != nil {
-		s.logger.Warn("Filter staking event failed", zap.Error(err))
-	}
-
 	if err := s.filterProposalEvent(ctx, block.Txs); err != nil {
 		s.logger.Warn("Filter proposal event failed", zap.Error(err))
 	}

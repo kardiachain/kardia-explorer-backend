@@ -4,6 +4,7 @@ package handler
 import (
 	"context"
 	"fmt"
+	"math/big"
 
 	"github.com/kardiachain/go-kaiclient/kardia"
 	ctypes "github.com/kardiachain/go-kardia/types"
@@ -11,6 +12,8 @@ import (
 
 	"github.com/kardiachain/kardia-explorer-backend/cfg"
 	"github.com/kardiachain/kardia-explorer-backend/db"
+	"github.com/kardiachain/kardia-explorer-backend/types"
+	"github.com/kardiachain/kardia-explorer-backend/utils"
 )
 
 type IStakingHandler interface {
@@ -116,7 +119,9 @@ func (h *handler) processHeader(ctx context.Context, header *ctypes.Header) {
 		h.reloadDelegator(ctx, tx.To, tx.From)
 
 		// 2. Calculate new stats
-		h.calculateStakingStats(ctx)
+		if err := h.calculateStakingStats(ctx); err != nil {
+			return
+		}
 	}
 
 }
@@ -155,14 +160,60 @@ func (h *handler) calculateStakingStats(ctx context.Context) error {
 		return err
 	}
 	fmt.Println("TotalStakedAmount: ", totalStaked.String())
+	for id, v := range validators {
+		votingPower, err := utils.CalculateVotingPower(v.StakedAmount, totalStaked)
+		if err != nil {
+			return err
+		}
+		validators[id].VotingPowerPercentage = votingPower
+	}
+	if err := h.db.UpsertValidators(ctx, validators); err != nil {
+		return err
+	}
 
+	var validatorAddresses []string
 	for _, v := range validators {
-		fmt.Printf("ValidatorInfo: %+v \n", v)
-		//votingPower, err := utils.CalculateVotingPower(v.StakedAmount, totalStaked)
-		//if err != nil {
-		//	lgr.Error("cannot calculate voting power", zap.String("validators", v.Name), zap.Error(err))
-		//	return err
-		//}
+		validatorAddresses = append(validatorAddresses, v.Address)
+	}
+	totalValidator, err := h.db.Validators(ctx, db.ValidatorsFilter{})
+	if err != nil {
+		return err
+	}
+	totalProposer, err := h.db.Validators(ctx, db.ValidatorsFilter{})
+	if err != nil {
+		return err
+	}
+	totalCandidate, err := h.db.Validators(ctx, db.ValidatorsFilter{})
+	if err != nil {
+		return err
+	}
+	totalUniqueDelegator, err := h.db.UniqueDelegators(ctx)
+	if err != nil {
+		return err
+	}
+
+	totalValidatorStakedAmount, err := h.db.GetStakedOfAddresses(ctx, validatorAddresses)
+	if err != nil {
+		return err
+	}
+	stakedAmountBigInt, ok := new(big.Int).SetString(totalValidatorStakedAmount, 10)
+	if !ok {
+		return fmt.Errorf("cannot load validator staked amount")
+	}
+	TotalDelegatorsStakedAmount := new(big.Int).Sub(totalStaked, stakedAmountBigInt)
+
+	stats := &types.StakingStats{
+		TotalValidators:            len(totalValidator),
+		TotalProposers:             len(totalProposer),
+		TotalCandidates:            len(totalCandidate),
+		TotalDelegators:            totalUniqueDelegator,
+		TotalStakedAmount:          totalStaked.String(),
+		TotalValidatorStakedAmount: totalValidatorStakedAmount,
+		TotalDelegatorStakedAmount: TotalDelegatorsStakedAmount.String(),
+	}
+
+	if err := h.cache.UpdateStakingStats(ctx, stats); err != nil {
+		return err
 	}
 
 	return nil

@@ -27,6 +27,10 @@ type Wrapper struct {
 	logger       *zap.Logger
 }
 
+const (
+	WorkerRate = 4
+)
+
 func NewWrapper(cfg WrapperConfig) (*Wrapper, error) {
 	w := &Wrapper{
 		logger: cfg.Logger,
@@ -96,7 +100,7 @@ func (w *Wrapper) ValidatorsWithWorker(ctx context.Context) ([]*types.Validator,
 	var validators []*types.Validator
 	// Use the pool with a function,
 	// set 10 to the capacity of goroutine pool and 1 second for expired duration.
-	p, _ := ants.NewPoolWithFunc(nodesSize, func(i interface{}) {
+	p, _ := ants.NewPoolWithFunc(nodesSize*WorkerRate, func(i interface{}) {
 		defer wg.Done()
 		input := i.(inputArgs)
 		v, err := w.validatorWithNode(ctx, input.smcAddr, input.node)
@@ -290,7 +294,7 @@ func (w *Wrapper) DelegatorsWithWorker(ctx context.Context, validatorSMC string)
 	var delegators []*types.Delegator
 	// Use the pool with a function,
 	// set 10 to the capacity of goroutine pool and 1 second for expired duration.
-	p, _ := ants.NewPoolWithFunc(nodesSize, func(i interface{}) {
+	p, _ := ants.NewPoolWithFunc(nodesSize*WorkerRate, func(i interface{}) {
 		defer wg.Done()
 		input := i.(inputArgs)
 		v, err := w.DelegatorWithNode(ctx, input.node, input.validatorSMCAddr, input.delegatorAddr)
