@@ -46,7 +46,23 @@ func (s *Server) Validators(c echo.Context) error {
 			resp = append(resp, v)
 		}
 	}
-	return api.OK.SetData(resp).Build(c)
+	stats, err := s.cacheClient.StakingStats(ctx)
+	if err != nil {
+		return api.Invalid.Build(c)
+	}
+	type validatorList []*types.Validator
+	type tempResponses struct {
+		validatorList
+		*types.StakingStats
+		Validators []*types.Validator `json:"validators"`
+	}
+	tempResp := tempResponses{
+		validatorList: validators,
+		StakingStats:  stats,
+		Validators:    validators,
+	}
+
+	return api.OK.SetData(tempResp).Build(c)
 }
 
 func (s *Server) ValidatorsByDelegator(c echo.Context) error {
@@ -65,7 +81,23 @@ func (s *Server) Candidates(c echo.Context) error {
 	if err != nil {
 		return api.Invalid.Build(c)
 	}
-	return api.OK.SetData(candidates).Build(c)
+	stats, err := s.cacheClient.StakingStats(ctx)
+	if err != nil {
+		return api.Invalid.Build(c)
+	}
+	type validatorList []*types.Validator
+	type tempResponses struct {
+		validatorList
+		*types.StakingStats
+		Validators []*types.Validator `json:"validators"`
+	}
+	tempResp := tempResponses{
+		validatorList: candidates,
+		StakingStats:  stats,
+		Validators:    candidates,
+	}
+
+	return api.OK.SetData(tempResp).Build(c)
 }
 
 func (s *Server) Validator(c echo.Context) error {
