@@ -3,6 +3,8 @@ package server
 
 import (
 	"context"
+	"math/big"
+	"sort"
 
 	"github.com/kardiachain/go-kardia/lib/common"
 	"github.com/labstack/echo"
@@ -34,7 +36,11 @@ func (s *Server) Validators(c echo.Context) error {
 	}
 
 	var resp []*types.Validator
-
+	sort.Slice(validators, func(i, j int) bool {
+		iAmount, _ := new(big.Int).SetString(validators[i].StakedAmount, 10)
+		jAmount, _ := new(big.Int).SetString(validators[j].StakedAmount, 10)
+		return iAmount.Cmp(jAmount) == 1
+	})
 	for _, v := range validators {
 		if v.Role == 2 {
 			resp = append(resp, v)
