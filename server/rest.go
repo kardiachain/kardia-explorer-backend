@@ -941,20 +941,6 @@ func (s *Server) TxByHash(c echo.Context) error {
 			tx.Status = receipt.Status
 			tx.GasUsed = receipt.GasUsed
 			tx.ContractAddress = receipt.ContractAddress
-			// decode logs first
-			for i := range receipt.Logs {
-				smcABI, err := s.getSMCAbi(ctx, &receipt.Logs[i])
-				if err != nil {
-					continue
-				}
-				decodedLog, err := s.kaiClient.UnpackLog(&receipt.Logs[i], smcABI)
-				if err != nil {
-					decodedLog = &receipt.Logs[i]
-				}
-				decodedLog.Time = tx.Time
-				receipt.Logs[i] = *decodedLog
-			}
-			tx.Logs = receipt.Logs
 		}
 	}
 
@@ -981,6 +967,20 @@ func (s *Server) TxByHash(c echo.Context) error {
 	if functionCall != nil {
 		tx.DecodedInputData = functionCall
 	}
+
+	// decode logs first
+	for i := range tx.Logs {
+		smcABI, err := s.getSMCAbi(ctx, &tx.Logs[i])
+		if err != nil {
+			continue
+		}
+		decodedLog, err := s.kaiClient.UnpackLog(&tx.Logs[i], smcABI)
+		if err != nil {
+			decodedLog = &tx.Logs[i]
+		}
+		decodedLog.Time = tx.Time
+		tx.Logs[i] = *decodedLog
+	}
 	internalTxs := make([]*InternalTransaction, len(tx.Logs))
 	for i := range tx.Logs {
 		krcTokenInfo, err = s.getKRCTokenInfo(ctx, tx.Logs[i].Address)
@@ -992,6 +992,7 @@ func (s *Server) TxByHash(c echo.Context) error {
 			KRCTokenInfo: krcTokenInfo,
 		}
 	}
+
 	result := &Transaction{
 		BlockHash:        tx.BlockHash,
 		BlockNumber:      tx.BlockNumber,
