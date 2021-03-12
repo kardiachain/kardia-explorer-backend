@@ -740,7 +740,7 @@ func (s *Server) Addresses(c echo.Context) error {
 		}
 		currAddrInfo, _ := s.getAddressInfo(ctx, addr.Address)
 		if currAddrInfo != nil {
-			addrInfo.Name = currAddrInfo.Address
+			addrInfo.Name = currAddrInfo.Name
 		}
 		// double check with balance from RPC
 		balance, err := s.kaiClient.GetBalance(ctx, addr.Address)
@@ -780,7 +780,7 @@ func (s *Server) AddressInfo(c echo.Context) error {
 		}
 		currAddrInfo, _ := s.getAddressInfo(ctx, addrInfo.Address)
 		if currAddrInfo != nil {
-			result.Name = currAddrInfo.Address
+			result.Name = currAddrInfo.Name
 		}
 		balance, err := s.kaiClient.GetBalance(ctx, address)
 		if err != nil {
