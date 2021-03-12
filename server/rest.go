@@ -1411,9 +1411,6 @@ func (s *Server) InsertContract(c echo.Context) error {
 		lgr.Error("cannot bind insert", zap.Error(err))
 		return api.InternalServer.Build(c)
 	}
-	if err := s.insertHistoryTransferKRC(ctx, addrInfo.Address); err != nil {
-		lgr.Error("cannot retrieve history transfer of KRC token", zap.Error(err), zap.String("address", addrInfo.Address))
-	}
 
 	return api.OK.Build(c)
 }
@@ -1456,6 +1453,9 @@ func (s *Server) UpdateContract(c echo.Context) error {
 	if err := s.dbClient.UpdateContract(ctx, &contract, &addrInfo); err != nil {
 		lgr.Error("cannot bind insert", zap.Error(err))
 		return api.InternalServer.Build(c)
+	}
+	if err := s.insertHistoryTransferKRC(ctx, addrInfo.Address); err != nil {
+		lgr.Error("cannot retrieve history transfer of KRC token", zap.Error(err), zap.String("address", addrInfo.Address))
 	}
 
 	return api.OK.Build(c)
