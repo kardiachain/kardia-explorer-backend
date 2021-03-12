@@ -16,12 +16,6 @@ func bindStakingAPIs(gr *echo.Group, srv EchoServer) {
 		},
 		{
 			method:      echo.GET,
-			path:        "/validators",
-			fn:          srv.Validators,
-			middlewares: nil,
-		},
-		{
-			method:      echo.GET,
 			path:        "/validators/:address",
 			fn:          srv.Validator,
 			middlewares: nil,
@@ -35,7 +29,25 @@ func bindStakingAPIs(gr *echo.Group, srv EchoServer) {
 		{
 			method:      echo.GET,
 			path:        "/validators/candidates",
+			fn:          srv.MobileCandidates,
+			middlewares: nil,
+		},
+		{
+			method:      echo.GET,
+			path:        "/validators",
+			fn:          srv.MobileValidators,
+			middlewares: nil,
+		},
+		{
+			method:      echo.GET,
+			path:        "/staking/candidates",
 			fn:          srv.Candidates,
+			middlewares: nil,
+		},
+		{
+			method:      echo.GET,
+			path:        "/staking/validators",
+			fn:          srv.Validators,
 			middlewares: nil,
 		},
 	}
