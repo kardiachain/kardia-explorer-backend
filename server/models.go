@@ -124,7 +124,7 @@ type KRCTokenInfo struct {
 	// Token
 	TokenName   string `json:"tokenName,omitempty" bson:"tokenName"`
 	TokenSymbol string `json:"tokenSymbol,omitempty" bson:"tokenSymbol"`
-	Decimals    int64  `json:"decimals,omitempty" bson:"decimals"`
+	Decimals    int64  `json:"decimals" bson:"decimals"`
 	TotalSupply string `json:"totalSupply,omitempty" bson:"totalSupply"`
 
 	// Stats
@@ -143,7 +143,7 @@ type SimpleKRCTokenInfo struct {
 	Type        string `json:"type,omitempty" bson:"type"`
 	TokenSymbol string `json:"tokenSymbol,omitempty" bson:"tokenSymbol"`
 	TotalSupply string `json:"totalSupply,omitempty" bson:"totalSupply"`
-	Decimal     int64  `json:"decimal,omitempty" bson:"decimal"`
+	Decimal     int64  `json:"decimal" bson:"decimal"`
 	Logo        string `json:"logo,omitempty" bson:"logo"`
 }
 

@@ -562,7 +562,7 @@ func (s *infoServer) VerifyBlock(ctx context.Context, blockHeight uint64, networ
 		// Minus network block reward and total txs before re-importing this block
 		totalTxs := s.cacheClient.TotalTxs(ctx)
 		totalTxs -= networkBlock.NumTxs
-		_ = s.cacheClient.SetTotalTxs(ctx, totalTxs)
+		//_ = s.cacheClient.SetTotalTxs(ctx, totalTxs)
 		// Force replace dbBlock with new information from network block
 		startTime := time.Now()
 		if err := s.UpsertBlock(ctx, networkBlock); err != nil {
