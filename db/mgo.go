@@ -128,6 +128,7 @@ func createIndexes(dbClient *mongoDB) error {
 		{c: cHolders, model: dbClient.createHoldersCollectionIndexes()},
 		// indexing internal txs collection
 		{c: cInternalTxs, model: dbClient.createInternalTxsCollectionIndexes()},
+		{c: cDelegator, model: createDelegatorCollectionIndexes()},
 	}
 	for _, cIdx := range indexes {
 		if err := dbClient.wrapper.C(cIdx.c).EnsureIndex(cIdx.model); err != nil {

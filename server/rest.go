@@ -159,137 +159,6 @@ func (s *Server) UpdateSupplyAmounts(c echo.Context) error {
 	return api.OK.Build(c)
 }
 
-func (s *Server) ValidatorStats(c echo.Context) error {
-	ctx := context.Background()
-	var (
-		page, limit int
-		err         error
-	)
-	pagination, page, limit := getPagingOption(c)
-
-	// get validators list from cache
-	validators, err := s.getValidators(ctx)
-	if err != nil {
-		return api.Invalid.Build(c)
-	}
-
-	// get delegation details
-	validator, err := s.kaiClient.Validator(ctx, c.Param("address"))
-	if err != nil {
-		s.logger.Warn("cannot get validator info from RPC, use cached validator info instead", zap.Error(err))
-	}
-	// get validator additional info such as commission rate
-	for _, val := range validators {
-		if strings.ToLower(val.Address.Hex()) == strings.ToLower(c.Param("address")) {
-			if validator == nil {
-				validator = val
-				break
-			}
-			// update validator VotingPowerPercentage
-			validator.VotingPowerPercentage = val.VotingPowerPercentage
-			break
-		}
-	}
-	if validator == nil {
-		// address in param is not a validator
-		return api.Invalid.Build(c)
-	}
-	var delegators []*types.Delegator
-	if pagination.Skip > len(validator.Delegators) {
-		delegators = []*types.Delegator(nil)
-	} else if pagination.Skip+pagination.Limit > len(validator.Delegators) {
-		delegators = validator.Delegators[pagination.Skip:len(validator.Delegators)]
-	} else {
-		delegators = validator.Delegators[pagination.Skip : pagination.Skip+pagination.Limit]
-	}
-
-	total := uint64(len(validator.Delegators))
-	validator.Delegators = delegators
-
-	return api.OK.SetData(PagingResponse{
-		Page:  page,
-		Limit: limit,
-		Total: total,
-		Data:  validator,
-	}).Build(c)
-}
-
-func (s *Server) Validators(c echo.Context) error {
-	ctx := context.Background()
-	validators, err := s.getValidators(ctx)
-	if err != nil {
-		return api.Invalid.Build(c)
-	}
-
-	stats, err := s.CalculateValidatorStats(ctx, validators)
-	if err != nil {
-		return api.Invalid.Build(c)
-	}
-
-	var resp struct {
-		*types.ValidatorStats
-		Validators []*types.Validator `json:"validators"`
-	}
-
-	resp.ValidatorStats = stats
-
-	for _, v := range validators {
-		if v.Role != 0 {
-			resp.Validators = append(resp.Validators, v)
-		}
-	}
-	return api.OK.SetData(resp).Build(c)
-}
-
-func (s *Server) GetValidatorsByDelegator(c echo.Context) error {
-	ctx := context.Background()
-	delAddr := c.Param("address")
-	valsList, err := s.kaiClient.GetValidatorsByDelegator(ctx, common.HexToAddress(delAddr))
-	if err != nil {
-		return api.Invalid.Build(c)
-	}
-	return api.OK.SetData(valsList).Build(c)
-}
-
-func (s *Server) GetCandidatesList(c echo.Context) error {
-	ctx := context.Background()
-	validators, err := s.getValidators(ctx)
-	if err != nil {
-		return api.Invalid.Build(c)
-	}
-	var (
-		result    []*types.Validator
-		valsCount = 0
-	)
-	for _, val := range validators {
-		if val.Role == 0 {
-			result = append(result, val)
-		} else {
-			valsCount++
-		}
-	}
-	return api.OK.SetData(result).Build(c)
-}
-
-func (s *Server) GetSlashEvents(c echo.Context) error {
-	ctx := context.Background()
-	slashEvents, err := s.kaiClient.GetSlashEvents(ctx, common.HexToAddress(c.Param("address")))
-	if err != nil {
-		s.logger.Warn("Cannot GetSlashEvents", zap.Error(err))
-		return api.Invalid.Build(c)
-	}
-	return api.OK.SetData(slashEvents).Build(c)
-}
-
-func (s *Server) GetSlashedTokens(c echo.Context) error {
-	ctx := context.Background()
-	result, err := s.kaiClient.GetTotalSlashedToken(ctx)
-	if err != nil {
-		return api.Invalid.Build(c)
-	}
-	return api.OK.SetData(result).Build(c)
-}
-
 func (s *Server) GetProposalsList(c echo.Context) error {
 	ctx := context.Background()
 	pagination, page, limit := getPagingOption(c)
@@ -387,7 +256,7 @@ func (s *Server) Blocks(c echo.Context) error {
 	}
 
 	for _, v := range vals {
-		smcAddress[v.Address.String()] = &valInfoResponse{
+		smcAddress[v.Address] = &valInfoResponse{
 			Name: v.Name,
 			Role: v.Role,
 		}
@@ -472,7 +341,7 @@ func (s *Server) Block(c echo.Context) error {
 		validators = []*types.Validator{}
 	}
 	for _, v := range validators {
-		smcAddress[v.Address.String()] = &valInfoResponse{
+		smcAddress[v.Address] = &valInfoResponse{
 			Name: v.Name,
 			Role: v.Role,
 		}
@@ -625,7 +494,7 @@ func (s *Server) BlocksByProposer(c echo.Context) error {
 	//}
 
 	for _, v := range validators {
-		smcAddress[v.Address.String()] = &valInfoResponse{
+		smcAddress[v.Address] = &valInfoResponse{
 			Name: v.Name,
 			Role: v.Role,
 		}
@@ -1090,8 +959,8 @@ func (s *Server) CalculateValidatorStats(ctx context.Context, validators []*type
 		totalStakedAmount = new(big.Int).Add(totalStakedAmount, valStakedAmount)
 
 		for _, d := range val.Delegators {
-			if !delegatorsMap[d.Address.String()] {
-				delegatorsMap[d.Address.String()] = true
+			if !delegatorsMap[d.Address] {
+				delegatorsMap[d.Address] = true
 				totalDelegators++
 			}
 			delStakedAmount, ok = new(big.Int).SetString(d.StakedAmount, 10)
@@ -1162,7 +1031,7 @@ func (s *Server) getValidatorsAddressAndRole(ctx context.Context) map[string]*va
 
 	smcAddress := map[string]*valInfoResponse{}
 	for _, v := range validators {
-		smcAddress[v.SmcAddress.String()] = &valInfoResponse{
+		smcAddress[v.SmcAddress] = &valInfoResponse{
 			Name: v.Name,
 			Role: v.Role,
 		}

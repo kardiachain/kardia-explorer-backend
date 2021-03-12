@@ -1,4 +1,4 @@
-FROM golang:1.13.9-stretch
+FROM golang:1.15.8-stretch
 RUN apt-get update && apt-get install -y curl make git unzip autoconf automake libtool gettext make g++ texinfo
 WORKDIR /root
 RUN wget https://github.com/emcrisostomo/fswatch/releases/download/1.14.0/fswatch-1.14.0.tar.gz

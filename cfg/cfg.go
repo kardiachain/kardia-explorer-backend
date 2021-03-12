@@ -57,8 +57,9 @@ type ExplorerConfig struct {
 	CacheExpiredTime time.Duration
 
 	KardiaProtocol     string
-	KardiaURLs         []string
+	KardiaPublicNodes  []string
 	KardiaTrustedNodes []string
+	KardiaWSNodes      []string
 
 	StorageDriver  string
 	StorageURI     string
@@ -119,19 +120,27 @@ func New() (ExplorerConfig, error) {
 
 	var (
 		kardiaTrustedNodes []string
-		kardiaURLs         []string
+		kardiaPublicNodes  []string
+		kardiaWSNodes      []string
 	)
 	kardiaTrustedNodesStr := os.Getenv("KARDIA_TRUSTED_NODES")
 	if kardiaTrustedNodesStr != "" {
 		kardiaTrustedNodes = strings.Split(kardiaTrustedNodesStr, ",")
 	} else {
-		panic("missing trusted RPC URLs in config")
+		panic("missing trusted node URLs in config")
 	}
-	kardiaURLsStr := os.Getenv("KARDIA_URL")
-	if kardiaURLsStr != "" {
-		kardiaURLs = strings.Split(kardiaURLsStr, ",")
+	kardiaPublicNodesStr := os.Getenv("KARDIA_PUBLIC_NODES")
+	if kardiaPublicNodesStr != "" {
+		kardiaPublicNodes = strings.Split(kardiaPublicNodesStr, ",")
 	} else {
-		panic("missing RPC URLs in config")
+		panic("missing public node URLs in config")
+	}
+
+	kardiaWSNodesStr := os.Getenv("KARDIA_WS_NODES")
+	if kardiaWSNodesStr != "" {
+		kardiaWSNodes = strings.Split(kardiaWSNodesStr, ",")
+	} else {
+		panic("missing websocket node URLs in config")
 	}
 
 	listenerIntervalStr := os.Getenv("LISTENER_INTERVAL")
@@ -197,9 +206,9 @@ func New() (ExplorerConfig, error) {
 
 		CacheIsFlush: cacheIsFlush,
 
-		KardiaProtocol:     os.Getenv("KARDIA_PROTOCOL"),
-		KardiaURLs:         kardiaURLs,
+		KardiaPublicNodes:  kardiaPublicNodes,
 		KardiaTrustedNodes: kardiaTrustedNodes,
+		KardiaWSNodes:      kardiaWSNodes,
 
 		StorageDriver:  os.Getenv("STORAGE_DRIVER"),
 		StorageURI:     os.Getenv("STORAGE_URI"),

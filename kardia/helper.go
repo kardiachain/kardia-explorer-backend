@@ -9,8 +9,8 @@ import (
 
 func convertValidator(nValidator *kardia.Validator) (*types.Validator, error) {
 	v := &types.Validator{
-		Address:    nValidator.Signer,
-		SmcAddress: nValidator.SMCAddress,
+		Address:    nValidator.Signer.String(),
+		SmcAddress: nValidator.SMCAddress.String(),
 		Status:     nValidator.Status,
 		Jailed:     nValidator.Jailed,
 		Name:       validatorNameInString(nValidator.Name),

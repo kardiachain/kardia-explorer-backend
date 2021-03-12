@@ -40,7 +40,7 @@ func (ec *Client) Validator(ctx context.Context, address string) (*types.Validat
 		return nil, err
 	}
 	// update validator's role
-	validator.Role = ec.getValidatorRole(valsSet, validator.Address, validator.Status)
+	validator.Role = ec.getValidatorRole(valsSet, common.HexToAddress(validator.Address), validator.Status)
 	// calculate his rate from big.Int
 	convertedVal, err := convertValidatorInfo(validator, nil, validator.Role)
 	if err != nil {
@@ -82,9 +82,9 @@ func (ec *Client) Validators(ctx context.Context) ([]*types.Validator, error) {
 	}
 	for _, val := range validators {
 		for _, del := range val.Delegators {
-			delegators[del.Address.Hex()] = true
+			delegators[del.Address] = true
 			// exclude validator self delegation
-			if del.Address.Equal(val.Address) {
+			if del.Address == val.Address {
 				continue
 			}
 			delStakedAmount, ok = new(big.Int).SetString(del.StakedAmount, 10)
@@ -98,7 +98,7 @@ func (ec *Client) Validators(ctx context.Context) ([]*types.Validator, error) {
 			return nil, ErrParsingBigIntFromString
 		}
 		totalStakedAmount = new(big.Int).Add(totalStakedAmount, valStakedAmount)
-		val.Role = ec.getValidatorRole(valsSet, val.Address, val.Status)
+		val.Role = ec.getValidatorRole(valsSet, common.HexToAddress(val.Address), val.Status)
 		// validator who started a node and not in validators set is a normal validator
 		if val.Role == 2 {
 			totalProposers++

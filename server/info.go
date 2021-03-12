@@ -18,6 +18,7 @@ import (
 
 	"github.com/kardiachain/go-kardia/lib/abi"
 	"github.com/kardiachain/go-kardia/lib/common"
+
 	"github.com/kardiachain/kardia-explorer-backend/cache"
 	"github.com/kardiachain/kardia-explorer-backend/cfg"
 	"github.com/kardiachain/kardia-explorer-backend/db"
@@ -199,7 +200,7 @@ func (s *infoServer) GetCurrentStats(ctx context.Context) uint64 {
 	_ = s.dbClient.UpsertValidators(ctx, vals)
 	for _, val := range vals {
 		cfg.GenesisAddresses = append(cfg.GenesisAddresses, &types.Address{
-			Address: val.SmcAddress.Hex(),
+			Address: val.SmcAddress,
 			Name:    val.Name,
 		})
 	}
@@ -292,10 +293,6 @@ func (s *infoServer) ImportBlock(ctx context.Context, block *types.Block, writeT
 	// merge receipts into corresponding transactions
 	// because getBlockByHash/Height API returns 2 array contains txs and receipts separately
 	block.Txs = s.mergeAdditionalInfoToTxs(ctx, block.Txs, block.Receipts)
-
-	if err := s.filterStakingEvent(ctx, block.Txs); err != nil {
-		s.logger.Warn("Filter staking event failed", zap.Error(err))
-	}
 
 	if err := s.filterProposalEvent(ctx, block.Txs); err != nil {
 		s.logger.Warn("Filter proposal event failed", zap.Error(err))
@@ -612,7 +609,7 @@ func (s *infoServer) getAddressBalances(ctx context.Context, addrs map[string]*t
 	}
 	addressesName := map[string]string{}
 	for _, v := range vals.Validators {
-		addressesName[v.SmcAddress.String()] = v.Name
+		addressesName[v.SmcAddress] = v.Name
 	}
 	addressesName[cfg.StakingContractAddr] = cfg.StakingContractName
 

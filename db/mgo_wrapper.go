@@ -115,6 +115,10 @@ func (w *KaiMgo) BulkUpsert(models []mongo.WriteModel,
 	return w.col.BulkWrite(context.Background(), models, opts...)
 }
 
+func (w *KaiMgo) Distinct(field string, filter interface{}, opts ...*options.DistinctOptions) ([]interface{}, error) {
+	return w.col.Distinct(context.Background(), field, filter, opts...)
+}
+
 func (w *KaiMgo) Count(filter interface{},
 	opts ...*options.CountOptions) (int64, error) {
 	return w.col.CountDocuments(context.Background(), filter, opts...)
