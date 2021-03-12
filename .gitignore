@@ -126,3 +126,7 @@ Temporary Items
 # Build files
 cmd/api/api
 cmd/grabber/grabber
+
+# Fuse hidden files
+cmd/api/.fuse_hidden*
+cmd/grabber/.fuse_hidden*

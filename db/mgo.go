@@ -124,6 +124,10 @@ func createIndexes(dbClient *mongoDB) error {
 		{c: cABI, model: []mongo.IndexModel{{Keys: bson.M{"type": 1}, Options: options.Index().SetUnique(true).SetSparse(true)}}},
 		// indexing contract events collection
 		{c: cEvents, model: dbClient.createEventsCollectionIndexes()},
+		// indexing token holders collection
+		{c: cHolders, model: dbClient.createHoldersCollectionIndexes()},
+		// indexing internal txs collection
+		{c: cInternalTxs, model: dbClient.createInternalTxsCollectionIndexes()},
 		{c: cDelegator, model: createDelegatorCollectionIndexes()},
 	}
 	for _, cIdx := range indexes {
@@ -494,8 +498,9 @@ func (m *mongoDB) TxsByAddress(ctx context.Context, address string, pagination *
 		options.Find().SetHint(bson.D{{Key: "from", Value: 1}, {Key: "time", Value: -1}}),
 		options.Find().SetHint(bson.D{{Key: "to", Value: 1}, {Key: "time", Value: -1}}),
 		options.Find().SetSort(bson.M{"time": -1}),
-		options.Find().SetSkip(int64(pagination.Skip)),
-		options.Find().SetLimit(int64(pagination.Limit)),
+	}
+	if pagination != nil {
+		opts = append(opts, options.Find().SetSkip(int64(pagination.Skip)), options.Find().SetLimit(int64(pagination.Limit)))
 	}
 	cursor, err := m.wrapper.C(cTxs).
 		Find(bson.M{"$or": []bson.M{{"from": address}, {"to": address}}}, opts...)

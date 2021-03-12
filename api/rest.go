@@ -55,6 +55,9 @@ type EchoServer interface {
 
 	//
 	SearchAddressByName(c echo.Context) error
+
+	GetHoldersListByToken(c echo.Context) error
+	GetInternalTxs(c echo.Context) error
 }
 
 type IContract interface {
