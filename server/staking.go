@@ -42,7 +42,7 @@ func (s *Server) Validators(c echo.Context) error {
 		return iAmount.Cmp(jAmount) == 1
 	})
 	for _, v := range validators {
-		if v.Role == 2 {
+		if v.Role == 2 || v.Role == 1 {
 			resp = append(resp, v)
 		}
 	}
