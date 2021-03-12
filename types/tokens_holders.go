@@ -7,6 +7,7 @@ type TokenHolder struct {
 	Logo            string `json:"logo,omitempty" bson:"-"`
 	ContractAddress string `json:"contractAddress,omitempty" bson:"contractAddress"`
 	HolderAddress   string `json:"holderAddress" bson:"holderAddress"`
+	HolderName      string `json:"holderName" bson:"-"`
 	BalanceString   string `json:"balance" bson:"balance"`
 	BalanceFloat    int64  `json:"-" bson:"balanceFloat"`
 

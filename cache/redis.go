@@ -43,6 +43,7 @@ const (
 	KeyContractABI = "#contracts#abi#%s"
 
 	KeyKRCTokenInfo = "#krc#info#%s"
+	KeyAddressInfo  = "#addresses#info#%s"
 )
 
 type Redis struct {
@@ -589,7 +590,32 @@ func (c *Redis) UpdateKRCTokenInfo(ctx context.Context, krcTokenInfo *types.KRCT
 	if err != nil {
 		return err
 	}
-	if err := c.client.Set(ctx, keyKRC, data, 30*time.Minute).Err(); err != nil {
+	if err := c.client.Set(ctx, keyKRC, data, cfg.KRCTokenInfoExpTime).Err(); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (c *Redis) AddressInfo(ctx context.Context, addr string) (*types.Address, error) {
+	keyAddrInfo := fmt.Sprintf(KeyAddressInfo, addr)
+	result, err := c.client.Get(ctx, keyAddrInfo).Result()
+	if err != nil {
+		return nil, err
+	}
+	var addrInfo *types.Address
+	if err := json.Unmarshal([]byte(result), &addrInfo); err != nil {
+		return nil, err
+	}
+	return addrInfo, nil
+}
+
+func (c *Redis) UpdateAddressInfo(ctx context.Context, addrInfo *types.Address) error {
+	keyAddrInfo := fmt.Sprintf(KeyAddressInfo, addrInfo.Address)
+	data, err := json.Marshal(addrInfo)
+	if err != nil {
+		return err
+	}
+	if err := c.client.Set(ctx, keyAddrInfo, data, cfg.AddressInfoExpTime).Err(); err != nil {
 		return err
 	}
 	return nil

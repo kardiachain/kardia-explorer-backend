@@ -41,9 +41,9 @@ type SimpleTransaction struct {
 	BlockNumber        uint64              `json:"blockNumber"`
 	Time               time.Time           `json:"time"`
 	From               string              `json:"from"`
-	FromName           string              `json:"fromName"`
+	FromName           string              `json:"fromName,omitempty"`
 	To                 string              `json:"to"`
-	ToName             string              `json:"toName"`
+	ToName             string              `json:"toName,omitempty"`
 	IsInValidatorsList bool                `json:"isInValidatorsList"`
 	Role               int                 `json:"role"`
 	ContractAddress    string              `json:"contractAddress,omitempty"`
@@ -60,8 +60,9 @@ type Transaction struct {
 
 	Hash               string                 `json:"hash"`
 	From               string                 `json:"from"`
+	FromName           string                 `json:"fromName,omitempty"`
 	To                 string                 `json:"to"`
-	ToName             string                 `json:"toName"`
+	ToName             string                 `json:"toName,omitempty"`
 	IsInValidatorsList bool                   `json:"isInValidatorsList"`
 	Role               int                    `json:"role"`
 	Status             uint                   `json:"status"`
@@ -147,7 +148,9 @@ type SimpleKRCTokenInfo struct {
 type InternalTransaction struct {
 	*types.Log
 	*types.KRCTokenInfo
-	From  string `json:"from,omitempty"`
-	To    string `json:"to,omitempty"`
-	Value string `json:"value,omitempty"`
+	From     string `json:"from,omitempty"`
+	FromName string `json:"fromName,omitempty"`
+	To       string `json:"to,omitempty"`
+	ToName   string `json:"toName,omitempty"`
+	Value    string `json:"value,omitempty"`
 }

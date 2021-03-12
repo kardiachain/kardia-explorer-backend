@@ -73,6 +73,9 @@ type Client interface {
 
 	KRCTokenInfo(ctx context.Context, krcTokenAddr string) (*types.KRCTokenInfo, error)
 	UpdateKRCTokenInfo(ctx context.Context, krcTokenInfo *types.KRCTokenInfo) error
+
+	AddressInfo(ctx context.Context, addr string) (*types.Address, error)
+	UpdateAddressInfo(ctx context.Context, addrInfo *types.Address) error
 }
 
 func New(cfg Config) (Client, error) {

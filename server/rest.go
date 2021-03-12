@@ -376,20 +376,6 @@ func (s *Server) Blocks(c echo.Context) error {
 		}
 	}
 
-	smcAddress := map[string]*valInfoResponse{}
-	vals, err := s.getValidators(ctx)
-	if err != nil {
-		smcAddress = make(map[string]*valInfoResponse)
-		vals = []*types.Validator{}
-	}
-
-	for _, v := range vals {
-		smcAddress[v.Address.String()] = &valInfoResponse{
-			Name: v.Name,
-			Role: v.Role,
-		}
-	}
-	s.logger.Debug("List validators", zap.Any("smc", smcAddress))
 	var result Blocks
 	for _, block := range blocks {
 		b := SimpleBlock{
@@ -402,9 +388,9 @@ func (s *Server) Blocks(c echo.Context) error {
 			GasUsed:         block.GasUsed,
 			Rewards:         block.Rewards,
 		}
-		p, ok := smcAddress[b.ProposerAddress]
-		if ok && p != nil {
-			b.ProposerName = smcAddress[b.ProposerAddress].Name
+		proposerInfo, _ := s.getAddressInfo(ctx, block.ProposerAddress)
+		if proposerInfo != nil {
+			b.ProposerName = proposerInfo.Address
 		}
 		result = append(result, b)
 	}
@@ -462,24 +448,11 @@ func (s *Server) Block(c echo.Context) error {
 		}
 	}
 
-	smcAddress := map[string]*valInfoResponse{}
-	validators, err := s.getValidators(ctx)
-	if err != nil {
-		smcAddress = make(map[string]*valInfoResponse)
-		validators = []*types.Validator{}
-	}
-	for _, v := range validators {
-		smcAddress[v.Address.String()] = &valInfoResponse{
-			Name: v.Name,
-			Role: v.Role,
-		}
-	}
 	var proposerName string
-	p, ok := smcAddress[block.ProposerAddress]
-	if ok && p != nil {
-		proposerName = p.Name
+	proposerInfo, _ := s.getAddressInfo(ctx, block.ProposerAddress)
+	if proposerInfo != nil {
+		proposerName = proposerInfo.Address
 	}
-
 	result := &Block{
 		Block:        *block,
 		ProposerName: proposerName,
@@ -580,18 +553,16 @@ func (s *Server) BlockTxs(c echo.Context) error {
 			InputData:        tx.InputData,
 		}
 		if smcAddress[tx.To] != nil {
-			t.ToName = smcAddress[tx.To].Name
 			t.Role = smcAddress[tx.To].Role
 			t.IsInValidatorsList = true
 		}
-		if tx.To == cfg.StakingContractAddr {
-			t.ToName = cfg.StakingContractName
+		addrInfo, _ := s.getAddressInfo(ctx, tx.From)
+		if addrInfo != nil {
+			t.FromName = addrInfo.Address
 		}
-		if tx.To == cfg.TreasuryContractAddr {
-			t.ToName = cfg.TreasuryContractName
-		}
-		if tx.To == cfg.KardiaDeployerAddr {
-			t.ToName = cfg.KardiaDeployerName
+		addrInfo, _ = s.getAddressInfo(ctx, tx.To)
+		if addrInfo != nil {
+			t.ToName = addrInfo.Address
 		}
 		result = append(result, t)
 	}
@@ -612,23 +583,6 @@ func (s *Server) BlocksByProposer(c echo.Context) error {
 		return api.Invalid.Build(c)
 	}
 
-	smcAddress := map[string]*valInfoResponse{}
-	validators, err := s.getValidators(ctx)
-	if err != nil {
-		smcAddress = make(map[string]*valInfoResponse)
-		validators = []*types.Validator{}
-	}
-	//vals, err := s.cacheClient.Validators(ctx)
-	//if err != nil {
-	//
-	//}
-
-	for _, v := range validators {
-		smcAddress[v.Address.String()] = &valInfoResponse{
-			Name: v.Name,
-			Role: v.Role,
-		}
-	}
 	var result Blocks
 	for _, block := range blocks {
 		b := SimpleBlock{
@@ -642,9 +596,9 @@ func (s *Server) BlocksByProposer(c echo.Context) error {
 			Rewards:         block.Rewards,
 		}
 
-		p, ok := smcAddress[b.ProposerAddress]
-		if ok && p != nil {
-			b.ProposerName = smcAddress[b.ProposerAddress].Name
+		proposerInfo, _ := s.getAddressInfo(ctx, block.ProposerAddress)
+		if proposerInfo != nil {
+			b.ProposerName = proposerInfo.Address
 		}
 
 		result = append(result, b)
@@ -691,19 +645,16 @@ func (s *Server) Txs(c echo.Context) error {
 		}
 
 		if smcAddress[tx.To] != nil {
-			t.ToName = smcAddress[tx.To].Name
 			t.Role = smcAddress[tx.To].Role
 			t.IsInValidatorsList = true
 		}
-
-		if tx.To == cfg.StakingContractAddr {
-			t.ToName = cfg.StakingContractName
+		addrInfo, _ := s.getAddressInfo(ctx, tx.From)
+		if addrInfo != nil {
+			t.FromName = addrInfo.Address
 		}
-		if tx.To == cfg.TreasuryContractAddr {
-			t.ToName = cfg.TreasuryContractName
-		}
-		if tx.To == cfg.KardiaDeployerAddr {
-			t.ToName = cfg.KardiaDeployerName
+		addrInfo, _ = s.getAddressInfo(ctx, tx.To)
+		if addrInfo != nil {
+			t.ToName = addrInfo.Address
 		}
 		result = append(result, t)
 	}
@@ -742,16 +693,10 @@ func (s *Server) Addresses(c echo.Context) error {
 		if smcAddress[addr.Address] != nil {
 			addrInfo.IsInValidatorsList = true
 			addrInfo.Role = smcAddress[addr.Address].Role
-			addrInfo.Name = smcAddress[addr.Address].Name
 		}
-		if addr.Address == cfg.TreasuryContractAddr {
-			addrInfo.Name = cfg.TreasuryContractName
-		}
-		if addr.Address == cfg.StakingContractAddr {
-			addrInfo.Name = cfg.StakingContractName
-		}
-		if addr.Address == cfg.KardiaDeployerAddr {
-			addrInfo.Name = cfg.KardiaDeployerName
+		currAddrInfo, _ := s.getAddressInfo(ctx, addr.Address)
+		if currAddrInfo != nil {
+			addrInfo.Name = currAddrInfo.Address
 		}
 		// double check with balance from RPC
 		balance, err := s.kaiClient.GetBalance(ctx, addr.Address)
@@ -788,16 +733,10 @@ func (s *Server) AddressInfo(c echo.Context) error {
 		if smcAddress[result.Address] != nil {
 			result.IsInValidatorsList = true
 			result.Role = smcAddress[result.Address].Role
-			result.Name = smcAddress[result.Address].Name
 		}
-		if result.Address == cfg.TreasuryContractAddr {
-			result.Name = cfg.TreasuryContractName
-		}
-		if result.Address == cfg.StakingContractAddr {
-			result.Name = cfg.StakingContractName
-		}
-		if result.Address == cfg.KardiaDeployerAddr {
-			result.Name = cfg.KardiaDeployerName
+		currAddrInfo, _ := s.getAddressInfo(ctx, addrInfo.Address)
+		if currAddrInfo != nil {
+			result.Name = currAddrInfo.Address
 		}
 		balance, err := s.kaiClient.GetBalance(ctx, address)
 		if err != nil {
@@ -872,18 +811,16 @@ func (s *Server) AddressTxs(c echo.Context) error {
 			InputData:        tx.InputData,
 		}
 		if smcAddress[tx.To] != nil {
-			t.ToName = smcAddress[tx.To].Name
 			t.Role = smcAddress[tx.To].Role
 			t.IsInValidatorsList = true
 		}
-		if tx.To == cfg.StakingContractAddr {
-			t.ToName = cfg.StakingContractName
+		addrInfo, _ := s.getAddressInfo(ctx, tx.From)
+		if addrInfo != nil {
+			t.FromName = addrInfo.Address
 		}
-		if tx.To == cfg.TreasuryContractAddr {
-			t.ToName = cfg.TreasuryContractName
-		}
-		if tx.To == cfg.KardiaDeployerAddr {
-			t.ToName = cfg.KardiaDeployerName
+		addrInfo, _ = s.getAddressInfo(ctx, tx.To)
+		if addrInfo != nil {
+			t.ToName = addrInfo.Address
 		}
 		result = append(result, t)
 	}
@@ -913,6 +850,10 @@ func (s *Server) AddressHolders(c echo.Context) error {
 		s.logger.Warn("Cannot get events from db", zap.Error(err))
 	}
 	for i := range holders {
+		holderInfo, _ := s.getAddressInfo(ctx, holders[i].HolderAddress)
+		if holderInfo != nil {
+			holders[i].HolderName = holderInfo.Name
+		}
 		krcTokenInfo, _ := s.getKRCTokenInfo(ctx, holders[i].ContractAddress)
 		if krcTokenInfo != nil {
 			holders[i].Logo = krcTokenInfo.Logo
@@ -1025,21 +966,16 @@ func (s *Server) TxByHash(c echo.Context) error {
 		LogsBloom:        tx.LogsBloom,
 		Root:             tx.Root,
 	}
-	if result.To == cfg.StakingContractAddr {
-		result.ToName = cfg.StakingContractName
-		return api.OK.SetData(result).Build(c)
+	addrInfo, _ := s.getAddressInfo(ctx, tx.From)
+	if addrInfo != nil {
+		result.FromName = addrInfo.Address
 	}
-	if result.To == cfg.TreasuryContractAddr {
-		result.ToName = cfg.TreasuryContractName
-		return api.OK.SetData(result).Build(c)
-	}
-	if tx.To == cfg.KardiaDeployerAddr {
-		result.ToName = cfg.KardiaDeployerName
-		return api.OK.SetData(result).Build(c)
+	addrInfo, _ = s.getAddressInfo(ctx, tx.To)
+	if addrInfo != nil {
+		result.ToName = addrInfo.Address
 	}
 	smcAddress := s.getValidatorsAddressAndRole(ctx)
 	if smcAddress[result.To] != nil {
-		result.ToName = smcAddress[result.To].Name
 		result.Role = smcAddress[result.To].Role
 		result.IsInValidatorsList = true
 		return api.OK.SetData(result).Build(c)
@@ -1269,7 +1205,7 @@ func (s *Server) UpdateAddressName(c echo.Context) error {
 		fmt.Println("cannot update ", err)
 		return api.Invalid.Build(c)
 	}
-
+	_ = s.cacheClient.UpdateAddressInfo(ctx, addressInfo)
 	return api.OK.Build(c)
 }
 
@@ -1424,6 +1360,9 @@ func (s *Server) InsertContract(c echo.Context) error {
 		lgr.Error("cannot bind insert", zap.Error(err))
 		return api.InternalServer.Build(c)
 	}
+	if err := s.insertHistoryTransferKRC(ctx, addrInfo.Address); err != nil {
+		lgr.Error("cannot retrieve history transfer of KRC token", zap.Error(err), zap.String("address", addrInfo.Address))
+	}
 
 	return api.OK.Build(c)
 }
@@ -1566,6 +1505,11 @@ func (s *Server) GetHoldersListByToken(c echo.Context) error {
 			holders[i].TokenSymbol = ""
 			holders[i].Logo = ""
 			holders[i].ContractAddress = ""
+			// add address names
+			holderInfo, _ := s.getAddressInfo(ctx, holders[i].HolderAddress)
+			if holderInfo != nil {
+				holders[i].HolderName = holderInfo.Name
+			}
 		}
 	}
 	return api.OK.SetData(PagingResponse{
@@ -1592,7 +1536,10 @@ func (s *Server) GetInternalTxs(c echo.Context) error {
 	if err != nil {
 		s.logger.Warn("Cannot get internal txs from db", zap.Error(err))
 	}
-	result := make([]*InternalTransaction, len(iTxs))
+	var (
+		result           = make([]*InternalTransaction, len(iTxs))
+		fromInfo, toInfo *types.Address
+	)
 	for i := range iTxs {
 		result[i] = &InternalTransaction{
 			Log: &types.Log{
@@ -1603,6 +1550,14 @@ func (s *Server) GetInternalTxs(c echo.Context) error {
 			From:  iTxs[i].From,
 			To:    iTxs[i].To,
 			Value: iTxs[i].Value,
+		}
+		fromInfo, _ = s.getAddressInfo(ctx, iTxs[i].From)
+		if fromInfo != nil {
+			result[i].FromName = fromInfo.Name
+		}
+		toInfo, _ = s.getAddressInfo(ctx, iTxs[i].To)
+		if toInfo != nil {
+			result[i].ToName = toInfo.Name
 		}
 		krcTokenInfo, _ := s.getKRCTokenInfo(ctx, iTxs[i].Contract)
 		if krcTokenInfo != nil {
@@ -1615,4 +1570,21 @@ func (s *Server) GetInternalTxs(c echo.Context) error {
 		Total: total,
 		Data:  result,
 	}).Build(c)
+}
+
+func (s *Server) getAddressInfo(ctx context.Context, address string) (*types.Address, error) {
+	addrInfo, err := s.cacheClient.AddressInfo(ctx, address)
+	if err == nil {
+		return addrInfo, nil
+	}
+	s.logger.Info("Cannot get address info in cache, getting from db instead", zap.String("address", address))
+	addrInfo, err = s.dbClient.AddressByHash(ctx, address)
+	if err != nil {
+		return nil, err
+	}
+	err = s.cacheClient.UpdateAddressInfo(ctx, addrInfo)
+	if err != nil {
+		s.logger.Warn("Cannot store address info to cache", zap.String("address", address), zap.Error(err))
+	}
+	return addrInfo, nil
 }

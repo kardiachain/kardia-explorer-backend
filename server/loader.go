@@ -39,32 +39,43 @@ func (s *infoServer) LoadBootData(ctx context.Context) error {
 	}
 
 	for _, val := range validators {
-		cfg.GenesisAddresses = append(cfg.GenesisAddresses, val.SmcAddress.String())
+		cfg.GenesisAddresses = append(cfg.GenesisAddresses, &types.Address{
+			Address: val.SmcAddress.Hex(),
+			Name:    val.Name,
+		})
 	}
 
-	cfg.GenesisAddresses = append(cfg.GenesisAddresses, cfg.TreasuryContractAddr)
-	cfg.GenesisAddresses = append(cfg.GenesisAddresses, cfg.StakingContractAddr)
-	cfg.GenesisAddresses = append(cfg.GenesisAddresses, cfg.KardiaDeployerAddr)
-	cfg.GenesisAddresses = append(cfg.GenesisAddresses, cfg.ParamsContractAddr)
+	cfg.GenesisAddresses = append(cfg.GenesisAddresses, &types.Address{
+		Address: cfg.TreasuryContractAddr,
+		Name:    cfg.TreasuryContractName,
+	})
+	cfg.GenesisAddresses = append(cfg.GenesisAddresses, &types.Address{
+		Address: cfg.StakingContractAddr,
+		Name:    cfg.StakingContractName,
+	})
+	cfg.GenesisAddresses = append(cfg.GenesisAddresses, &types.Address{
+		Address: cfg.KardiaDeployerAddr,
+		Name:    cfg.KardiaDeployerName,
+	})
+	cfg.GenesisAddresses = append(cfg.GenesisAddresses, &types.Address{
+		Address: cfg.ParamsContractAddr,
+		Name:    cfg.ParamsContractName,
+	})
 
-	for _, addr := range cfg.GenesisAddresses {
-		balance, _ := s.kaiClient.GetBalance(ctx, addr)
+	for i, addr := range cfg.GenesisAddresses {
+		balance, _ := s.kaiClient.GetBalance(ctx, addr.Address)
 		balanceInBigInt, _ := new(big.Int).SetString(balance, 10)
 		balanceFloat, _ := new(big.Float).SetPrec(100).Quo(new(big.Float).SetInt(balanceInBigInt), new(big.Float).SetInt(cfg.Hydro)).Float64() //converting to KAI from HYDRO
-		addrInfo := &types.Address{
-			Address:       addr,
-			BalanceFloat:  balanceFloat,
-			BalanceString: balance,
-			IsContract:    false,
-		}
 
-		code, _ := s.kaiClient.GetCode(ctx, addr)
+		cfg.GenesisAddresses[i].BalanceFloat = balanceFloat
+		cfg.GenesisAddresses[i].BalanceString = balance
+		code, _ := s.kaiClient.GetCode(ctx, addr.Address)
 		if len(code) > 0 {
-			addrInfo.IsContract = true
+			cfg.GenesisAddresses[i].IsContract = true
 		}
 
 		// write this address to db
-		if err := s.dbClient.InsertAddress(ctx, addrInfo); err != nil {
+		if err := s.dbClient.InsertAddress(ctx, cfg.GenesisAddresses[i]); err != nil {
 			lgr.Debug("cannot insert address", zap.Error(err))
 		}
 

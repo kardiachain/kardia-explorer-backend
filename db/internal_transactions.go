@@ -2,11 +2,11 @@ package db
 
 import (
 	"context"
+	"fmt"
 
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
-	"go.uber.org/zap"
 
 	"github.com/kardiachain/kardia-explorer-backend/types"
 )
@@ -45,17 +45,25 @@ func (m *mongoDB) UpdateInternalTxs(ctx context.Context, holdersInfo []*types.To
 
 func (m *mongoDB) GetListInternalTxs(ctx context.Context, filter *types.InternalTxsFilter) ([]*types.TokenTransfer, uint64, error) {
 	var (
-		iTxs []*types.TokenTransfer
-		crit = bson.M{}
+		iTxs    []*types.TokenTransfer
+		andCrit []bson.M
 	)
-	critBytes, err := bson.Marshal(filter)
-	if err != nil {
-		m.logger.Warn("Cannot marshal holder filter criteria", zap.Error(err))
+	if filter.Address != "" {
+		orCrit := []bson.M{
+			{"from": filter.Address},
+			{"to": filter.Address},
+		}
+		andCrit = append(andCrit, bson.M{"$or": orCrit})
 	}
-	err = bson.Unmarshal(critBytes, &crit)
-	if err != nil {
-		m.logger.Warn("Cannot unmarshal holder filter criteria", zap.Error(err))
+	if filter.Contract != "" {
+		andCrit = append(andCrit, bson.M{"contractAddress": filter.Contract})
 	}
+	if filter.TransactionHash != "" {
+		andCrit = append(andCrit, bson.M{"txHash": filter.TransactionHash})
+	}
+	crit := bson.M{"$and": andCrit}
+
+	fmt.Printf("@@@@@@@@@@@@@@@@ crit: %+v\n", crit)
 	opts := []*options.FindOptions{
 		options.Find().SetHint(bson.M{"time": -1}),
 		options.Find().SetHint(bson.M{"txHash": 1}),

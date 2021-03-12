@@ -175,34 +175,48 @@ func (s *infoServer) GetCurrentStats(ctx context.Context) uint64 {
 		zap.Uint64("TotalContracts", stats.TotalContracts))
 	_ = s.cacheClient.SetTotalTxs(ctx, stats.TotalTransactions)
 	_ = s.cacheClient.UpdateTotalHolders(ctx, stats.TotalAddresses, stats.TotalContracts)
-	cfg.GenesisAddresses = append(cfg.GenesisAddresses, cfg.TreasuryContractAddr)
-	cfg.GenesisAddresses = append(cfg.GenesisAddresses, cfg.StakingContractAddr)
-	cfg.GenesisAddresses = append(cfg.GenesisAddresses, cfg.KardiaDeployerAddr)
-	cfg.GenesisAddresses = append(cfg.GenesisAddresses, cfg.ParamsContractAddr)
+
+	cfg.GenesisAddresses = append(cfg.GenesisAddresses, &types.Address{
+		Address: cfg.TreasuryContractAddr,
+		Name:    cfg.TreasuryContractName,
+	})
+	cfg.GenesisAddresses = append(cfg.GenesisAddresses, &types.Address{
+		Address: cfg.StakingContractAddr,
+		Name:    cfg.StakingContractName,
+	})
+	cfg.GenesisAddresses = append(cfg.GenesisAddresses, &types.Address{
+		Address: cfg.KardiaDeployerAddr,
+		Name:    cfg.KardiaDeployerName,
+	})
+	cfg.GenesisAddresses = append(cfg.GenesisAddresses, &types.Address{
+		Address: cfg.ParamsContractAddr,
+		Name:    cfg.ParamsContractName,
+	})
 	vals, _ := s.kaiClient.Validators(ctx)
 	//todo: longnd - Temp remove
 	//_ = s.cacheClient.UpdateValidators(ctx, vals)
 	_ = s.dbClient.ClearValidators(ctx)
 	_ = s.dbClient.UpsertValidators(ctx, vals)
 	for _, val := range vals {
-		cfg.GenesisAddresses = append(cfg.GenesisAddresses, val.SmcAddress.String())
+		cfg.GenesisAddresses = append(cfg.GenesisAddresses, &types.Address{
+			Address: val.SmcAddress.Hex(),
+			Name:    val.Name,
+		})
 	}
-	for _, addr := range cfg.GenesisAddresses {
-		balance, _ := s.kaiClient.GetBalance(ctx, addr)
+	for i, addr := range cfg.GenesisAddresses {
+		balance, _ := s.kaiClient.GetBalance(ctx, addr.Address)
 		balanceInBigInt, _ := new(big.Int).SetString(balance, 10)
 		balanceFloat, _ := new(big.Float).SetPrec(100).Quo(new(big.Float).SetInt(balanceInBigInt), new(big.Float).SetInt(cfg.Hydro)).Float64() //converting to KAI from HYDRO
-		addrInfo := &types.Address{
-			Address:       addr,
-			BalanceFloat:  balanceFloat,
-			BalanceString: balance,
-			IsContract:    false,
-		}
-		code, _ := s.kaiClient.GetCode(ctx, addr)
+
+		cfg.GenesisAddresses[i].BalanceFloat = balanceFloat
+		cfg.GenesisAddresses[i].BalanceString = balance
+		code, _ := s.kaiClient.GetCode(ctx, addr.Address)
 		if len(code) > 0 {
-			addrInfo.IsContract = true
+			cfg.GenesisAddresses[i].IsContract = true
 		}
+
 		// write this address to db
-		_ = s.dbClient.InsertAddress(ctx, addrInfo)
+		_ = s.dbClient.InsertAddress(ctx, cfg.GenesisAddresses[i])
 	}
 	return stats.UpdatedAtBlock
 }
@@ -876,4 +890,20 @@ func (s *infoServer) getInternalTxs(ctx context.Context, log *types.Log) *types.
 		Value:           log.Arguments["value"].(string),
 		Time:            log.Time,
 	}
+}
+
+func (s *infoServer) insertHistoryTransferKRC(ctx context.Context, smcAddr string) error {
+	txs, _, err := s.dbClient.TxsByAddress(ctx, smcAddr, nil)
+	if err != nil {
+		return err
+	}
+	for _, tx := range txs {
+		if len(tx.Logs) > 0 {
+			err = s.storeEvents(ctx, tx.Logs, txs[0].Time)
+			if err != nil {
+				s.logger.Warn("Cannot store events to db", zap.Error(err))
+			}
+		}
+	}
+	return nil
 }
