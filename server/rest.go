@@ -4,6 +4,7 @@ package server
 import (
 	"bytes"
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -12,6 +13,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/kardiachain/go-kardia/lib/abi"
 
 	"github.com/kardiachain/go-kardia/lib/common"
 
@@ -1396,14 +1399,22 @@ func (s *Server) InsertContract(c echo.Context) error {
 		return api.Invalid.Build(c)
 	}
 	ctx := context.Background()
-	if strings.HasPrefix(addrInfo.ErcTypes, "KRC") {
-		smcABI, err := s.getSMCAbi(ctx, &types.Log{
-			Address: addrInfo.Address,
-		})
+	if strings.EqualFold(addrInfo.ErcTypes, "KRC20") {
+		smcABIStr, err := s.dbClient.SMCABIByType(ctx, addrInfo.ErcTypes)
 		if err == nil {
-			totalSupply, _ := s.kaiClient.GetKRCTotalSupply(ctx, smcABI, common.HexToAddress(addrInfo.Address))
-			if totalSupply != nil {
-				addrInfo.TotalSupply = totalSupply.String()
+			abiData, err := base64.StdEncoding.DecodeString(smcABIStr)
+			if err != nil {
+				s.logger.Warn("Cannot decode smc abi", zap.Error(err))
+			}
+			jsonABI, err := abi.JSON(bytes.NewReader(abiData))
+			if err != nil {
+				s.logger.Warn("Cannot convert decoded smc abi to JSON abi", zap.Error(err))
+			}
+			if err == nil {
+				totalSupply, _ := s.kaiClient.GetKRCTotalSupply(ctx, &jsonABI, common.HexToAddress(addrInfo.Address))
+				if totalSupply != nil {
+					addrInfo.TotalSupply = totalSupply.String()
+				}
 			}
 		}
 	}
@@ -1439,14 +1450,22 @@ func (s *Server) UpdateContract(c echo.Context) error {
 		return api.Invalid.Build(c)
 	}
 	ctx := context.Background()
-	if strings.HasPrefix(addrInfo.ErcTypes, "KRC") {
-		smcABI, err := s.getSMCAbi(ctx, &types.Log{
-			Address: addrInfo.Address,
-		})
+	if strings.EqualFold(addrInfo.ErcTypes, "KRC20") {
+		smcABIStr, err := s.dbClient.SMCABIByType(ctx, addrInfo.ErcTypes)
 		if err == nil {
-			totalSupply, _ := s.kaiClient.GetKRCTotalSupply(ctx, smcABI, common.HexToAddress(addrInfo.Address))
-			if totalSupply != nil {
-				addrInfo.TotalSupply = totalSupply.String()
+			abiData, err := base64.StdEncoding.DecodeString(smcABIStr)
+			if err != nil {
+				s.logger.Warn("Cannot decode smc abi", zap.Error(err))
+			}
+			jsonABI, err := abi.JSON(bytes.NewReader(abiData))
+			if err != nil {
+				s.logger.Warn("Cannot convert decoded smc abi to JSON abi", zap.Error(err))
+			}
+			if err == nil {
+				totalSupply, _ := s.kaiClient.GetKRCTotalSupply(ctx, &jsonABI, common.HexToAddress(addrInfo.Address))
+				if totalSupply != nil {
+					addrInfo.TotalSupply = totalSupply.String()
+				}
 			}
 		}
 	}
