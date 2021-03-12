@@ -1275,6 +1275,9 @@ func (s *Server) ReloadValidators(c echo.Context) error {
 }
 
 func (s *Server) ContractEvents(c echo.Context) error {
+	if c.Request().Header.Get("Authorization") != s.infoServer.HttpRequestSecret {
+		return api.Unauthorized.Build(c)
+	}
 	ctx := context.Background()
 	var (
 		page, limit  int
