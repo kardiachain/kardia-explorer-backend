@@ -81,7 +81,7 @@ func (s *Server) Validator(c echo.Context) error {
 
 	// get delegation details
 	filter := db.DelegatorFilter{
-		ValidatorSMCAddress: validatorSMCAddress,
+		ValidatorSMCAddress: validator.SmcAddress,
 		Skip:                int64(page),
 		Limit:               int64(limit),
 	}
