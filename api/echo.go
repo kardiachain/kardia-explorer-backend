@@ -145,42 +145,6 @@ func bind(gr *echo.Group, srv EchoServer) {
 			fn:          srv.Nodes,
 			middlewares: nil,
 		},
-		{
-			method:      echo.GET,
-			path:        "/validators",
-			fn:          srv.Validators,
-			middlewares: nil,
-		},
-		{
-			method:      echo.GET,
-			path:        "/validators/:address",
-			fn:          srv.ValidatorStats,
-			middlewares: nil,
-		},
-		{
-			method:      echo.GET,
-			path:        "/delegators/:address/validators",
-			fn:          srv.GetValidatorsByDelegator,
-			middlewares: nil,
-		},
-		{
-			method:      echo.GET,
-			path:        "/validators/candidates",
-			fn:          srv.GetCandidatesList,
-			middlewares: nil,
-		},
-		{
-			method:      echo.GET,
-			path:        "/validators/:address/slash",
-			fn:          srv.GetSlashEvents,
-			middlewares: nil,
-		},
-		{
-			method:      echo.GET,
-			path:        "/validators/slashed/tokens",
-			fn:          srv.GetSlashedTokens,
-			middlewares: nil,
-		},
 		// Proposal
 		{
 			method: echo.GET,
@@ -221,6 +185,7 @@ func bind(gr *echo.Group, srv EchoServer) {
 		},
 	}
 	bindContractAPIs(gr, srv)
+	bindStakingAPIs(gr, srv)
 	for _, api := range apis {
 		gr.Add(api.method, api.path, api.fn, api.middlewares...)
 	}

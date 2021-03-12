@@ -15,12 +15,11 @@ type EchoServer interface {
 	Nodes(c echo.Context) error
 
 	// Staking-related
-	ValidatorStats(c echo.Context) error
+	StakingStats(c echo.Context) error
+	Validator(c echo.Context) error
 	Validators(c echo.Context) error
 	GetValidatorsByDelegator(c echo.Context) error
 	GetCandidatesList(c echo.Context) error
-	GetSlashEvents(c echo.Context) error
-	GetSlashedTokens(c echo.Context) error
 
 	// Proposal
 	GetProposalsList(c echo.Context) error
