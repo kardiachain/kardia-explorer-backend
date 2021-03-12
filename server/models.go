@@ -41,9 +41,9 @@ type SimpleTransaction struct {
 	BlockNumber        uint64              `json:"blockNumber"`
 	Time               time.Time           `json:"time"`
 	From               string              `json:"from"`
-	FromName           string              `json:"fromName"`
+	FromName           string              `json:"fromName,omitempty"`
 	To                 string              `json:"to"`
-	ToName             string              `json:"toName"`
+	ToName             string              `json:"toName,omitempty"`
 	IsInValidatorsList bool                `json:"isInValidatorsList"`
 	Role               int                 `json:"role"`
 	ContractAddress    string              `json:"contractAddress,omitempty"`
@@ -58,27 +58,28 @@ type Transaction struct {
 	BlockHash   string `json:"blockHash"`
 	BlockNumber uint64 `json:"blockNumber"`
 
-	Hash               string              `json:"hash"`
-	From               string              `json:"from"`
-	To                 string              `json:"to"`
-	ToName             string              `json:"toName"`
-	IsInValidatorsList bool                `json:"isInValidatorsList"`
-	Role               int                 `json:"role"`
-	Status             uint                `json:"status"`
-	ContractAddress    string              `json:"contractAddress"`
-	Value              string              `json:"value"`
-	GasPrice           uint64              `json:"gasPrice"`
-	GasLimit           uint64              `json:"gas"`
-	GasUsed            uint64              `json:"gasUsed"`
-	TxFee              string              `json:"txFee"`
-	Nonce              uint64              `json:"nonce"`
-	Time               time.Time           `json:"time"`
-	InputData          string              `json:"input"`
-	DecodedInputData   *types.FunctionCall `json:"decodedInputData,omitempty"`
-	Logs               []types.Log         `json:"logs"`
-	TransactionIndex   uint                `json:"transactionIndex"`
-	LogsBloom          coreTypes.Bloom     `json:"logsBloom"`
-	Root               string              `json:"root"`
+	Hash               string                 `json:"hash"`
+	From               string                 `json:"from"`
+	FromName           string                 `json:"fromName,omitempty"`
+	To                 string                 `json:"to"`
+	ToName             string                 `json:"toName,omitempty"`
+	IsInValidatorsList bool                   `json:"isInValidatorsList"`
+	Role               int                    `json:"role"`
+	Status             uint                   `json:"status"`
+	ContractAddress    string                 `json:"contractAddress"`
+	Value              string                 `json:"value"`
+	GasPrice           uint64                 `json:"gasPrice"`
+	GasLimit           uint64                 `json:"gas"`
+	GasUsed            uint64                 `json:"gasUsed"`
+	TxFee              string                 `json:"txFee"`
+	Nonce              uint64                 `json:"nonce"`
+	Time               time.Time              `json:"time"`
+	InputData          string                 `json:"input"`
+	DecodedInputData   *types.FunctionCall    `json:"decodedInputData,omitempty"`
+	Logs               []*InternalTransaction `json:"logs"`
+	TransactionIndex   uint                   `json:"transactionIndex"`
+	LogsBloom          coreTypes.Bloom        `json:"logsBloom"`
+	Root               string                 `json:"root"`
 }
 
 type NodeInfo struct {
@@ -105,12 +106,12 @@ type valInfoResponse struct {
 }
 
 type KRCTokenInfo struct {
-	Name          string `json:"name" bson:"name"`
+	Name          string `json:"name,omitempty" bson:"name"`
 	Address       string `json:"address" bson:"address"`
-	Bytecode      string `json:"bytecode" bson:"bytecode"`
-	ABI           string `json:"abi" bson:"abi"`
-	OwnerAddress  string `json:"ownerAddress" bson:"ownerAddress"`
-	TxHash        string `json:"txHash" bson:"txHash"`
+	Bytecode      string `json:"bytecode,omitempty" bson:"bytecode"`
+	ABI           string `json:"abi,omitempty" bson:"abi"`
+	OwnerAddress  string `json:"ownerAddress,omitempty" bson:"ownerAddress"`
+	TxHash        string `json:"txHash,omitempty" bson:"txHash"`
 	CreatedAt     int64  `json:"createdAt" bson:"createdAt"`
 	Type          string `json:"type" bson:"type"`
 	BalanceString string `json:"balance" bson:"balanceString"` // high precise balance for API
@@ -121,10 +122,10 @@ type KRCTokenInfo struct {
 	IsContract bool `json:"isContract" bson:"isContract"`
 
 	// Token
-	TokenName   string `json:"tokenName" bson:"tokenName"`
-	TokenSymbol string `json:"tokenSymbol" bson:"tokenSymbol"`
-	Decimals    int64  `json:"decimals" bson:"decimals"`
-	TotalSupply string `json:"totalSupply" bson:"totalSupply"`
+	TokenName   string `json:"tokenName,omitempty" bson:"tokenName"`
+	TokenSymbol string `json:"tokenSymbol,omitempty" bson:"tokenSymbol"`
+	Decimals    int64  `json:"decimals,omitempty" bson:"decimals"`
+	TotalSupply string `json:"totalSupply,omitempty" bson:"totalSupply"`
 
 	// Stats
 	TxCount         int `json:"txCount,omitempty" bson:"txCount"`
@@ -140,6 +141,18 @@ type SimpleKRCTokenInfo struct {
 	Address     string `json:"address,omitempty" bson:"address"`
 	Info        string `json:"info,omitempty" bson:"info"`
 	Type        string `json:"type,omitempty" bson:"type"`
-	TokenSymbol string `json:"symbol,omitempty" bson:"tokenSymbol"`
+	TokenSymbol string `json:"tokenSymbol,omitempty" bson:"tokenSymbol"`
+	TotalSupply string `json:"totalSupply,omitempty" bson:"totalSupply"`
+	Decimal     int64  `json:"decimal,omitempty" bson:"decimal"`
 	Logo        string `json:"logo,omitempty" bson:"logo"`
+}
+
+type InternalTransaction struct {
+	*types.Log
+	*types.KRCTokenInfo
+	From     string `json:"from,omitempty"`
+	FromName string `json:"fromName,omitempty"`
+	To       string `json:"to,omitempty"`
+	ToName   string `json:"toName,omitempty"`
+	Value    string `json:"value,omitempty"`
 }

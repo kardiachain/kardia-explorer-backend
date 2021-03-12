@@ -7,6 +7,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io/ioutil"
 	"math/big"
 	"net"
@@ -174,34 +175,48 @@ func (s *infoServer) GetCurrentStats(ctx context.Context) uint64 {
 		zap.Uint64("TotalContracts", stats.TotalContracts))
 	_ = s.cacheClient.SetTotalTxs(ctx, stats.TotalTransactions)
 	_ = s.cacheClient.UpdateTotalHolders(ctx, stats.TotalAddresses, stats.TotalContracts)
-	cfg.GenesisAddresses = append(cfg.GenesisAddresses, cfg.TreasuryContractAddr)
-	cfg.GenesisAddresses = append(cfg.GenesisAddresses, cfg.StakingContractAddr)
-	cfg.GenesisAddresses = append(cfg.GenesisAddresses, cfg.KardiaDeployerAddr)
-	cfg.GenesisAddresses = append(cfg.GenesisAddresses, cfg.ParamsContractAddr)
+
+	cfg.GenesisAddresses = append(cfg.GenesisAddresses, &types.Address{
+		Address: cfg.TreasuryContractAddr,
+		Name:    cfg.TreasuryContractName,
+	})
+	cfg.GenesisAddresses = append(cfg.GenesisAddresses, &types.Address{
+		Address: cfg.StakingContractAddr,
+		Name:    cfg.StakingContractName,
+	})
+	cfg.GenesisAddresses = append(cfg.GenesisAddresses, &types.Address{
+		Address: cfg.KardiaDeployerAddr,
+		Name:    cfg.KardiaDeployerName,
+	})
+	cfg.GenesisAddresses = append(cfg.GenesisAddresses, &types.Address{
+		Address: cfg.ParamsContractAddr,
+		Name:    cfg.ParamsContractName,
+	})
 	vals, _ := s.kaiClient.Validators(ctx)
 	//todo: longnd - Temp remove
 	//_ = s.cacheClient.UpdateValidators(ctx, vals)
 	_ = s.dbClient.ClearValidators(ctx)
 	_ = s.dbClient.UpsertValidators(ctx, vals)
 	for _, val := range vals {
-		cfg.GenesisAddresses = append(cfg.GenesisAddresses, val.SmcAddress.String())
+		cfg.GenesisAddresses = append(cfg.GenesisAddresses, &types.Address{
+			Address: val.SmcAddress.Hex(),
+			Name:    val.Name,
+		})
 	}
-	for _, addr := range cfg.GenesisAddresses {
-		balance, _ := s.kaiClient.GetBalance(ctx, addr)
+	for i, addr := range cfg.GenesisAddresses {
+		balance, _ := s.kaiClient.GetBalance(ctx, addr.Address)
 		balanceInBigInt, _ := new(big.Int).SetString(balance, 10)
 		balanceFloat, _ := new(big.Float).SetPrec(100).Quo(new(big.Float).SetInt(balanceInBigInt), new(big.Float).SetInt(cfg.Hydro)).Float64() //converting to KAI from HYDRO
-		addrInfo := &types.Address{
-			Address:       addr,
-			BalanceFloat:  balanceFloat,
-			BalanceString: balance,
-			IsContract:    false,
-		}
-		code, _ := s.kaiClient.GetCode(ctx, addr)
+
+		cfg.GenesisAddresses[i].BalanceFloat = balanceFloat
+		cfg.GenesisAddresses[i].BalanceString = balance
+		code, _ := s.kaiClient.GetCode(ctx, addr.Address)
 		if len(code) > 0 {
-			addrInfo.IsContract = true
+			cfg.GenesisAddresses[i].IsContract = true
 		}
+
 		// write this address to db
-		_ = s.dbClient.InsertAddress(ctx, addrInfo)
+		_ = s.dbClient.InsertAddress(ctx, cfg.GenesisAddresses[i])
 	}
 	return stats.UpdatedAtBlock
 }
@@ -668,7 +683,7 @@ func (s *infoServer) mergeAdditionalInfoToTxs(ctx context.Context, txs []*types.
 
 		tx.Logs = receipts[receiptIndex].Logs
 		if len(tx.Logs) > 0 {
-			err := s.storeEvents(ctx, tx.Logs)
+			err := s.storeEvents(ctx, tx.Logs, txs[0].Time)
 			if err != nil {
 				s.logger.Warn("Cannot store events to db", zap.Error(err))
 			}
@@ -696,7 +711,11 @@ func (s *infoServer) BlockCacheSize(ctx context.Context) (int64, error) {
 	return s.cacheClient.ListSize(ctx, cache.KeyBlocks)
 }
 
-func (s *infoServer) storeEvents(ctx context.Context, logs []types.Log) error {
+func (s *infoServer) storeEvents(ctx context.Context, logs []types.Log, blockTime time.Time) error {
+	var (
+		holdersList     []*types.TokenHolder
+		internalTxsList []*types.TokenTransfer
+	)
 	for i := range logs {
 		smcABI, err := s.getSMCAbi(ctx, &logs[i])
 		if err != nil {
@@ -706,8 +725,28 @@ func (s *infoServer) storeEvents(ctx context.Context, logs []types.Log) error {
 		if err != nil {
 			decodedLog = &logs[i]
 		}
+		decodedLog.Time = blockTime
 		logs[i] = *decodedLog
+		if logs[i].Topics[0] == cfg.KRCTransferTopic {
+			holders, err := s.getKRCHolder(ctx, decodedLog)
+			if err != nil {
+				continue
+			}
+			holdersList = append(holdersList, holders...)
+			iTx := s.getInternalTxs(ctx, decodedLog)
+			internalTxsList = append(internalTxsList, iTx)
+		}
 	}
+	// insert holders and internal txs to db
+	err := s.dbClient.UpdateHolders(ctx, holdersList)
+	if err != nil {
+		s.logger.Warn("Cannot update holder info to db", zap.Error(err), zap.Any("holdersList", holdersList))
+	}
+	err = s.dbClient.UpdateInternalTxs(ctx, internalTxsList)
+	if err != nil {
+		s.logger.Warn("Cannot update internal txs to db", zap.Error(err), zap.Any("holdersList", holdersList))
+	}
+
 	return s.dbClient.InsertEvents(logs)
 }
 
@@ -765,4 +804,106 @@ func (s *infoServer) getSMCAbi(ctx context.Context, log *types.Log) (*abi.ABI, e
 		return nil, err
 	}
 	return &jsonABI, nil
+}
+
+func (s *infoServer) getKRCTokenInfo(ctx context.Context, krcTokenAddr string) (*types.KRCTokenInfo, error) {
+	krcTokenInfo, err := s.cacheClient.KRCTokenInfo(ctx, krcTokenAddr)
+	if err == nil {
+		return krcTokenInfo, nil
+	}
+	s.logger.Warn("Cannot get KRC token info from cache, getting from database instead")
+	addrInfo, err := s.dbClient.AddressByHash(ctx, krcTokenAddr)
+	if err != nil {
+		s.logger.Warn("Cannot get KRC token info from db", zap.Error(err))
+		return nil, err
+	}
+	result := &types.KRCTokenInfo{
+		Address:     addrInfo.Address,
+		TokenName:   addrInfo.TokenName,
+		TokenType:   addrInfo.ErcTypes,
+		TokenSymbol: addrInfo.TokenSymbol,
+		TotalSupply: addrInfo.TotalSupply,
+		Decimals:    addrInfo.Decimals,
+		Logo:        addrInfo.Logo,
+	}
+	err = s.cacheClient.UpdateKRCTokenInfo(ctx, result)
+	if err != nil {
+		s.logger.Warn("Cannot store KRC token info to cache", zap.Error(err))
+		return nil, err
+	}
+	return result, nil
+}
+
+func (s *infoServer) getKRCHolder(ctx context.Context, log *types.Log) ([]*types.TokenHolder, error) {
+	holdersList := make([]*types.TokenHolder, 2)
+	krcTokenInfo, err := s.getKRCTokenInfo(ctx, log.Address)
+	if err != nil {
+		return nil, err
+	}
+	if krcTokenInfo.TokenType != "KRC20" {
+		return nil, fmt.Errorf("not a KRC20 token")
+	}
+	if log.Arguments["from"] == "" || log.Arguments["to"] == "" {
+		return nil, fmt.Errorf("sender and receiver is not found")
+	}
+	krcABI, err := s.getSMCAbi(ctx, log)
+	if err != nil {
+		return nil, err
+	}
+	fromBalance, err := s.kaiClient.GetKRCBalanceByAddress(ctx, krcABI, common.HexToAddress(log.Address), common.HexToAddress(log.Arguments["from"].(string)))
+	if err != nil {
+		return nil, err
+	}
+	toBalance, err := s.kaiClient.GetKRCBalanceByAddress(ctx, krcABI, common.HexToAddress(log.Address), common.HexToAddress(log.Arguments["to"].(string)))
+	if err != nil {
+		return nil, err
+	}
+	holdersList[0] = &types.TokenHolder{
+		TokenName:       krcTokenInfo.TokenName,
+		TokenSymbol:     krcTokenInfo.TokenSymbol,
+		TokenDecimals:   krcTokenInfo.Decimals,
+		ContractAddress: log.Address,
+		HolderAddress:   log.Arguments["from"].(string),
+		BalanceString:   fromBalance.String(),
+		BalanceFloat:    new(big.Int).Div(fromBalance, new(big.Int).Exp(big.NewInt(10), big.NewInt(18), nil)).Int64(),
+		UpdatedAt:       time.Now().Unix(),
+	}
+	holdersList[1] = &types.TokenHolder{
+		TokenName:       krcTokenInfo.TokenName,
+		TokenSymbol:     krcTokenInfo.TokenSymbol,
+		TokenDecimals:   krcTokenInfo.Decimals,
+		ContractAddress: log.Address,
+		HolderAddress:   log.Arguments["to"].(string),
+		BalanceString:   toBalance.String(),
+		BalanceFloat:    new(big.Int).Div(toBalance, new(big.Int).Exp(big.NewInt(10), big.NewInt(18), nil)).Int64(),
+		UpdatedAt:       time.Now().Unix(),
+	}
+	return holdersList, nil
+}
+
+func (s *infoServer) getInternalTxs(ctx context.Context, log *types.Log) *types.TokenTransfer {
+	return &types.TokenTransfer{
+		TransactionHash: log.TxHash,
+		Contract:        log.Address,
+		From:            log.Arguments["from"].(string),
+		To:              log.Arguments["to"].(string),
+		Value:           log.Arguments["value"].(string),
+		Time:            log.Time,
+	}
+}
+
+func (s *infoServer) insertHistoryTransferKRC(ctx context.Context, smcAddr string) error {
+	txs, _, err := s.dbClient.TxsByAddress(ctx, smcAddr, nil)
+	if err != nil {
+		return err
+	}
+	for _, tx := range txs {
+		if len(tx.Logs) > 0 {
+			err = s.storeEvents(ctx, tx.Logs, txs[0].Time)
+			if err != nil {
+				s.logger.Warn("Cannot store events to db", zap.Error(err))
+			}
+		}
+	}
+	return nil
 }

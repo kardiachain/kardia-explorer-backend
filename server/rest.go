@@ -4,6 +4,7 @@ package server
 import (
 	"bytes"
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -13,9 +14,10 @@ import (
 	"strings"
 	"time"
 
+	"github.com/kardiachain/go-kardia/lib/abi"
+
 	"github.com/kardiachain/go-kardia/lib/common"
 
-	"github.com/bxcodec/faker/v3"
 	"github.com/labstack/echo"
 	"go.uber.org/zap"
 
@@ -581,18 +583,16 @@ func (s *Server) BlockTxs(c echo.Context) error {
 			InputData:        tx.InputData,
 		}
 		if smcAddress[tx.To] != nil {
-			t.ToName = smcAddress[tx.To].Name
 			t.Role = smcAddress[tx.To].Role
 			t.IsInValidatorsList = true
 		}
-		if tx.To == cfg.StakingContractAddr {
-			t.ToName = cfg.StakingContractName
+		addrInfo, _ := s.getAddressInfo(ctx, tx.From)
+		if addrInfo != nil {
+			t.FromName = addrInfo.Name
 		}
-		if tx.To == cfg.TreasuryContractAddr {
-			t.ToName = cfg.TreasuryContractName
-		}
-		if tx.To == cfg.KardiaDeployerAddr {
-			t.ToName = cfg.KardiaDeployerName
+		addrInfo, _ = s.getAddressInfo(ctx, tx.To)
+		if addrInfo != nil {
+			t.ToName = addrInfo.Name
 		}
 		result = append(result, t)
 	}
@@ -692,19 +692,16 @@ func (s *Server) Txs(c echo.Context) error {
 		}
 
 		if smcAddress[tx.To] != nil {
-			t.ToName = smcAddress[tx.To].Name
 			t.Role = smcAddress[tx.To].Role
 			t.IsInValidatorsList = true
 		}
-
-		if tx.To == cfg.StakingContractAddr {
-			t.ToName = cfg.StakingContractName
+		addrInfo, _ := s.getAddressInfo(ctx, tx.From)
+		if addrInfo != nil {
+			t.FromName = addrInfo.Name
 		}
-		if tx.To == cfg.TreasuryContractAddr {
-			t.ToName = cfg.TreasuryContractName
-		}
-		if tx.To == cfg.KardiaDeployerAddr {
-			t.ToName = cfg.KardiaDeployerName
+		addrInfo, _ = s.getAddressInfo(ctx, tx.To)
+		if addrInfo != nil {
+			t.ToName = addrInfo.Name
 		}
 		result = append(result, t)
 	}
@@ -743,16 +740,10 @@ func (s *Server) Addresses(c echo.Context) error {
 		if smcAddress[addr.Address] != nil {
 			addrInfo.IsInValidatorsList = true
 			addrInfo.Role = smcAddress[addr.Address].Role
-			addrInfo.Name = smcAddress[addr.Address].Name
 		}
-		if addr.Address == cfg.TreasuryContractAddr {
-			addrInfo.Name = cfg.TreasuryContractName
-		}
-		if addr.Address == cfg.StakingContractAddr {
-			addrInfo.Name = cfg.StakingContractName
-		}
-		if addr.Address == cfg.KardiaDeployerAddr {
-			addrInfo.Name = cfg.KardiaDeployerName
+		currAddrInfo, _ := s.getAddressInfo(ctx, addr.Address)
+		if currAddrInfo != nil {
+			addrInfo.Name = currAddrInfo.Name
 		}
 		// double check with balance from RPC
 		balance, err := s.kaiClient.GetBalance(ctx, addr.Address)
@@ -789,16 +780,10 @@ func (s *Server) AddressInfo(c echo.Context) error {
 		if smcAddress[result.Address] != nil {
 			result.IsInValidatorsList = true
 			result.Role = smcAddress[result.Address].Role
-			result.Name = smcAddress[result.Address].Name
 		}
-		if result.Address == cfg.TreasuryContractAddr {
-			result.Name = cfg.TreasuryContractName
-		}
-		if result.Address == cfg.StakingContractAddr {
-			result.Name = cfg.StakingContractName
-		}
-		if result.Address == cfg.KardiaDeployerAddr {
-			result.Name = cfg.KardiaDeployerName
+		currAddrInfo, _ := s.getAddressInfo(ctx, addrInfo.Address)
+		if currAddrInfo != nil {
+			result.Name = currAddrInfo.Name
 		}
 		balance, err := s.kaiClient.GetBalance(ctx, address)
 		if err != nil {
@@ -873,18 +858,16 @@ func (s *Server) AddressTxs(c echo.Context) error {
 			InputData:        tx.InputData,
 		}
 		if smcAddress[tx.To] != nil {
-			t.ToName = smcAddress[tx.To].Name
 			t.Role = smcAddress[tx.To].Role
 			t.IsInValidatorsList = true
 		}
-		if tx.To == cfg.StakingContractAddr {
-			t.ToName = cfg.StakingContractName
+		addrInfo, _ := s.getAddressInfo(ctx, tx.From)
+		if addrInfo != nil {
+			t.FromName = addrInfo.Name
 		}
-		if tx.To == cfg.TreasuryContractAddr {
-			t.ToName = cfg.TreasuryContractName
-		}
-		if tx.To == cfg.KardiaDeployerAddr {
-			t.ToName = cfg.KardiaDeployerName
+		addrInfo, _ = s.getAddressInfo(ctx, tx.To)
+		if addrInfo != nil {
+			t.ToName = addrInfo.Name
 		}
 		result = append(result, t)
 	}
@@ -898,35 +881,35 @@ func (s *Server) AddressTxs(c echo.Context) error {
 }
 
 func (s *Server) AddressHolders(c echo.Context) error {
+	ctx := context.Background()
 	var (
 		page, limit int
 		err         error
 	)
-	//blockHash := c.Param("blockHash")
-	pageParams := c.QueryParam("page")
-	limitParams := c.QueryParam("limit")
-	page, err = strconv.Atoi(pageParams)
-	if err != nil {
-		page = 0
+	pagination, page, limit := getPagingOption(c)
+	filterCrit := &types.HolderFilter{
+		Pagination:      pagination,
+		ContractAddress: c.QueryParam("contractAddress"),
+		HolderAddress:   c.Param("address"),
 	}
-	limit, err = strconv.Atoi(limitParams)
+	holders, total, err := s.dbClient.GetListHolders(ctx, filterCrit)
 	if err != nil {
-		limit = 20
+		s.logger.Warn("Cannot get events from db", zap.Error(err))
 	}
-
-	var holders []*types.TokenHolder
-	for i := 0; i < limit; i++ {
-		holder := &types.TokenHolder{}
-		if err := faker.FakeData(&holder); err != nil {
-			return err
+	for i := range holders {
+		holderInfo, _ := s.getAddressInfo(ctx, holders[i].HolderAddress)
+		if holderInfo != nil {
+			holders[i].HolderName = holderInfo.Name
 		}
-		holders = append(holders, holder)
+		krcTokenInfo, _ := s.getKRCTokenInfo(ctx, holders[i].ContractAddress)
+		if krcTokenInfo != nil {
+			holders[i].Logo = krcTokenInfo.Logo
+		}
 	}
-
 	return api.OK.SetData(PagingResponse{
 		Page:  page,
 		Limit: limit,
-		Total: uint64(limit * 15),
+		Total: total,
 		Data:  holders,
 	}).Build(c)
 }
@@ -953,6 +936,19 @@ func (s *Server) TxByHash(c echo.Context) error {
 			s.Logger.Warn("cannot get receipt by hash from RPC:", zap.String("txHash", txHash))
 		}
 		if receipt != nil {
+			// decode logs first
+			for i := range receipt.Logs {
+				smcABI, err := s.getSMCAbi(ctx, &receipt.Logs[i])
+				if err != nil {
+					continue
+				}
+				decodedLog, err := s.kaiClient.UnpackLog(&receipt.Logs[i], smcABI)
+				if err != nil {
+					decodedLog = &receipt.Logs[i]
+				}
+				decodedLog.Time = tx.Time
+				receipt.Logs[i] = *decodedLog
+			}
 			tx.Logs = receipt.Logs
 			tx.Root = receipt.Root
 			tx.Status = receipt.Status
@@ -962,7 +958,10 @@ func (s *Server) TxByHash(c echo.Context) error {
 	}
 
 	// Get contract details
-	var functionCall *types.FunctionCall
+	var (
+		functionCall *types.FunctionCall
+		krcTokenInfo *types.KRCTokenInfo
+	)
 	smcABI, err := s.getSMCAbi(ctx, &types.Log{
 		Address: tx.To,
 	})
@@ -981,7 +980,17 @@ func (s *Server) TxByHash(c echo.Context) error {
 	if functionCall != nil {
 		tx.DecodedInputData = functionCall
 	}
-
+	internalTxs := make([]*InternalTransaction, len(tx.Logs))
+	for i := range tx.Logs {
+		krcTokenInfo, err = s.getKRCTokenInfo(ctx, tx.Logs[i].Address)
+		if err != nil {
+			continue
+		}
+		internalTxs[i] = &InternalTransaction{
+			Log:          &tx.Logs[i],
+			KRCTokenInfo: krcTokenInfo,
+		}
+	}
 	result := &Transaction{
 		BlockHash:        tx.BlockHash,
 		BlockNumber:      tx.BlockNumber,
@@ -999,26 +1008,21 @@ func (s *Server) TxByHash(c echo.Context) error {
 		Time:             tx.Time,
 		InputData:        tx.InputData,
 		DecodedInputData: tx.DecodedInputData,
-		Logs:             tx.Logs,
+		Logs:             internalTxs,
 		TransactionIndex: tx.TransactionIndex,
 		LogsBloom:        tx.LogsBloom,
 		Root:             tx.Root,
 	}
-	if result.To == cfg.StakingContractAddr {
-		result.ToName = cfg.StakingContractName
-		return api.OK.SetData(result).Build(c)
+	addrInfo, _ := s.getAddressInfo(ctx, tx.From)
+	if addrInfo != nil {
+		result.FromName = addrInfo.Name
 	}
-	if result.To == cfg.TreasuryContractAddr {
-		result.ToName = cfg.TreasuryContractName
-		return api.OK.SetData(result).Build(c)
-	}
-	if tx.To == cfg.KardiaDeployerAddr {
-		result.ToName = cfg.KardiaDeployerName
-		return api.OK.SetData(result).Build(c)
+	addrInfo, _ = s.getAddressInfo(ctx, tx.To)
+	if addrInfo != nil {
+		result.ToName = addrInfo.Name
 	}
 	smcAddress := s.getValidatorsAddressAndRole(ctx)
 	if smcAddress[result.To] != nil {
-		result.ToName = smcAddress[result.To].Name
 		result.Role = smcAddress[result.To].Role
 		result.IsInValidatorsList = true
 		return api.OK.SetData(result).Build(c)
@@ -1123,6 +1127,9 @@ func (s *Server) CalculateValidatorStats(ctx context.Context, validators []*type
 func getPagingOption(c echo.Context) (*types.Pagination, int, int) {
 	pageParams := c.QueryParam("page")
 	limitParams := c.QueryParam("limit")
+	if pageParams == "" && limitParams == "" {
+		return nil, 0, 0
+	}
 	page, err := strconv.Atoi(pageParams)
 	if err != nil {
 		page = 0
@@ -1245,7 +1252,7 @@ func (s *Server) UpdateAddressName(c echo.Context) error {
 		fmt.Println("cannot update ", err)
 		return api.Invalid.Build(c)
 	}
-
+	_ = s.cacheClient.UpdateAddressInfo(ctx, addressInfo)
 	return api.OK.Build(c)
 }
 
@@ -1268,15 +1275,30 @@ func (s *Server) ReloadValidators(c echo.Context) error {
 }
 
 func (s *Server) ContractEvents(c echo.Context) error {
+	if c.Request().Header.Get("Authorization") != s.infoServer.HttpRequestSecret {
+		return api.Unauthorized.Build(c)
+	}
 	ctx := context.Background()
 	var (
-		page, limit int
-		err         error
+		page, limit  int
+		err          error
+		krcTokenInfo *types.KRCTokenInfo
 	)
 	pagination, page, limit := getPagingOption(c)
-	result, total, err := s.dbClient.GetListEvents(ctx, pagination, c.QueryParam("contractAddress"), c.QueryParam("methodName"), c.QueryParam("txHash"))
+	events, total, err := s.dbClient.GetListEvents(ctx, pagination, c.QueryParam("contractAddress"), c.QueryParam("methodName"), c.QueryParam("txHash"))
 	if err != nil {
 		s.logger.Warn("Cannot get events from db", zap.Error(err))
+	}
+	result := make([]*InternalTransaction, len(events))
+	for i := range events {
+		krcTokenInfo, err = s.getKRCTokenInfo(ctx, events[i].Address)
+		if err != nil {
+			continue
+		}
+		result[i] = &InternalTransaction{
+			Log:          events[i],
+			KRCTokenInfo: krcTokenInfo,
+		}
 	}
 	return api.OK.SetData(PagingResponse{
 		Page:  page,
@@ -1306,6 +1328,13 @@ func (s *Server) Contracts(c echo.Context) error {
 			Type:    result[i].Type,
 			Logo:    result[i].Logo,
 		}
+		tokenInfo, err := s.getKRCTokenInfo(ctx, result[i].Address)
+		if err != nil {
+			continue
+		}
+		finalResult[i].TokenSymbol = tokenInfo.TokenSymbol
+		finalResult[i].TotalSupply = tokenInfo.TotalSupply
+		finalResult[i].Decimal = tokenInfo.Decimals
 	}
 	return api.OK.SetData(PagingResponse{
 		Page:  page,
@@ -1373,6 +1402,25 @@ func (s *Server) InsertContract(c echo.Context) error {
 		return api.Invalid.Build(c)
 	}
 	ctx := context.Background()
+	if strings.EqualFold(addrInfo.ErcTypes, "KRC20") {
+		smcABIStr, err := s.dbClient.SMCABIByType(ctx, addrInfo.ErcTypes)
+		if err == nil {
+			abiData, err := base64.StdEncoding.DecodeString(smcABIStr)
+			if err != nil {
+				s.logger.Warn("Cannot decode smc abi", zap.Error(err))
+			}
+			jsonABI, err := abi.JSON(bytes.NewReader(abiData))
+			if err != nil {
+				s.logger.Warn("Cannot convert decoded smc abi to JSON abi", zap.Error(err))
+			}
+			if err == nil {
+				totalSupply, _ := s.kaiClient.GetKRCTotalSupply(ctx, &jsonABI, common.HexToAddress(addrInfo.Address))
+				if totalSupply != nil {
+					addrInfo.TotalSupply = totalSupply.String()
+				}
+			}
+		}
+	}
 	if err := s.dbClient.InsertContract(ctx, &contract, &addrInfo); err != nil {
 		lgr.Error("cannot bind insert", zap.Error(err))
 		return api.InternalServer.Build(c)
@@ -1405,9 +1453,31 @@ func (s *Server) UpdateContract(c echo.Context) error {
 		return api.Invalid.Build(c)
 	}
 	ctx := context.Background()
+	if strings.EqualFold(addrInfo.ErcTypes, "KRC20") {
+		smcABIStr, err := s.dbClient.SMCABIByType(ctx, addrInfo.ErcTypes)
+		if err == nil {
+			abiData, err := base64.StdEncoding.DecodeString(smcABIStr)
+			if err != nil {
+				s.logger.Warn("Cannot decode smc abi", zap.Error(err))
+			}
+			jsonABI, err := abi.JSON(bytes.NewReader(abiData))
+			if err != nil {
+				s.logger.Warn("Cannot convert decoded smc abi to JSON abi", zap.Error(err))
+			}
+			if err == nil {
+				totalSupply, _ := s.kaiClient.GetKRCTotalSupply(ctx, &jsonABI, common.HexToAddress(addrInfo.Address))
+				if totalSupply != nil {
+					addrInfo.TotalSupply = totalSupply.String()
+				}
+			}
+		}
+	}
 	if err := s.dbClient.UpdateContract(ctx, &contract, &addrInfo); err != nil {
 		lgr.Error("cannot bind insert", zap.Error(err))
 		return api.InternalServer.Build(c)
+	}
+	if err := s.insertHistoryTransferKRC(ctx, addrInfo.Address); err != nil {
+		lgr.Error("cannot retrieve history transfer of KRC token", zap.Error(err), zap.String("address", addrInfo.Address))
 	}
 
 	return api.OK.Build(c)
@@ -1482,4 +1552,113 @@ func (s *Server) SearchAddressByName(c echo.Context) error {
 		result = append(result, addr)
 	}
 	return api.OK.SetData(result).Build(c)
+}
+
+func (s *Server) GetHoldersListByToken(c echo.Context) error {
+	ctx := context.Background()
+	var (
+		page, limit int
+		err         error
+	)
+	pagination, page, limit := getPagingOption(c)
+	filterCrit := &types.HolderFilter{
+		Pagination:      pagination,
+		ContractAddress: c.Param("contractAddress"),
+	}
+	holders, total, err := s.dbClient.GetListHolders(ctx, filterCrit)
+	if err != nil {
+		s.logger.Warn("Cannot get events from db", zap.Error(err))
+	}
+	krcTokenInfo, _ := s.getKRCTokenInfo(ctx, c.Param("contractAddress"))
+	if krcTokenInfo != nil {
+		for i := range holders {
+			holders[i].Logo = krcTokenInfo.Logo
+			// remove redundant field
+			holders[i].TokenName = ""
+			holders[i].TokenSymbol = ""
+			holders[i].Logo = ""
+			holders[i].ContractAddress = ""
+			// add address names
+			holderInfo, _ := s.getAddressInfo(ctx, holders[i].HolderAddress)
+			if holderInfo != nil {
+				holders[i].HolderName = holderInfo.Name
+			}
+		}
+	}
+	return api.OK.SetData(PagingResponse{
+		Page:  page,
+		Limit: limit,
+		Total: total,
+		Data:  holders,
+	}).Build(c)
+}
+
+func (s *Server) GetInternalTxs(c echo.Context) error {
+	ctx := context.Background()
+	var (
+		page, limit int
+		err         error
+	)
+	pagination, page, limit := getPagingOption(c)
+	filterCrit := &types.InternalTxsFilter{
+		Pagination: pagination,
+		Contract:   c.QueryParam("contractAddress"),
+		Address:    c.QueryParam("address"),
+	}
+	iTxs, total, err := s.dbClient.GetListInternalTxs(ctx, filterCrit)
+	if err != nil {
+		s.logger.Warn("Cannot get internal txs from db", zap.Error(err))
+	}
+	var (
+		result           = make([]*InternalTransaction, len(iTxs))
+		fromInfo, toInfo *types.Address
+	)
+	for i := range iTxs {
+		result[i] = &InternalTransaction{
+			Log: &types.Log{
+				Address: iTxs[i].Contract,
+				Time:    iTxs[i].Time,
+				TxHash:  iTxs[i].TransactionHash,
+			},
+			From:  iTxs[i].From,
+			To:    iTxs[i].To,
+			Value: iTxs[i].Value,
+		}
+		fromInfo, _ = s.getAddressInfo(ctx, iTxs[i].From)
+		if fromInfo != nil {
+			result[i].FromName = fromInfo.Name
+		}
+		toInfo, _ = s.getAddressInfo(ctx, iTxs[i].To)
+		if toInfo != nil {
+			result[i].ToName = toInfo.Name
+		}
+		krcTokenInfo, _ := s.getKRCTokenInfo(ctx, iTxs[i].Contract)
+		if krcTokenInfo != nil {
+			result[i].KRCTokenInfo = krcTokenInfo
+		}
+	}
+	return api.OK.SetData(PagingResponse{
+		Page:  page,
+		Limit: limit,
+		Total: total,
+		Data:  result,
+	}).Build(c)
+}
+
+func (s *Server) getAddressInfo(ctx context.Context, address string) (*types.Address, error) {
+	addrInfo, err := s.cacheClient.AddressInfo(ctx, address)
+	if err == nil {
+		return addrInfo, nil
+	}
+	s.logger.Info("Cannot get address info in cache, getting from db instead", zap.String("address", address), zap.Error(err))
+	addrInfo, err = s.dbClient.AddressByHash(ctx, address)
+	if err != nil {
+		s.logger.Warn("Cannot store address info to db", zap.String("address", address), zap.Error(err))
+		return nil, err
+	}
+	err = s.cacheClient.UpdateAddressInfo(ctx, addrInfo)
+	if err != nil {
+		s.logger.Warn("Cannot store address info to cache", zap.String("address", address), zap.Error(err))
+	}
+	return addrInfo, nil
 }

@@ -3,7 +3,6 @@ package db
 
 import (
 	"context"
-	"strings"
 	"time"
 
 	"go.mongodb.org/mongo-driver/mongo/options"
@@ -99,11 +98,9 @@ func (m *mongoDB) Contract(ctx context.Context, contractAddr string) (*types.Con
 		}
 		contract.ABI = smcABI.ABI
 	}
-	if strings.HasPrefix(contract.Type, "KRC") {
-		addr, err = m.AddressByHash(ctx, contractAddr)
-		if err != nil {
-			return nil, nil, err
-		}
+	addr, err = m.AddressByHash(ctx, contractAddr)
+	if err != nil {
+		return nil, nil, err
 	}
 	return contract, addr, nil
 }

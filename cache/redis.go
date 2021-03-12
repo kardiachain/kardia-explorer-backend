@@ -41,6 +41,9 @@ const (
 	KeyNodesInfoList  = "#nodesInfo" // List
 
 	KeyContractABI = "#contracts#abi#%s"
+
+	KeyKRCTokenInfo = "#krc#info#%s"
+	KeyAddressInfo  = "#addresses#info#%s"
 )
 
 type Redis struct {
@@ -453,7 +456,7 @@ func (c *Redis) PopUnverifiedBlockHeight(ctx context.Context) (uint64, error) {
 	return height, nil
 }
 
-// Holders summary
+// GetListHolders summary
 func (c *Redis) UpdateTotalHolders(ctx context.Context, holders uint64, contracts uint64) error {
 	if err := c.client.Set(ctx, KeyTotalHolders, holders, 0).Err(); err != nil {
 		// Handle error here
@@ -563,6 +566,56 @@ func (c *Redis) SMCAbi(ctx context.Context, key string) (string, error) {
 func (c *Redis) UpdateSMCAbi(ctx context.Context, key, abi string) error {
 	keyABI := fmt.Sprintf(KeyContractABI, key)
 	if err := c.client.Set(ctx, keyABI, abi, 0).Err(); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (c *Redis) KRCTokenInfo(ctx context.Context, krcTokenAddr string) (*types.KRCTokenInfo, error) {
+	keyKRC := fmt.Sprintf(KeyKRCTokenInfo, krcTokenAddr)
+	result, err := c.client.Get(ctx, keyKRC).Result()
+	if err != nil {
+		return nil, err
+	}
+	var KRCTokenInfo *types.KRCTokenInfo
+	if err := json.Unmarshal([]byte(result), &KRCTokenInfo); err != nil {
+		return nil, err
+	}
+	return KRCTokenInfo, nil
+}
+
+func (c *Redis) UpdateKRCTokenInfo(ctx context.Context, krcTokenInfo *types.KRCTokenInfo) error {
+	keyKRC := fmt.Sprintf(KeyKRCTokenInfo, krcTokenInfo.Address)
+	data, err := json.Marshal(krcTokenInfo)
+	if err != nil {
+		return err
+	}
+	if err := c.client.Set(ctx, keyKRC, data, cfg.KRCTokenInfoExpTime).Err(); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (c *Redis) AddressInfo(ctx context.Context, addr string) (*types.Address, error) {
+	keyAddrInfo := fmt.Sprintf(KeyAddressInfo, addr)
+	result, err := c.client.Get(ctx, keyAddrInfo).Result()
+	if err != nil {
+		return nil, err
+	}
+	var addrInfo *types.Address
+	if err := json.Unmarshal([]byte(result), &addrInfo); err != nil {
+		return nil, err
+	}
+	return addrInfo, nil
+}
+
+func (c *Redis) UpdateAddressInfo(ctx context.Context, addrInfo *types.Address) error {
+	keyAddrInfo := fmt.Sprintf(KeyAddressInfo, addrInfo.Address)
+	data, err := json.Marshal(addrInfo)
+	if err != nil {
+		return err
+	}
+	if err := c.client.Set(ctx, keyAddrInfo, data, cfg.AddressInfoExpTime).Err(); err != nil {
 		return err
 	}
 	return nil

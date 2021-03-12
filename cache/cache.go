@@ -56,7 +56,7 @@ type Client interface {
 	TotalTxs(ctx context.Context) uint64
 	LatestBlockHeight(ctx context.Context) uint64
 
-	// Holders summary
+	// GetListHolders summary
 	UpdateTotalHolders(ctx context.Context, holders uint64, contracts uint64) error
 	TotalHolders(ctx context.Context) (uint64, uint64)
 
@@ -70,6 +70,12 @@ type Client interface {
 
 	SMCAbi(ctx context.Context, key string) (string, error)
 	UpdateSMCAbi(ctx context.Context, key, abi string) error
+
+	KRCTokenInfo(ctx context.Context, krcTokenAddr string) (*types.KRCTokenInfo, error)
+	UpdateKRCTokenInfo(ctx context.Context, krcTokenInfo *types.KRCTokenInfo) error
+
+	AddressInfo(ctx context.Context, addr string) (*types.Address, error)
+	UpdateAddressInfo(ctx context.Context, addrInfo *types.Address) error
 }
 
 func New(cfg Config) (Client, error) {
