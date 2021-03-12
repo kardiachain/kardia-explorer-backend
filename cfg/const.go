@@ -31,8 +31,8 @@ var (
 )
 
 const (
-	RoleProposer  = 2
-	RoleValidator = 1
+	RoleProposer  = 3
+	RoleValidator = 2
 	RoleCandidate = 1
 )
 
