@@ -390,7 +390,7 @@ func (s *Server) Blocks(c echo.Context) error {
 		}
 		proposerInfo, _ := s.getAddressInfo(ctx, block.ProposerAddress)
 		if proposerInfo != nil {
-			b.ProposerName = proposerInfo.Address
+			b.ProposerName = proposerInfo.Name
 		}
 		result = append(result, b)
 	}
@@ -451,7 +451,7 @@ func (s *Server) Block(c echo.Context) error {
 	var proposerName string
 	proposerInfo, _ := s.getAddressInfo(ctx, block.ProposerAddress)
 	if proposerInfo != nil {
-		proposerName = proposerInfo.Address
+		proposerName = proposerInfo.Name
 	}
 	result := &Block{
 		Block:        *block,
@@ -558,11 +558,11 @@ func (s *Server) BlockTxs(c echo.Context) error {
 		}
 		addrInfo, _ := s.getAddressInfo(ctx, tx.From)
 		if addrInfo != nil {
-			t.FromName = addrInfo.Address
+			t.FromName = addrInfo.Name
 		}
 		addrInfo, _ = s.getAddressInfo(ctx, tx.To)
 		if addrInfo != nil {
-			t.ToName = addrInfo.Address
+			t.ToName = addrInfo.Name
 		}
 		result = append(result, t)
 	}
@@ -598,7 +598,7 @@ func (s *Server) BlocksByProposer(c echo.Context) error {
 
 		proposerInfo, _ := s.getAddressInfo(ctx, block.ProposerAddress)
 		if proposerInfo != nil {
-			b.ProposerName = proposerInfo.Address
+			b.ProposerName = proposerInfo.Name
 		}
 
 		result = append(result, b)
@@ -650,11 +650,11 @@ func (s *Server) Txs(c echo.Context) error {
 		}
 		addrInfo, _ := s.getAddressInfo(ctx, tx.From)
 		if addrInfo != nil {
-			t.FromName = addrInfo.Address
+			t.FromName = addrInfo.Name
 		}
 		addrInfo, _ = s.getAddressInfo(ctx, tx.To)
 		if addrInfo != nil {
-			t.ToName = addrInfo.Address
+			t.ToName = addrInfo.Name
 		}
 		result = append(result, t)
 	}
@@ -816,11 +816,11 @@ func (s *Server) AddressTxs(c echo.Context) error {
 		}
 		addrInfo, _ := s.getAddressInfo(ctx, tx.From)
 		if addrInfo != nil {
-			t.FromName = addrInfo.Address
+			t.FromName = addrInfo.Name
 		}
 		addrInfo, _ = s.getAddressInfo(ctx, tx.To)
 		if addrInfo != nil {
-			t.ToName = addrInfo.Address
+			t.ToName = addrInfo.Name
 		}
 		result = append(result, t)
 	}
@@ -968,11 +968,11 @@ func (s *Server) TxByHash(c echo.Context) error {
 	}
 	addrInfo, _ := s.getAddressInfo(ctx, tx.From)
 	if addrInfo != nil {
-		result.FromName = addrInfo.Address
+		result.FromName = addrInfo.Name
 	}
 	addrInfo, _ = s.getAddressInfo(ctx, tx.To)
 	if addrInfo != nil {
-		result.ToName = addrInfo.Address
+		result.ToName = addrInfo.Name
 	}
 	smcAddress := s.getValidatorsAddressAndRole(ctx)
 	if smcAddress[result.To] != nil {
