@@ -32,6 +32,8 @@ type Config struct {
 }
 
 type Client interface {
+	IStaking
+
 	InsertBlock(ctx context.Context, block *types.Block) error
 	InsertTxsOfBlock(ctx context.Context, block *types.Block) error
 	BlockByHeight(ctx context.Context, blockHeight uint64) (*types.Block, error)
