@@ -69,7 +69,7 @@ func (s *Server) Validator(c echo.Context) error {
 		err error
 	)
 
-	validatorSMCAddress := c.Param("smcAddress")
+	validatorSMCAddress := c.Param("address")
 	_, page, limit := getPagingOption(c)
 
 	// get validators list from cache

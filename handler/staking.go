@@ -203,7 +203,7 @@ func (h *handler) calculateStakingStats(ctx context.Context) error {
 	TotalDelegatorsStakedAmount := new(big.Int).Sub(totalStaked, stakedAmountBigInt)
 
 	stats := &types.StakingStats{
-		TotalValidators:            len(totalValidator) + len(totalProposer),
+		TotalValidators:            len(totalValidator) - len(totalCandidate),
 		TotalProposers:             len(totalProposer),
 		TotalCandidates:            len(totalCandidate),
 		TotalDelegators:            totalUniqueDelegator,

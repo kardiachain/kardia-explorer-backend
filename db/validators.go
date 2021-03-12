@@ -18,7 +18,7 @@ var (
 type IValidator interface {
 	UpsertValidators(ctx context.Context, validators []*types.Validator) error
 	Validators(ctx context.Context, filter ValidatorsFilter) ([]*types.Validator, error)
-	Validator(ctx context.Context, validatorSMCAddress string) (*types.Validator, error)
+	Validator(ctx context.Context, validatorAddress string) (*types.Validator, error)
 	ClearValidators(ctx context.Context) error
 
 	UpsertValidator(ctx context.Context, validator *types.Validator) error
@@ -88,9 +88,9 @@ func (m *mongoDB) UpsertValidator(ctx context.Context, validator *types.Validato
 	return nil
 }
 
-func (m *mongoDB) Validator(ctx context.Context, validatorSMCAddress string) (*types.Validator, error) {
+func (m *mongoDB) Validator(ctx context.Context, validatorAddress string) (*types.Validator, error) {
 	var validator *types.Validator
-	if err := m.wrapper.C(cValidators).FindOne(bson.M{"smcAddress": validatorSMCAddress}).Decode(&validator); err != nil {
+	if err := m.wrapper.C(cValidators).FindOne(bson.M{"address": validatorAddress}).Decode(&validator); err != nil {
 		return nil, err
 	}
 	return validator, nil

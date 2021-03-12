@@ -22,7 +22,7 @@ func bindStakingAPIs(gr *echo.Group, srv EchoServer) {
 		},
 		{
 			method:      echo.GET,
-			path:        "/validators/:smcAddress",
+			path:        "/validators/:address",
 			fn:          srv.Validator,
 			middlewares: nil,
 		},
