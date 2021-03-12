@@ -1278,6 +1278,13 @@ func (s *Server) Contracts(c echo.Context) error {
 			Type:    result[i].Type,
 			Logo:    result[i].Logo,
 		}
+		tokenInfo, err := s.getKRCTokenInfo(ctx, result[i].Address)
+		if err != nil {
+			continue
+		}
+		finalResult[i].TokenSymbol = tokenInfo.TokenSymbol
+		finalResult[i].TotalSupply = tokenInfo.TotalSupply
+		finalResult[i].Decimal = tokenInfo.Decimals
 	}
 	return api.OK.SetData(PagingResponse{
 		Page:  page,
