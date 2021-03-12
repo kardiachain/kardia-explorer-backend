@@ -376,6 +376,20 @@ func (s *Server) Blocks(c echo.Context) error {
 		}
 	}
 
+	smcAddress := map[string]*valInfoResponse{}
+	vals, err := s.getValidators(ctx)
+	if err != nil {
+		smcAddress = make(map[string]*valInfoResponse)
+		vals = []*types.Validator{}
+	}
+
+	for _, v := range vals {
+		smcAddress[v.Address.String()] = &valInfoResponse{
+			Name: v.Name,
+			Role: v.Role,
+		}
+	}
+	s.logger.Debug("List validators", zap.Any("smc", smcAddress))
 	var result Blocks
 	for _, block := range blocks {
 		b := SimpleBlock{
@@ -388,9 +402,9 @@ func (s *Server) Blocks(c echo.Context) error {
 			GasUsed:         block.GasUsed,
 			Rewards:         block.Rewards,
 		}
-		proposerInfo, _ := s.getAddressInfo(ctx, block.ProposerAddress)
-		if proposerInfo != nil {
-			b.ProposerName = proposerInfo.Name
+		p, ok := smcAddress[b.ProposerAddress]
+		if ok && p != nil {
+			b.ProposerName = smcAddress[b.ProposerAddress].Name
 		}
 		result = append(result, b)
 	}
@@ -448,11 +462,24 @@ func (s *Server) Block(c echo.Context) error {
 		}
 	}
 
-	var proposerName string
-	proposerInfo, _ := s.getAddressInfo(ctx, block.ProposerAddress)
-	if proposerInfo != nil {
-		proposerName = proposerInfo.Name
+	smcAddress := map[string]*valInfoResponse{}
+	validators, err := s.getValidators(ctx)
+	if err != nil {
+		smcAddress = make(map[string]*valInfoResponse)
+		validators = []*types.Validator{}
 	}
+	for _, v := range validators {
+		smcAddress[v.Address.String()] = &valInfoResponse{
+			Name: v.Name,
+			Role: v.Role,
+		}
+	}
+	var proposerName string
+	p, ok := smcAddress[block.ProposerAddress]
+	if ok && p != nil {
+		proposerName = p.Name
+	}
+
 	result := &Block{
 		Block:        *block,
 		ProposerName: proposerName,
@@ -583,6 +610,23 @@ func (s *Server) BlocksByProposer(c echo.Context) error {
 		return api.Invalid.Build(c)
 	}
 
+	smcAddress := map[string]*valInfoResponse{}
+	validators, err := s.getValidators(ctx)
+	if err != nil {
+		smcAddress = make(map[string]*valInfoResponse)
+		validators = []*types.Validator{}
+	}
+	//vals, err := s.cacheClient.Validators(ctx)
+	//if err != nil {
+	//
+	//}
+
+	for _, v := range validators {
+		smcAddress[v.Address.String()] = &valInfoResponse{
+			Name: v.Name,
+			Role: v.Role,
+		}
+	}
 	var result Blocks
 	for _, block := range blocks {
 		b := SimpleBlock{
@@ -596,9 +640,9 @@ func (s *Server) BlocksByProposer(c echo.Context) error {
 			Rewards:         block.Rewards,
 		}
 
-		proposerInfo, _ := s.getAddressInfo(ctx, block.ProposerAddress)
-		if proposerInfo != nil {
-			b.ProposerName = proposerInfo.Name
+		p, ok := smcAddress[b.ProposerAddress]
+		if ok && p != nil {
+			b.ProposerName = smcAddress[b.ProposerAddress].Name
 		}
 
 		result = append(result, b)
@@ -1584,9 +1628,10 @@ func (s *Server) getAddressInfo(ctx context.Context, address string) (*types.Add
 	if err == nil {
 		return addrInfo, nil
 	}
-	s.logger.Info("Cannot get address info in cache, getting from db instead", zap.String("address", address))
+	s.logger.Info("Cannot get address info in cache, getting from db instead", zap.String("address", address), zap.Error(err))
 	addrInfo, err = s.dbClient.AddressByHash(ctx, address)
 	if err != nil {
+		s.logger.Warn("Cannot store address info to db", zap.String("address", address), zap.Error(err))
 		return nil, err
 	}
 	err = s.cacheClient.UpdateAddressInfo(ctx, addrInfo)
