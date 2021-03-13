@@ -717,6 +717,12 @@ func (s *infoServer) storeEvents(ctx context.Context, logs []types.Log, blockTim
 		if logs[i].Address == "" || logs[i].Address == "0x" {
 			continue
 		}
+		if logs[i].TempTxHash != "" && logs[i].TxHash == "" {
+			logs[i].TxHash = logs[i].TempTxHash
+		}
+		if logs[i].TempTxIndex != 0 && logs[i].TxIndex == 0 {
+			logs[i].TxIndex = logs[i].TempTxIndex
+		}
 		smcABI, err := s.getSMCAbi(ctx, &logs[i])
 		if err != nil {
 			continue
