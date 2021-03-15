@@ -22,8 +22,10 @@ import (
 	"context"
 	"math/big"
 
+	kai "github.com/kardiachain/go-kardia"
 	"github.com/kardiachain/go-kardia/lib/abi"
 	"github.com/kardiachain/go-kardia/lib/common"
+	"github.com/kardiachain/go-kardia/rpc"
 	"go.uber.org/zap"
 
 	"github.com/kardiachain/kardia-explorer-backend/types"
@@ -65,6 +67,11 @@ type ClientInterface interface {
 	// KRC balance methods
 	GetKRCTotalSupply(ctx context.Context, a *abi.ABI, krcTokenAddr common.Address) (*big.Int, error)
 	GetKRCBalanceByAddress(ctx context.Context, a *abi.ABI, krcTokenAddr common.Address, holder common.Address) (*big.Int, error)
+
+	// Filter logs API
+	NewLogsFilter(ctx context.Context, query kai.FilterQuery) (*rpc.ID, error)
+	UninstallFilter(ctx context.Context, filterID *rpc.ID) error
+	GetFilterChanges(ctx context.Context, filterID *rpc.ID) ([]*types.Log, error)
 }
 
 type Config struct {

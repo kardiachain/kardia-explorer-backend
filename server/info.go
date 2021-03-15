@@ -14,8 +14,6 @@ import (
 	"net/http"
 	"time"
 
-	"go.mongodb.org/mongo-driver/mongo"
-
 	"go.uber.org/zap"
 
 	"github.com/kardiachain/go-kardia/lib/abi"
@@ -759,14 +757,15 @@ func (s *infoServer) storeEvents(ctx context.Context, logs []types.Log, blockTim
 		s.logger.Warn("Cannot update internal txs to db", zap.Error(err), zap.Any("holdersList", holdersList))
 	}
 	// count token holders as a account on KardiaChain network
-	var numOfNewAddress uint64
+	numOfNewAddress := uint64(0)
 	for _, holder := range holdersList {
 		_, err = s.dbClient.AddressByHash(ctx, holder.HolderAddress)
-		if err == mongo.ErrNoDocuments {
+		if err != nil {
 			code, _ := s.kaiClient.GetCode(ctx, holder.HolderAddress)
 			_ = s.dbClient.InsertAddress(ctx, &types.Address{
-				Address:    holder.HolderAddress,
-				IsContract: len(code) > 0,
+				Address:       holder.HolderAddress,
+				BalanceString: new(big.Int).SetInt64(0).String(),
+				IsContract:    len(code) > 0,
 			})
 			numOfNewAddress++
 		}
@@ -775,12 +774,11 @@ func (s *infoServer) storeEvents(ctx context.Context, logs []types.Log, blockTim
 		// update new number of holders
 		totalAddr, totalContractAddr, err := s.dbClient.GetTotalAddresses(ctx)
 		if err != nil {
-			return err
+			s.logger.Warn("Cannot get total accounts from db", zap.Error(err))
 		}
-		totalAddr += numOfNewAddress
 		err = s.cacheClient.UpdateTotalHolders(ctx, totalAddr, totalContractAddr)
 		if err != nil {
-			return err
+			s.logger.Warn("Cannot set total accounts to cache", zap.Error(err))
 		}
 	}
 	return s.dbClient.InsertEvents(logs)
@@ -931,6 +929,7 @@ func (s *infoServer) getInternalTxs(ctx context.Context, log *types.Log) *types.
 	}
 }
 
+// TODO(trinhdn): using filter logs API instead of db txs
 func (s *infoServer) insertHistoryTransferKRC(ctx context.Context, smcAddr string) error {
 	txs, _, err := s.dbClient.TxsByAddress(ctx, smcAddr, nil)
 	if err != nil {

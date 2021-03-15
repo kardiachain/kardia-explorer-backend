@@ -15,7 +15,6 @@ import (
 	"time"
 
 	"github.com/labstack/echo"
-	"go.mongodb.org/mongo-driver/mongo"
 	"go.uber.org/zap"
 
 	"github.com/kardiachain/go-kardia/lib/abi"
@@ -704,7 +703,7 @@ func (s *Server) newAddressInfo(ctx context.Context, address string) (*types.Add
 	tokens, _, _ := s.dbClient.GetListHolders(ctx, &types.HolderFilter{
 		HolderAddress: address,
 	})
-	if balance != "0" || addrInfo.IsContract || len(tokens) > 0 {
+	if balance != "0" || addrInfo.IsContract || len(tokens) > 0 || address == "0x" {
 		_ = s.dbClient.InsertAddress(ctx, addrInfo) // insert this address to database
 	}
 	return &types.Address{
@@ -1545,7 +1544,7 @@ func (s *Server) getAddressInfo(ctx context.Context, address string) (*types.Add
 	addrInfo, err = s.dbClient.AddressByHash(ctx, address)
 	if err != nil {
 		s.logger.Warn("Cannot get address info from db", zap.String("address", address), zap.Error(err))
-		if err == mongo.ErrNoDocuments {
+		if err != nil {
 			// insert new address to db
 			newAddr, err := s.newAddressInfo(ctx, address)
 			if err != nil {
