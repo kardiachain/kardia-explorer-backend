@@ -752,7 +752,31 @@ func (s *infoServer) storeEvents(ctx context.Context, logs []types.Log, blockTim
 	if err != nil {
 		s.logger.Warn("Cannot update internal txs to db", zap.Error(err), zap.Any("holdersList", holdersList))
 	}
-
+	// count token holders as a account on KardiaChain network
+	var numOfNewAddress uint64
+	for _, holder := range holdersList {
+		_, err = s.dbClient.AddressByHash(ctx, holder.HolderAddress)
+		if err == mongo.ErrNoDocuments {
+			code, _ := s.kaiClient.GetCode(ctx, holder.HolderAddress)
+			_ = s.dbClient.InsertAddress(ctx, &types.Address{
+				Address:    holder.HolderAddress,
+				IsContract: len(code) > 0,
+			})
+			numOfNewAddress++
+		}
+	}
+	if numOfNewAddress > 0 {
+		// update new number of holders
+		totalAddr, totalContractAddr, err := s.dbClient.GetTotalAddresses(ctx)
+		if err != nil {
+			return err
+		}
+		totalAddr += numOfNewAddress
+		err = s.cacheClient.UpdateTotalHolders(ctx, totalAddr, totalContractAddr)
+		if err != nil {
+			return err
+		}
+	}
 	return s.dbClient.InsertEvents(logs)
 }
 
@@ -864,6 +888,9 @@ func (s *infoServer) getKRCHolder(ctx context.Context, log *types.Log) ([]*types
 	if err != nil {
 		return nil, err
 	}
+	tenPoweredByDecimal := new(big.Int).Exp(big.NewInt(10), big.NewInt(krcTokenInfo.Decimals), nil)
+	floatFromBalance, _ := new(big.Float).SetPrec(100).Quo(new(big.Float).SetInt(fromBalance), new(big.Float).SetInt(tenPoweredByDecimal)).Float64()
+	floatToBalance, _ := new(big.Float).SetPrec(100).Quo(new(big.Float).SetInt(toBalance), new(big.Float).SetInt(tenPoweredByDecimal)).Float64()
 	holdersList[0] = &types.TokenHolder{
 		TokenName:       krcTokenInfo.TokenName,
 		TokenSymbol:     krcTokenInfo.TokenSymbol,
@@ -871,7 +898,7 @@ func (s *infoServer) getKRCHolder(ctx context.Context, log *types.Log) ([]*types
 		ContractAddress: log.Address,
 		HolderAddress:   log.Arguments["from"].(string),
 		BalanceString:   fromBalance.String(),
-		BalanceFloat:    new(big.Int).Div(fromBalance, new(big.Int).Exp(big.NewInt(10), big.NewInt(18), nil)).Int64(),
+		BalanceFloat:    floatFromBalance,
 		UpdatedAt:       time.Now().Unix(),
 	}
 	holdersList[1] = &types.TokenHolder{
@@ -881,7 +908,7 @@ func (s *infoServer) getKRCHolder(ctx context.Context, log *types.Log) ([]*types
 		ContractAddress: log.Address,
 		HolderAddress:   log.Arguments["to"].(string),
 		BalanceString:   toBalance.String(),
-		BalanceFloat:    new(big.Int).Div(toBalance, new(big.Int).Exp(big.NewInt(10), big.NewInt(18), nil)).Int64(),
+		BalanceFloat:    floatToBalance,
 		UpdatedAt:       time.Now().Unix(),
 	}
 	return holdersList, nil

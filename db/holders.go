@@ -3,11 +3,10 @@ package db
 import (
 	"context"
 
-	"go.uber.org/zap"
-
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
+	"go.uber.org/zap"
 
 	"github.com/kardiachain/kardia-explorer-backend/types"
 )

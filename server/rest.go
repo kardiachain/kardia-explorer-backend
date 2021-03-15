@@ -14,12 +14,12 @@ import (
 	"strings"
 	"time"
 
-	"github.com/kardiachain/go-kardia/lib/abi"
-
-	"github.com/kardiachain/go-kardia/lib/common"
-
 	"github.com/labstack/echo"
+	"go.mongodb.org/mongo-driver/mongo"
 	"go.uber.org/zap"
+
+	"github.com/kardiachain/go-kardia/lib/abi"
+	"github.com/kardiachain/go-kardia/lib/common"
 
 	"github.com/kardiachain/kardia-explorer-backend/api"
 	"github.com/kardiachain/kardia-explorer-backend/cfg"
@@ -666,13 +666,31 @@ func (s *Server) AddressInfo(c echo.Context) error {
 	}
 	s.logger.Warn("address not found in db, getting from RPC instead...", zap.Error(err))
 	// try to get balance and code at this address to determine whether we should write this address info to database or not
+	newAddr, err := s.newAddressInfo(ctx, address)
+	if err != nil {
+		return api.Invalid.Build(c)
+	}
+	result := &SimpleAddress{
+		Address:       newAddr.Address,
+		BalanceString: newAddr.BalanceString,
+		IsContract:    newAddr.IsContract,
+	}
+	if smcAddress[result.Address] != nil {
+		result.IsInValidatorsList = true
+		result.Role = smcAddress[result.Address].Role
+		result.Name = smcAddress[result.Address].Name
+	}
+	return api.OK.SetData(result).Build(c)
+}
+
+func (s *Server) newAddressInfo(ctx context.Context, address string) (*types.Address, error) {
 	balance, err := s.kaiClient.GetBalance(ctx, address)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	balanceInBigInt, _ := new(big.Int).SetString(balance, 10)
 	balanceFloat, _ := new(big.Float).SetPrec(100).Quo(new(big.Float).SetInt(balanceInBigInt), new(big.Float).SetInt(cfg.Hydro)).Float64() //converting to KAI from HYDRO
-	addrInfo = &types.Address{
+	addrInfo := &types.Address{
 		Address:       address,
 		BalanceFloat:  balanceFloat,
 		BalanceString: balance,
@@ -682,21 +700,18 @@ func (s *Server) AddressInfo(c echo.Context) error {
 	if err == nil && len(code) > 0 {
 		addrInfo.IsContract = true
 	}
-	// write this address to db if its balance is larger than 0 or it's a SMC
-	if balance != "0" || addrInfo.IsContract {
+	// write this address to db if its balance is larger than 0 or it's a SMC or it holds KRC token
+	tokens, _, _ := s.dbClient.GetListHolders(ctx, &types.HolderFilter{
+		HolderAddress: address,
+	})
+	if balance != "0" || addrInfo.IsContract || len(tokens) > 0 {
 		_ = s.dbClient.InsertAddress(ctx, addrInfo) // insert this address to database
 	}
-	result := &SimpleAddress{
+	return &types.Address{
 		Address:       addrInfo.Address,
 		BalanceString: addrInfo.BalanceString,
 		IsContract:    addrInfo.IsContract,
-	}
-	if smcAddress[result.Address] != nil {
-		result.IsInValidatorsList = true
-		result.Role = smcAddress[result.Address].Role
-		result.Name = smcAddress[result.Address].Name
-	}
-	return api.OK.SetData(result).Build(c)
+	}, nil
 }
 
 func (s *Server) AddressTxs(c echo.Context) error {
@@ -1006,7 +1021,6 @@ func getPagingOption(c echo.Context) (*types.Pagination, int, int) {
 }
 
 func (s *Server) getValidatorsAddressAndRole(ctx context.Context) map[string]*valInfoResponse {
-
 	validators, err := s.getValidators(ctx)
 	if err != nil {
 		return make(map[string]*valInfoResponse)
@@ -1521,7 +1535,14 @@ func (s *Server) getAddressInfo(ctx context.Context, address string) (*types.Add
 	s.logger.Info("Cannot get address info in cache, getting from db instead", zap.String("address", address), zap.Error(err))
 	addrInfo, err = s.dbClient.AddressByHash(ctx, address)
 	if err != nil {
-		s.logger.Warn("Cannot store address info to db", zap.String("address", address), zap.Error(err))
+		s.logger.Warn("Cannot get address info from db", zap.String("address", address), zap.Error(err))
+		if err == mongo.ErrNoDocuments {
+			// insert new address to db
+			newAddr, err := s.newAddressInfo(ctx, address)
+			if err != nil {
+				s.logger.Warn("Cannot store address info to db", zap.Any("address", newAddr), zap.Error(err))
+			}
+		}
 		return nil, err
 	}
 	err = s.cacheClient.UpdateAddressInfo(ctx, addrInfo)
