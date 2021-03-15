@@ -854,14 +854,21 @@ func (s *Server) TxByHash(c echo.Context) error {
 
 	internalTxs := make([]*InternalTransaction, len(tx.Logs))
 	for i := range tx.Logs {
-		krcTokenInfo, err = s.getKRCTokenInfo(ctx, tx.Logs[i].Address)
-		if err != nil {
-			continue
+		if smcABI != nil {
+			unpackedLog, err := s.kaiClient.UnpackLog(&tx.Logs[i], smcABI)
+			if err == nil && unpackedLog != nil {
+				tx.Logs[i] = *unpackedLog
+			}
 		}
 		internalTxs[i] = &InternalTransaction{
-			Log:          &tx.Logs[i],
-			KRCTokenInfo: krcTokenInfo,
+			Log: &tx.Logs[i],
 		}
+		krcTokenInfo, err = s.getKRCTokenInfo(ctx, tx.Logs[i].Address)
+		if err != nil {
+			s.logger.Info("Cannot get KRC Token Info", zap.String("smcAddress", tx.Logs[i].Address), zap.Error(err))
+			continue
+		}
+		internalTxs[i].KRCTokenInfo = krcTokenInfo
 	}
 
 	result := &Transaction{
@@ -1403,6 +1410,7 @@ func (s *Server) SearchAddressByName(c echo.Context) error {
 			}
 		}
 	}
+	s.logger.Info("Addresses search results", zap.Any("addresses", addresses), zap.Error(err))
 
 	contracts, err := s.dbClient.ContractByName(ctx, name)
 	if err == nil && len(contracts) > 0 {
@@ -1425,6 +1433,7 @@ func (s *Server) SearchAddressByName(c echo.Context) error {
 			}
 		}
 	}
+	s.logger.Info("Contracts search results", zap.Any("contracts", contracts), zap.Error(err))
 
 	if len(addrMap) == 0 {
 		return api.Invalid.Build(c)
