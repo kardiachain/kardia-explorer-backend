@@ -837,19 +837,6 @@ func (s *Server) TxByHash(c echo.Context) error {
 		tx.DecodedInputData = functionCall
 	}
 
-	// decode logs first
-	for i := range tx.Logs {
-		smcABI, err := s.getSMCAbi(ctx, &tx.Logs[i])
-		if err != nil {
-			continue
-		}
-		decodedLog, err := s.kaiClient.UnpackLog(&tx.Logs[i], smcABI)
-		if err != nil {
-			decodedLog = &tx.Logs[i]
-		}
-		decodedLog.Time = tx.Time
-		tx.Logs[i] = *decodedLog
-	}
 	internalTxs := make([]*InternalTransaction, len(tx.Logs))
 	for i := range tx.Logs {
 		krcTokenInfo, err = s.getKRCTokenInfo(ctx, tx.Logs[i].Address)
