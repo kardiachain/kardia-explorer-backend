@@ -176,50 +176,51 @@ func (s *infoServer) GetCurrentStats(ctx context.Context) uint64 {
 		zap.Uint64("TotalContracts", stats.TotalContracts))
 	_ = s.cacheClient.SetTotalTxs(ctx, stats.TotalTransactions)
 	_ = s.cacheClient.UpdateTotalHolders(ctx, stats.TotalAddresses, stats.TotalContracts)
-
-	cfg.GenesisAddresses = append(cfg.GenesisAddresses, &types.Address{
-		Address: cfg.TreasuryContractAddr,
-		Name:    cfg.TreasuryContractName,
-	})
-	cfg.GenesisAddresses = append(cfg.GenesisAddresses, &types.Address{
-		Address: cfg.StakingContractAddr,
-		Name:    cfg.StakingContractName,
-	})
-	cfg.GenesisAddresses = append(cfg.GenesisAddresses, &types.Address{
-		Address: cfg.KardiaDeployerAddr,
-		Name:    cfg.KardiaDeployerName,
-	})
-	cfg.GenesisAddresses = append(cfg.GenesisAddresses, &types.Address{
-		Address: cfg.ParamsContractAddr,
-		Name:    cfg.ParamsContractName,
-	})
-	vals, _ := s.kaiClient.Validators(ctx)
-	//todo: longnd - Temp remove
-	//_ = s.cacheClient.UpdateValidators(ctx, vals)
-	_ = s.dbClient.ClearValidators(ctx)
-	_ = s.dbClient.UpsertValidators(ctx, vals)
-	for _, val := range vals {
-		cfg.GenesisAddresses = append(cfg.GenesisAddresses, &types.Address{
-			Address: val.SmcAddress,
-			Name:    val.Name,
-		})
-	}
-	for i, addr := range cfg.GenesisAddresses {
-		balance, _ := s.kaiClient.GetBalance(ctx, addr.Address)
-		balanceInBigInt, _ := new(big.Int).SetString(balance, 10)
-		balanceFloat, _ := new(big.Float).SetPrec(100).Quo(new(big.Float).SetInt(balanceInBigInt), new(big.Float).SetInt(cfg.Hydro)).Float64() //converting to KAI from HYDRO
-
-		cfg.GenesisAddresses[i].BalanceFloat = balanceFloat
-		cfg.GenesisAddresses[i].BalanceString = balance
-		code, _ := s.kaiClient.GetCode(ctx, addr.Address)
-		if len(code) > 0 {
-			cfg.GenesisAddresses[i].IsContract = true
-		}
-
-		// write this address to db
-		_ = s.dbClient.InsertAddress(ctx, cfg.GenesisAddresses[i])
-	}
 	return stats.UpdatedAtBlock
+	// Look like those code make delay
+	//cfg.GenesisAddresses = append(cfg.GenesisAddresses, &types.Address{
+	//	Address: cfg.TreasuryContractAddr,
+	//	Name:    cfg.TreasuryContractName,
+	//})
+	//cfg.GenesisAddresses = append(cfg.GenesisAddresses, &types.Address{
+	//	Address: cfg.StakingContractAddr,
+	//	Name:    cfg.StakingContractName,
+	//})
+	//cfg.GenesisAddresses = append(cfg.GenesisAddresses, &types.Address{
+	//	Address: cfg.KardiaDeployerAddr,
+	//	Name:    cfg.KardiaDeployerName,
+	//})
+	//cfg.GenesisAddresses = append(cfg.GenesisAddresses, &types.Address{
+	//	Address: cfg.ParamsContractAddr,
+	//	Name:    cfg.ParamsContractName,
+	//})
+	//vals, _ := s.kaiClient.Validators(ctx)
+	////todo: longnd - Temp remove
+	////_ = s.cacheClient.UpdateValidators(ctx, vals)
+	////_ = s.dbClient.ClearValidators(ctx)
+	////_ = s.dbClient.UpsertValidators(ctx, vals)
+	//for _, val := range vals {
+	//	cfg.GenesisAddresses = append(cfg.GenesisAddresses, &types.Address{
+	//		Address: val.SmcAddress,
+	//		Name:    val.Name,
+	//	})
+	//}
+	//for i, addr := range cfg.GenesisAddresses {
+	//	balance, _ := s.kaiClient.GetBalance(ctx, addr.Address)
+	//	balanceInBigInt, _ := new(big.Int).SetString(balance, 10)
+	//	balanceFloat, _ := new(big.Float).SetPrec(100).Quo(new(big.Float).SetInt(balanceInBigInt), new(big.Float).SetInt(cfg.Hydro)).Float64() //converting to KAI from HYDRO
+	//
+	//	cfg.GenesisAddresses[i].BalanceFloat = balanceFloat
+	//	cfg.GenesisAddresses[i].BalanceString = balance
+	//	code, _ := s.kaiClient.GetCode(ctx, addr.Address)
+	//	if len(code) > 0 {
+	//		cfg.GenesisAddresses[i].IsContract = true
+	//	}
+	//
+	//	// write this address to db
+	//	_ = s.dbClient.InsertAddress(ctx, cfg.GenesisAddresses[i])
+	//}
+	//return stats.UpdatedAtBlock
 }
 
 func (s *infoServer) UpdateCurrentStats(ctx context.Context) error {
@@ -562,7 +563,7 @@ func (s *infoServer) VerifyBlock(ctx context.Context, blockHeight uint64, networ
 		// Minus network block reward and total txs before re-importing this block
 		totalTxs := s.cacheClient.TotalTxs(ctx)
 		totalTxs -= networkBlock.NumTxs
-		_ = s.cacheClient.SetTotalTxs(ctx, totalTxs)
+		//_ = s.cacheClient.SetTotalTxs(ctx, totalTxs)
 		// Force replace dbBlock with new information from network block
 		startTime := time.Now()
 		if err := s.UpsertBlock(ctx, networkBlock); err != nil {
@@ -715,6 +716,12 @@ func (s *infoServer) storeEvents(ctx context.Context, logs []types.Log, blockTim
 	for i := range logs {
 		if logs[i].Address == "" || logs[i].Address == "0x" {
 			continue
+		}
+		if logs[i].TempTxHash != "" && logs[i].TxHash == "" {
+			logs[i].TxHash = logs[i].TempTxHash
+		}
+		if logs[i].TempTxIndex != 0 && logs[i].TxIndex == 0 {
+			logs[i].TxIndex = logs[i].TempTxIndex
 		}
 		smcABI, err := s.getSMCAbi(ctx, &logs[i])
 		if err != nil {

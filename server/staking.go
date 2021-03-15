@@ -46,6 +46,7 @@ func (s *Server) Validators(c echo.Context) error {
 			resp = append(resp, v)
 		}
 	}
+
 	return api.OK.SetData(resp).Build(c)
 }
 
@@ -65,6 +66,7 @@ func (s *Server) Candidates(c echo.Context) error {
 	if err != nil {
 		return api.Invalid.Build(c)
 	}
+
 	return api.OK.SetData(candidates).Build(c)
 }
 
@@ -109,4 +111,56 @@ func (s *Server) Validator(c echo.Context) error {
 		Total: uint64(total),
 		Data:  validator,
 	}).Build(c)
+}
+
+func (s *Server) MobileValidators(c echo.Context) error {
+	ctx := context.Background()
+
+	validators, err := s.dbClient.Validators(ctx, db.ValidatorsFilter{})
+	if err != nil {
+		return api.Invalid.Build(c)
+	}
+
+	var resp []*types.Validator
+	sort.Slice(validators, func(i, j int) bool {
+		iAmount, _ := new(big.Int).SetString(validators[i].StakedAmount, 10)
+		jAmount, _ := new(big.Int).SetString(validators[j].StakedAmount, 10)
+		return iAmount.Cmp(jAmount) == 1
+	})
+	for _, v := range validators {
+		if v.Role == 2 || v.Role == 1 {
+			resp = append(resp, v)
+		}
+	}
+	stats, err := s.cacheClient.StakingStats(ctx)
+	if err != nil {
+		stats = &types.StakingStats{}
+	}
+	type mobileResponse struct {
+		*types.StakingStats
+		Validators []*types.Validator `json:"validators"`
+	}
+
+	mobileResp := mobileResponse{stats, resp}
+	return api.OK.SetData(mobileResp).Build(c)
+}
+
+func (s *Server) MobileCandidates(c echo.Context) error {
+	ctx := context.Background()
+	candidates, err := s.dbClient.Validators(ctx, db.ValidatorsFilter{Role: cfg.RoleCandidate})
+	if err != nil {
+		return api.Invalid.Build(c)
+	}
+
+	stats, err := s.cacheClient.StakingStats(ctx)
+	if err != nil {
+		stats = &types.StakingStats{}
+	}
+	type mobileResponse struct {
+		*types.StakingStats
+		Validators []*types.Validator `json:"validators"`
+	}
+
+	mobileResp := mobileResponse{stats, candidates}
+	return api.OK.SetData(mobileResp).Build(c)
 }
