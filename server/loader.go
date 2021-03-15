@@ -22,7 +22,11 @@ func (s *infoServer) LoadBootData(ctx context.Context) error {
 	lgr := s.logger
 	lgr.Debug("Start load boot data")
 	stats := s.dbClient.Stats(ctx)
-	_ = s.cacheClient.SetTotalTxs(ctx, stats.TotalTransactions)
+	totalTxs, err := s.dbClient.TxsCount(ctx)
+	if err != nil {
+		s.logger.Warn("Cannot get total txs when boot", zap.Uint64("totalTxs", totalTxs), zap.Error(err))
+	}
+	_ = s.cacheClient.SetTotalTxs(ctx, totalTxs)
 	_ = s.cacheClient.UpdateTotalHolders(ctx, stats.TotalAddresses, stats.TotalContracts)
 
 	validators, err := s.kaiClient.Validators(ctx)

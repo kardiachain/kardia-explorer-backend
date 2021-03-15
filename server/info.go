@@ -14,6 +14,8 @@ import (
 	"net/http"
 	"time"
 
+	"go.mongodb.org/mongo-driver/mongo"
+
 	"go.uber.org/zap"
 
 	"github.com/kardiachain/go-kardia/lib/abi"
@@ -174,7 +176,11 @@ func (s *infoServer) GetCurrentStats(ctx context.Context) uint64 {
 	s.logger.Info("Current stats of network", zap.Uint64("UpdatedAtBlock", stats.UpdatedAtBlock),
 		zap.Uint64("TotalTransactions", stats.TotalTransactions), zap.Uint64("TotalAddresses", stats.TotalAddresses),
 		zap.Uint64("TotalContracts", stats.TotalContracts))
-	_ = s.cacheClient.SetTotalTxs(ctx, stats.TotalTransactions)
+	totalTxs, err := s.dbClient.TxsCount(ctx)
+	if err != nil {
+		s.logger.Warn("Cannot get total txs when boot", zap.Uint64("totalTxs", totalTxs), zap.Error(err))
+	}
+	_ = s.cacheClient.SetTotalTxs(ctx, totalTxs)
 	_ = s.cacheClient.UpdateTotalHolders(ctx, stats.TotalAddresses, stats.TotalContracts)
 	return stats.UpdatedAtBlock
 	// Look like those code make delay
