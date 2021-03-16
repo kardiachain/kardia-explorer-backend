@@ -1353,7 +1353,7 @@ func (s *Server) UpdateContract(c echo.Context) error {
 
 		addrInfo.TokenName = krcTokenInfoFromRPC.TokenName
 		addrInfo.TokenSymbol = krcTokenInfoFromRPC.TokenSymbol
-		addrInfo.TotalSupply = krcTokenInfoFromRPC.TokenName
+		addrInfo.TotalSupply = krcTokenInfoFromRPC.TotalSupply
 		addrInfo.Decimals = krcTokenInfoFromRPC.Decimals
 		addrInfo.NumTokensTotal = krcTokenInfoFromRPC.NumTokensTotal
 
