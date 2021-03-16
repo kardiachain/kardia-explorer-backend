@@ -88,8 +88,6 @@ func (s *Server) Validator(c echo.Context) error {
 	}
 
 	// get delegation details
-	lgr.Debug("Page ", zap.Int("", pagination.Skip))
-	lgr.Debug("Limit ", zap.Int("", pagination.Limit))
 	filter := db.DelegatorFilter{
 		ValidatorSMCAddress: validator.SmcAddress,
 		Skip:                int64(pagination.Skip),
