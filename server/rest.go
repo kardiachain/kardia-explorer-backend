@@ -684,7 +684,7 @@ func (s *Server) AddressInfo(c echo.Context) error {
 
 func (s *Server) newAddressInfo(ctx context.Context, address string) (*types.Address, error) {
 	balance, err := s.kaiClient.GetBalance(ctx, address)
-	if err != nil {
+	if err != nil && address != "0x" {
 		return nil, err
 	}
 	balanceInBigInt, _ := new(big.Int).SetString(balance, 10)
