@@ -1016,7 +1016,7 @@ func getPagingOption(c echo.Context) (*types.Pagination, int, int) {
 	page = page - 1
 	limit, err := strconv.Atoi(limitParams)
 	if err != nil {
-		limit = 10
+		limit = 25
 	}
 	pagination := &types.Pagination{
 		Skip:  page * limit,
@@ -1299,18 +1299,17 @@ func (s *Server) InsertContract(c echo.Context) error {
 		addrInfo.TotalSupply = krcTokenInfoFromRPC.TokenName
 		addrInfo.Decimals = krcTokenInfoFromRPC.Decimals
 		addrInfo.NumTokensTotal = krcTokenInfoFromRPC.NumTokensTotal
-
-		// retrieve old token transfer before we add this token to database as KRC
-		currTokenInfo, _ := s.dbClient.AddressByHash(ctx, addrInfo.Address)
-		if (currTokenInfo != nil && currTokenInfo.KrcTypes == "" && currTokenInfo.TokenName == "" && currTokenInfo.TokenSymbol == "") || currTokenInfo == nil {
-			if err := s.insertHistoryTransferKRC(ctx, addrInfo.Address); err != nil {
-				lgr.Error("cannot retrieve history transfer of KRC token", zap.Error(err), zap.String("address", addrInfo.Address))
-			}
-		}
 	}
+	currTokenInfo, _ := s.dbClient.AddressByHash(ctx, addrInfo.Address)
 	if err := s.dbClient.InsertContract(ctx, &contract, &addrInfo); err != nil {
 		lgr.Error("cannot bind insert", zap.Error(err))
 		return api.InternalServer.Build(c)
+	}
+	// retrieve old token transfer before we add this token to database as KRC
+	if (currTokenInfo != nil && currTokenInfo.KrcTypes == "" && currTokenInfo.TokenName == "" && currTokenInfo.TokenSymbol == "") || currTokenInfo == nil {
+		if err := s.insertHistoryTransferKRC(ctx, addrInfo.Address); err != nil {
+			lgr.Error("cannot retrieve history transfer of KRC token", zap.Error(err), zap.String("address", addrInfo.Address))
+		}
 	}
 
 	return api.OK.Build(c)
@@ -1341,7 +1340,6 @@ func (s *Server) UpdateContract(c echo.Context) error {
 	}
 	ctx := context.Background()
 	krcTokenInfoFromRPC, err := s.getKRCTokenInfoFromRPC(ctx, addrInfo.Address, addrInfo.KrcTypes)
-	fmt.Printf("@@@@@@@@@@@@@@ getKRCTokenInfoFromRPC call result: %+v err: %v\n", krcTokenInfoFromRPC, err)
 	if err != nil && strings.HasPrefix(addrInfo.KrcTypes, "KRC") {
 		s.logger.Warn("Updating contract is not KRC type", zap.Any("smcInfo", addrInfo), zap.Error(err))
 		return api.Invalid.Build(c)
@@ -1356,18 +1354,17 @@ func (s *Server) UpdateContract(c echo.Context) error {
 		addrInfo.TotalSupply = krcTokenInfoFromRPC.TotalSupply
 		addrInfo.Decimals = krcTokenInfoFromRPC.Decimals
 		addrInfo.NumTokensTotal = krcTokenInfoFromRPC.NumTokensTotal
-
-		// retrieve old token transfer before we add this token to database as KRC
-		currTokenInfo, _ := s.dbClient.AddressByHash(ctx, addrInfo.Address)
-		if (currTokenInfo != nil && currTokenInfo.KrcTypes == "" && currTokenInfo.TokenName == "" && currTokenInfo.TokenSymbol == "") || currTokenInfo == nil {
-			if err := s.insertHistoryTransferKRC(ctx, addrInfo.Address); err != nil {
-				lgr.Error("cannot retrieve history transfer of KRC token", zap.Error(err), zap.String("address", addrInfo.Address))
-			}
-		}
 	}
+	currTokenInfo, _ := s.dbClient.AddressByHash(ctx, addrInfo.Address)
 	if err := s.dbClient.UpdateContract(ctx, &contract, &addrInfo); err != nil {
 		lgr.Error("cannot bind insert", zap.Error(err))
 		return api.InternalServer.Build(c)
+	}
+	// retrieve old token transfer before we add this token to database as KRC
+	if (currTokenInfo != nil && currTokenInfo.KrcTypes == "" && currTokenInfo.TokenName == "" && currTokenInfo.TokenSymbol == "") || currTokenInfo == nil {
+		if err := s.insertHistoryTransferKRC(ctx, addrInfo.Address); err != nil {
+			lgr.Error("cannot retrieve history transfer of KRC token", zap.Error(err), zap.String("address", addrInfo.Address))
+		}
 	}
 
 	return api.OK.SetData(addrInfo).Build(c)
