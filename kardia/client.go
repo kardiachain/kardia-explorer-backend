@@ -64,9 +64,10 @@ type ClientInterface interface {
 	DecodeInputWithABI(to string, input string, smcABI *abi.ABI) (*types.FunctionCall, error)
 	UnpackLog(log *types.Log, a *abi.ABI) (*types.Log, error)
 
-	// KRC balance methods
-	GetKRCTotalSupply(ctx context.Context, a *abi.ABI, krcTokenAddr common.Address) (*big.Int, error)
-	GetKRCBalanceByAddress(ctx context.Context, a *abi.ABI, krcTokenAddr common.Address, holder common.Address) (*big.Int, error)
+	// KRC-related methods
+	GetKRC20TokenInfo(ctx context.Context, a *abi.ABI, krcTokenAddr common.Address) (*types.KRCTokenInfo, error)
+	GetKRC20BalanceByAddress(ctx context.Context, a *abi.ABI, krcTokenAddr common.Address, holder common.Address) (*big.Int, error)
+	GetKRC721TokenInfo(ctx context.Context, a *abi.ABI, krcTokenAddr common.Address) (*types.KRCTokenInfo, error)
 
 	// Filter logs API
 	NewLogsFilter(ctx context.Context, query kai.FilterQuery) (*rpc.ID, error)

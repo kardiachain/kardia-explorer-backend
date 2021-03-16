@@ -28,6 +28,10 @@ func (s *infoServer) LoadBootData(ctx context.Context) error {
 	}
 	_ = s.cacheClient.SetTotalTxs(ctx, totalTxs)
 	_ = s.cacheClient.UpdateTotalHolders(ctx, stats.TotalAddresses, stats.TotalContracts)
+	_ = s.dbClient.InsertAddress(ctx, &types.Address{
+		Address:    "0x",
+		IsContract: false,
+	})
 
 	validators, err := s.kaiClient.Validators(ctx)
 	if err != nil || len(validators) == 0 {
@@ -133,7 +137,7 @@ func (s *infoServer) LoadBootContracts(ctx context.Context) error {
 			ABI:  treasuryABI,
 		},
 		{
-			Type: "KRC20",
+			Type: cfg.SMCTypeKRC20,
 			ABI:  krc20ABI,
 		},
 		{

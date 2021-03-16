@@ -59,6 +59,8 @@ const (
 	UpdateStatsInterval       = 10
 
 	SMCTypePrefix    = "SMCType:"
+	SMCTypeKRC20     = "KRC20"
+	SMCTypeKRC721    = "KRC721"
 	KRCTransferTopic = "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef"
 )
 

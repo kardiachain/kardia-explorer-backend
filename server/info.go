@@ -180,6 +180,11 @@ func (s *infoServer) GetCurrentStats(ctx context.Context) uint64 {
 	}
 	_ = s.cacheClient.SetTotalTxs(ctx, totalTxs)
 	_ = s.cacheClient.UpdateTotalHolders(ctx, stats.TotalAddresses, stats.TotalContracts)
+	_ = s.dbClient.InsertAddress(ctx, &types.Address{
+		Address:       "0x",
+		BalanceString: "0",
+		IsContract:    false,
+	})
 	return stats.UpdatedAtBlock
 	// Look like those code make delay
 	//cfg.GenesisAddresses = append(cfg.GenesisAddresses, &types.Address{
@@ -854,7 +859,7 @@ func (s *infoServer) getKRCTokenInfo(ctx context.Context, krcTokenAddr string) (
 	result := &types.KRCTokenInfo{
 		Address:     addrInfo.Address,
 		TokenName:   addrInfo.TokenName,
-		TokenType:   addrInfo.ErcTypes,
+		TokenType:   addrInfo.KrcTypes,
 		TokenSymbol: addrInfo.TokenSymbol,
 		TotalSupply: addrInfo.TotalSupply,
 		Decimals:    addrInfo.Decimals,
@@ -874,7 +879,7 @@ func (s *infoServer) getKRCHolder(ctx context.Context, log *types.Log) ([]*types
 	if err != nil {
 		return nil, err
 	}
-	if krcTokenInfo.TokenType != "KRC20" {
+	if krcTokenInfo.TokenType != cfg.SMCTypeKRC20 {
 		return nil, fmt.Errorf("not a KRC20 token")
 	}
 	if log.Arguments["from"] == "" || log.Arguments["to"] == "" {
@@ -884,11 +889,11 @@ func (s *infoServer) getKRCHolder(ctx context.Context, log *types.Log) ([]*types
 	if err != nil {
 		return nil, err
 	}
-	fromBalance, err := s.kaiClient.GetKRCBalanceByAddress(ctx, krcABI, common.HexToAddress(log.Address), common.HexToAddress(log.Arguments["from"].(string)))
+	fromBalance, err := s.kaiClient.GetKRC20BalanceByAddress(ctx, krcABI, common.HexToAddress(log.Address), common.HexToAddress(log.Arguments["from"].(string)))
 	if err != nil {
 		return nil, err
 	}
-	toBalance, err := s.kaiClient.GetKRCBalanceByAddress(ctx, krcABI, common.HexToAddress(log.Address), common.HexToAddress(log.Arguments["to"].(string)))
+	toBalance, err := s.kaiClient.GetKRC20BalanceByAddress(ctx, krcABI, common.HexToAddress(log.Address), common.HexToAddress(log.Arguments["to"].(string)))
 	if err != nil {
 		return nil, err
 	}
@@ -929,24 +934,45 @@ func (s *infoServer) getInternalTxs(ctx context.Context, log *types.Log) *types.
 	}
 }
 
-// TODO(trinhdn): using filter logs API instead of db txs
 func (s *infoServer) insertHistoryTransferKRC(ctx context.Context, smcAddr string) error {
-	txs, _, err := s.dbClient.TxsByAddress(ctx, smcAddr, nil)
+	filter := &types.EventsFilter{
+		Pagination:      nil,
+		ContractAddress: smcAddr,
+	}
+	events, _, err := s.dbClient.GetListEvents(ctx, filter)
 	if err != nil {
 		return err
 	}
-	for _, tx := range txs {
-		if len(tx.Logs) > 0 {
-			err = s.storeEvents(ctx, tx.Logs, txs[0].Time)
-			if err != nil {
-				s.logger.Warn("Cannot store events to db", zap.Error(err))
-			}
+	fmt.Printf("@@@@@@@@@@@@@@@@@@@@ Events: %+v\n", events)
+	for _, e := range events {
+		if e.MethodName != "" {
+			continue
+		}
+		block, _ := s.dbClient.BlockByHeight(ctx, e.BlockHeight)
+		err = s.storeEvents(ctx, []types.Log{
+			{
+				Address:     smcAddr,
+				Topics:      e.Topics,
+				Data:        e.Data,
+				BlockHeight: e.BlockHeight,
+				Time:        block.Time,
+				TxHash:      e.TxHash,
+				TxIndex:     e.TxIndex,
+				BlockHash:   block.Hash,
+				Index:       e.Index,
+				Removed:     e.Removed,
+			},
+		}, block.Time)
+		if err != nil {
+			s.logger.Warn("Cannot store events to db", zap.Error(err))
 		}
 	}
+
 	err = s.dbClient.DeleteEmptyEvents(ctx, smcAddr)
 	if err != nil {
 		s.logger.Warn("Cannot delete empty events", zap.Error(err), zap.String("smcAddr", smcAddr))
 		return err
 	}
+	fmt.Println("@@@@@@@@@@@@@@@@@@ Deleted redundant events")
 	return nil
 }
