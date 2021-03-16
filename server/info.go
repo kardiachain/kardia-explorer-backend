@@ -178,13 +178,19 @@ func (s *infoServer) GetCurrentStats(ctx context.Context) uint64 {
 	if err != nil {
 		s.logger.Warn("Cannot get total txs when boot", zap.Uint64("totalTxs", totalTxs), zap.Error(err))
 	}
-	_ = s.cacheClient.SetTotalTxs(ctx, totalTxs)
-	_ = s.cacheClient.UpdateTotalHolders(ctx, stats.TotalAddresses, stats.TotalContracts)
-	_ = s.dbClient.InsertAddress(ctx, &types.Address{
+	if err = s.cacheClient.SetTotalTxs(ctx, totalTxs); err != nil {
+		s.logger.Warn("Cannot set total txs to cache when boot", zap.Uint64("totalTxs", totalTxs), zap.Error(err))
+	}
+	if err = s.cacheClient.UpdateTotalHolders(ctx, stats.TotalAddresses, stats.TotalContracts); err != nil {
+		s.logger.Warn("Cannot set total holders to cache when boot", zap.Uint64("totalAddresses", stats.TotalAddresses), zap.Uint64("totalContracts", stats.TotalContracts), zap.Error(err))
+	}
+	if err = s.dbClient.InsertAddress(ctx, &types.Address{
 		Address:       "0x",
 		BalanceString: "0",
 		IsContract:    false,
-	})
+	}); err != nil {
+		s.logger.Warn("Cannot insert 0x address to db when boot", zap.Error(err))
+	}
 	return stats.UpdatedAtBlock
 	// Look like those code make delay
 	//cfg.GenesisAddresses = append(cfg.GenesisAddresses, &types.Address{
@@ -766,12 +772,18 @@ func (s *infoServer) storeEvents(ctx context.Context, logs []types.Log, blockTim
 	for _, holder := range holdersList {
 		_, err = s.dbClient.AddressByHash(ctx, holder.HolderAddress)
 		if err != nil {
-			code, _ := s.kaiClient.GetCode(ctx, holder.HolderAddress)
-			_ = s.dbClient.InsertAddress(ctx, &types.Address{
+			code, err := s.kaiClient.GetCode(ctx, holder.HolderAddress)
+			if err != nil {
+				s.logger.Warn("Cannot getCode from RPC", zap.String("address", holder.HolderAddress), zap.Error(err))
+				code = common.Bytes{}
+			}
+			if err = s.dbClient.InsertAddress(ctx, &types.Address{
 				Address:       holder.HolderAddress,
 				BalanceString: new(big.Int).SetInt64(0).String(),
 				IsContract:    len(code) > 0,
-			})
+			}); err != nil {
+				s.logger.Warn("Cannot insert token holder to db", zap.String("address", holder.HolderAddress), zap.Error(err))
+			}
 			numOfNewAddress++
 		}
 	}
@@ -947,7 +959,13 @@ func (s *infoServer) insertHistoryTransferKRC(ctx context.Context, smcAddr strin
 		if e.MethodName != "" {
 			continue
 		}
-		block, _ := s.dbClient.BlockByHeight(ctx, e.BlockHeight)
+		block, err := s.dbClient.BlockByHeight(ctx, e.BlockHeight)
+		if err != nil {
+			s.logger.Warn("Cannot get block from db", zap.Uint64("address", e.BlockHeight), zap.Error(err))
+			block = &types.Block{
+				Time: time.Now(),
+			}
+		}
 		err = s.storeEvents(ctx, []types.Log{
 			{
 				Address:     smcAddr,
