@@ -78,7 +78,7 @@ func (s *Server) Validator(c echo.Context) error {
 	)
 
 	validatorSMCAddress := c.Param("address")
-	_, page, limit := getPagingOption(c)
+	pagination, page, limit := getPagingOption(c)
 
 	// get validators list from cache
 	validator, err := s.dbClient.Validator(ctx, validatorSMCAddress)
@@ -88,10 +88,12 @@ func (s *Server) Validator(c echo.Context) error {
 	}
 
 	// get delegation details
+	lgr.Debug("Page ", zap.Int("", pagination.Skip))
+	lgr.Debug("Limit ", zap.Int("", pagination.Limit))
 	filter := db.DelegatorFilter{
 		ValidatorSMCAddress: validator.SmcAddress,
-		Skip:                int64(page),
-		Limit:               int64(limit),
+		Skip:                int64(pagination.Skip),
+		Limit:               int64(pagination.Limit),
 	}
 	delegators, err := s.dbClient.Delegators(ctx, filter)
 	if err != nil {
