@@ -72,7 +72,6 @@ func (m *mongoDB) GetListEvents(ctx context.Context, filter *types.EventsFilter)
 		opts = append(opts, options.Find().SetSkip(int64(filter.Pagination.Skip)))
 		opts = append(opts, options.Find().SetLimit(int64(filter.Pagination.Limit)))
 	}
-	fmt.Printf("@@@@@@@@@@@@@@@@@ crit %+v\n", crit)
 	cursor, err := m.wrapper.C(cEvents).
 		Find(crit, opts...)
 	defer func() {

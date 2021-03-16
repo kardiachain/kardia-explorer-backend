@@ -943,7 +943,6 @@ func (s *infoServer) insertHistoryTransferKRC(ctx context.Context, smcAddr strin
 	if err != nil {
 		return err
 	}
-	fmt.Printf("@@@@@@@@@@@@@@@@@@@@ Events: %+v\n", events)
 	for _, e := range events {
 		if e.MethodName != "" {
 			continue
@@ -973,6 +972,5 @@ func (s *infoServer) insertHistoryTransferKRC(ctx context.Context, smcAddr strin
 		s.logger.Warn("Cannot delete empty events", zap.Error(err), zap.String("smcAddr", smcAddr))
 		return err
 	}
-	fmt.Println("@@@@@@@@@@@@@@@@@@ Deleted redundant events")
 	return nil
 }

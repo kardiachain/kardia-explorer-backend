@@ -666,7 +666,6 @@ func (s *Server) AddressInfo(c echo.Context) error {
 	s.logger.Warn("address not found in db, getting from RPC instead...", zap.Error(err))
 	// try to get balance and code at this address to determine whether we should write this address info to database or not
 	newAddr, err := s.newAddressInfo(ctx, address)
-	fmt.Println("@@@@@@@@@@@@@@@@@@@@@@@@ ", newAddr, err)
 	if err != nil {
 		return api.Invalid.Build(c)
 	}
@@ -1342,8 +1341,9 @@ func (s *Server) UpdateContract(c echo.Context) error {
 	}
 	ctx := context.Background()
 	krcTokenInfoFromRPC, err := s.getKRCTokenInfoFromRPC(ctx, addrInfo.Address, addrInfo.KrcTypes)
+	fmt.Printf("@@@@@@@@@@@@@@ getKRCTokenInfoFromRPC call result: %+v err: %v\n", krcTokenInfoFromRPC, err)
 	if err != nil && strings.HasPrefix(addrInfo.KrcTypes, "KRC") {
-		s.logger.Warn("Updating contract is not KRC type", zap.Any("smcInfo", addrInfo))
+		s.logger.Warn("Updating contract is not KRC type", zap.Any("smcInfo", addrInfo), zap.Error(err))
 		return api.Invalid.Build(c)
 	}
 	if krcTokenInfoFromRPC != nil {
