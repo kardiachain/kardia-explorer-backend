@@ -20,7 +20,7 @@ var (
 type IEvents interface {
 	createEventsCollectionIndexes() []mongo.IndexModel
 	InsertEvents(events []types.Log) error
-	GetListEvents(ctx context.Context, pagination *types.Pagination, contractAddress string, methodName string, txHash string) ([]*types.Log, uint64, error)
+	GetListEvents(ctx context.Context, filter *types.EventsFilter) ([]*types.Log, uint64, error)
 	DeleteEmptyEvents(ctx context.Context, contractAddress string) error
 }
 
@@ -48,7 +48,7 @@ func (m *mongoDB) InsertEvents(events []types.Log) error {
 	return nil
 }
 
-func (m *mongoDB) GetListEvents(ctx context.Context, pagination *types.Pagination, contractAddress string, methodName string, txHash string) ([]*types.Log, uint64, error) {
+func (m *mongoDB) GetListEvents(ctx context.Context, filter *types.EventsFilter) ([]*types.Log, uint64, error) {
 	var (
 		opts = []*options.FindOptions{
 			options.Find().SetHint(bson.M{"blockHeight": -1}),
@@ -58,23 +58,22 @@ func (m *mongoDB) GetListEvents(ctx context.Context, pagination *types.Paginatio
 			options.Find().SetSort(bson.M{"blockHeight": -1}),
 		}
 		events []*types.Log
+		crit   bson.M
 	)
-	if pagination != nil {
-		opts = append(opts, options.Find().SetSkip(int64(pagination.Skip)))
-		opts = append(opts, options.Find().SetLimit(int64(pagination.Limit)))
+	critBytes, err := bson.Marshal(filter)
+	if err != nil {
+		m.logger.Warn("Cannot marshal events filter criteria", zap.Error(err))
 	}
-	var filter []bson.M
-	if contractAddress != "" {
-		filter = append(filter, bson.M{"address": contractAddress})
+	err = bson.Unmarshal(critBytes, &crit)
+	if err != nil {
+		m.logger.Warn("Cannot unmarshal events filter criteria", zap.Error(err))
 	}
-	if methodName != "" {
-		filter = append(filter, bson.M{"methodName": methodName})
-	}
-	if txHash != "" {
-		filter = append(filter, bson.M{"transactionHash": txHash})
+	if filter.Pagination != nil {
+		opts = append(opts, options.Find().SetSkip(int64(filter.Pagination.Skip)))
+		opts = append(opts, options.Find().SetLimit(int64(filter.Pagination.Limit)))
 	}
 	cursor, err := m.wrapper.C(cEvents).
-		Find(bson.M{"$and": filter}, opts...)
+		Find(crit, opts...)
 	defer func() {
 		err = cursor.Close(ctx)
 		if err != nil {
@@ -91,7 +90,7 @@ func (m *mongoDB) GetListEvents(ctx context.Context, pagination *types.Paginatio
 		}
 		events = append(events, event)
 	}
-	total, err := m.wrapper.C(cEvents).Count(bson.M{"$and": filter})
+	total, err := m.wrapper.C(cEvents).Count(crit)
 	if err != nil {
 		return nil, 0, err
 	}

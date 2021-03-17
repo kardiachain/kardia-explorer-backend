@@ -631,7 +631,9 @@ func (m *mongoDB) AddressByHash(ctx context.Context, address string) (*types.Add
 }
 
 func (m *mongoDB) InsertAddress(ctx context.Context, address *types.Address) error {
-	address.Address = common.HexToAddress(address.Address).String()
+	if address.Address != "0x" {
+		address.Address = common.HexToAddress(address.Address).String()
+	}
 	address.BalanceFloat = utils.BalanceToFloat(address.BalanceString)
 	_, err := m.wrapper.C(cAddresses).Insert(address)
 	if err != nil {

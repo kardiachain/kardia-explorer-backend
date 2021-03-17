@@ -22,8 +22,23 @@ func (s *infoServer) LoadBootData(ctx context.Context) error {
 	lgr := s.logger
 	lgr.Debug("Start load boot data")
 	stats := s.dbClient.Stats(ctx)
-	_ = s.cacheClient.SetTotalTxs(ctx, stats.TotalTransactions)
-	_ = s.cacheClient.UpdateTotalHolders(ctx, stats.TotalAddresses, stats.TotalContracts)
+	totalTxs, err := s.dbClient.TxsCount(ctx)
+	if err != nil {
+		s.logger.Warn("Cannot get total txs when boot", zap.Uint64("totalTxs", totalTxs), zap.Error(err))
+	}
+	if err = s.cacheClient.SetTotalTxs(ctx, totalTxs); err != nil {
+		s.logger.Warn("Cannot set total txs to cache when boot", zap.Uint64("totalTxs", totalTxs), zap.Error(err))
+	}
+	if err = s.cacheClient.UpdateTotalHolders(ctx, stats.TotalAddresses, stats.TotalContracts); err != nil {
+		s.logger.Warn("Cannot set total holders to cache when boot", zap.Uint64("totalAddresses", stats.TotalAddresses), zap.Uint64("totalContracts", stats.TotalContracts), zap.Error(err))
+	}
+	if err = s.dbClient.InsertAddress(ctx, &types.Address{
+		Address:       "0x",
+		BalanceString: "0",
+		IsContract:    false,
+	}); err != nil {
+		s.logger.Warn("Cannot insert 0x address to db when boot", zap.Error(err))
+	}
 
 	validators, err := s.kaiClient.Validators(ctx)
 	if err != nil || len(validators) == 0 {
@@ -129,11 +144,11 @@ func (s *infoServer) LoadBootContracts(ctx context.Context) error {
 			ABI:  treasuryABI,
 		},
 		{
-			Type: "KRC20",
+			Type: cfg.SMCTypeKRC20,
 			ABI:  krc20ABI,
 		},
 		{
-			Type: "KRC721",
+			Type: cfg.SMCTypeKRC721,
 			ABI:  krc721ABI,
 		},
 	}

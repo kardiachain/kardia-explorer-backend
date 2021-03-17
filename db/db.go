@@ -67,6 +67,7 @@ type Client interface {
 	TxsByBlockHeight(ctx context.Context, blockNumber uint64, pagination *types.Pagination) ([]*types.Transaction, uint64, error)
 	TxsByAddress(ctx context.Context, address string, pagination *types.Pagination) ([]*types.Transaction, uint64, error)
 	LatestTxs(ctx context.Context, pagination *types.Pagination) ([]*types.Transaction, error)
+	TxsCount(ctx context.Context) (uint64, error)
 
 	// Tx detail
 	TxByHash(ctx context.Context, txHash string) (*types.Transaction, error)

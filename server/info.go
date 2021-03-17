@@ -12,6 +12,7 @@ import (
 	"math/big"
 	"net"
 	"net/http"
+	"strings"
 	"time"
 
 	"go.uber.org/zap"
@@ -174,8 +175,23 @@ func (s *infoServer) GetCurrentStats(ctx context.Context) uint64 {
 	s.logger.Info("Current stats of network", zap.Uint64("UpdatedAtBlock", stats.UpdatedAtBlock),
 		zap.Uint64("TotalTransactions", stats.TotalTransactions), zap.Uint64("TotalAddresses", stats.TotalAddresses),
 		zap.Uint64("TotalContracts", stats.TotalContracts))
-	_ = s.cacheClient.SetTotalTxs(ctx, stats.TotalTransactions)
-	_ = s.cacheClient.UpdateTotalHolders(ctx, stats.TotalAddresses, stats.TotalContracts)
+	totalTxs, err := s.dbClient.TxsCount(ctx)
+	if err != nil {
+		s.logger.Warn("Cannot get total txs when boot", zap.Uint64("totalTxs", totalTxs), zap.Error(err))
+	}
+	if err = s.cacheClient.SetTotalTxs(ctx, totalTxs); err != nil {
+		s.logger.Warn("Cannot set total txs to cache when boot", zap.Uint64("totalTxs", totalTxs), zap.Error(err))
+	}
+	if err = s.cacheClient.UpdateTotalHolders(ctx, stats.TotalAddresses, stats.TotalContracts); err != nil {
+		s.logger.Warn("Cannot set total holders to cache when boot", zap.Uint64("totalAddresses", stats.TotalAddresses), zap.Uint64("totalContracts", stats.TotalContracts), zap.Error(err))
+	}
+	if err = s.dbClient.InsertAddress(ctx, &types.Address{
+		Address:       "0x",
+		BalanceString: "0",
+		IsContract:    false,
+	}); err != nil {
+		s.logger.Warn("Cannot insert 0x address to db when boot", zap.Error(err))
+	}
 	return stats.UpdatedAtBlock
 	// Look like those code make delay
 	//cfg.GenesisAddresses = append(cfg.GenesisAddresses, &types.Address{
@@ -717,15 +733,35 @@ func (s *infoServer) storeEvents(ctx context.Context, logs []types.Log, blockTim
 		if logs[i].Address == "" || logs[i].Address == "0x" {
 			continue
 		}
-		if logs[i].TempTxHash != "" && logs[i].TxHash == "" {
-			logs[i].TxHash = logs[i].TempTxHash
-		}
-		if logs[i].TempTxIndex != 0 && logs[i].TxIndex == 0 {
-			logs[i].TxIndex = logs[i].TempTxIndex
-		}
 		smcABI, err := s.getSMCAbi(ctx, &logs[i])
 		if err != nil {
-			continue
+			// automatically detect if this contract is KRC or not
+			var tokenInfo *types.KRCTokenInfo
+			tokenInfo, err = s.getKRCTokenInfoFromRPC(ctx, logs[i].Address, cfg.SMCTypeKRC20)
+			if err != nil && tokenInfo == nil {
+				s.logger.Warn("New contract is not a KRC20", zap.Error(err), zap.Any("tokenInfo", tokenInfo))
+				tokenInfo, err = s.getKRCTokenInfoFromRPC(ctx, logs[i].Address, cfg.SMCTypeKRC721)
+				if err != nil && tokenInfo == nil {
+					s.logger.Warn("New contract is not a KRC721", zap.Error(err), zap.Any("tokenInfo", tokenInfo))
+					continue
+				}
+			}
+			// insert new KRC SMC to db
+			contract, addrInfo := convertTokenInfoToSMCInfo(tokenInfo)
+			if err = s.dbClient.UpdateContract(ctx, contract, addrInfo); err != nil {
+				s.logger.Warn("Cannot insert new KRC token to db", zap.Error(err), zap.Any("contract", contract), zap.Any("addrInfo", addrInfo))
+				continue
+			}
+			smcABIStr, err := s.dbClient.SMCABIByType(ctx, tokenInfo.TokenType)
+			if err != nil {
+				s.logger.Warn("Cannot get smc abi by type from db", zap.Error(err))
+				continue
+			}
+			smcABI, err = s.decodeSMCABIFromBase64(ctx, smcABIStr, logs[i].Address)
+			if err != nil {
+				s.logger.Warn("Cannot decode smc abi by type from base64", zap.Error(err))
+				continue
+			}
 		}
 		decodedLog, err := s.kaiClient.UnpackLog(&logs[i], smcABI)
 		if err != nil {
@@ -752,7 +788,37 @@ func (s *infoServer) storeEvents(ctx context.Context, logs []types.Log, blockTim
 	if err != nil {
 		s.logger.Warn("Cannot update internal txs to db", zap.Error(err), zap.Any("holdersList", holdersList))
 	}
-
+	// count token holders as a account on KardiaChain network
+	numOfNewAddress := uint64(0)
+	for _, holder := range holdersList {
+		_, err = s.dbClient.AddressByHash(ctx, holder.HolderAddress)
+		if err != nil {
+			code, err := s.kaiClient.GetCode(ctx, holder.HolderAddress)
+			if err != nil {
+				s.logger.Warn("Cannot getCode from RPC", zap.String("address", holder.HolderAddress), zap.Error(err))
+				code = common.Bytes{}
+			}
+			if err = s.dbClient.InsertAddress(ctx, &types.Address{
+				Address:       holder.HolderAddress,
+				BalanceString: new(big.Int).SetInt64(0).String(),
+				IsContract:    len(code) > 0,
+			}); err != nil {
+				s.logger.Warn("Cannot insert token holder to db", zap.String("address", holder.HolderAddress), zap.Error(err))
+			}
+			numOfNewAddress++
+		}
+	}
+	if numOfNewAddress > 0 {
+		// update new number of holders
+		totalAddr, totalContractAddr, err := s.dbClient.GetTotalAddresses(ctx)
+		if err != nil {
+			s.logger.Warn("Cannot get total accounts from db", zap.Error(err))
+		}
+		err = s.cacheClient.UpdateTotalHolders(ctx, totalAddr, totalContractAddr)
+		if err != nil {
+			s.logger.Warn("Cannot set total accounts to cache", zap.Error(err))
+		}
+	}
 	return s.dbClient.InsertEvents(logs)
 }
 
@@ -793,7 +859,11 @@ func (s *infoServer) getSMCAbi(ctx context.Context, log *types.Log) (*abi.ABI, e
 			smcABIStr = smc.ABI
 		}
 	}
-	abiData, err := base64.StdEncoding.DecodeString(smcABIStr)
+	return s.decodeSMCABIFromBase64(ctx, smcABIStr, log.Address)
+}
+
+func (s *infoServer) decodeSMCABIFromBase64(ctx context.Context, abiStr, smcAddr string) (*abi.ABI, error) {
+	abiData, err := base64.StdEncoding.DecodeString(abiStr)
 	if err != nil {
 		s.logger.Warn("Cannot decode smc abi", zap.Error(err))
 		return nil, err
@@ -804,7 +874,7 @@ func (s *infoServer) getSMCAbi(ctx context.Context, log *types.Log) (*abi.ABI, e
 		return nil, err
 	}
 	// store this abi to cache
-	err = s.cacheClient.UpdateSMCAbi(ctx, log.Address, smcABIStr)
+	err = s.cacheClient.UpdateSMCAbi(ctx, smcAddr, abiStr)
 	if err != nil {
 		s.logger.Warn("Cannot store smc abi to cache", zap.Error(err))
 		return nil, err
@@ -826,7 +896,7 @@ func (s *infoServer) getKRCTokenInfo(ctx context.Context, krcTokenAddr string) (
 	result := &types.KRCTokenInfo{
 		Address:     addrInfo.Address,
 		TokenName:   addrInfo.TokenName,
-		TokenType:   addrInfo.ErcTypes,
+		TokenType:   addrInfo.KrcTypes,
 		TokenSymbol: addrInfo.TokenSymbol,
 		TotalSupply: addrInfo.TotalSupply,
 		Decimals:    addrInfo.Decimals,
@@ -846,7 +916,7 @@ func (s *infoServer) getKRCHolder(ctx context.Context, log *types.Log) ([]*types
 	if err != nil {
 		return nil, err
 	}
-	if krcTokenInfo.TokenType != "KRC20" {
+	if krcTokenInfo.TokenType != cfg.SMCTypeKRC20 {
 		return nil, fmt.Errorf("not a KRC20 token")
 	}
 	if log.Arguments["from"] == "" || log.Arguments["to"] == "" {
@@ -856,14 +926,17 @@ func (s *infoServer) getKRCHolder(ctx context.Context, log *types.Log) ([]*types
 	if err != nil {
 		return nil, err
 	}
-	fromBalance, err := s.kaiClient.GetKRCBalanceByAddress(ctx, krcABI, common.HexToAddress(log.Address), common.HexToAddress(log.Arguments["from"].(string)))
+	fromBalance, err := s.kaiClient.GetKRC20BalanceByAddress(ctx, krcABI, common.HexToAddress(log.Address), common.HexToAddress(log.Arguments["from"].(string)))
 	if err != nil {
 		return nil, err
 	}
-	toBalance, err := s.kaiClient.GetKRCBalanceByAddress(ctx, krcABI, common.HexToAddress(log.Address), common.HexToAddress(log.Arguments["to"].(string)))
+	toBalance, err := s.kaiClient.GetKRC20BalanceByAddress(ctx, krcABI, common.HexToAddress(log.Address), common.HexToAddress(log.Arguments["to"].(string)))
 	if err != nil {
 		return nil, err
 	}
+	tenPoweredByDecimal := new(big.Int).Exp(big.NewInt(10), big.NewInt(krcTokenInfo.Decimals), nil)
+	floatFromBalance, _ := new(big.Float).SetPrec(100).Quo(new(big.Float).SetInt(fromBalance), new(big.Float).SetInt(tenPoweredByDecimal)).Float64()
+	floatToBalance, _ := new(big.Float).SetPrec(100).Quo(new(big.Float).SetInt(toBalance), new(big.Float).SetInt(tenPoweredByDecimal)).Float64()
 	holdersList[0] = &types.TokenHolder{
 		TokenName:       krcTokenInfo.TokenName,
 		TokenSymbol:     krcTokenInfo.TokenSymbol,
@@ -871,7 +944,7 @@ func (s *infoServer) getKRCHolder(ctx context.Context, log *types.Log) ([]*types
 		ContractAddress: log.Address,
 		HolderAddress:   log.Arguments["from"].(string),
 		BalanceString:   fromBalance.String(),
-		BalanceFloat:    new(big.Int).Div(fromBalance, new(big.Int).Exp(big.NewInt(10), big.NewInt(18), nil)).Int64(),
+		BalanceFloat:    floatFromBalance,
 		UpdatedAt:       time.Now().Unix(),
 	}
 	holdersList[1] = &types.TokenHolder{
@@ -881,7 +954,7 @@ func (s *infoServer) getKRCHolder(ctx context.Context, log *types.Log) ([]*types
 		ContractAddress: log.Address,
 		HolderAddress:   log.Arguments["to"].(string),
 		BalanceString:   toBalance.String(),
-		BalanceFloat:    new(big.Int).Div(toBalance, new(big.Int).Exp(big.NewInt(10), big.NewInt(18), nil)).Int64(),
+		BalanceFloat:    floatToBalance,
 		UpdatedAt:       time.Now().Unix(),
 	}
 	return holdersList, nil
@@ -899,22 +972,121 @@ func (s *infoServer) getInternalTxs(ctx context.Context, log *types.Log) *types.
 }
 
 func (s *infoServer) insertHistoryTransferKRC(ctx context.Context, smcAddr string) error {
-	txs, _, err := s.dbClient.TxsByAddress(ctx, smcAddr, nil)
+	filter := &types.EventsFilter{
+		Pagination:      nil,
+		ContractAddress: smcAddr,
+	}
+	events, _, err := s.dbClient.GetListEvents(ctx, filter)
 	if err != nil {
 		return err
 	}
-	for _, tx := range txs {
-		if len(tx.Logs) > 0 {
-			err = s.storeEvents(ctx, tx.Logs, txs[0].Time)
-			if err != nil {
-				s.logger.Warn("Cannot store events to db", zap.Error(err))
+	for _, e := range events {
+		if e.MethodName != "" {
+			continue
+		}
+		block, err := s.dbClient.BlockByHeight(ctx, e.BlockHeight)
+		if err != nil {
+			s.logger.Warn("Cannot get block from db", zap.Uint64("address", e.BlockHeight), zap.Error(err))
+			block = &types.Block{
+				Time: time.Now(),
 			}
 		}
+		err = s.storeEvents(ctx, []types.Log{
+			{
+				Address:     smcAddr,
+				Topics:      e.Topics,
+				Data:        e.Data,
+				BlockHeight: e.BlockHeight,
+				Time:        block.Time,
+				TxHash:      e.TxHash,
+				TxIndex:     e.TxIndex,
+				BlockHash:   block.Hash,
+				Index:       e.Index,
+				Removed:     e.Removed,
+			},
+		}, block.Time)
+		if err != nil {
+			s.logger.Warn("Cannot store events to db", zap.Error(err))
+		}
 	}
+
 	err = s.dbClient.DeleteEmptyEvents(ctx, smcAddr)
 	if err != nil {
 		s.logger.Warn("Cannot delete empty events", zap.Error(err), zap.String("smcAddr", smcAddr))
 		return err
 	}
 	return nil
+}
+
+func (s *infoServer) getKRCTokenInfoFromRPC(ctx context.Context, krcTokenAddress, krcType string) (*types.KRCTokenInfo, error) {
+	var tokenInfo *types.KRCTokenInfo
+	if strings.EqualFold(krcType, cfg.SMCTypeKRC20) {
+		// get KRC20 token info from RPC
+		smcABIStr, err := s.dbClient.SMCABIByType(ctx, krcType)
+		if err != nil {
+			s.logger.Warn("Cannot get smc abi from db", zap.Error(err))
+			return nil, err
+		}
+		abiData, err := base64.StdEncoding.DecodeString(smcABIStr)
+		if err != nil {
+			s.logger.Warn("Cannot decode smc abi", zap.Error(err))
+			return nil, err
+		}
+		jsonABI, err := abi.JSON(bytes.NewReader(abiData))
+		if err != nil {
+			s.logger.Warn("Cannot convert decoded smc abi to JSON abi", zap.Error(err))
+			return nil, err
+		}
+		tokenInfo, err = s.kaiClient.GetKRC20TokenInfo(ctx, &jsonABI, common.HexToAddress(krcTokenAddress))
+		s.logger.Info("Update KRC20 token info", zap.Any("krc20TokenInfo", tokenInfo), zap.Error(err))
+		if err != nil {
+			return nil, err
+		}
+	} else if strings.EqualFold(krcType, cfg.SMCTypeKRC721) {
+		// get KRC721 token info from RPC
+		smcABIStr, err := s.dbClient.SMCABIByType(ctx, krcType)
+		if err != nil {
+			s.logger.Warn("Cannot get smc abi from db", zap.Error(err))
+			return nil, err
+		}
+		abiData, err := base64.StdEncoding.DecodeString(smcABIStr)
+		if err != nil {
+			s.logger.Warn("Cannot decode smc abi", zap.Error(err))
+			return nil, err
+		}
+		jsonABI, err := abi.JSON(bytes.NewReader(abiData))
+		if err != nil {
+			s.logger.Warn("Cannot convert decoded smc abi to JSON abi", zap.Error(err))
+			return nil, err
+		}
+		tokenInfo, err = s.kaiClient.GetKRC721TokenInfo(ctx, &jsonABI, common.HexToAddress(krcTokenAddress))
+		s.logger.Info("Update KRC721 token info", zap.Any("krc721TokenInfo", tokenInfo), zap.Error(err))
+		if err != nil {
+			return nil, err
+		}
+	}
+	return tokenInfo, nil
+}
+
+func convertTokenInfoToSMCInfo(tokenInfo *types.KRCTokenInfo) (smcInfo *types.Contract, addrInfo *types.Address) {
+	return &types.Contract{
+			Name:      tokenInfo.TokenName + " Token Contract",
+			Address:   tokenInfo.Address,
+			TxHash:    "",
+			CreatedAt: time.Now().Unix(),
+			Type:      tokenInfo.TokenType,
+			Logo:      cfg.DefaultKRCTokenLogo,
+		}, &types.Address{
+			Address:       tokenInfo.Address,
+			BalanceString: "0",
+			Name:          tokenInfo.TokenName + " Token Contract",
+			Logo:          cfg.DefaultKRCTokenLogo,
+			TokenName:     tokenInfo.TokenName,
+			TokenSymbol:   tokenInfo.TokenSymbol,
+			Decimals:      tokenInfo.Decimals,
+			TotalSupply:   tokenInfo.TotalSupply,
+			IsContract:    true,
+			KrcTypes:      tokenInfo.TokenType,
+			UpdatedAt:     time.Now().Unix(),
+		}
 }
