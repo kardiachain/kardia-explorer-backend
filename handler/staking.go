@@ -111,10 +111,16 @@ func (h *handler) processHeader(ctx context.Context, header *ctypes.Header) {
 	}
 
 	for _, tx := range block.Txs {
+		if tx.To == cfg.StakingContractAddr {
+			h.reloadValidator(ctx, tx.To)
+			h.reloadDelegator(ctx, tx.To, tx.From)
+			continue
+		}
 		isExist, ok := validatorMap[tx.To]
 		if !ok || isExist == false {
 			continue
 		}
+
 		h.reloadValidator(ctx, tx.To)
 		h.reloadDelegator(ctx, tx.To, tx.From)
 
