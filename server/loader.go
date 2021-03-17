@@ -132,7 +132,7 @@ func (s *infoServer) LoadBootContracts(ctx context.Context) error {
 			ABI:  stakingABI,
 		},
 		{
-			Type: "Validator",
+			Type: cfg.SMCTypeValidator,
 			ABI:  validatorABI,
 		},
 		{
@@ -176,7 +176,7 @@ func (s *infoServer) LoadBootContracts(ctx context.Context) error {
 			Address:      val.SmcAddress,
 			OwnerAddress: cfg.StakingContractAddr,
 			CreatedAt:    time.Now().Unix(),
-			Type:         "Validator",
+			Type:         cfg.SMCTypeValidator,
 		})
 	}
 	bootSMCs = append(bootSMCs, bootContracts()...)

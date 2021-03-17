@@ -5,6 +5,10 @@ import (
 	"context"
 	"fmt"
 
+	"go.uber.org/zap"
+
+	"github.com/kardiachain/kardia-explorer-backend/cfg"
+
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
 
@@ -29,13 +33,39 @@ type ValidatorsFilter struct {
 }
 
 func (m *mongoDB) UpsertValidators(ctx context.Context, validators []*types.Validator) error {
-	var models []mongo.WriteModel
+	var (
+		models         []mongo.WriteModel
+		addressModels  []mongo.WriteModel
+		contractModels []mongo.WriteModel
+	)
 	for _, v := range validators {
 		models = append(models, mongo.NewUpdateOneModel().SetUpsert(true).SetFilter(bson.M{"smcAddress": v.SmcAddress}).SetUpdate(bson.M{"$set": v}))
+		contractInfo, addressInfo, err := m.Contract(ctx, v.SmcAddress)
+		if err != nil {
+			m.logger.Warn("Cannot get validator info from db", zap.Error(err), zap.Any("validatorInfo", v))
+			contractInfo = &types.Contract{}
+			addressInfo = &types.Address{}
+		}
+		addressInfo.Name = v.Name
+		addressInfo.Address = v.SmcAddress
+		contractInfo.Type = cfg.SMCTypeValidator
+		contractInfo.Name = v.Name
+		contractInfo.Address = v.SmcAddress
+
+		addressModels = append(addressModels, mongo.NewUpdateOneModel().SetUpsert(true).SetFilter(bson.M{"address": addressInfo.Address}).SetUpdate(bson.M{"$set": addressInfo}))
+		contractModels = append(contractModels, mongo.NewUpdateOneModel().SetUpsert(true).SetFilter(bson.M{"address": contractInfo.Address}).SetUpdate(bson.M{"$set": contractInfo}))
 	}
 
 	if _, err := m.wrapper.C(cValidators).BulkUpsert(models); err != nil {
-		fmt.Println("Cannot write list model", err)
+		fmt.Println("Cannot write validator models", err)
+		return err
+	}
+	if _, err := m.wrapper.C(cAddresses).BulkUpsert(addressModels); err != nil {
+		fmt.Println("Cannot write address info models", err)
+		return err
+	}
+	if _, err := m.wrapper.C(cContract).BulkUpsert(contractModels); err != nil {
+		fmt.Println("Cannot write contract info models", err)
 		return err
 	}
 	return nil
