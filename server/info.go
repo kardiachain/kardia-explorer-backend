@@ -551,7 +551,7 @@ func (s *infoServer) VerifyBlock(ctx context.Context, blockHeight uint64, networ
 	isBlockImported, err := s.dbClient.IsBlockExist(ctx, blockHeight)
 	if err != nil || !isBlockImported {
 		startTime := time.Now()
-		if err := s.dbClient.InsertBlock(ctx, networkBlock); err != nil {
+		if err = s.ImportBlock(ctx, networkBlock, false); err != nil {
 			s.logger.Warn("Cannot import block", zap.Uint64("height", blockHeight))
 			return false, err
 		}
