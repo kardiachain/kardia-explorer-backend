@@ -122,10 +122,11 @@ type KRCTokenInfo struct {
 	IsContract bool `json:"isContract" bson:"isContract"`
 
 	// Token
-	TokenName   string `json:"tokenName,omitempty" bson:"tokenName"`
-	TokenSymbol string `json:"tokenSymbol,omitempty" bson:"tokenSymbol"`
-	Decimals    int64  `json:"decimals" bson:"decimals"`
-	TotalSupply string `json:"totalSupply,omitempty" bson:"totalSupply"`
+	TokenName      string `json:"tokenName,omitempty" bson:"tokenName"`
+	TokenSymbol    string `json:"tokenSymbol,omitempty" bson:"tokenSymbol"`
+	Decimals       int64  `json:"decimals" bson:"decimals"`
+	TotalSupply    string `json:"totalSupply,omitempty" bson:"totalSupply"`
+	NumTokensTotal int64  `json:"numTokensTotal,omitempty" bson:"numTokensTotal,omitempty"`
 
 	// Stats
 	TxCount         int `json:"txCount,omitempty" bson:"txCount"`
@@ -137,14 +138,15 @@ type KRCTokenInfo struct {
 }
 
 type SimpleKRCTokenInfo struct {
-	Name        string `json:"name,omitempty" bson:"name"`
-	Address     string `json:"address,omitempty" bson:"address"`
-	Info        string `json:"info,omitempty" bson:"info"`
-	Type        string `json:"type,omitempty" bson:"type"`
-	TokenSymbol string `json:"tokenSymbol,omitempty" bson:"tokenSymbol"`
-	TotalSupply string `json:"totalSupply,omitempty" bson:"totalSupply"`
-	Decimal     int64  `json:"decimal" bson:"decimal"`
-	Logo        string `json:"logo,omitempty" bson:"logo"`
+	Name           string `json:"name,omitempty" bson:"name"`
+	Address        string `json:"address,omitempty" bson:"address"`
+	Info           string `json:"info,omitempty" bson:"info"`
+	Type           string `json:"type,omitempty" bson:"type"`
+	TokenSymbol    string `json:"tokenSymbol,omitempty" bson:"tokenSymbol"`
+	TotalSupply    string `json:"totalSupply,omitempty" bson:"totalSupply"`
+	Decimal        int64  `json:"decimal" bson:"decimal"`
+	NumTokensTotal int64  `json:"numTokensTotal,omitempty" bson:"numTokensTotal,omitempty"`
+	Logo           string `json:"logo,omitempty" bson:"logo"`
 }
 
 type InternalTransaction struct {

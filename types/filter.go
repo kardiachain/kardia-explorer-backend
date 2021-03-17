@@ -82,3 +82,11 @@ type HolderFilter struct {
 	ContractAddress string `bson:"contractAddress,omitempty"`
 	HolderAddress   string `bson:"holderAddress,omitempty"`
 }
+
+type EventsFilter struct {
+	Pagination *Pagination `bson:"-"`
+
+	ContractAddress string `bson:"address,omitempty"`
+	MethodName      string `bson:"methodName,omitempty"`
+	TxHash          string `bson:"transactionHash,omitempty"`
+}
