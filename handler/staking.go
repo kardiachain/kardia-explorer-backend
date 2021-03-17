@@ -129,6 +129,20 @@ func (h *handler) processHeader(ctx context.Context, header *ctypes.Header) {
 		h.reloadValidator(ctx, tx.To)
 		h.reloadDelegator(ctx, tx.To, tx.From)
 
+		nProposerAddresses, err := h.w.TrustedNode().ValidatorSets(ctx)
+		if err != nil {
+			lgr.Debug("cannot get list proposer", zap.Error(err))
+			return
+		}
+		var proposerAddresses []string
+		for _, address := range nProposerAddresses {
+			proposerAddresses = append(proposerAddresses, address.String())
+		}
+
+		if err := h.db.UpdateProposers(ctx, proposerAddresses); err != nil {
+			lgr.Error("cannot update proposers list", zap.Error(err))
+			return
+		}
 		// 2. Calculate new stats
 		if err := h.calculateStakingStats(ctx); err != nil {
 			return
@@ -198,6 +212,7 @@ func (h *handler) calculateStakingStats(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
+
 	totalUniqueDelegator, err := h.db.UniqueDelegators(ctx)
 	if err != nil {
 		return err

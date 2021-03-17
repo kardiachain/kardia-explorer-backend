@@ -26,10 +26,12 @@ type IValidator interface {
 	ClearValidators(ctx context.Context) error
 
 	UpsertValidator(ctx context.Context, validator *types.Validator) error
+	UpdateProposers(ctx context.Context, proposerSMCAddresses []string) error
 }
 
 type ValidatorsFilter struct {
 	Role int // [1:candidates, 2:validators, 3:proposer]
+	Skip int
 }
 
 func (m *mongoDB) UpsertValidators(ctx context.Context, validators []*types.Validator) error {
@@ -75,6 +77,12 @@ func (m *mongoDB) Validators(ctx context.Context, filter ValidatorsFilter) ([]*t
 	var validators []*types.Validator
 
 	var mgoFilter []bson.M
+	//opts := []*options.FindOptions{
+	//
+	//}
+	//if filter.Skip != 0 {
+	//	options.Find().SetSkip(filter.Skip)
+	//}
 	if filter.Role != 0 {
 		// Using role-1 since default go int == 0
 		mgoFilter = append(mgoFilter, bson.M{"role": filter.Role - 1})
@@ -118,10 +126,13 @@ func (m *mongoDB) UpsertValidator(ctx context.Context, validator *types.Validato
 	return nil
 }
 
-func (m *mongoDB) Validator(ctx context.Context, validatorAddress string) (*types.Validator, error) {
-	var validator *types.Validator
-	if err := m.wrapper.C(cValidators).FindOne(bson.M{"address": validatorAddress}).Decode(&validator); err != nil {
-		return nil, err
+func (m *mongoDB) UpdateProposers(ctx context.Context, proposerSMCAddresses []string) error {
+	// Bind array
+	if _, err := m.wrapper.C(cValidators).Update(bson.M{}, bson.M{"status": 0}); err != nil {
+		return err
 	}
-	return validator, nil
+	if _, err := m.wrapper.C(cValidators).Update(bson.M{"$in": bson.M{"smcAddress": proposerSMCAddresses}}, bson.M{"status": 2}); err != nil {
+		return err
+	}
+	return nil
 }

@@ -109,6 +109,7 @@ func (w *Wrapper) ValidatorsWithWorker(ctx context.Context) ([]*types.Validator,
 		if err != nil {
 			return
 		}
+		lgr.Debug("Validator result", zap.Any("V", v))
 		validators = append(validators, v)
 
 	})
