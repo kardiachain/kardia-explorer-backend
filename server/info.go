@@ -12,6 +12,7 @@ import (
 	"math/big"
 	"net"
 	"net/http"
+	"strings"
 	"time"
 
 	"go.uber.org/zap"
@@ -732,15 +733,35 @@ func (s *infoServer) storeEvents(ctx context.Context, logs []types.Log, blockTim
 		if logs[i].Address == "" || logs[i].Address == "0x" {
 			continue
 		}
-		if logs[i].TempTxHash != "" && logs[i].TxHash == "" {
-			logs[i].TxHash = logs[i].TempTxHash
-		}
-		if logs[i].TempTxIndex != 0 && logs[i].TxIndex == 0 {
-			logs[i].TxIndex = logs[i].TempTxIndex
-		}
 		smcABI, err := s.getSMCAbi(ctx, &logs[i])
 		if err != nil {
-			continue
+			// automatically detect if this contract is KRC or not
+			var tokenInfo *types.KRCTokenInfo
+			tokenInfo, err = s.getKRCTokenInfoFromRPC(ctx, logs[i].Address, cfg.SMCTypeKRC20)
+			if err != nil && tokenInfo == nil {
+				s.logger.Warn("New contract is not a KRC20", zap.Error(err), zap.Any("tokenInfo", tokenInfo))
+				tokenInfo, err = s.getKRCTokenInfoFromRPC(ctx, logs[i].Address, cfg.SMCTypeKRC721)
+				if err != nil && tokenInfo == nil {
+					s.logger.Warn("New contract is not a KRC721", zap.Error(err), zap.Any("tokenInfo", tokenInfo))
+					continue
+				}
+			}
+			// insert new KRC SMC to db
+			contract, addrInfo := convertTokenInfoToSMCInfo(tokenInfo)
+			if err = s.dbClient.UpdateContract(ctx, contract, addrInfo); err != nil {
+				s.logger.Warn("Cannot insert new KRC token to db", zap.Error(err), zap.Any("contract", contract), zap.Any("addrInfo", addrInfo))
+				continue
+			}
+			smcABIStr, err := s.dbClient.SMCABIByType(ctx, tokenInfo.TokenType)
+			if err != nil {
+				s.logger.Warn("Cannot get smc abi by type from db", zap.Error(err))
+				continue
+			}
+			smcABI, err = s.decodeSMCABIFromBase64(ctx, smcABIStr, logs[i].Address)
+			if err != nil {
+				s.logger.Warn("Cannot decode smc abi by type from base64", zap.Error(err))
+				continue
+			}
 		}
 		decodedLog, err := s.kaiClient.UnpackLog(&logs[i], smcABI)
 		if err != nil {
@@ -838,7 +859,11 @@ func (s *infoServer) getSMCAbi(ctx context.Context, log *types.Log) (*abi.ABI, e
 			smcABIStr = smc.ABI
 		}
 	}
-	abiData, err := base64.StdEncoding.DecodeString(smcABIStr)
+	return s.decodeSMCABIFromBase64(ctx, smcABIStr, log.Address)
+}
+
+func (s *infoServer) decodeSMCABIFromBase64(ctx context.Context, abiStr, smcAddr string) (*abi.ABI, error) {
+	abiData, err := base64.StdEncoding.DecodeString(abiStr)
 	if err != nil {
 		s.logger.Warn("Cannot decode smc abi", zap.Error(err))
 		return nil, err
@@ -849,7 +874,7 @@ func (s *infoServer) getSMCAbi(ctx context.Context, log *types.Log) (*abi.ABI, e
 		return nil, err
 	}
 	// store this abi to cache
-	err = s.cacheClient.UpdateSMCAbi(ctx, log.Address, smcABIStr)
+	err = s.cacheClient.UpdateSMCAbi(ctx, smcAddr, abiStr)
 	if err != nil {
 		s.logger.Warn("Cannot store smc abi to cache", zap.Error(err))
 		return nil, err
@@ -991,4 +1016,77 @@ func (s *infoServer) insertHistoryTransferKRC(ctx context.Context, smcAddr strin
 		return err
 	}
 	return nil
+}
+
+func (s *infoServer) getKRCTokenInfoFromRPC(ctx context.Context, krcTokenAddress, krcType string) (*types.KRCTokenInfo, error) {
+	var tokenInfo *types.KRCTokenInfo
+	if strings.EqualFold(krcType, cfg.SMCTypeKRC20) {
+		// get KRC20 token info from RPC
+		smcABIStr, err := s.dbClient.SMCABIByType(ctx, krcType)
+		if err != nil {
+			s.logger.Warn("Cannot get smc abi from db", zap.Error(err))
+			return nil, err
+		}
+		abiData, err := base64.StdEncoding.DecodeString(smcABIStr)
+		if err != nil {
+			s.logger.Warn("Cannot decode smc abi", zap.Error(err))
+			return nil, err
+		}
+		jsonABI, err := abi.JSON(bytes.NewReader(abiData))
+		if err != nil {
+			s.logger.Warn("Cannot convert decoded smc abi to JSON abi", zap.Error(err))
+			return nil, err
+		}
+		tokenInfo, err = s.kaiClient.GetKRC20TokenInfo(ctx, &jsonABI, common.HexToAddress(krcTokenAddress))
+		s.logger.Info("Update KRC20 token info", zap.Any("krc20TokenInfo", tokenInfo), zap.Error(err))
+		if err != nil {
+			return nil, err
+		}
+	} else if strings.EqualFold(krcType, cfg.SMCTypeKRC721) {
+		// get KRC721 token info from RPC
+		smcABIStr, err := s.dbClient.SMCABIByType(ctx, krcType)
+		if err != nil {
+			s.logger.Warn("Cannot get smc abi from db", zap.Error(err))
+			return nil, err
+		}
+		abiData, err := base64.StdEncoding.DecodeString(smcABIStr)
+		if err != nil {
+			s.logger.Warn("Cannot decode smc abi", zap.Error(err))
+			return nil, err
+		}
+		jsonABI, err := abi.JSON(bytes.NewReader(abiData))
+		if err != nil {
+			s.logger.Warn("Cannot convert decoded smc abi to JSON abi", zap.Error(err))
+			return nil, err
+		}
+		tokenInfo, err = s.kaiClient.GetKRC721TokenInfo(ctx, &jsonABI, common.HexToAddress(krcTokenAddress))
+		s.logger.Info("Update KRC721 token info", zap.Any("krc721TokenInfo", tokenInfo), zap.Error(err))
+		if err != nil {
+			return nil, err
+		}
+	}
+	return tokenInfo, nil
+}
+
+func convertTokenInfoToSMCInfo(tokenInfo *types.KRCTokenInfo) (smcInfo *types.Contract, addrInfo *types.Address) {
+	return &types.Contract{
+			Name:      tokenInfo.TokenName + " Token Contract",
+			Address:   tokenInfo.Address,
+			TxHash:    "",
+			CreatedAt: time.Now().Unix(),
+			Type:      tokenInfo.TokenType,
+			Logo:      cfg.DefaultKRCTokenLogo,
+		}, &types.Address{
+			Address:       tokenInfo.Address,
+			BalanceString: "0",
+			Name:          tokenInfo.TokenName + " Token Contract",
+			Logo:          cfg.DefaultKRCTokenLogo,
+			TokenName:     tokenInfo.TokenName,
+			TokenSymbol:   tokenInfo.TokenSymbol,
+			Decimals:      tokenInfo.Decimals,
+			TotalSupply:   tokenInfo.TotalSupply,
+			IsContract:    true,
+			KrcTypes:      tokenInfo.TokenType,
+			UpdatedAt:     time.Now().Unix(),
+		}
 }

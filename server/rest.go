@@ -4,7 +4,6 @@ package server
 import (
 	"bytes"
 	"context"
-	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -17,7 +16,6 @@ import (
 	"github.com/labstack/echo"
 	"go.uber.org/zap"
 
-	"github.com/kardiachain/go-kardia/lib/abi"
 	"github.com/kardiachain/go-kardia/lib/common"
 
 	"github.com/kardiachain/kardia-explorer-backend/api"
@@ -1298,7 +1296,6 @@ func (s *Server) InsertContract(c echo.Context) error {
 		addrInfo.TokenSymbol = krcTokenInfoFromRPC.TokenSymbol
 		addrInfo.TotalSupply = krcTokenInfoFromRPC.TokenName
 		addrInfo.Decimals = krcTokenInfoFromRPC.Decimals
-		addrInfo.NumTokensTotal = krcTokenInfoFromRPC.NumTokensTotal
 	}
 	currTokenInfo, _ := s.dbClient.AddressByHash(ctx, addrInfo.Address)
 	if err := s.dbClient.InsertContract(ctx, &contract, &addrInfo); err != nil {
@@ -1353,7 +1350,6 @@ func (s *Server) UpdateContract(c echo.Context) error {
 		addrInfo.TokenSymbol = krcTokenInfoFromRPC.TokenSymbol
 		addrInfo.TotalSupply = krcTokenInfoFromRPC.TotalSupply
 		addrInfo.Decimals = krcTokenInfoFromRPC.Decimals
-		addrInfo.NumTokensTotal = krcTokenInfoFromRPC.NumTokensTotal
 	}
 	currTokenInfo, _ := s.dbClient.AddressByHash(ctx, addrInfo.Address)
 	if err := s.dbClient.UpdateContract(ctx, &contract, &addrInfo); err != nil {
@@ -1557,54 +1553,4 @@ func (s *Server) getAddressInfo(ctx context.Context, address string) (*types.Add
 		s.logger.Warn("Cannot store address info to cache", zap.String("address", address), zap.Error(err))
 	}
 	return addrInfo, nil
-}
-
-func (s *Server) getKRCTokenInfoFromRPC(ctx context.Context, krcTokenAddress, krcType string) (*types.KRCTokenInfo, error) {
-	var tokenInfo *types.KRCTokenInfo
-	if strings.EqualFold(krcType, cfg.SMCTypeKRC20) {
-		// get KRC20 token info from RPC
-		smcABIStr, err := s.dbClient.SMCABIByType(ctx, krcType)
-		if err != nil {
-			s.logger.Warn("Cannot get smc abi from db", zap.Error(err))
-			return nil, err
-		}
-		abiData, err := base64.StdEncoding.DecodeString(smcABIStr)
-		if err != nil {
-			s.logger.Warn("Cannot decode smc abi", zap.Error(err))
-			return nil, err
-		}
-		jsonABI, err := abi.JSON(bytes.NewReader(abiData))
-		if err != nil {
-			s.logger.Warn("Cannot convert decoded smc abi to JSON abi", zap.Error(err))
-			return nil, err
-		}
-		tokenInfo, err = s.kaiClient.GetKRC20TokenInfo(ctx, &jsonABI, common.HexToAddress(krcTokenAddress))
-		s.logger.Info("Update KRC20 token info", zap.Any("krc20TokenInfo", tokenInfo), zap.Error(err))
-		if err != nil {
-			return nil, err
-		}
-	} else if strings.EqualFold(krcType, cfg.SMCTypeKRC721) {
-		// get KRC721 token info from RPC
-		smcABIStr, err := s.dbClient.SMCABIByType(ctx, krcType)
-		if err != nil {
-			s.logger.Warn("Cannot get smc abi from db", zap.Error(err))
-			return nil, err
-		}
-		abiData, err := base64.StdEncoding.DecodeString(smcABIStr)
-		if err != nil {
-			s.logger.Warn("Cannot decode smc abi", zap.Error(err))
-			return nil, err
-		}
-		jsonABI, err := abi.JSON(bytes.NewReader(abiData))
-		if err != nil {
-			s.logger.Warn("Cannot convert decoded smc abi to JSON abi", zap.Error(err))
-			return nil, err
-		}
-		tokenInfo, err = s.kaiClient.GetKRC721TokenInfo(ctx, &jsonABI, common.HexToAddress(krcTokenAddress))
-		s.logger.Info("Update KRC721 token info", zap.Any("krc721TokenInfo", tokenInfo), zap.Error(err))
-		if err != nil {
-			return nil, err
-		}
-	}
-	return tokenInfo, nil
 }

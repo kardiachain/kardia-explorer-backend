@@ -10,11 +10,10 @@ type Address struct {
 	Logo          string  `json:"logo" bson:"logo"`
 
 	// Token
-	TokenName      string `json:"tokenName" bson:"tokenName"`
-	TokenSymbol    string `json:"tokenSymbol" bson:"tokenSymbol"`
-	Decimals       int64  `json:"decimals" bson:"decimals"`
-	TotalSupply    string `json:"totalSupply" bson:"totalSupply"`
-	NumTokensTotal int64  `json:"numTokensTotal,omitempty" bson:"numTokensTotal,omitempty"`
+	TokenName   string `json:"tokenName" bson:"tokenName"`
+	TokenSymbol string `json:"tokenSymbol" bson:"tokenSymbol"`
+	Decimals    int64  `json:"decimals" bson:"decimals"`
+	TotalSupply string `json:"totalSupply" bson:"totalSupply"`
 
 	// SMC
 	IsContract   bool   `json:"isContract" bson:"isContract"`

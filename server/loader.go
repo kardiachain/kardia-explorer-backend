@@ -148,7 +148,7 @@ func (s *infoServer) LoadBootContracts(ctx context.Context) error {
 			ABI:  krc20ABI,
 		},
 		{
-			Type: "KRC721",
+			Type: cfg.SMCTypeKRC721,
 			ABI:  krc721ABI,
 		},
 	}
