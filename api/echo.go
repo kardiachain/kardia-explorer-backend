@@ -19,6 +19,8 @@
 package api
 
 import (
+	"fmt"
+
 	"github.com/labstack/echo"
 	"github.com/labstack/echo/middleware"
 
@@ -266,6 +268,7 @@ func Start(srv EchoServer, cfg cfg.ExplorerConfig) {
 	v1Gr := e.Group("/api/v1")
 	bind(v1Gr, srv)
 	if err := e.Start(cfg.Port); err != nil {
-		panic("cannot start echo server")
+		fmt.Println("cannot start echo server", err.Error())
+		panic(err)
 	}
 }

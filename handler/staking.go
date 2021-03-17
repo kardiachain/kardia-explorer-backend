@@ -111,8 +111,14 @@ func (h *handler) processHeader(ctx context.Context, header *ctypes.Header) {
 	}
 
 	for _, tx := range block.Txs {
+		// When new interact with staking contract
 		if tx.To == cfg.StakingContractAddr {
-			h.reloadValidator(ctx, tx.From)
+			validatorSMCAddress, err := h.w.TrustedNode().SMCAddressOfValidator(ctx, tx.From)
+			if err != nil {
+				lgr.Error("cannot find validator SMC address", zap.Error(err))
+				continue
+			}
+			h.reloadValidator(ctx, validatorSMCAddress.String())
 			continue
 		}
 		isExist, ok := validatorMap[tx.To]
