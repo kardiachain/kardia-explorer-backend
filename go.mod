@@ -5,7 +5,7 @@ go 1.14
 require (
 	github.com/go-redis/redis/v8 v8.2.3
 	github.com/joho/godotenv v1.3.0
-	github.com/kardiachain/go-kaiclient v0.0.0-20210317111913-9c451424a257
+	github.com/kardiachain/go-kaiclient v0.0.0-20210317114326-32548175c496
 	github.com/kardiachain/go-kardia v0.11.0
 	github.com/kr/text v0.2.0 // indirect
 	github.com/labstack/echo v3.3.10+incompatible
