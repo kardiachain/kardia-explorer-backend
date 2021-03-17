@@ -61,6 +61,11 @@ func (w *KaiMgo) Update(filter interface{}, update interface{},
 	return w.col.UpdateOne(context.Background(), filter, update, opts...)
 }
 
+func (w *KaiMgo) UpdateMany(filter interface{}, update interface{},
+	opts ...*options.UpdateOptions) (*mongo.UpdateResult, error) {
+	return w.col.UpdateMany(context.Background(), filter, update, opts...)
+}
+
 func (w *KaiMgo) Upsert(filter interface{}, update interface{},
 	opts ...*options.UpdateOptions) (*mongo.UpdateResult, error) {
 	opts = append(opts, options.Update().SetUpsert(true))
