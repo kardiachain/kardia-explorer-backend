@@ -913,6 +913,18 @@ func (s *infoServer) getKRCTokenInfo(ctx context.Context, krcTokenAddr string) (
 }
 
 func (s *infoServer) getKRCHolder(ctx context.Context, log *types.Log) ([]*types.TokenHolder, error) {
+	var (
+		from, to string
+		ok       bool
+	)
+	from, ok = log.Arguments["from"].(string)
+	if !ok {
+		return nil, fmt.Errorf("invalid from address")
+	}
+	to, ok = log.Arguments["to"].(string)
+	if !ok {
+		return nil, fmt.Errorf("invalid to address")
+	}
 	holdersList := make([]*types.TokenHolder, 2)
 	krcTokenInfo, err := s.getKRCTokenInfo(ctx, log.Address)
 	if err != nil {
@@ -921,18 +933,15 @@ func (s *infoServer) getKRCHolder(ctx context.Context, log *types.Log) ([]*types
 	if krcTokenInfo.TokenType != cfg.SMCTypeKRC20 {
 		return nil, fmt.Errorf("not a KRC20 token")
 	}
-	if log.Arguments["from"] == "" || log.Arguments["to"] == "" {
-		return nil, fmt.Errorf("sender and receiver is not found")
-	}
 	krcABI, err := s.getSMCAbi(ctx, log)
 	if err != nil {
 		return nil, err
 	}
-	fromBalance, err := s.kaiClient.GetKRC20BalanceByAddress(ctx, krcABI, common.HexToAddress(log.Address), common.HexToAddress(log.Arguments["from"].(string)))
+	fromBalance, err := s.kaiClient.GetKRC20BalanceByAddress(ctx, krcABI, common.HexToAddress(log.Address), common.HexToAddress(from))
 	if err != nil {
 		return nil, err
 	}
-	toBalance, err := s.kaiClient.GetKRC20BalanceByAddress(ctx, krcABI, common.HexToAddress(log.Address), common.HexToAddress(log.Arguments["to"].(string)))
+	toBalance, err := s.kaiClient.GetKRC20BalanceByAddress(ctx, krcABI, common.HexToAddress(log.Address), common.HexToAddress(to))
 	if err != nil {
 		return nil, err
 	}
@@ -944,7 +953,7 @@ func (s *infoServer) getKRCHolder(ctx context.Context, log *types.Log) ([]*types
 		TokenSymbol:     krcTokenInfo.TokenSymbol,
 		TokenDecimals:   krcTokenInfo.Decimals,
 		ContractAddress: log.Address,
-		HolderAddress:   log.Arguments["from"].(string),
+		HolderAddress:   from,
 		BalanceString:   fromBalance.String(),
 		BalanceFloat:    floatFromBalance,
 		UpdatedAt:       time.Now().Unix(),
@@ -954,7 +963,7 @@ func (s *infoServer) getKRCHolder(ctx context.Context, log *types.Log) ([]*types
 		TokenSymbol:     krcTokenInfo.TokenSymbol,
 		TokenDecimals:   krcTokenInfo.Decimals,
 		ContractAddress: log.Address,
-		HolderAddress:   log.Arguments["to"].(string),
+		HolderAddress:   to,
 		BalanceString:   toBalance.String(),
 		BalanceFloat:    floatToBalance,
 		UpdatedAt:       time.Now().Unix(),
