@@ -134,12 +134,12 @@ func (m *mongoDB) UpsertValidator(ctx context.Context, validator *types.Validato
 	return nil
 }
 
-func (m *mongoDB) UpdateProposers(ctx context.Context, proposerSMCAddresses []string) error {
+func (m *mongoDB) UpdateProposers(ctx context.Context, proposerAddresses []string) error {
 	// Bind array
 	if _, err := m.wrapper.C(cValidators).UpdateMany(bson.M{}, bson.M{"$set": bson.M{"status": 0, "role": 0}}); err != nil {
 		return err
 	}
-	if _, err := m.wrapper.C(cValidators).UpdateMany(bson.M{"smcAddress": bson.M{"$in": proposerSMCAddresses}}, bson.M{"$set": bson.M{"status": 2, "role": 2}}); err != nil {
+	if _, err := m.wrapper.C(cValidators).UpdateMany(bson.M{"address": bson.M{"$in": proposerAddresses}}, bson.M{"$set": bson.M{"status": 2, "role": 2}}); err != nil {
 		return err
 	}
 	return nil
