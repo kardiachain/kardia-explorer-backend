@@ -3,10 +3,10 @@ package types
 type Address struct {
 	Address       string  `json:"address" bson:"address"`
 	Rank          uint64  `json:"rank"`
-	BalanceFloat  float64 `json:"-" bson:"balanceFloat"`        // low precise balance for sorting purposes
-	BalanceString string  `json:"balance" bson:"balanceString"` // high precise balance for API
-	Name          string  `json:"name" bson:"name"`             // alias of an address
-	Info          string  `json:"info" bson:"info"`             // additional info of this address
+	BalanceFloat  float64 `json:"-" bson:"balanceFloat"`                // low precise balance for sorting purposes
+	BalanceString string  `json:"balance" bson:"balanceString"`         // high precise balance for API
+	Name          string  `json:"name" bson:"name"`                     // alias of an address
+	Info          string  `json:"info,omitempty" bson:"info,omitempty"` // additional info of this address
 	Logo          string  `json:"logo" bson:"logo"`
 
 	// Token
@@ -17,7 +17,7 @@ type Address struct {
 
 	// SMC
 	IsContract   bool   `json:"isContract" bson:"isContract"`
-	ErcTypes     string `json:"type" bson:"type"`
+	KrcTypes     string `json:"type" bson:"type"`
 	OwnerAddress string `json:"ownerAddress,omitempty" bson:"ownerAddress"`
 
 	// Stats

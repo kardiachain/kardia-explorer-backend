@@ -4,7 +4,6 @@ package server
 import (
 	"bytes"
 	"context"
-	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -14,12 +13,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/kardiachain/go-kardia/lib/abi"
-
-	"github.com/kardiachain/go-kardia/lib/common"
-
 	"github.com/labstack/echo"
 	"go.uber.org/zap"
+
+	"github.com/kardiachain/go-kardia/lib/common"
 
 	"github.com/kardiachain/kardia-explorer-backend/api"
 	"github.com/kardiachain/kardia-explorer-backend/cfg"
@@ -666,13 +663,31 @@ func (s *Server) AddressInfo(c echo.Context) error {
 	}
 	s.logger.Warn("address not found in db, getting from RPC instead...", zap.Error(err))
 	// try to get balance and code at this address to determine whether we should write this address info to database or not
+	newAddr, err := s.newAddressInfo(ctx, address)
+	if err != nil {
+		return api.Invalid.Build(c)
+	}
+	result := &SimpleAddress{
+		Address:       newAddr.Address,
+		BalanceString: newAddr.BalanceString,
+		IsContract:    newAddr.IsContract,
+	}
+	if smcAddress[result.Address] != nil {
+		result.IsInValidatorsList = true
+		result.Role = smcAddress[result.Address].Role
+		result.Name = smcAddress[result.Address].Name
+	}
+	return api.OK.SetData(result).Build(c)
+}
+
+func (s *Server) newAddressInfo(ctx context.Context, address string) (*types.Address, error) {
 	balance, err := s.kaiClient.GetBalance(ctx, address)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	balanceInBigInt, _ := new(big.Int).SetString(balance, 10)
 	balanceFloat, _ := new(big.Float).SetPrec(100).Quo(new(big.Float).SetInt(balanceInBigInt), new(big.Float).SetInt(cfg.Hydro)).Float64() //converting to KAI from HYDRO
-	addrInfo = &types.Address{
+	addrInfo := &types.Address{
 		Address:       address,
 		BalanceFloat:  balanceFloat,
 		BalanceString: balance,
@@ -682,21 +697,18 @@ func (s *Server) AddressInfo(c echo.Context) error {
 	if err == nil && len(code) > 0 {
 		addrInfo.IsContract = true
 	}
-	// write this address to db if its balance is larger than 0 or it's a SMC
-	if balance != "0" || addrInfo.IsContract {
+	// write this address to db if its balance is larger than 0 or it's a SMC or it holds KRC token
+	tokens, _, _ := s.dbClient.GetListHolders(ctx, &types.HolderFilter{
+		HolderAddress: address,
+	})
+	if balance != "0" || addrInfo.IsContract || len(tokens) > 0 {
 		_ = s.dbClient.InsertAddress(ctx, addrInfo) // insert this address to database
 	}
-	result := &SimpleAddress{
+	return &types.Address{
 		Address:       addrInfo.Address,
 		BalanceString: addrInfo.BalanceString,
 		IsContract:    addrInfo.IsContract,
-	}
-	if smcAddress[result.Address] != nil {
-		result.IsInValidatorsList = true
-		result.Role = smcAddress[result.Address].Role
-		result.Name = smcAddress[result.Address].Name
-	}
-	return api.OK.SetData(result).Build(c)
+	}, nil
 }
 
 func (s *Server) AddressTxs(c echo.Context) error {
@@ -837,29 +849,23 @@ func (s *Server) TxByHash(c echo.Context) error {
 		tx.DecodedInputData = functionCall
 	}
 
-	// decode logs first
-	for i := range tx.Logs {
-		smcABI, err := s.getSMCAbi(ctx, &tx.Logs[i])
-		if err != nil {
-			continue
-		}
-		decodedLog, err := s.kaiClient.UnpackLog(&tx.Logs[i], smcABI)
-		if err != nil {
-			decodedLog = &tx.Logs[i]
-		}
-		decodedLog.Time = tx.Time
-		tx.Logs[i] = *decodedLog
-	}
 	internalTxs := make([]*InternalTransaction, len(tx.Logs))
 	for i := range tx.Logs {
-		krcTokenInfo, err = s.getKRCTokenInfo(ctx, tx.Logs[i].Address)
-		if err != nil {
-			continue
+		if smcABI != nil {
+			unpackedLog, err := s.kaiClient.UnpackLog(&tx.Logs[i], smcABI)
+			if err == nil && unpackedLog != nil {
+				tx.Logs[i] = *unpackedLog
+			}
 		}
 		internalTxs[i] = &InternalTransaction{
-			Log:          &tx.Logs[i],
-			KRCTokenInfo: krcTokenInfo,
+			Log: &tx.Logs[i],
 		}
+		krcTokenInfo, err = s.getKRCTokenInfo(ctx, tx.Logs[i].Address)
+		if err != nil {
+			s.logger.Info("Cannot get KRC Token Info", zap.String("smcAddress", tx.Logs[i].Address), zap.Error(err))
+			continue
+		}
+		internalTxs[i].KRCTokenInfo = krcTokenInfo
 	}
 
 	result := &Transaction{
@@ -1008,7 +1014,7 @@ func getPagingOption(c echo.Context) (*types.Pagination, int, int) {
 	page = page - 1
 	limit, err := strconv.Atoi(limitParams)
 	if err != nil {
-		limit = 10
+		limit = 25
 	}
 	pagination := &types.Pagination{
 		Skip:  page * limit,
@@ -1019,7 +1025,6 @@ func getPagingOption(c echo.Context) (*types.Pagination, int, int) {
 }
 
 func (s *Server) getValidatorsAddressAndRole(ctx context.Context) map[string]*valInfoResponse {
-
 	validators, err := s.getValidators(ctx)
 	if err != nil {
 		return make(map[string]*valInfoResponse)
@@ -1154,7 +1159,13 @@ func (s *Server) ContractEvents(c echo.Context) error {
 		krcTokenInfo *types.KRCTokenInfo
 	)
 	pagination, page, limit := getPagingOption(c)
-	events, total, err := s.dbClient.GetListEvents(ctx, pagination, c.QueryParam("contractAddress"), c.QueryParam("methodName"), c.QueryParam("txHash"))
+	filter := &types.EventsFilter{
+		Pagination:      pagination,
+		ContractAddress: c.QueryParam("contractAddress"),
+		MethodName:      c.QueryParam("methodName"),
+		TxHash:          c.QueryParam("txHash"),
+	}
+	events, total, err := s.dbClient.GetListEvents(ctx, filter)
 	if err != nil {
 		s.logger.Warn("Cannot get events from db", zap.Error(err))
 	}
@@ -1271,28 +1282,31 @@ func (s *Server) InsertContract(c echo.Context) error {
 		return api.Invalid.Build(c)
 	}
 	ctx := context.Background()
-	if strings.EqualFold(addrInfo.ErcTypes, "KRC20") {
-		smcABIStr, err := s.dbClient.SMCABIByType(ctx, addrInfo.ErcTypes)
-		if err == nil {
-			abiData, err := base64.StdEncoding.DecodeString(smcABIStr)
-			if err != nil {
-				s.logger.Warn("Cannot decode smc abi", zap.Error(err))
-			}
-			jsonABI, err := abi.JSON(bytes.NewReader(abiData))
-			if err != nil {
-				s.logger.Warn("Cannot convert decoded smc abi to JSON abi", zap.Error(err))
-			}
-			if err == nil {
-				totalSupply, _ := s.kaiClient.GetKRCTotalSupply(ctx, &jsonABI, common.HexToAddress(addrInfo.Address))
-				if totalSupply != nil {
-					addrInfo.TotalSupply = totalSupply.String()
-				}
-			}
-		}
+	krcTokenInfoFromRPC, err := s.getKRCTokenInfoFromRPC(ctx, addrInfo.Address, addrInfo.KrcTypes)
+	if err != nil && strings.HasPrefix(addrInfo.KrcTypes, "KRC") {
+		s.logger.Warn("Updating contract is not KRC type", zap.Any("smcInfo", addrInfo))
+		return api.Invalid.Build(c)
 	}
+	if krcTokenInfoFromRPC != nil {
+		// cache new token info
+		krcTokenInfoFromRPC.Logo = addrInfo.Logo
+		_ = s.cacheClient.UpdateKRCTokenInfo(ctx, krcTokenInfoFromRPC)
+
+		addrInfo.TokenName = krcTokenInfoFromRPC.TokenName
+		addrInfo.TokenSymbol = krcTokenInfoFromRPC.TokenSymbol
+		addrInfo.TotalSupply = krcTokenInfoFromRPC.TokenName
+		addrInfo.Decimals = krcTokenInfoFromRPC.Decimals
+	}
+	currTokenInfo, _ := s.dbClient.AddressByHash(ctx, addrInfo.Address)
 	if err := s.dbClient.InsertContract(ctx, &contract, &addrInfo); err != nil {
 		lgr.Error("cannot bind insert", zap.Error(err))
 		return api.InternalServer.Build(c)
+	}
+	// retrieve old token transfer before we add this token to database as KRC
+	if (currTokenInfo != nil && currTokenInfo.KrcTypes == "" && currTokenInfo.TokenName == "" && currTokenInfo.TokenSymbol == "") || currTokenInfo == nil {
+		if err := s.insertHistoryTransferKRC(ctx, addrInfo.Address); err != nil {
+			lgr.Error("cannot retrieve history transfer of KRC token", zap.Error(err), zap.String("address", addrInfo.Address))
+		}
 	}
 
 	return api.OK.Build(c)
@@ -1313,55 +1327,43 @@ func (s *Server) UpdateContract(c echo.Context) error {
 	)
 	c.Request().Body = ioutil.NopCloser(bytes.NewBuffer(bodyBytes))
 	if err := c.Bind(&contract); err != nil {
-		lgr.Error("cannot bind data", zap.Error(err))
+		lgr.Error("cannot bind contract data", zap.Error(err))
 		return api.Invalid.Build(c)
 	}
 	c.Request().Body = ioutil.NopCloser(bytes.NewBuffer(bodyBytes))
 	if err := c.Bind(&addrInfo); err != nil {
-		lgr.Error("cannot bind data", zap.Error(err))
+		lgr.Error("cannot bind address data", zap.Error(err))
 		return api.Invalid.Build(c)
 	}
 	ctx := context.Background()
-	if strings.EqualFold(addrInfo.ErcTypes, "KRC20") {
-		smcABIStr, err := s.dbClient.SMCABIByType(ctx, addrInfo.ErcTypes)
-		if err == nil {
-			abiData, err := base64.StdEncoding.DecodeString(smcABIStr)
-			if err != nil {
-				s.logger.Warn("Cannot decode smc abi", zap.Error(err))
-			}
-			jsonABI, err := abi.JSON(bytes.NewReader(abiData))
-			if err != nil {
-				s.logger.Warn("Cannot convert decoded smc abi to JSON abi", zap.Error(err))
-			}
-			if err == nil {
-				totalSupply, _ := s.kaiClient.GetKRCTotalSupply(ctx, &jsonABI, common.HexToAddress(addrInfo.Address))
-				if totalSupply != nil {
-					addrInfo.TotalSupply = totalSupply.String()
-				}
-			}
-		}
+	krcTokenInfoFromRPC, err := s.getKRCTokenInfoFromRPC(ctx, addrInfo.Address, addrInfo.KrcTypes)
+	if err != nil && strings.HasPrefix(addrInfo.KrcTypes, "KRC") {
+		s.logger.Warn("Updating contract is not KRC type", zap.Any("smcInfo", addrInfo), zap.Error(err))
+		return api.Invalid.Build(c)
+	}
+	if krcTokenInfoFromRPC != nil {
+		// cache new token info
+		krcTokenInfoFromRPC.Logo = addrInfo.Logo
+		_ = s.cacheClient.UpdateKRCTokenInfo(ctx, krcTokenInfoFromRPC)
+
+		addrInfo.TokenName = krcTokenInfoFromRPC.TokenName
+		addrInfo.TokenSymbol = krcTokenInfoFromRPC.TokenSymbol
+		addrInfo.TotalSupply = krcTokenInfoFromRPC.TotalSupply
+		addrInfo.Decimals = krcTokenInfoFromRPC.Decimals
 	}
 	currTokenInfo, _ := s.dbClient.AddressByHash(ctx, addrInfo.Address)
 	if err := s.dbClient.UpdateContract(ctx, &contract, &addrInfo); err != nil {
 		lgr.Error("cannot bind insert", zap.Error(err))
 		return api.InternalServer.Build(c)
 	}
-	_ = s.cacheClient.UpdateKRCTokenInfo(ctx, &types.KRCTokenInfo{
-		Address:     addrInfo.Address,
-		TokenName:   addrInfo.TokenName,
-		TokenType:   addrInfo.ErcTypes,
-		TokenSymbol: addrInfo.TokenSymbol,
-		TotalSupply: addrInfo.TotalSupply,
-		Decimals:    addrInfo.Decimals,
-		Logo:        addrInfo.Logo,
-	})
-	if currTokenInfo != nil && currTokenInfo.ErcTypes == "" && currTokenInfo.TokenName == "" && currTokenInfo.TokenSymbol == "" {
+	// retrieve old token transfer before we add this token to database as KRC
+	if (currTokenInfo != nil && currTokenInfo.KrcTypes == "" && currTokenInfo.TokenName == "" && currTokenInfo.TokenSymbol == "") || currTokenInfo == nil {
 		if err := s.insertHistoryTransferKRC(ctx, addrInfo.Address); err != nil {
 			lgr.Error("cannot retrieve history transfer of KRC token", zap.Error(err), zap.String("address", addrInfo.Address))
 		}
 	}
 
-	return api.OK.Build(c)
+	return api.OK.SetData(addrInfo).Build(c)
 }
 
 func (s *Server) UpdateSMCABIByType(c echo.Context) error {
@@ -1402,6 +1404,7 @@ func (s *Server) SearchAddressByName(c echo.Context) error {
 			}
 		}
 	}
+	s.logger.Info("Addresses search results", zap.Any("addresses", addresses), zap.Error(err))
 
 	contracts, err := s.dbClient.ContractByName(ctx, name)
 	if err == nil && len(contracts) > 0 {
@@ -1424,6 +1427,7 @@ func (s *Server) SearchAddressByName(c echo.Context) error {
 			}
 		}
 	}
+	s.logger.Info("Contracts search results", zap.Any("contracts", contracts), zap.Error(err))
 
 	if len(addrMap) == 0 {
 		return api.Invalid.Build(c)
@@ -1534,7 +1538,14 @@ func (s *Server) getAddressInfo(ctx context.Context, address string) (*types.Add
 	s.logger.Info("Cannot get address info in cache, getting from db instead", zap.String("address", address), zap.Error(err))
 	addrInfo, err = s.dbClient.AddressByHash(ctx, address)
 	if err != nil {
-		s.logger.Warn("Cannot store address info to db", zap.String("address", address), zap.Error(err))
+		s.logger.Warn("Cannot get address info from db", zap.String("address", address), zap.Error(err))
+		if err != nil {
+			// insert new address to db
+			newAddr, err := s.newAddressInfo(ctx, address)
+			if err != nil {
+				s.logger.Warn("Cannot store address info to db", zap.Any("address", newAddr), zap.Error(err))
+			}
+		}
 		return nil, err
 	}
 	err = s.cacheClient.UpdateAddressInfo(ctx, addrInfo)
