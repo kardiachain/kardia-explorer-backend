@@ -108,6 +108,14 @@ func (m *mongoDB) Validators(ctx context.Context, filter ValidatorsFilter) ([]*t
 	return validators, nil
 }
 
+func (m *mongoDB) Validator(ctx context.Context, validatorAddress string) (*types.Validator, error) {
+	var validator *types.Validator
+	if err := m.wrapper.C(cValidators).FindOne(bson.M{"address": validatorAddress}).Decode(&validator); err != nil {
+		return nil, err
+	}
+	return validator, nil
+}
+
 func (m *mongoDB) ClearValidators(ctx context.Context) error {
 	if _, err := m.wrapper.C(cValidators).RemoveAll(bson.M{}); err != nil {
 		return err
@@ -132,6 +140,13 @@ func (m *mongoDB) UpdateProposers(ctx context.Context, proposerSMCAddresses []st
 		return err
 	}
 	if _, err := m.wrapper.C(cValidators).Update(bson.M{"$in": bson.M{"smcAddress": proposerSMCAddresses}}, bson.M{"status": 2}); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (m *mongoDB) RemoveValidator(ctx context.Context, validatorSMCAddress string) error {
+	if _, err := m.wrapper.C(cValidators).RemoveAll(bson.M{"smcAddress": validatorSMCAddress}); err != nil {
 		return err
 	}
 	return nil
