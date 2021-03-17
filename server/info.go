@@ -771,7 +771,9 @@ func (s *infoServer) storeEvents(ctx context.Context, logs []types.Log, blockTim
 		logs[i] = *decodedLog
 		if logs[i].Topics[0] == cfg.KRCTransferTopic {
 			iTx := s.getInternalTxs(ctx, decodedLog)
-			internalTxsList = append(internalTxsList, iTx)
+			if iTx != nil {
+				internalTxsList = append(internalTxsList, iTx)
+			}
 			holders, err := s.getKRCHolder(ctx, decodedLog)
 			if err != nil {
 				continue
@@ -961,12 +963,28 @@ func (s *infoServer) getKRCHolder(ctx context.Context, log *types.Log) ([]*types
 }
 
 func (s *infoServer) getInternalTxs(ctx context.Context, log *types.Log) *types.TokenTransfer {
+	var (
+		from, to, value string
+		ok              bool
+	)
+	from, ok = log.Arguments["from"].(string)
+	if !ok {
+		return nil
+	}
+	to, ok = log.Arguments["to"].(string)
+	if !ok {
+		return nil
+	}
+	value, ok = log.Arguments["value"].(string)
+	if !ok {
+		return nil
+	}
 	return &types.TokenTransfer{
 		TransactionHash: log.TxHash,
 		Contract:        log.Address,
-		From:            log.Arguments["from"].(string),
-		To:              log.Arguments["to"].(string),
-		Value:           log.Arguments["value"].(string),
+		From:            from,
+		To:              to,
+		Value:           value,
 		Time:            log.Time,
 	}
 }
