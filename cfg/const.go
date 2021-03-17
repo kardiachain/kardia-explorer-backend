@@ -27,7 +27,7 @@ import (
 )
 
 var (
-	ServerVersion = "1.1.2"
+	ServerVersion = "1.1.3"
 )
 
 const (
