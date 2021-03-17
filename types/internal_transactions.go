@@ -14,12 +14,11 @@ type TokenTransfer struct {
 }
 
 type KRCTokenInfo struct {
-	Address        string `json:"-"`
-	TokenName      string `json:"tokenName"`
-	TokenType      string `json:"tokenType"`
-	TokenSymbol    string `json:"tokenSymbol"`
-	TotalSupply    string `json:"totalSupply"`
-	Decimals       int64  `json:"decimals"`
-	NumTokensTotal int64  `json:"numTokensTotal,omitempty"`
-	Logo           string `json:"logo"`
+	Address     string `json:"-"`
+	TokenName   string `json:"tokenName"`
+	TokenType   string `json:"tokenType"`
+	TokenSymbol string `json:"tokenSymbol"`
+	TotalSupply string `json:"totalSupply"`
+	Decimals    int64  `json:"decimals"`
+	Logo        string `json:"logo"`
 }

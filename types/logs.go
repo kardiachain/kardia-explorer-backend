@@ -17,8 +17,6 @@ type Log struct {
 	Time          time.Time              `json:"time" bson:"time"`
 	TxHash        string                 `json:"transactionHash"  bson:"transactionHash"`
 	TxIndex       uint                   `json:"transactionIndex,omitempty" bson:"transactionIndex"`
-	TempTxHash    string                 `json:"-"  bson:"txhash,omitempty"`
-	TempTxIndex   uint                   `json:"-" bson:"txindex,omitempty"`
 	BlockHash     string                 `json:"blockHash,omitempty" bson:"blockHash"`
 	Index         uint                   `json:"logIndex,omitempty" bson:"logIndex"`
 	Removed       bool                   `json:"removed,omitempty" bson:"removed"`

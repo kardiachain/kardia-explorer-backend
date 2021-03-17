@@ -40,33 +40,6 @@ func (ec *Client) getKRC721TotalSupply(ctx context.Context, a *abi.ABI, krcToken
 	return totalSupply, nil
 }
 
-// getKRC721TotalToken
-func (ec *Client) getKRC721TotalToken(ctx context.Context, a *abi.ABI, krcTokenAddr common.Address) (*big.Int, error) {
-	payload, err := a.Pack("numTokensTotal")
-	if err != nil {
-		ec.lgr.Error("Error packing get decimals payload: ", zap.Error(err))
-		return nil, err
-	}
-
-	res, err := ec.KardiaCall(ctx, contructCallArgs(krcTokenAddr.Hex(), payload))
-	if err != nil {
-		ec.lgr.Warn("getKRC721TotalToken KardiaCall error: ", zap.Error(err))
-		return nil, err
-	}
-	if len(res) == 0 {
-		return nil, ErrEmptyList
-	}
-
-	var numTokensTotal *big.Int
-	// unpack result
-	err = a.UnpackIntoInterface(&numTokensTotal, "numTokensTotal", res)
-	if err != nil {
-		ec.lgr.Error("Error unpacking decimals: ", zap.Error(err))
-		return nil, err
-	}
-	return numTokensTotal, nil
-}
-
 // getKRC721TokenName
 func (ec *Client) getKRC721TokenName(ctx context.Context, a *abi.ABI, krcTokenAddr common.Address) (string, error) {
 	payload, err := a.Pack("name")
@@ -134,16 +107,11 @@ func (ec *Client) GetKRC721TokenInfo(ctx context.Context, a *abi.ABI, krcTokenAd
 	if err != nil {
 		return nil, err
 	}
-	totalTokens, err := ec.getKRC721TotalToken(ctx, a, krcTokenAddr)
-	if err != nil {
-		return nil, err
-	}
 	return &types.KRCTokenInfo{
-		Address:        krcTokenAddr.Hex(),
-		TokenName:      name,
-		TokenType:      cfg.SMCTypeKRC721,
-		TokenSymbol:    symbol,
-		TotalSupply:    totalSupply.String(),
-		NumTokensTotal: totalTokens.Int64(),
+		Address:     krcTokenAddr.Hex(),
+		TokenName:   name,
+		TokenType:   cfg.SMCTypeKRC721,
+		TokenSymbol: symbol,
+		TotalSupply: totalSupply.String(),
 	}, nil
 }
