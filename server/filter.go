@@ -9,59 +9,8 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/kardiachain/kardia-explorer-backend/cfg"
-	"github.com/kardiachain/kardia-explorer-backend/db"
 	"github.com/kardiachain/kardia-explorer-backend/types"
 )
-
-func (s *infoServer) filterStakingEvent(ctx context.Context, txs []*types.Transaction) error {
-	lgr := s.logger.With(zap.String("method", "filterStakingEvent"))
-	// Get current validators list
-	dbValidators, err := s.dbClient.Validators(ctx, db.ValidatorsFilter{})
-	if err != nil {
-		return err
-	}
-
-	validatorMap := make(map[string]*types.Validator)
-	for _, v := range dbValidators {
-		validatorMap[v.SmcAddress] = v
-	}
-	isReload := false
-	// Just reload one per block
-	for _, tx := range txs {
-		// Call to staking SMC
-		if tx.To == cfg.StakingContractAddr {
-			isReload = true
-			break
-		}
-
-		// Call to validator smc
-		v, ok := validatorMap[tx.To]
-		if !ok || v == nil {
-			continue
-		}
-
-		isReload = true
-		break
-	}
-
-	if isReload {
-		// Clear firsts
-		lgr.Debug("reload validators")
-		validators, err := s.kaiClient.Validators(ctx)
-		if err != nil || len(validators) == 0 {
-			return err
-		}
-
-		if err := s.dbClient.ClearValidators(ctx); err != nil {
-			return err
-		}
-		if err := s.dbClient.UpsertValidators(ctx, validators); err != nil {
-			return err
-		}
-	}
-
-	return nil
-}
 
 func (s *infoServer) filterProposalEvent(ctx context.Context, txs []*types.Transaction) error {
 	lgr := s.logger.With(zap.String("method", "filterProposalEvent"))
