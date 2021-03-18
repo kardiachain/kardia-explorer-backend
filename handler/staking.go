@@ -91,8 +91,6 @@ func (h *handler) processHeader(ctx context.Context, header *ctypes.Header) {
 	}
 
 	for _, tx := range block.Txs {
-
-		fmt.Println("Status", tx.Status)
 		// When new interact with staking contract
 		if tx.To == cfg.StakingContractAddr {
 			h.onInteractWithStaking(ctx, tx)
