@@ -6,7 +6,6 @@ import (
 	"encoding/base64"
 	"fmt"
 	"io/ioutil"
-	"math/big"
 	"path"
 	"runtime"
 	"time"
@@ -17,87 +16,6 @@ import (
 	"github.com/kardiachain/kardia-explorer-backend/db"
 	"github.com/kardiachain/kardia-explorer-backend/types"
 )
-
-func (s *infoServer) LoadBootData(ctx context.Context) error {
-	lgr := s.logger
-	lgr.Debug("Start load boot data")
-	stats := s.dbClient.Stats(ctx)
-	totalTxs, err := s.dbClient.TxsCount(ctx)
-	if err != nil {
-		s.logger.Warn("Cannot get total txs when boot", zap.Uint64("totalTxs", totalTxs), zap.Error(err))
-	}
-	if err = s.cacheClient.SetTotalTxs(ctx, totalTxs); err != nil {
-		s.logger.Warn("Cannot set total txs to cache when boot", zap.Uint64("totalTxs", totalTxs), zap.Error(err))
-	}
-	if err = s.cacheClient.UpdateTotalHolders(ctx, stats.TotalAddresses, stats.TotalContracts); err != nil {
-		s.logger.Warn("Cannot set total holders to cache when boot", zap.Uint64("totalAddresses", stats.TotalAddresses), zap.Uint64("totalContracts", stats.TotalContracts), zap.Error(err))
-	}
-	if err = s.dbClient.InsertAddress(ctx, &types.Address{
-		Address:       "0x",
-		BalanceString: "0",
-		IsContract:    false,
-	}); err != nil {
-		s.logger.Warn("Cannot insert 0x address to db when boot", zap.Error(err))
-	}
-
-	validators, err := s.kaiClient.Validators(ctx)
-	if err != nil || len(validators) == 0 {
-		lgr.Error("cannot get list validators", zap.Error(err))
-		return err
-	}
-
-	if err := s.dbClient.ClearValidators(ctx); err != nil {
-		return err
-	}
-	if err := s.dbClient.UpsertValidators(ctx, validators); err != nil {
-		return err
-	}
-
-	for _, val := range validators {
-		cfg.GenesisAddresses = append(cfg.GenesisAddresses, &types.Address{
-			Address: val.SmcAddress,
-			Name:    val.Name,
-		})
-	}
-
-	cfg.GenesisAddresses = append(cfg.GenesisAddresses, &types.Address{
-		Address: cfg.TreasuryContractAddr,
-		Name:    cfg.TreasuryContractName,
-	})
-	cfg.GenesisAddresses = append(cfg.GenesisAddresses, &types.Address{
-		Address: cfg.StakingContractAddr,
-		Name:    cfg.StakingContractName,
-	})
-	cfg.GenesisAddresses = append(cfg.GenesisAddresses, &types.Address{
-		Address: cfg.KardiaDeployerAddr,
-		Name:    cfg.KardiaDeployerName,
-	})
-	cfg.GenesisAddresses = append(cfg.GenesisAddresses, &types.Address{
-		Address: cfg.ParamsContractAddr,
-		Name:    cfg.ParamsContractName,
-	})
-
-	for i, addr := range cfg.GenesisAddresses {
-		balance, _ := s.kaiClient.GetBalance(ctx, addr.Address)
-		balanceInBigInt, _ := new(big.Int).SetString(balance, 10)
-		balanceFloat, _ := new(big.Float).SetPrec(100).Quo(new(big.Float).SetInt(balanceInBigInt), new(big.Float).SetInt(cfg.Hydro)).Float64() //converting to KAI from HYDRO
-
-		cfg.GenesisAddresses[i].BalanceFloat = balanceFloat
-		cfg.GenesisAddresses[i].BalanceString = balance
-		code, _ := s.kaiClient.GetCode(ctx, addr.Address)
-		if len(code) > 0 {
-			cfg.GenesisAddresses[i].IsContract = true
-		}
-
-		// write this address to db
-		if err := s.dbClient.InsertAddress(ctx, cfg.GenesisAddresses[i]); err != nil {
-			lgr.Debug("cannot insert address", zap.Error(err))
-		}
-
-	}
-	fmt.Println("Finished load boot data")
-	return nil
-}
 
 func (s *infoServer) LoadBootContracts(ctx context.Context) error {
 	// read and encode ABI base64
