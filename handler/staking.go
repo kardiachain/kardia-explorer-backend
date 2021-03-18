@@ -108,13 +108,13 @@ func (h *handler) processHeader(ctx context.Context, header *ctypes.Header) {
 		return
 	}
 
-	validatorAddresses, err := h.w.TrustedNode().ValidatorSMCAddresses(ctx)
+	dbValidators, err := h.db.Validators(ctx, db.ValidatorsFilter{})
 	if err != nil {
-		lgr.Debug("cannot check get validator addresses", zap.Any("address", validatorAddresses))
+		lgr.Debug("cannot check get validator addresses", zap.Any("address", dbValidators))
 	}
 	validatorMap := make(map[string]bool)
-	for _, addr := range validatorAddresses {
-		validatorMap[addr.Hex()] = true
+	for _, v := range dbValidators {
+		validatorMap[v.SmcAddress] = true
 	}
 
 	for _, tx := range block.Txs {
