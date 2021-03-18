@@ -173,6 +173,7 @@ func (w *Wrapper) Validator(ctx context.Context, validatorSMCAddress string) (*t
 		lgr.Error("cannot get validator info", zap.Error(err))
 		return nil, err
 	}
+	lgr.Debug("ValidatorInfo", zap.Any("V", nValidator))
 
 	commission, err := w.pickTrusted().ValidatorCommission(ctx, validatorSMCAddress)
 	if err != nil {

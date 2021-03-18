@@ -145,7 +145,11 @@ func loadStakingBootData(ctx context.Context, cfg cfg.ExplorerConfig) error {
 		lgr.Error("cannot update staking stats", zap.Error(err))
 		return err
 	}
-
+	// Clear data before upsert
+	if err := dbClient.ClearValidators(ctx); err != nil {
+		lgr.Error("cannot clear validators", zap.Error(err))
+		return err
+	}
 	if err := dbClient.UpsertValidators(ctx, validators); err != nil {
 		lgr.Error("cannot upsert validators", zap.Error(err))
 		return err

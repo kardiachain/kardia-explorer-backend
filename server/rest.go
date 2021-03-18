@@ -1029,10 +1029,6 @@ func (s *Server) getValidatorsAddressAndRole(ctx context.Context) map[string]*va
 	if err != nil {
 		return make(map[string]*valInfoResponse)
 	}
-	//vals, err := s.cacheClient.Validators(ctx)
-	//if err != nil {
-	//
-	//}
 
 	smcAddress := map[string]*valInfoResponse{}
 	for _, v := range validators {
@@ -1134,19 +1130,19 @@ func (s *Server) UpdateAddressName(c echo.Context) error {
 }
 
 func (s *Server) ReloadValidators(c echo.Context) error {
-	ctx := context.Background()
 	if c.Request().Header.Get("Authorization") != s.infoServer.HttpRequestSecret {
 		return api.Unauthorized.Build(c)
 	}
 
-	validators, err := s.kaiClient.Validators(ctx)
-	if err != nil {
-		return api.Invalid.Build(c)
-	}
-
-	if err := s.dbClient.UpsertValidators(ctx, validators); err != nil {
-		return api.Invalid.Build(c)
-	}
+	//todo longnd: rework reload validator API
+	//validators, err := s.kaiClient.Validators(ctx)
+	//if err != nil {
+	//	return api.Invalid.Build(c)
+	//}
+	//
+	//if err := s.dbClient.UpsertValidators(ctx, validators); err != nil {
+	//	return api.Invalid.Build(c)
+	//}
 
 	return api.OK.Build(c)
 }
