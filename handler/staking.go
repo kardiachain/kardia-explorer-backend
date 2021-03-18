@@ -69,33 +69,6 @@ func (h *handler) SubscribeValidatorEvent(ctx context.Context) error {
 	}
 }
 
-func (h *handler) reloadValidator(ctx context.Context, validatorSMCAddress string) {
-	lgr := h.logger.With(zap.String("method", "reloadValidator"))
-	v, err := h.w.Validator(ctx, validatorSMCAddress)
-	if err != nil {
-		lgr.Warn("cannot get validator info", zap.String("SMCAddress", validatorSMCAddress), zap.Error(err))
-		return
-	}
-	lgr.Debug("ValidatorInfo", zap.Any("validator", v))
-
-	// If stakedAmount == 0, then remove
-	if v.StakedAmount == "0" {
-		if err := h.db.RemoveValidator(ctx, v.SmcAddress); err != nil {
-			lgr.Error("cannot remove validator", zap.Error(err))
-		}
-		return
-	} else {
-		if err := h.db.UpsertValidator(ctx, v); err != nil {
-			lgr.Error("cannot upsert validator", zap.Error(err))
-			return
-		}
-	}
-}
-
-func (h *handler) processValidatorEvent(ctx context.Context, l *kardia.FilterLogs) {
-
-}
-
 func (h *handler) processHeader(ctx context.Context, header *ctypes.Header) {
 	lgr := h.logger.With(zap.String("method", "processHeader"))
 	if header.NumTxs == 0 {
@@ -120,42 +93,73 @@ func (h *handler) processHeader(ctx context.Context, header *ctypes.Header) {
 	for _, tx := range block.Txs {
 		// When new interact with staking contract
 		if tx.To == cfg.StakingContractAddr {
-			validatorSMCAddress, err := h.w.TrustedNode().SMCAddressOfValidator(ctx, tx.From)
-			if err != nil {
-				lgr.Error("cannot find validator SMC address", zap.Error(err))
-				continue
-			}
-			h.reloadValidator(ctx, validatorSMCAddress.String())
-			continue
-		}
-		isExist, ok := validatorMap[tx.To]
-		if !ok || isExist == false {
-			continue
+			h.onInteractWithStaking(ctx, tx)
 		}
 
-		h.reloadValidator(ctx, tx.To)
-		h.reloadDelegator(ctx, tx.To, tx.From)
-
-		nProposerAddresses, err := h.w.TrustedNode().ValidatorSets(ctx)
-		if err != nil {
-			lgr.Debug("cannot get list proposer", zap.Error(err))
-			return
-		}
-		var proposerAddresses []string
-		for _, address := range nProposerAddresses {
-			proposerAddresses = append(proposerAddresses, address.String())
+		isExist, _ := validatorMap[tx.To]
+		if isExist {
+			h.onInteractWithValidators(ctx, tx)
 		}
 
-		if err := h.db.UpdateProposers(ctx, proposerAddresses); err != nil {
-			lgr.Error("cannot update proposers list", zap.Error(err))
-			return
-		}
 		// 2. Calculate new stats
 		if err := h.calculateStakingStats(ctx); err != nil {
 			return
 		}
 	}
+}
 
+func (h *handler) onInteractWithStaking(ctx context.Context, tx *kardia.Transaction) {
+	lgr := h.logger.With(zap.String("method", "onInteractWithStaking"))
+	validatorSMCAddress, err := h.w.TrustedNode().SMCAddressOfValidator(ctx, tx.From)
+	if err != nil {
+		lgr.Error("cannot find validator SMC address", zap.Error(err))
+		return
+	}
+	h.reloadValidator(ctx, validatorSMCAddress.String())
+}
+
+func (h *handler) onInteractWithValidators(ctx context.Context, tx *kardia.Transaction) {
+	lgr := h.logger.With(zap.String("method", "onInteractWithValidators"))
+	h.reloadValidator(ctx, tx.To)
+	h.reloadDelegator(ctx, tx.To, tx.From)
+
+	nProposerAddresses, err := h.w.TrustedNode().ValidatorSets(ctx)
+	if err != nil {
+		lgr.Debug("cannot get list proposer", zap.Error(err))
+		return
+	}
+	var proposerAddresses []string
+	for _, address := range nProposerAddresses {
+		proposerAddresses = append(proposerAddresses, address.String())
+	}
+
+	if err := h.db.UpdateProposers(ctx, proposerAddresses); err != nil {
+		lgr.Error("cannot update proposers list", zap.Error(err))
+		return
+	}
+}
+
+func (h *handler) reloadValidator(ctx context.Context, validatorSMCAddress string) {
+	lgr := h.logger.With(zap.String("method", "reloadValidator"))
+	v, err := h.w.Validator(ctx, validatorSMCAddress)
+	if err != nil {
+		lgr.Warn("cannot get validator info", zap.String("SMCAddress", validatorSMCAddress), zap.Error(err))
+		return
+	}
+	lgr.Debug("ValidatorInfo", zap.Any("validator", v))
+
+	// If stakedAmount == 0, then remove
+	if v.StakedAmount == "0" {
+		if err := h.db.RemoveValidator(ctx, v.SmcAddress); err != nil {
+			lgr.Error("cannot remove validator", zap.Error(err))
+		}
+		return
+	} else {
+		if err := h.db.UpsertValidator(ctx, v); err != nil {
+			lgr.Error("cannot upsert validator", zap.Error(err))
+			return
+		}
+	}
 }
 
 func (h *handler) reloadDelegator(ctx context.Context, validatorSMCAddress, delegatorAddress string) {
