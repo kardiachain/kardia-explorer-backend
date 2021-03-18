@@ -77,12 +77,19 @@ func (h *handler) reloadValidator(ctx context.Context, validatorSMCAddress strin
 		return
 	}
 	lgr.Debug("ValidatorInfo", zap.Any("validator", v))
-	// 1. Upsert validator with new info
-	if err := h.db.UpsertValidator(ctx, v); err != nil {
-		lgr.Error("cannot upsert validator", zap.Error(err))
-		return
-	}
 
+	// If stakedAmount == 0, then remove
+	if v.StakedAmount == "0" {
+		if err := h.db.RemoveValidator(ctx, v.SmcAddress); err != nil {
+			lgr.Error("cannot remove validator", zap.Error(err))
+		}
+		return
+	} else {
+		if err := h.db.UpsertValidator(ctx, v); err != nil {
+			lgr.Error("cannot upsert validator", zap.Error(err))
+			return
+		}
+	}
 }
 
 func (h *handler) processValidatorEvent(ctx context.Context, l *kardia.FilterLogs) {
@@ -158,8 +165,8 @@ func (h *handler) reloadDelegator(ctx context.Context, validatorSMCAddress, dele
 		lgr.Warn("cannot get validator info", zap.String("SMCAddress", validatorSMCAddress), zap.Error(err))
 		return
 	}
+	//todo @longnd: Remove validator and upsert with sort values
 
-	// Update delegator info
 	lgr.Debug("DelegatorInfo", zap.Any("delegator", d))
 	if err := h.db.UpsertDelegator(ctx, d); err != nil {
 		lgr.Error("cannot upsert delegator", zap.Error(err))
