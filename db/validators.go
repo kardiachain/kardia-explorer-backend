@@ -27,6 +27,7 @@ type IValidator interface {
 
 	UpsertValidator(ctx context.Context, validator *types.Validator) error
 	UpdateProposers(ctx context.Context, proposerSMCAddresses []string) error
+	RemoveValidator(ctx context.Context, validatorSMCAddress string) error
 }
 
 type ValidatorsFilter struct {
@@ -35,6 +36,7 @@ type ValidatorsFilter struct {
 }
 
 func (m *mongoDB) UpsertValidators(ctx context.Context, validators []*types.Validator) error {
+	lgr := m.logger.With(zap.String("method", "UpsertValidators"))
 	var (
 		models         []mongo.WriteModel
 		addressModels  []mongo.WriteModel
@@ -59,11 +61,11 @@ func (m *mongoDB) UpsertValidators(ctx context.Context, validators []*types.Vali
 	}
 
 	if _, err := m.wrapper.C(cValidators).BulkUpsert(models); err != nil {
-		fmt.Println("Cannot write validator models", err)
+		lgr.Error("Cannot write validator models", zap.Error(err))
 		return err
 	}
 	if _, err := m.wrapper.C(cAddresses).BulkUpsert(addressModels); err != nil {
-		fmt.Println("Cannot write address info models", err)
+		lgr.Error("Cannot write address info models", zap.Error(err))
 		return err
 	}
 	if _, err := m.wrapper.C(cContract).BulkUpsert(contractModels); err != nil {
@@ -146,7 +148,7 @@ func (m *mongoDB) UpdateProposers(ctx context.Context, proposerAddresses []strin
 }
 
 func (m *mongoDB) RemoveValidator(ctx context.Context, validatorSMCAddress string) error {
-	if _, err := m.wrapper.C(cValidators).RemoveAll(bson.M{"smcAddress": validatorSMCAddress}); err != nil {
+	if _, err := m.wrapper.C(cValidators).Remove(bson.M{"smcAddress": validatorSMCAddress}); err != nil {
 		return err
 	}
 	return nil

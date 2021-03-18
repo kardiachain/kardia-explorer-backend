@@ -168,3 +168,7 @@ func (m *mongoDB) GetStakedOfAddresses(ctx context.Context, addresses []string) 
 	}
 	return total.String(), nil
 }
+
+func (m *mongoDB) RemoveDelegator(ctx context.Context, delegatorAddress, validatorSMCAddress string) error {
+	return nil
+}

@@ -77,6 +77,11 @@ func (w *KaiMgo) RemoveAll(filter interface{},
 	return w.col.DeleteMany(context.Background(), filter, opts...)
 }
 
+func (w *KaiMgo) Remove(filter interface{},
+	opts ...*options.DeleteOptions) (*mongo.DeleteResult, error) {
+	return w.col.DeleteOne(context.Background(), filter, opts...)
+}
+
 func (w *KaiMgo) Find(filter interface{},
 	opts ...*options.FindOptions) (*mongo.Cursor, error) {
 	return w.col.Find(context.Background(), filter, opts...)
