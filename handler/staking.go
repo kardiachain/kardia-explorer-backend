@@ -71,16 +71,19 @@ func (h *handler) SubscribeValidatorEvent(ctx context.Context) error {
 
 func (h *handler) processHeader(ctx context.Context, header *ctypes.Header) {
 	lgr := h.logger.With(zap.String("method", "processHeader"))
-	if header.NumTxs == 0 {
-		lgr.Debug("block has no txs", zap.String("hash", header.Hash().Hex()))
-		return
-	}
 	block, err := h.w.TrustedNode().BlockByHash(ctx, header.Hash().Hex())
 	if err != nil {
 		lgr.Debug("cannot get block", zap.Error(err))
 		return
 	}
+	if err := h.reloadProposer(ctx, block.ProposerAddress); err != nil {
+		lgr.Error("cannot reload proposer", zap.Error(err))
+	}
 
+	if header.NumTxs == 0 {
+		lgr.Debug("block has no txs", zap.String("hash", header.Hash().Hex()))
+		return
+	}
 	dbValidators, err := h.db.Validators(ctx, db.ValidatorsFilter{})
 	if err != nil {
 		lgr.Debug("cannot check get validator addresses", zap.Any("address", dbValidators))
@@ -88,10 +91,6 @@ func (h *handler) processHeader(ctx context.Context, header *ctypes.Header) {
 	validatorMap := make(map[string]bool)
 	for _, v := range dbValidators {
 		validatorMap[v.SmcAddress] = true
-	}
-
-	if err := h.reloadProposer(ctx, block.ProposerAddress); err != nil {
-		lgr.Error("cannot reload proposer", zap.Error(err))
 	}
 
 	for _, tx := range block.Txs {
@@ -154,11 +153,13 @@ func (h *handler) reloadProposer(ctx context.Context, proposerAddress string) er
 
 	// Reset validator delegators data every 20 block
 	if totalBlockOfProposer%20 == 0 {
+
 		proposerInfo, err := h.db.Validator(ctx, proposerAddress)
 		if err != nil {
 			lgr.Error("cannot get proposer info", zap.Error(err))
 			return err
 		}
+		lgr.Debug("Reload delegators of proposer", zap.String("Address", proposerAddress), zap.String("Name", proposerInfo.Name), zap.Int64("TotalBlock", totalBlockOfProposer))
 		delegators, err := h.w.DelegatorsWithWorker(ctx, proposerInfo.SmcAddress)
 		if err != nil {
 			lgr.Error("cannot get list delegators", zap.Error(err))
