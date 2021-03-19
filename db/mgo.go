@@ -400,6 +400,14 @@ func (m *mongoDB) BlocksByProposer(ctx context.Context, proposer string, paginat
 	return blocks, uint64(total), nil
 }
 
+func (m *mongoDB) CountBlocksOfProposer(ctx context.Context, proposerAddress string) (int64, error) {
+	total, err := m.wrapper.C(cBlocks).Count(bson.M{"proposerAddress": proposerAddress})
+	if err != nil {
+		return 0, err
+	}
+	return total, nil
+}
+
 //endregion Blocks
 
 //region Txs

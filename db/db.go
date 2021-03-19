@@ -61,6 +61,7 @@ type Client interface {
 	DeleteLatestBlock(ctx context.Context) (uint64, error)
 	DeleteBlockByHeight(ctx context.Context, blockHeight uint64) error
 	BlocksByProposer(ctx context.Context, proposer string, pagination *types.Pagination) ([]*types.Block, uint64, error)
+	CountBlocksOfProposer(ctx context.Context, proposerAddress string) (int64, error)
 
 	// Txs
 	TxsByBlockHash(ctx context.Context, blockHash string, pagination *types.Pagination) ([]*types.Transaction, uint64, error)

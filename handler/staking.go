@@ -90,6 +90,10 @@ func (h *handler) processHeader(ctx context.Context, header *ctypes.Header) {
 		validatorMap[v.SmcAddress] = true
 	}
 
+	if err := h.reloadProposer(ctx, block.ProposerAddress); err != nil {
+		lgr.Error("cannot reload proposer", zap.Error(err))
+	}
+
 	for _, tx := range block.Txs {
 		// When new interact with staking contract
 		if tx.To == cfg.StakingContractAddr {
@@ -137,6 +141,35 @@ func (h *handler) onInteractWithValidators(ctx context.Context, tx *kardia.Trans
 		lgr.Error("cannot update proposers list", zap.Error(err))
 		return
 	}
+}
+
+func (h *handler) reloadProposer(ctx context.Context, proposerAddress string) error {
+	lgr := h.logger.With(zap.String("method", "reloadProposer"))
+	// Reload delegator of block proposer
+	totalBlockOfProposer, err := h.db.CountBlocksOfProposer(ctx, proposerAddress)
+	if err != nil {
+		lgr.Error("cannot get total block of proposer", zap.Error(err))
+		return err
+	}
+
+	// Reset validator delegators data every 20 block
+	if totalBlockOfProposer%20 == 0 {
+		proposerInfo, err := h.db.Validator(ctx, proposerAddress)
+		if err != nil {
+			lgr.Error("cannot get proposer info", zap.Error(err))
+			return err
+		}
+		delegators, err := h.w.DelegatorsWithWorker(ctx, proposerInfo.SmcAddress)
+		if err != nil {
+			lgr.Error("cannot get list delegators", zap.Error(err))
+			return err
+		}
+		if err := h.db.UpsertDelegators(ctx, delegators); err != nil {
+			lgr.Error("cannot upsert delegators", zap.Error(err))
+			return err
+		}
+	}
+	return nil
 }
 
 func (h *handler) reloadValidator(ctx context.Context, validatorSMCAddress string) {
