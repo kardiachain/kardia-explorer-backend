@@ -637,6 +637,21 @@ func (s *Server) AddressInfo(c echo.Context) error {
 	smcAddress := s.getValidatorsAddressAndRole(ctx)
 	addrInfo, err := s.dbClient.AddressByHash(ctx, address)
 	if err == nil {
+		balance, err := s.kaiClient.GetBalance(ctx, address)
+		if err != nil {
+			s.logger.Warn("Cannot get address balance from RPC", zap.String("address", address), zap.Error(err))
+			return api.Invalid.Build(c)
+		}
+		code, err := s.kaiClient.GetCode(ctx, address)
+		if err != nil {
+			s.logger.Warn("Cannot get address code from RPC", zap.String("address", address), zap.Error(err))
+			return api.Invalid.Build(c)
+		}
+		if balance != addrInfo.BalanceString || addrInfo.IsContract != (len(code) > 0) {
+			addrInfo.BalanceString = balance
+			addrInfo.IsContract = len(code) > 0
+			_ = s.dbClient.UpdateAddresses(ctx, []*types.Address{addrInfo})
+		}
 		result := SimpleAddress{
 			Address:       addrInfo.Address,
 			BalanceString: addrInfo.BalanceString,
@@ -646,18 +661,6 @@ func (s *Server) AddressInfo(c echo.Context) error {
 		if smcAddress[result.Address] != nil {
 			result.IsInValidatorsList = true
 			result.Role = smcAddress[result.Address].Role
-		}
-		currAddrInfo, _ := s.getAddressInfo(ctx, addrInfo.Address)
-		if currAddrInfo != nil {
-			result.Name = currAddrInfo.Name
-		}
-		balance, err := s.kaiClient.GetBalance(ctx, address)
-		if err != nil {
-			return err
-		}
-		if balance != addrInfo.BalanceString {
-			addrInfo.BalanceString = balance
-			_ = s.dbClient.UpdateAddresses(ctx, []*types.Address{addrInfo})
 		}
 		return api.OK.SetData(result).Build(c)
 	}

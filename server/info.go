@@ -601,11 +601,11 @@ func filterAddrSet(txs []*types.Transaction) map[string]*types.Address {
 			IsContract: false,
 		}
 		addrs[tx.To] = &types.Address{
-			Address:    tx.From,
+			Address:    tx.To,
 			IsContract: false,
 		}
 		addrs[tx.ContractAddress] = &types.Address{
-			Address:    tx.From,
+			Address:    tx.ContractAddress,
 			IsContract: true,
 		}
 	}
