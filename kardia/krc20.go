@@ -53,9 +53,6 @@ func (ec *Client) GetKRC20BalanceByAddress(ctx context.Context, a *abi.ABI, krcT
 		ec.lgr.Warn("GetKRC20BalanceByAddress KardiaCall error: ", zap.Error(err))
 		return nil, err
 	}
-	if len(res) == 0 {
-		return nil, ErrEmptyList
-	}
 
 	var balance *big.Int
 	// unpack result
@@ -151,18 +148,22 @@ func (ec *Client) getKRC20TokenSymbol(ctx context.Context, a *abi.ABI, krcTokenA
 func (ec *Client) GetKRC20TokenInfo(ctx context.Context, a *abi.ABI, krcTokenAddr common.Address) (*types.KRCTokenInfo, error) {
 	name, err := ec.getKRC20TokenName(ctx, a, krcTokenAddr)
 	if err != nil {
+		ec.lgr.Error("Cannot get KRC20 token name", zap.String("smcAddress", krcTokenAddr.Hex()), zap.Error(err))
 		return nil, err
 	}
 	symbol, err := ec.getKRC20TokenSymbol(ctx, a, krcTokenAddr)
 	if err != nil {
+		ec.lgr.Error("Cannot get KRC20 token symbol", zap.String("smcAddress", krcTokenAddr.Hex()), zap.Error(err))
 		return nil, err
 	}
 	totalSupply, err := ec.getKRC20TotalSupply(ctx, a, krcTokenAddr)
 	if err != nil {
+		ec.lgr.Error("Cannot get KRC20 token total supply", zap.String("smcAddress", krcTokenAddr.Hex()), zap.Error(err))
 		return nil, err
 	}
 	decimals, err := ec.getKRC20TokenDecimal(ctx, a, krcTokenAddr)
 	if err != nil {
+		ec.lgr.Error("Cannot get KRC20 token decimals", zap.String("smcAddress", krcTokenAddr.Hex()), zap.Error(err))
 		return nil, err
 	}
 	return &types.KRCTokenInfo{

@@ -776,6 +776,7 @@ func (s *infoServer) storeEvents(ctx context.Context, logs []types.Log, blockTim
 			}
 			holders, err := s.getKRCHolder(ctx, decodedLog)
 			if err != nil {
+				s.logger.Warn("Cannot get KRC holder", zap.Error(err), zap.Any("log", logs[i]))
 				continue
 			}
 			holdersList = append(holdersList, holders...)
@@ -945,9 +946,6 @@ func (s *infoServer) getKRCHolder(ctx context.Context, log *types.Log) ([]*types
 	if err != nil {
 		return nil, err
 	}
-	tenPoweredByDecimal := new(big.Int).Exp(big.NewInt(10), big.NewInt(krcTokenInfo.Decimals), nil)
-	floatFromBalance, _ := new(big.Float).SetPrec(100).Quo(new(big.Float).SetInt(fromBalance), new(big.Float).SetInt(tenPoweredByDecimal)).Float64()
-	floatToBalance, _ := new(big.Float).SetPrec(100).Quo(new(big.Float).SetInt(toBalance), new(big.Float).SetInt(tenPoweredByDecimal)).Float64()
 	holdersList[0] = &types.TokenHolder{
 		TokenName:       krcTokenInfo.TokenName,
 		TokenSymbol:     krcTokenInfo.TokenSymbol,
@@ -955,7 +953,7 @@ func (s *infoServer) getKRCHolder(ctx context.Context, log *types.Log) ([]*types
 		ContractAddress: log.Address,
 		HolderAddress:   from,
 		BalanceString:   fromBalance.String(),
-		BalanceFloat:    floatFromBalance,
+		BalanceFloat:    s.calculateKRC20BalanceFloat(fromBalance, krcTokenInfo.Decimals),
 		UpdatedAt:       time.Now().Unix(),
 	}
 	holdersList[1] = &types.TokenHolder{
@@ -965,10 +963,16 @@ func (s *infoServer) getKRCHolder(ctx context.Context, log *types.Log) ([]*types
 		ContractAddress: log.Address,
 		HolderAddress:   to,
 		BalanceString:   toBalance.String(),
-		BalanceFloat:    floatToBalance,
+		BalanceFloat:    s.calculateKRC20BalanceFloat(toBalance, krcTokenInfo.Decimals),
 		UpdatedAt:       time.Now().Unix(),
 	}
 	return holdersList, nil
+}
+
+func (s *infoServer) calculateKRC20BalanceFloat(balance *big.Int, decimals int64) float64 {
+	tenPoweredByDecimal := new(big.Int).Exp(big.NewInt(10), big.NewInt(decimals), nil)
+	floatFromBalance, _ := new(big.Float).SetPrec(100).Quo(new(big.Float).SetInt(balance), new(big.Float).SetInt(tenPoweredByDecimal)).Float64()
+	return floatFromBalance
 }
 
 func (s *infoServer) getInternalTxs(ctx context.Context, log *types.Log) *types.TokenTransfer {
