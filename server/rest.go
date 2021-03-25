@@ -789,28 +789,30 @@ func (s *Server) AddressHolders(c echo.Context) error {
 		if krcTokenInfo != nil {
 			holders[i].Logo = krcTokenInfo.Logo
 			// get holder balance from RPC for rechecking
-			if strings.EqualFold(krcTokenInfo.TokenType, cfg.SMCTypeKRC20) {
-				smcABI, err := s.getSMCAbi(ctx, &types.Log{
-					Address: krcTokenInfo.Address,
-				})
+			smcABIStr, err := s.cacheClient.SMCAbi(ctx, cfg.SMCTypePrefix+krcTokenInfo.TokenType)
+			if err != nil {
+				s.logger.Warn("Cannot get KRC20 token ABI", zap.Error(err), zap.String("smcAddress", holders[i].ContractAddress))
+				continue
+			}
+			smcABI, err := s.decodeSMCABIFromBase64(ctx, smcABIStr, holders[i].ContractAddress)
+			if err != nil {
+				s.logger.Warn("Cannot decode KRC20 token ABI", zap.Error(err), zap.String("smcAddress", holders[i].ContractAddress))
+				continue
+			}
+			balance, err := s.kaiClient.GetKRC20BalanceByAddress(ctx, smcABI, common.HexToAddress(holders[i].ContractAddress), common.HexToAddress(holders[i].HolderAddress))
+			if err != nil {
+				s.logger.Warn("Cannot get KRC20 balance of address", zap.Error(err), zap.String("holderAddress", holders[i].HolderAddress),
+					zap.String("smcAddress", holders[i].ContractAddress))
+				continue
+			}
+			s.logger.Info("RPC balance vs db balance", zap.String("RPC", balance.String()), zap.String("DB", holders[i].BalanceString))
+			if !strings.EqualFold(balance.String(), holders[i].BalanceString) {
+				// update correct balance to database and return to client
+				holders[i].BalanceString = balance.String()
+				holders[i].BalanceFloat = s.calculateKRC20BalanceFloat(balance, krcTokenInfo.Decimals)
+				err = s.dbClient.UpdateHolders(ctx, []*types.TokenHolder{holders[i]})
 				if err != nil {
-					s.logger.Warn("Cannot get KRC20 token ABI", zap.Error(err), zap.String("smcAddress", krcTokenInfo.Address))
-					continue
-				}
-				balance, err := s.kaiClient.GetKRC20BalanceByAddress(ctx, smcABI, common.HexToAddress(krcTokenInfo.Address), common.HexToAddress(holders[i].HolderAddress))
-				if err != nil {
-					s.logger.Warn("Cannot get KRC20 balance of address", zap.Error(err), zap.String("holderAddress", holders[i].HolderAddress),
-						zap.String("smcAddress", krcTokenInfo.Address))
-					continue
-				}
-				if strings.EqualFold(balance.String(), holders[i].BalanceString) {
-					// update correct balance to database and return to client
-					holders[i].BalanceString = balance.String()
-					holders[i].BalanceFloat = s.calculateKRC20BalanceFloat(balance, krcTokenInfo.Decimals)
-					err = s.dbClient.UpdateHolders(ctx, []*types.TokenHolder{holders[i]})
-					if err != nil {
-						s.logger.Warn("Cannot update KRC20 holder with new balance", zap.Error(err), zap.Any("holder", holders[i]))
-					}
+					s.logger.Warn("Cannot update KRC20 holder with new balance", zap.Error(err), zap.Any("holder", holders[i]))
 				}
 			}
 		}
