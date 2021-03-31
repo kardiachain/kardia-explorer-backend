@@ -200,7 +200,7 @@ func bind(gr *echo.Group, srv EchoServer) {
 		},
 		{
 			method: echo.GET,
-			// Query params: ?page=0&limit=10&address=0x&contractAddress=0x
+			// Query params: ?page=0&limit=10&address=0x&contractAddress=0x&txHash=0x
 			path:        "/token/txs",
 			fn:          srv.GetInternalTxs,
 			middlewares: nil,

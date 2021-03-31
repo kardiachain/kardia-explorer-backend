@@ -1512,9 +1512,10 @@ func (s *Server) GetInternalTxs(c echo.Context) error {
 	)
 	pagination, page, limit := getPagingOption(c)
 	filterCrit := &types.InternalTxsFilter{
-		Pagination: pagination,
-		Contract:   c.QueryParam("contractAddress"),
-		Address:    c.QueryParam("address"),
+		Pagination:      pagination,
+		Contract:        c.QueryParam("contractAddress"),
+		Address:         c.QueryParam("address"),
+		TransactionHash: c.QueryParam("txHash"),
 	}
 	iTxs, total, err := s.dbClient.GetListInternalTxs(ctx, filterCrit)
 	if err != nil {
