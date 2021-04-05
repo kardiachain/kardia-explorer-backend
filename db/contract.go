@@ -30,9 +30,11 @@ type IContract interface {
 }
 
 func (m *mongoDB) InsertContract(ctx context.Context, contract *types.Contract, addrInfo *types.Address) error {
-	contract.CreatedAt = time.Now().Unix()
-	if _, err := m.wrapper.C(cContract).Insert(contract); err != nil {
-		return err
+	if contract != nil {
+		contract.CreatedAt = time.Now().Unix()
+		if _, err := m.wrapper.C(cContract).Insert(contract); err != nil {
+			return err
+		}
 	}
 	if addrInfo != nil {
 		addrInfo.UpdatedAt = time.Now().Unix()

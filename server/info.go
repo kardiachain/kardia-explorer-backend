@@ -728,12 +728,14 @@ func (s *infoServer) storeEvents(ctx context.Context, logs []types.Log, blockTim
 	var (
 		holdersList     []*types.TokenHolder
 		internalTxsList []*types.TokenTransfer
+		smcABI          *abi.ABI
+		err             error
 	)
 	for i := range logs {
 		if logs[i].Address == "" || logs[i].Address == "0x" {
 			continue
 		}
-		smcABI, err := s.getSMCAbi(ctx, &logs[i])
+		smcABI, err = s.getSMCAbi(ctx, &logs[i])
 		if err != nil {
 			// automatically detect if this contract is KRC or not
 			var tokenInfo *types.KRCTokenInfo
@@ -783,7 +785,7 @@ func (s *infoServer) storeEvents(ctx context.Context, logs []types.Log, blockTim
 		}
 	}
 	// insert holders and internal txs to db
-	err := s.dbClient.UpdateHolders(ctx, holdersList)
+	err = s.dbClient.UpdateHolders(ctx, holdersList)
 	if err != nil {
 		s.logger.Warn("Cannot update holder info to db", zap.Error(err), zap.Any("holdersList", holdersList))
 	}
@@ -809,6 +811,25 @@ func (s *infoServer) storeEvents(ctx context.Context, logs []types.Log, blockTim
 				s.logger.Warn("Cannot insert token holder to db", zap.String("address", holder.HolderAddress), zap.Error(err))
 			}
 			numOfNewAddress++
+		}
+		// update total supply of mint/burn transactions
+		if common.HexToAddress(holder.HolderAddress).Equal(common.Address{}) {
+			tokenInfo, err := s.kaiClient.GetKRC20TokenInfo(ctx, smcABI, common.HexToAddress(holder.ContractAddress))
+			if err != nil {
+				s.logger.Warn("Cannot get KRC20 token info", zap.Any("holder", holder), zap.Error(err))
+				continue
+			}
+			smcInfo, addrInfo, err := s.dbClient.Contract(ctx, holder.ContractAddress)
+			if err != nil {
+				s.logger.Warn("Cannot get contract info from db", zap.Any("smcAddr", holder.ContractAddress), zap.Error(err))
+				continue
+			}
+			addrInfo.TotalSupply = tokenInfo.TotalSupply
+			err = s.dbClient.UpdateContract(ctx, smcInfo, addrInfo)
+			if err != nil {
+				s.logger.Warn("Cannot update contract info to db", zap.Any("smcAddr", smcInfo), zap.Any("addrInfo", addrInfo), zap.Error(err))
+				continue
+			}
 		}
 	}
 	if numOfNewAddress > 0 {
