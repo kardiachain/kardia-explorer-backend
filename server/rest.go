@@ -607,10 +607,6 @@ func (s *Server) Addresses(c echo.Context) error {
 			addrInfo.IsInValidatorsList = true
 			addrInfo.Role = smcAddress[addr.Address].Role
 		}
-		currAddrInfo, _ := s.getAddressInfo(ctx, addr.Address)
-		if currAddrInfo != nil {
-			addrInfo.Name = currAddrInfo.Name
-		}
 		// double check with balance from RPC
 		balance, err := s.kaiClient.GetBalance(ctx, addr.Address)
 		if err != nil {
