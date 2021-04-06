@@ -1254,8 +1254,21 @@ func (s *Server) Contract(c echo.Context) error {
 	}
 	if smc.ABI == "" && smc.Type != "" {
 		abiStr, err := s.cacheClient.SMCAbi(ctx, cfg.SMCTypePrefix+smc.Type)
-		if err == nil {
+		if err != nil {
+			abiStr, err = s.dbClient.SMCABIByType(ctx, smc.Type)
+			if err != nil {
+				s.logger.Warn("Cannot get ABI by type from db", zap.String("type", smc.Type), zap.Error(err))
+			}
+		}
+		// update KRC token total supply from RPC
+		if abiStr != "" {
 			smc.ABI = abiStr
+			krcTokenInfoRPC, err := s.getKRCTokenInfo(ctx, smc.Type)
+			if err != nil {
+				s.logger.Warn("New contract is not a KRC token", zap.Error(err), zap.Any("tokenInfo", krcTokenInfoRPC))
+			} else {
+				addrInfo.TotalSupply = krcTokenInfoRPC.TotalSupply
+			}
 		}
 	}
 	var result *KRCTokenInfo

@@ -19,7 +19,6 @@ import (
 
 	"github.com/kardiachain/go-kardia/lib/abi"
 	"github.com/kardiachain/go-kardia/lib/common"
-
 	"github.com/kardiachain/kardia-explorer-backend/cache"
 	"github.com/kardiachain/kardia-explorer-backend/cfg"
 	"github.com/kardiachain/kardia-explorer-backend/db"
@@ -819,15 +818,9 @@ func (s *infoServer) storeEvents(ctx context.Context, logs []types.Log, blockTim
 				s.logger.Warn("Cannot get KRC20 token info", zap.Any("holder", holder), zap.Error(err))
 				continue
 			}
-			smcInfo, addrInfo, err := s.dbClient.Contract(ctx, holder.ContractAddress)
+			err = s.dbClient.UpdateKRCTotalSupply(ctx, holder.ContractAddress, tokenInfo.TotalSupply)
 			if err != nil {
-				s.logger.Warn("Cannot get contract info from db", zap.Any("smcAddr", holder.ContractAddress), zap.Error(err))
-				continue
-			}
-			addrInfo.TotalSupply = tokenInfo.TotalSupply
-			err = s.dbClient.UpdateContract(ctx, smcInfo, addrInfo)
-			if err != nil {
-				s.logger.Warn("Cannot update contract info to db", zap.Any("smcAddr", smcInfo), zap.Any("addrInfo", addrInfo), zap.Error(err))
+				s.logger.Warn("Cannot update total supply of KRC token", zap.Any("smcAddr", holder.ContractAddress), zap.Any("totalSupply", tokenInfo.TotalSupply), zap.Error(err))
 				continue
 			}
 		}
@@ -909,6 +902,15 @@ func (s *infoServer) decodeSMCABIFromBase64(ctx context.Context, abiStr, smcAddr
 func (s *infoServer) getKRCTokenInfo(ctx context.Context, krcTokenAddr string) (*types.KRCTokenInfo, error) {
 	krcTokenInfo, err := s.cacheClient.KRCTokenInfo(ctx, krcTokenAddr)
 	if err == nil {
+		krcTokenInfoRPC, err := s.getKRCTokenInfoFromRPC(ctx, krcTokenAddr, cfg.SMCTypeKRC20)
+		// compare with total supply from SMC to update in database if necessary
+		if krcTokenInfoRPC != nil && strings.EqualFold(krcTokenInfo.TotalSupply, krcTokenInfoRPC.TotalSupply) {
+			krcTokenInfo.TotalSupply = krcTokenInfoRPC.TotalSupply
+			err = s.dbClient.UpdateKRCTotalSupply(ctx, krcTokenAddr, krcTokenInfoRPC.TotalSupply)
+			if err != nil {
+				s.logger.Warn("Cannot update total supply of KRC token", zap.Any("smcAddr", krcTokenAddr), zap.Any("totalSupply", krcTokenInfoRPC.TotalSupply), zap.Error(err))
+			}
+		}
 		return krcTokenInfo, nil
 	}
 	s.logger.Warn("Cannot get KRC token info from cache, getting from database instead")
