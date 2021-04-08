@@ -902,15 +902,15 @@ func (s *infoServer) decodeSMCABIFromBase64(ctx context.Context, abiStr, smcAddr
 func (s *infoServer) getKRCTokenInfo(ctx context.Context, krcTokenAddr string) (*types.KRCTokenInfo, error) {
 	krcTokenInfo, err := s.cacheClient.KRCTokenInfo(ctx, krcTokenAddr)
 	if err == nil {
-		krcTokenInfoRPC, err := s.getKRCTokenInfoFromRPC(ctx, krcTokenAddr, cfg.SMCTypeKRC20)
-		// compare with total supply from SMC to update in database if necessary
-		if krcTokenInfoRPC != nil && strings.EqualFold(krcTokenInfo.TotalSupply, krcTokenInfoRPC.TotalSupply) {
-			krcTokenInfo.TotalSupply = krcTokenInfoRPC.TotalSupply
-			err = s.dbClient.UpdateKRCTotalSupply(ctx, krcTokenAddr, krcTokenInfoRPC.TotalSupply)
-			if err != nil {
-				s.logger.Warn("Cannot update total supply of KRC token", zap.Any("smcAddr", krcTokenAddr), zap.Any("totalSupply", krcTokenInfoRPC.TotalSupply), zap.Error(err))
-			}
-		}
+		//krcTokenInfoRPC, err := s.getKRCTokenInfoFromRPC(ctx, krcTokenAddr, cfg.SMCTypeKRC20)
+		//// compare with total supply from SMC to update in database if necessary
+		//if krcTokenInfoRPC != nil && strings.EqualFold(krcTokenInfo.TotalSupply, krcTokenInfoRPC.TotalSupply) {
+		//	krcTokenInfo.TotalSupply = krcTokenInfoRPC.TotalSupply
+		//	err = s.dbClient.UpdateKRCTotalSupply(ctx, krcTokenAddr, krcTokenInfoRPC.TotalSupply)
+		//	if err != nil {
+		//		s.logger.Warn("Cannot update total supply of KRC token", zap.Any("smcAddr", krcTokenAddr), zap.Any("totalSupply", krcTokenInfoRPC.TotalSupply), zap.Error(err))
+		//	}
+		//}
 		return krcTokenInfo, nil
 	}
 	s.logger.Warn("Cannot get KRC token info from cache, getting from database instead")
