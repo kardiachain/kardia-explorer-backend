@@ -21,4 +21,5 @@ type KRCTokenInfo struct {
 	TotalSupply string `json:"totalSupply"`
 	Decimals    int64  `json:"decimals"`
 	Logo        string `json:"logo"`
+	IsVerified  bool   `json:"isVerified" bson:"isVerified"`
 }

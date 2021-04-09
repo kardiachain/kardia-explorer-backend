@@ -13,6 +13,7 @@ type Contract struct {
 	Type         string `json:"type" bson:"type"`
 	Info         string `json:"info" bson:"info"`
 	Logo         string `json:"logo" bson:"logo"`
+	IsVerified   bool   `json:"isVerified" bson:"isVerified"`
 }
 
 type ContractABI struct {

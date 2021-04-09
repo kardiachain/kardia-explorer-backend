@@ -1224,11 +1224,12 @@ func (s *Server) Contracts(c echo.Context) error {
 	finalResult := make([]*SimpleKRCTokenInfo, len(result))
 	for i := range result {
 		finalResult[i] = &SimpleKRCTokenInfo{
-			Name:    result[i].Name,
-			Address: result[i].Address,
-			Info:    result[i].Info,
-			Type:    result[i].Type,
-			Logo:    result[i].Logo,
+			Name:       result[i].Name,
+			Address:    result[i].Address,
+			Info:       result[i].Info,
+			Type:       result[i].Type,
+			Logo:       result[i].Logo,
+			IsVerified: result[i].IsVerified,
 		}
 		tokenInfo, err := s.getKRCTokenInfo(ctx, result[i].Address)
 		if err != nil {
@@ -1311,6 +1312,7 @@ func (s *Server) InsertContract(c echo.Context) error {
 		lgr.Error("cannot bind data", zap.Error(err))
 		return api.Invalid.Build(c)
 	}
+	contract.IsVerified = true
 	c.Request().Body = ioutil.NopCloser(bytes.NewBuffer(bodyBytes))
 	if err := c.Bind(&addrInfo); err != nil {
 		lgr.Error("cannot bind data", zap.Error(err))
@@ -1365,6 +1367,7 @@ func (s *Server) UpdateContract(c echo.Context) error {
 		lgr.Error("cannot bind contract data", zap.Error(err))
 		return api.Invalid.Build(c)
 	}
+	contract.IsVerified = true
 	c.Request().Body = ioutil.NopCloser(bytes.NewBuffer(bodyBytes))
 	if err := c.Bind(&addrInfo); err != nil {
 		lgr.Error("cannot bind address data", zap.Error(err))
