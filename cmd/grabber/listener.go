@@ -52,11 +52,12 @@ func listener(ctx context.Context, srv *server.Server, interval time.Duration) {
 				srv.Logger.Error("Listener: Failed to get latest block number", zap.Error(err))
 				continue
 			}
+			latest--
 			lgr := srv.Logger.With(zap.Uint64("block", latest))
 			if latest <= prevHeader {
 				continue
 			}
-			if prevHeader != latest {
+			if prevHeader < latest {
 				startTime = time.Now()
 				block, err := srv.BlockByHeight(ctx, latest)
 				if err != nil {
