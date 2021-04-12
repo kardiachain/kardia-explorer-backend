@@ -1124,7 +1124,7 @@ func convertTokenInfoToSMCInfo(tokenInfo *types.KRCTokenInfo) (smcInfo *types.Co
 		}, &types.Address{
 			Address:       tokenInfo.Address,
 			BalanceString: "0",
-			Name:          tokenInfo.TokenName + " Token Contract",
+			Name:          tokenInfo.TokenName,
 			Logo:          cfg.DefaultKRCTokenLogo,
 			TokenName:     tokenInfo.TokenName,
 			TokenSymbol:   tokenInfo.TokenSymbol,
