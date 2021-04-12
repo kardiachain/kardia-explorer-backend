@@ -813,15 +813,27 @@ func (s *infoServer) storeEvents(ctx context.Context, logs []types.Log, blockTim
 		}
 		// update total supply of mint/burn transactions
 		if common.HexToAddress(holder.HolderAddress).Equal(common.Address{}) {
+			s.logger.Info("Minting/Burning", zap.Any("holder", holder))
 			tokenInfo, err := s.kaiClient.GetKRC20TokenInfo(ctx, smcABI, common.HexToAddress(holder.ContractAddress))
 			if err != nil {
 				s.logger.Warn("Cannot get KRC20 token info", zap.Any("holder", holder), zap.Error(err))
 				continue
 			}
-			s.logger.Info("Minting/Burning", zap.Any("holder", holder), zap.Any("RPC token info", tokenInfo))
+			s.logger.Info("Minting/Burning", zap.Any("RPC token info", tokenInfo))
 			err = s.dbClient.UpdateKRCTotalSupply(ctx, holder.ContractAddress, tokenInfo.TotalSupply)
 			if err != nil {
 				s.logger.Warn("Cannot update total supply of KRC token", zap.Any("smcAddr", holder.ContractAddress), zap.Any("totalSupply", tokenInfo.TotalSupply), zap.Error(err))
+				continue
+			}
+			krcTokenInfoCache, err := s.cacheClient.KRCTokenInfo(ctx, holder.ContractAddress)
+			if err != nil {
+				s.logger.Warn("Cannot update get KRC token info from cache", zap.Any("smcAddr", holder.ContractAddress), zap.Error(err))
+				continue
+			}
+			krcTokenInfoCache.TotalSupply = tokenInfo.TotalSupply
+			err = s.cacheClient.UpdateKRCTokenInfo(ctx, krcTokenInfoCache)
+			if err != nil {
+				s.logger.Warn("Cannot store KRC token info to cache", zap.Error(err), zap.Any("tokenInfo", krcTokenInfoCache))
 				continue
 			}
 		}
