@@ -14,7 +14,7 @@ type TokenTransfer struct {
 }
 
 type KRCTokenInfo struct {
-	Address     string `json:"-"`
+	Address     string `json:"tokenAddress"`
 	TokenName   string `json:"tokenName"`
 	TokenType   string `json:"tokenType"`
 	TokenSymbol string `json:"tokenSymbol"`
