@@ -830,7 +830,9 @@ func (s *infoServer) storeEvents(ctx context.Context, logs []types.Log, blockTim
 				s.logger.Warn("Cannot update get KRC token info from cache", zap.Any("smcAddr", holder.ContractAddress), zap.Error(err))
 				continue
 			}
+			s.logger.Info("Minting/Burning krcTokenInfo from cache", zap.Any("RPC token info", krcTokenInfoCache))
 			krcTokenInfoCache.TotalSupply = tokenInfo.TotalSupply
+			s.logger.Info("Minting/Burning update krcTokenInfo in cache", zap.Any("RPC token info", krcTokenInfoCache))
 			err = s.cacheClient.UpdateKRCTokenInfo(ctx, krcTokenInfoCache)
 			if err != nil {
 				s.logger.Warn("Cannot store KRC token info to cache", zap.Error(err), zap.Any("tokenInfo", krcTokenInfoCache))
