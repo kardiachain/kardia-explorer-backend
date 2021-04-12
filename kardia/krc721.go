@@ -22,7 +22,7 @@ func (ec *Client) getKRC721TotalSupply(ctx context.Context, a *abi.ABI, krcToken
 	}
 
 	var res common.Bytes
-	err = ec.defaultClient.c.CallContext(ctx, &res, "kai_kardiaCall", contructCallArgs(krcTokenAddr.Hex(), payload), "latest")
+	err = ec.defaultClient.c.CallContext(ctx, &res, "kai_kardiaCall", constructCallArgs(krcTokenAddr.Hex(), payload), "latest")
 	if err != nil {
 		ec.lgr.Warn("getKRC721TotalSupply KardiaCall error: ", zap.Error(err))
 		return nil, err
@@ -50,7 +50,7 @@ func (ec *Client) getKRC721TokenName(ctx context.Context, a *abi.ABI, krcTokenAd
 	}
 
 	var res common.Bytes
-	err = ec.defaultClient.c.CallContext(ctx, &res, "kai_kardiaCall", contructCallArgs(krcTokenAddr.Hex(), payload), "latest")
+	err = ec.defaultClient.c.CallContext(ctx, &res, "kai_kardiaCall", constructCallArgs(krcTokenAddr.Hex(), payload), "latest")
 	if err != nil {
 		ec.lgr.Warn("getKRC721TokenName KardiaCall error: ", zap.Error(err))
 		return "", err
@@ -78,7 +78,7 @@ func (ec *Client) getKRC721TokenSymbol(ctx context.Context, a *abi.ABI, krcToken
 	}
 
 	var res common.Bytes
-	err = ec.defaultClient.c.CallContext(ctx, &res, "kai_kardiaCall", contructCallArgs(krcTokenAddr.Hex(), payload), "latest")
+	err = ec.defaultClient.c.CallContext(ctx, &res, "kai_kardiaCall", constructCallArgs(krcTokenAddr.Hex(), payload), "latest")
 	if err != nil {
 		ec.lgr.Warn("getKRC721TokenSymbol KardiaCall error: ", zap.Error(err))
 		return "", err
