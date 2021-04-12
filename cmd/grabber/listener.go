@@ -52,11 +52,15 @@ func listener(ctx context.Context, srv *server.Server, interval time.Duration) {
 				srv.Logger.Error("Listener: Failed to get latest block number", zap.Error(err))
 				continue
 			}
+			// delay listener for 1 block for correct responses of kardiaCall
+			if latest != 0 {
+				latest--
+			}
 			lgr := srv.Logger.With(zap.Uint64("block", latest))
 			if latest <= prevHeader {
 				continue
 			}
-			if prevHeader != latest {
+			if prevHeader < latest {
 				startTime = time.Now()
 				block, err := srv.BlockByHeight(ctx, latest)
 				if err != nil {

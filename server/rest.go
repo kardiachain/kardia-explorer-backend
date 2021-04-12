@@ -607,10 +607,6 @@ func (s *Server) Addresses(c echo.Context) error {
 			addrInfo.IsInValidatorsList = true
 			addrInfo.Role = smcAddress[addr.Address].Role
 		}
-		currAddrInfo, _ := s.getAddressInfo(ctx, addr.Address)
-		if currAddrInfo != nil {
-			addrInfo.Name = currAddrInfo.Name
-		}
 		// double check with balance from RPC
 		balance, err := s.kaiClient.GetBalance(ctx, addr.Address)
 		if err != nil {
@@ -1228,11 +1224,12 @@ func (s *Server) Contracts(c echo.Context) error {
 	finalResult := make([]*SimpleKRCTokenInfo, len(result))
 	for i := range result {
 		finalResult[i] = &SimpleKRCTokenInfo{
-			Name:    result[i].Name,
-			Address: result[i].Address,
-			Info:    result[i].Info,
-			Type:    result[i].Type,
-			Logo:    result[i].Logo,
+			Name:       result[i].Name,
+			Address:    result[i].Address,
+			Info:       result[i].Info,
+			Type:       result[i].Type,
+			Logo:       result[i].Logo,
+			IsVerified: result[i].IsVerified,
 		}
 		tokenInfo, err := s.getKRCTokenInfo(ctx, result[i].Address)
 		if err != nil {
@@ -1258,8 +1255,21 @@ func (s *Server) Contract(c echo.Context) error {
 	}
 	if smc.ABI == "" && smc.Type != "" {
 		abiStr, err := s.cacheClient.SMCAbi(ctx, cfg.SMCTypePrefix+smc.Type)
-		if err == nil {
+		if err != nil {
+			abiStr, err = s.dbClient.SMCABIByType(ctx, smc.Type)
+			if err != nil {
+				s.logger.Warn("Cannot get ABI by type from db", zap.String("type", smc.Type), zap.Error(err))
+			}
+		}
+		// update KRC token total supply from RPC
+		if abiStr != "" {
 			smc.ABI = abiStr
+			krcTokenInfoRPC, err := s.getKRCTokenInfo(ctx, smc.Type)
+			if err != nil {
+				s.logger.Warn("New contract is not a KRC token", zap.Error(err), zap.Any("tokenInfo", krcTokenInfoRPC))
+			} else {
+				addrInfo.TotalSupply = krcTokenInfoRPC.TotalSupply
+			}
 		}
 	}
 	var result *KRCTokenInfo
@@ -1302,6 +1312,7 @@ func (s *Server) InsertContract(c echo.Context) error {
 		lgr.Error("cannot bind data", zap.Error(err))
 		return api.Invalid.Build(c)
 	}
+	contract.IsVerified = true
 	c.Request().Body = ioutil.NopCloser(bytes.NewBuffer(bodyBytes))
 	if err := c.Bind(&addrInfo); err != nil {
 		lgr.Error("cannot bind data", zap.Error(err))
@@ -1356,6 +1367,7 @@ func (s *Server) UpdateContract(c echo.Context) error {
 		lgr.Error("cannot bind contract data", zap.Error(err))
 		return api.Invalid.Build(c)
 	}
+	contract.IsVerified = true
 	c.Request().Body = ioutil.NopCloser(bytes.NewBuffer(bodyBytes))
 	if err := c.Bind(&addrInfo); err != nil {
 		lgr.Error("cannot bind address data", zap.Error(err))
@@ -1512,9 +1524,10 @@ func (s *Server) GetInternalTxs(c echo.Context) error {
 	)
 	pagination, page, limit := getPagingOption(c)
 	filterCrit := &types.InternalTxsFilter{
-		Pagination: pagination,
-		Contract:   c.QueryParam("contractAddress"),
-		Address:    c.QueryParam("address"),
+		Pagination:      pagination,
+		Contract:        c.QueryParam("contractAddress"),
+		Address:         c.QueryParam("address"),
+		TransactionHash: c.QueryParam("txHash"),
 	}
 	iTxs, total, err := s.dbClient.GetListInternalTxs(ctx, filterCrit)
 	if err != nil {

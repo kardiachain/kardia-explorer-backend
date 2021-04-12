@@ -36,7 +36,7 @@ func (ec *Client) GetMaxProposers(ctx context.Context) (int64, error) {
 	if err != nil {
 		return 0, err
 	}
-	res, err := ec.KardiaCall(ctx, contructCallArgs(ec.paramsUtil.ContractAddress.Hex(), payload))
+	res, err := ec.KardiaCall(ctx, constructCallArgs(ec.paramsUtil.ContractAddress.Hex(), payload))
 	if err != nil {
 		return 0, err
 	}
@@ -61,7 +61,7 @@ func (ec *Client) GetParams(ctx context.Context) ([]*types.NetworkParams, error)
 		if err != nil {
 			return nil, err
 		}
-		res, err := ec.KardiaCall(ctx, contructCallArgs(ec.paramsUtil.ContractAddress.Hex(), payload))
+		res, err := ec.KardiaCall(ctx, constructCallArgs(ec.paramsUtil.ContractAddress.Hex(), payload))
 		if err != nil {
 			return nil, err
 		}
@@ -89,7 +89,7 @@ func (ec *Client) GetProposalDetails(ctx context.Context, proposalID *big.Int) (
 	if err != nil {
 		return nil, err
 	}
-	res, err := ec.KardiaCall(ctx, contructCallArgs(ec.paramsUtil.ContractAddress.Hex(), payload))
+	res, err := ec.KardiaCall(ctx, constructCallArgs(ec.paramsUtil.ContractAddress.Hex(), payload))
 	if err != nil {
 		return nil, err
 	}
@@ -137,7 +137,7 @@ func (ec *Client) getProposalMetadata(ctx context.Context, proposalID *big.Int) 
 	if err != nil {
 		return nil, err
 	}
-	res, err := ec.KardiaCall(ctx, contructCallArgs(ec.paramsUtil.ContractAddress.Hex(), payload))
+	res, err := ec.KardiaCall(ctx, constructCallArgs(ec.paramsUtil.ContractAddress.Hex(), payload))
 	if err != nil {
 		return nil, err
 	}
@@ -171,7 +171,7 @@ func (ec *Client) GetTotalProposals(ctx context.Context) (*big.Int, error) {
 	if err != nil {
 		return nil, err
 	}
-	res, err := ec.KardiaCall(ctx, contructCallArgs(ec.paramsUtil.ContractAddress.Hex(), payload))
+	res, err := ec.KardiaCall(ctx, constructCallArgs(ec.paramsUtil.ContractAddress.Hex(), payload))
 	if err != nil {
 		return nil, err
 	}

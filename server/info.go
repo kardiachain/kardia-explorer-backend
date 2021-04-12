@@ -19,7 +19,6 @@ import (
 
 	"github.com/kardiachain/go-kardia/lib/abi"
 	"github.com/kardiachain/go-kardia/lib/common"
-
 	"github.com/kardiachain/kardia-explorer-backend/cache"
 	"github.com/kardiachain/kardia-explorer-backend/cfg"
 	"github.com/kardiachain/kardia-explorer-backend/db"
@@ -728,12 +727,14 @@ func (s *infoServer) storeEvents(ctx context.Context, logs []types.Log, blockTim
 	var (
 		holdersList     []*types.TokenHolder
 		internalTxsList []*types.TokenTransfer
+		smcABI          *abi.ABI
+		err             error
 	)
 	for i := range logs {
 		if logs[i].Address == "" || logs[i].Address == "0x" {
 			continue
 		}
-		smcABI, err := s.getSMCAbi(ctx, &logs[i])
+		smcABI, err = s.getSMCAbi(ctx, &logs[i])
 		if err != nil {
 			// automatically detect if this contract is KRC or not
 			var tokenInfo *types.KRCTokenInfo
@@ -783,7 +784,7 @@ func (s *infoServer) storeEvents(ctx context.Context, logs []types.Log, blockTim
 		}
 	}
 	// insert holders and internal txs to db
-	err := s.dbClient.UpdateHolders(ctx, holdersList)
+	err = s.dbClient.UpdateHolders(ctx, holdersList)
 	if err != nil {
 		s.logger.Warn("Cannot update holder info to db", zap.Error(err), zap.Any("holdersList", holdersList))
 	}
@@ -809,6 +810,33 @@ func (s *infoServer) storeEvents(ctx context.Context, logs []types.Log, blockTim
 				s.logger.Warn("Cannot insert token holder to db", zap.String("address", holder.HolderAddress), zap.Error(err))
 			}
 			numOfNewAddress++
+		}
+		// update total supply of mint/burn transactions
+		if common.HexToAddress(holder.HolderAddress).Equal(common.Address{}) {
+			s.logger.Info("Minting/Burning", zap.Any("holder", holder))
+			tokenInfo, err := s.kaiClient.GetKRC20TokenInfo(ctx, smcABI, common.HexToAddress(holder.ContractAddress))
+			if err != nil {
+				s.logger.Warn("Cannot get KRC20 token info", zap.Any("holder", holder), zap.Error(err))
+				continue
+			}
+			s.logger.Info("Minting/Burning", zap.Any("RPC token info", tokenInfo))
+			err = s.dbClient.UpdateKRCTotalSupply(ctx, holder.ContractAddress, tokenInfo.TotalSupply)
+			if err != nil {
+				s.logger.Warn("Cannot update total supply of KRC token", zap.Any("smcAddr", holder.ContractAddress), zap.Any("totalSupply", tokenInfo.TotalSupply), zap.Error(err))
+				continue
+			}
+			krcTokenInfoCache, err := s.cacheClient.KRCTokenInfo(ctx, holder.ContractAddress)
+			if err != nil {
+				s.logger.Warn("Cannot update get KRC token info from cache", zap.Any("smcAddr", holder.ContractAddress), zap.Error(err))
+				continue
+			}
+			krcTokenInfoCache.TotalSupply = tokenInfo.TotalSupply
+			krcTokenInfoCache.Address = holder.ContractAddress
+			err = s.cacheClient.UpdateKRCTokenInfo(ctx, krcTokenInfoCache)
+			if err != nil {
+				s.logger.Warn("Cannot store KRC token info to cache", zap.Error(err), zap.Any("tokenInfo", krcTokenInfoCache))
+				continue
+			}
 		}
 	}
 	if numOfNewAddress > 0 {
@@ -1110,7 +1138,7 @@ func convertTokenInfoToSMCInfo(tokenInfo *types.KRCTokenInfo) (smcInfo *types.Co
 		}, &types.Address{
 			Address:       tokenInfo.Address,
 			BalanceString: "0",
-			Name:          tokenInfo.TokenName + " Token Contract",
+			Name:          tokenInfo.TokenName,
 			Logo:          cfg.DefaultKRCTokenLogo,
 			TokenName:     tokenInfo.TokenName,
 			TokenSymbol:   tokenInfo.TokenSymbol,

@@ -95,6 +95,7 @@ func (s *infoServer) LoadBootContracts(ctx context.Context) error {
 			OwnerAddress: cfg.StakingContractAddr,
 			CreatedAt:    time.Now().Unix(),
 			Type:         cfg.SMCTypeValidator,
+			IsVerified:   true,
 		})
 	}
 	bootSMCs = append(bootSMCs, bootContracts()...)
@@ -120,24 +121,27 @@ func readAndEncodeABIFile(filePath string) (string, error) {
 func bootContracts() []*types.Contract {
 	var bootSMCs []*types.Contract
 	bootSMCs = append(bootSMCs, &types.Contract{
-		Name:      cfg.StakingContractName,
-		Address:   cfg.StakingContractAddr,
-		Bytecode:  cfg.StakingContractByteCode,
-		CreatedAt: time.Now().Unix(),
-		Type:      "Staking",
+		Name:       cfg.StakingContractName,
+		Address:    cfg.StakingContractAddr,
+		Bytecode:   cfg.StakingContractByteCode,
+		CreatedAt:  time.Now().Unix(),
+		Type:       "Staking",
+		IsVerified: true,
 	})
 	bootSMCs = append(bootSMCs, &types.Contract{
-		Name:      cfg.ParamsContractName,
-		Address:   cfg.ParamsContractAddr,
-		Bytecode:  cfg.ParamsContractsByteCode,
-		CreatedAt: time.Now().Unix(),
-		Type:      "Params",
+		Name:       cfg.ParamsContractName,
+		Address:    cfg.ParamsContractAddr,
+		Bytecode:   cfg.ParamsContractsByteCode,
+		CreatedAt:  time.Now().Unix(),
+		Type:       "Params",
+		IsVerified: true,
 	})
 	bootSMCs = append(bootSMCs, &types.Contract{
-		Name:      cfg.TreasuryContractName,
-		Address:   cfg.TreasuryContractAddr,
-		CreatedAt: time.Now().Unix(),
-		Type:      "Treasury",
+		Name:       cfg.TreasuryContractName,
+		Address:    cfg.TreasuryContractAddr,
+		CreatedAt:  time.Now().Unix(),
+		Type:       "Treasury",
+		IsVerified: true,
 	})
 
 	return bootSMCs

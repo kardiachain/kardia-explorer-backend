@@ -37,7 +37,7 @@ func (ec *Client) GetValidatorsByDelegator(ctx context.Context, delAddr common.A
 		return nil, err
 	}
 	// make static call through `kai_kardiaCall` API
-	res, err := ec.KardiaCall(ctx, contructCallArgs(ec.stakingUtil.ContractAddress.Hex(), payload))
+	res, err := ec.KardiaCall(ctx, constructCallArgs(ec.stakingUtil.ContractAddress.Hex(), payload))
 	if err != nil {
 		return nil, err
 	}
@@ -131,7 +131,7 @@ func (ec *Client) GetOwnerFromValidatorSMC(ctx context.Context, valSmcAddr commo
 		ec.lgr.Error("Error packing owner of validator SMC payload: ", zap.Error(err))
 		return common.Address{}, err
 	}
-	res, err := ec.KardiaCall(ctx, contructCallArgs(ec.stakingUtil.ContractAddress.Hex(), payload))
+	res, err := ec.KardiaCall(ctx, constructCallArgs(ec.stakingUtil.ContractAddress.Hex(), payload))
 	if err != nil {
 		ec.lgr.Error("GetOwnerFromValidatorSMC KardiaCall error: ", zap.Error(err))
 		return common.Address{}, err
@@ -158,7 +158,7 @@ func (ec *Client) GetValidatorSMCFromOwner(ctx context.Context, valAddr common.A
 		ec.lgr.Error("Error packing validator SMC of owner payload: ", zap.Error(err))
 		return common.Address{}, err
 	}
-	res, err := ec.KardiaCall(ctx, contructCallArgs(ec.stakingUtil.ContractAddress.Hex(), payload))
+	res, err := ec.KardiaCall(ctx, constructCallArgs(ec.stakingUtil.ContractAddress.Hex(), payload))
 	if err != nil {
 		ec.lgr.Error("GetValidatorSMCFromOwner KardiaCall error: ", zap.Error(err))
 		return common.Address{}, err
@@ -185,7 +185,7 @@ func (ec *Client) GetValidatorSets(ctx context.Context) ([]common.Address, error
 		ec.lgr.Error("Error packing proposers list payload: ", zap.Error(err))
 		return nil, err
 	}
-	res, err := ec.KardiaCall(ctx, contructCallArgs(ec.stakingUtil.ContractAddress.Hex(), payload))
+	res, err := ec.KardiaCall(ctx, constructCallArgs(ec.stakingUtil.ContractAddress.Hex(), payload))
 	if err != nil {
 		ec.lgr.Error("GetValidatorSets KardiaCall error: ", zap.Error(err))
 		return nil, err
@@ -214,7 +214,7 @@ func (ec *Client) GetAllValsLength(ctx context.Context) (*big.Int, error) {
 		return nil, err
 	}
 
-	res, err := ec.KardiaCall(ctx, contructCallArgs(ec.stakingUtil.ContractAddress.Hex(), payload))
+	res, err := ec.KardiaCall(ctx, constructCallArgs(ec.stakingUtil.ContractAddress.Hex(), payload))
 	if err != nil {
 		ec.lgr.Error("GetAllValsLength KardiaCall error: ", zap.Error(err))
 		return nil, err
@@ -241,7 +241,7 @@ func (ec *Client) GetValSmcAddr(ctx context.Context, index *big.Int) (common.Add
 		ec.lgr.Error("Error packing get validator SMC address payload: ", zap.Error(err))
 		return common.Address{}, err
 	}
-	res, err := ec.KardiaCall(ctx, contructCallArgs(ec.stakingUtil.ContractAddress.Hex(), payload))
+	res, err := ec.KardiaCall(ctx, constructCallArgs(ec.stakingUtil.ContractAddress.Hex(), payload))
 	if err != nil {
 		ec.lgr.Error("GetValSmcAddr KardiaCall error: ", zap.Error(err))
 		return common.Address{}, err
@@ -271,7 +271,7 @@ func (ec *Client) GetValFromOwner(ctx context.Context, valAddr common.Address) (
 		ec.lgr.Error("Error packing get validator SMC address from owner payload: ", zap.Error(err))
 		return common.Address{}, err
 	}
-	res, err := ec.KardiaCall(ctx, contructCallArgs(ec.stakingUtil.ContractAddress.Hex(), payload))
+	res, err := ec.KardiaCall(ctx, constructCallArgs(ec.stakingUtil.ContractAddress.Hex(), payload))
 	if err != nil {
 		ec.lgr.Error("GetValFromOwner KardiaCall error: ", zap.Error(err))
 		return common.Address{}, err
@@ -304,7 +304,7 @@ func GetParamsSMCAddress(stakingUtil *SmcUtil, client *RPCClient) (common.Addres
 		res common.Bytes
 		ctx = context.Background()
 	)
-	err = client.c.CallContext(ctx, &res, "kai_kardiaCall", contructCallArgs(stakingUtil.ContractAddress.Hex(), payload), "latest")
+	err = client.c.CallContext(ctx, &res, "kai_kardiaCall", constructCallArgs(stakingUtil.ContractAddress.Hex(), payload), "latest")
 	if err != nil {
 		return common.Address{}, err
 	}
@@ -328,7 +328,7 @@ func (ec *Client) GetTotalSlashedToken(ctx context.Context) (*big.Int, error) {
 		return nil, err
 	}
 
-	res, err := ec.KardiaCall(ctx, contructCallArgs(ec.stakingUtil.ContractAddress.Hex(), payload))
+	res, err := ec.KardiaCall(ctx, constructCallArgs(ec.stakingUtil.ContractAddress.Hex(), payload))
 	if err != nil {
 		ec.lgr.Error("GetTotalSlashedToken KardiaCall error: ", zap.Error(err))
 		return nil, err
@@ -354,7 +354,7 @@ func (ec *Client) GetCirculatingSupply(ctx context.Context) (*big.Int, error) {
 		return nil, err
 	}
 
-	res, err := ec.KardiaCall(ctx, contructCallArgs(ec.stakingUtil.ContractAddress.Hex(), payload))
+	res, err := ec.KardiaCall(ctx, constructCallArgs(ec.stakingUtil.ContractAddress.Hex(), payload))
 	if err != nil {
 		ec.lgr.Error("GetCirculatingSupply KardiaCall error: ", zap.Error(err))
 		return nil, err
@@ -380,7 +380,7 @@ func (ec *Client) GetTreasuryContractAddress(ctx context.Context) (common.Addres
 		return common.Address{}, err
 	}
 
-	res, err := ec.KardiaCall(ctx, contructCallArgs(ec.stakingUtil.ContractAddress.Hex(), payload))
+	res, err := ec.KardiaCall(ctx, constructCallArgs(ec.stakingUtil.ContractAddress.Hex(), payload))
 	if err != nil {
 		ec.lgr.Error("GetGetTreasuryContractAddress KardiaCall error: ", zap.Error(err))
 		return common.Address{}, err
@@ -398,7 +398,7 @@ func (ec *Client) GetTreasuryContractAddress(ctx context.Context) (common.Addres
 	return result.TreasuryAddress, nil
 }
 
-func contructCallArgs(address string, payload []byte) types.CallArgsJSON {
+func constructCallArgs(address string, payload []byte) types.CallArgsJSON {
 	return types.CallArgsJSON{
 		From:     address,
 		To:       &address,

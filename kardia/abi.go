@@ -169,7 +169,7 @@ func (ec *Client) UnpackLog(log *types.Log, a *abi.ABI) (*types.Log, error) {
 
 // UnpackLogIntoMap unpacks a retrieved log into the provided map.
 func unpackLogIntoMap(a *abi.ABI, out map[string]interface{}, eventName string, log types.Log) error {
-	data, err := hex.DecodeString(log.Data)
+	data, err := hex.DecodeString(strings.TrimPrefix(log.Data, "0x"))
 	if err != nil {
 		return err
 	}
