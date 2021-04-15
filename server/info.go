@@ -1129,12 +1129,13 @@ func (s *infoServer) getKRCTokenInfoFromRPC(ctx context.Context, krcTokenAddress
 
 func convertTokenInfoToSMCInfo(tokenInfo *types.KRCTokenInfo) (smcInfo *types.Contract, addrInfo *types.Address) {
 	return &types.Contract{
-			Name:      tokenInfo.TokenName + " Token Contract",
-			Address:   tokenInfo.Address,
-			TxHash:    "",
-			CreatedAt: time.Now().Unix(),
-			Type:      tokenInfo.TokenType,
-			Logo:      cfg.DefaultKRCTokenLogo,
+			Name:       tokenInfo.TokenName + " Token Contract",
+			Address:    tokenInfo.Address,
+			TxHash:     "",
+			CreatedAt:  time.Now().Unix(),
+			Type:       tokenInfo.TokenType,
+			Logo:       cfg.DefaultKRCTokenLogo,
+			IsVerified: false,
 		}, &types.Address{
 			Address:       tokenInfo.Address,
 			BalanceString: "0",
