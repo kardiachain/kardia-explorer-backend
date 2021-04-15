@@ -59,6 +59,14 @@ func (m *mongoDB) Contracts(ctx context.Context, filter *types.ContractsFilter) 
 	if err != nil {
 		m.logger.Warn("Cannot unmarshal contract filter criteria", zap.Error(err))
 	}
+	switch filter.Status {
+	case "Verified":
+		crit["isVerified"] = true
+	case "Unverified":
+		crit["isVerified"] = false
+	default:
+
+	}
 	opts := []*options.FindOptions{
 		options.Find().SetHint(bson.M{"type": 1}),
 		options.Find().SetSort(bson.M{"createdAt": -1}),
