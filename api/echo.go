@@ -228,7 +228,9 @@ func bindContractAPIs(gr *echo.Group, srv EchoServer) {
 			middlewares: nil,
 		},
 		{
-			method:      echo.GET,
+			method: echo.GET,
+			// Query params
+			// [?status=(Verified, Unverified)]
 			path:        "/contracts",
 			fn:          srv.Contracts,
 			middlewares: nil,

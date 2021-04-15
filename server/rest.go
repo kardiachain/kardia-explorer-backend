@@ -1213,14 +1213,18 @@ func (s *Server) ContractEvents(c echo.Context) error {
 func (s *Server) Contracts(c echo.Context) error {
 	ctx := context.Background()
 	pagination, page, limit := getPagingOption(c)
+	// default filter
 	filterCrit := &types.ContractsFilter{
 		Type:       c.QueryParam("type"),
 		Pagination: pagination,
+		Status:     c.QueryParam("status"),
 	}
+
 	result, total, err := s.dbClient.Contracts(ctx, filterCrit)
 	if err != nil {
 		return api.Invalid.Build(c)
 	}
+
 	finalResult := make([]*SimpleKRCTokenInfo, len(result))
 	for i := range result {
 		finalResult[i] = &SimpleKRCTokenInfo{

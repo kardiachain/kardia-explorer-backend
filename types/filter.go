@@ -51,6 +51,7 @@ type ContractsFilter struct {
 	ContractName string `bson:"name,omitempty"`
 	TokenName    string `bson:"tokenName,omitempty"`
 	TokenSymbol  string `bson:"tokenSymbol,omitempty"`
+	Status       string `bson:"-"`
 }
 
 type InternalTxsFilter struct {
