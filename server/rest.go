@@ -1221,13 +1221,16 @@ func (s *Server) ContractEvents(c echo.Context) error {
 	}).Build(c)
 }
 
-func ConnectS3Aws(c echo.Context) error {
-	awsS3, err := s3.ConnectAws()
+func ConnectS3Aws(c echo.Context) (*session.Session, error) {
+	awsS3, err := s3.ConnectAws(s3.ConfigAccessAWS{
+		KeyID:     "AKIAJI3Y5XWKQTDRL5HQ",
+		KeyAccess: "GWGuKvvVnUAQCGAmY937QcKkX//0RR2SPrdh+F3w",
+		Region:    aws.String("ap-southeast-1"),
+	})
 	if err != nil {
-		return err
+		return nil, err
 	}
-	c.Set("s3", awsS3)
-	return nil
+	return awsS3, nil
 }
 
 func HashString(name string) string {
@@ -1309,9 +1312,8 @@ func EncodeImage(image image.Image, rawString string, fileName string) ([]byte, 
 	return nil, ""
 }
 
-func UploadLogo(c echo.Context, rawString string, fileName string) (string, error) {
-	sess := c.Get("s3").(*session.Session)
-	uploader := s3manager.NewUploader(sess)
+func UploadLogo(c echo.Context, rawString string, fileName string, session *session.Session) (string, error) {
+	uploader := s3manager.NewUploader(session)
 
 	if strings.Contains(rawString, "https") && (strings.Contains(rawString, "png") || strings.Contains(rawString, "jpeg") || strings.Contains(rawString, "webp")) {
 		return rawString, nil
@@ -1340,23 +1342,16 @@ func UploadLogo(c echo.Context, rawString string, fileName string) (string, erro
 	return filepath, nil
 }
 
-func IsBase64(s string) bool {
-	_, err := base64.StdEncoding.DecodeString(s)
-	return err == nil
-}
-
 func CheckBase64Logo(logo string) bool {
 	if strings.Contains(logo, "data:image/jpeg;base64,") || strings.Contains(logo, "data:image/png;base64,") || strings.Contains(logo, "data:image/webp;base64,") {
-		return IsBase64(strings.Split(logo, ",")[1])
+		if _, err := base64.StdEncoding.DecodeString(strings.Split(logo, ",")[1]); err == nil {
+			return true
+		}
 	}
 	return false
 }
 
 func (s *Server) Contracts(c echo.Context) error {
-	err := ConnectS3Aws(c)
-	if err != nil {
-		return api.InternalServer.Build(c)
-	}
 	ctx := context.Background()
 	pagination, page, limit := getPagingOption(c)
 	// default filter
@@ -1373,28 +1368,12 @@ func (s *Server) Contracts(c echo.Context) error {
 
 	finalResult := make([]*SimpleKRCTokenInfo, len(result))
 	for i := range result {
-		var fileName string
-		var err error
-		if CheckBase64Logo(result[i].Logo) {
-			fileName, err = UploadLogo(c, result[i].Logo, HashString(result[i].Address))
-			if err != nil {
-				log.Fatal("Error when upload the image: ", err)
-			}
-
-			if err = s.UpdateLogoContract(result[i].Address, fileName); err != nil {
-				log.Fatal("Error when update the contract: ", err)
-				continue
-			}
-		} else {
-			fileName = result[i].Logo
-		}
-
 		finalResult[i] = &SimpleKRCTokenInfo{
 			Name:       result[i].Name,
 			Address:    result[i].Address,
 			Info:       result[i].Info,
 			Type:       result[i].Type,
-			Logo:       fileName,
+			Logo:       result[i].Logo,
 			IsVerified: result[i].IsVerified,
 		}
 		tokenInfo, err := s.getKRCTokenInfo(ctx, result[i].Address)
@@ -1411,22 +1390,6 @@ func (s *Server) Contracts(c echo.Context) error {
 		Total: total,
 		Data:  finalResult,
 	}).Build(c)
-}
-
-func (s *Server) UpdateLogoContract(address string, pathLogo string) error {
-	ctx := context.Background()
-	contract, addrInfo, err := s.dbClient.Contract(ctx, address)
-	if err != nil {
-		return err
-	}
-
-	contract.Logo = pathLogo
-
-	if err = s.dbClient.UpdateContract(ctx, contract, addrInfo); err != nil {
-		s.logger.Warn("Cannot update a logo for the table Contracts", zap.Error(err), zap.Any("contract", contract), zap.Any("addrInfo", addrInfo))
-		return err
-	}
-	return nil
 }
 
 func (s *Server) Contract(c echo.Context) error {
@@ -1477,6 +1440,10 @@ func (s *Server) Contract(c echo.Context) error {
 }
 
 func (s *Server) InsertContract(c echo.Context) error {
+	session, err := ConnectS3Aws(c)
+	if err != nil {
+		return api.InternalServer.Build(c)
+	}
 	lgr := s.logger.With(zap.String("method", "InsertContract"))
 
 	if c.Request().Header.Get("Authorization") != s.infoServer.HttpRequestSecret {
@@ -1509,6 +1476,15 @@ func (s *Server) InsertContract(c echo.Context) error {
 	if krcTokenInfoFromRPC != nil {
 		// cache new token info
 		krcTokenInfoFromRPC.Logo = addrInfo.Logo
+		if CheckBase64Logo(addrInfo.Logo) {
+			fileName, err := UploadLogo(c, addrInfo.Logo, HashString(contract.Address), session)
+			if err != nil {
+				log.Fatal("Error when upload the image: ", err)
+			} else {
+				addrInfo.Logo = fileName
+				krcTokenInfoFromRPC.Logo = fileName
+			}
+		}
 		_ = s.cacheClient.UpdateKRCTokenInfo(ctx, krcTokenInfoFromRPC)
 
 		addrInfo.TokenName = krcTokenInfoFromRPC.TokenName
@@ -1532,6 +1508,10 @@ func (s *Server) InsertContract(c echo.Context) error {
 }
 
 func (s *Server) UpdateContract(c echo.Context) error {
+	session, err := ConnectS3Aws(c)
+	if err != nil {
+		return api.InternalServer.Build(c)
+	}
 	lgr := s.logger.With(zap.String("method", "UpdateContract"))
 
 	if c.Request().Header.Get("Authorization") != s.infoServer.HttpRequestSecret {
@@ -1564,6 +1544,17 @@ func (s *Server) UpdateContract(c echo.Context) error {
 	if krcTokenInfoFromRPC != nil {
 		// cache new token info
 		krcTokenInfoFromRPC.Logo = addrInfo.Logo
+
+		if CheckBase64Logo(addrInfo.Logo) {
+			fileName, err := UploadLogo(c, addrInfo.Logo, HashString(contract.Address), session)
+			if err != nil {
+				log.Fatal("Error when upload the image: ", err)
+			} else {
+				addrInfo.Logo = fileName
+				krcTokenInfoFromRPC.Logo = fileName
+			}
+		}
+
 		_ = s.cacheClient.UpdateKRCTokenInfo(ctx, krcTokenInfoFromRPC)
 
 		addrInfo.TokenName = krcTokenInfoFromRPC.TokenName
