@@ -6,13 +6,13 @@ import (
 	"github.com/aws/aws-sdk-go/aws/session"
 )
 
-type ConfigAccessAWS struct {
+type Config struct {
 	KeyID     string
 	KeyAccess string
 	Region    *string
 }
 
-func ConnectAws(config ConfigAccessAWS) (*session.Session, error) {
+func ConnectAws(config Config) (*session.Session, error) {
 	KeyID := config.KeyID
 	KeyAccess := config.KeyAccess
 	sess, err := session.NewSession(

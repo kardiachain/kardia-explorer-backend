@@ -1222,7 +1222,7 @@ func (s *Server) ContractEvents(c echo.Context) error {
 }
 
 func ConnectS3Aws(c echo.Context) (*session.Session, error) {
-	awsS3, err := s3.ConnectAws(s3.ConfigAccessAWS{
+	awsS3, err := s3.ConnectAws(s3.Config{
 		KeyID:     "AKIAJI3Y5XWKQTDRL5HQ",
 		KeyAccess: "GWGuKvvVnUAQCGAmY937QcKkX//0RR2SPrdh+F3w",
 		Region:    aws.String("ap-southeast-1"),
