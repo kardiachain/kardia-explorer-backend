@@ -4,23 +4,34 @@ package server
 import (
 	"bytes"
 	"context"
+	"crypto/sha1"
+	"encoding/base64"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"image"
+	"image/jpeg"
+	"image/png"
 	"io/ioutil"
+	"log"
 	"math/big"
 	"strconv"
 	"strings"
 	"time"
 
+	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/aws/session"
+	"github.com/aws/aws-sdk-go/service/s3/s3manager"
+	"github.com/chai2010/webp"
+	"github.com/kardiachain/go-kardia/lib/common"
 	"github.com/labstack/echo"
 	"go.uber.org/zap"
-
-	"github.com/kardiachain/go-kardia/lib/common"
 
 	"github.com/kardiachain/kardia-explorer-backend/api"
 	"github.com/kardiachain/kardia-explorer-backend/cfg"
 	"github.com/kardiachain/kardia-explorer-backend/db"
+	s3 "github.com/kardiachain/kardia-explorer-backend/driver/aws"
 	"github.com/kardiachain/kardia-explorer-backend/types"
 )
 
@@ -1210,7 +1221,143 @@ func (s *Server) ContractEvents(c echo.Context) error {
 	}).Build(c)
 }
 
+func ConnectS3Aws(c echo.Context) error {
+	awsS3, err := s3.ConnectAws()
+	if err != nil {
+		return err
+	}
+	c.Set("s3", awsS3)
+	return nil
+}
+
+func HashString(name string) string {
+	h := sha1.New()
+	h.Write([]byte(name))
+	sha1_hash := hex.EncodeToString(h.Sum(nil))
+	return sha1_hash
+}
+
+func Base64ToImage(rawString string) (image.Image, error) {
+	var unbased []byte
+	var imageDecode image.Image
+	var errImage error
+	switch {
+	case strings.Contains(rawString, "data:image/png;base64,"):
+		rawString = strings.ReplaceAll(rawString, "data:image/png;base64,", "")
+		unbased, _ = base64.StdEncoding.DecodeString(string(rawString))
+		imageDecode, errImage = png.Decode(bytes.NewReader(unbased))
+		if errImage != nil {
+			return nil, errImage
+		}
+		break
+	case strings.Contains(rawString, "data:image/jpeg;base64,"):
+		rawString = strings.ReplaceAll(rawString, "data:image/jpeg;base64,", "")
+		unbased, _ = base64.StdEncoding.DecodeString(string(rawString))
+		imageDecode, errImage = jpeg.Decode(bytes.NewReader(unbased))
+		if errImage != nil {
+			return nil, errImage
+		}
+		break
+	case strings.Contains(rawString, "data:image/webp;base64"):
+		rawString = strings.ReplaceAll(rawString, "data:image/webp;base64,", "")
+		unbased, _ = base64.StdEncoding.DecodeString(string(rawString))
+		imageDecode, errImage = webp.Decode(bytes.NewReader(unbased))
+		if errImage != nil {
+			return nil, errImage
+		}
+		break
+	default:
+		break
+	}
+
+	return imageDecode, nil
+}
+
+func EncodeImage(image image.Image, rawString string, fileName string) ([]byte, string) {
+	switch {
+	case strings.Contains(rawString, "data:image/png;base64,"):
+		buf := new(bytes.Buffer)
+		errConverter := png.Encode(buf, image)
+		if errConverter != nil {
+			return nil, ""
+		}
+		sendS3 := buf.Bytes()
+		spl := strings.Split(fileName+".png", ".")
+		uploadedFileName := strings.Join(spl, ".")
+		return sendS3, uploadedFileName
+	case strings.Contains(rawString, "data:image/jpeg;base64,"):
+		buf := new(bytes.Buffer)
+		errConverter := jpeg.Encode(buf, image, nil)
+		if errConverter != nil {
+			return nil, ""
+		}
+		sendS3 := buf.Bytes()
+		spl := strings.Split(fileName+".png", ".")
+		uploadedFileName := strings.Join(spl, ".")
+		return sendS3, uploadedFileName
+	case strings.Contains(rawString, "data:image/webp;base64"):
+		buf := new(bytes.Buffer)
+		errConverter := webp.Encode(buf, image, nil)
+		if errConverter != nil {
+			return nil, ""
+		}
+		sendS3 := buf.Bytes()
+		spl := strings.Split(fileName+".webp", ".")
+		uploadedFileName := strings.Join(spl, ".")
+		return sendS3, uploadedFileName
+	}
+
+	return nil, ""
+}
+
+func UploadLogo(c echo.Context, rawString string, fileName string) (string, error) {
+	sess := c.Get("s3").(*session.Session)
+	uploader := s3manager.NewUploader(sess)
+
+	if strings.Contains(rawString, "https") && (strings.Contains(rawString, "png") || strings.Contains(rawString, "jpeg") || strings.Contains(rawString, "webp")) {
+		return rawString, nil
+	}
+
+	fileUpload, err := Base64ToImage(rawString)
+	if err != nil {
+		return "", api.Invalid.Build(c)
+	}
+
+	sendS3, uploadedFileName := EncodeImage(fileUpload, rawString, fileName)
+
+	_, newErr := uploader.Upload(&s3manager.UploadInput{
+		Bucket: aws.String("cdn1.bcms.tech"),
+		ACL:    aws.String("public-read"),
+		Key:    aws.String("/kai-explorer-backend/logo/" + uploadedFileName),
+		Body:   bytes.NewReader(sendS3),
+	})
+
+	if newErr != nil {
+		return "", api.Invalid.Build(c)
+	}
+	pathAvatar := "https://s3-ap-southeast-1.amazonaws.com/cdn1.bcms.tech/kai-explorer-backend/logo/"
+	filepath := pathAvatar + uploadedFileName
+
+	return filepath, nil
+}
+
+func IsBase64(s string) bool {
+	_, err := base64.StdEncoding.DecodeString(s)
+	return err == nil
+}
+
+func CheckBase64Logo(logo string) bool {
+	if strings.Contains(logo, "data:image/jpeg;base64,") || strings.Contains(logo, "data:image/png;base64,") || strings.Contains(logo, "data:image/webp;base64,") {
+		return IsBase64(strings.Split(logo, ",")[1])
+	}
+	return false
+}
+
 func (s *Server) Contracts(c echo.Context) error {
+	err := ConnectS3Aws(c)
+	if err != nil {
+		return api.InternalServer.Build(c)
+	}
 	ctx := context.Background()
 	pagination, page, limit := getPagingOption(c)
 	// default filter
@@ -1227,12 +1374,28 @@ func (s *Server) Contracts(c echo.Context) error {
 
 	finalResult := make([]*SimpleKRCTokenInfo, len(result))
 	for i := range result {
+		var fileName string
+		var err error
+		if CheckBase64Logo(result[i].Logo) {
+			fileName, err = UploadLogo(c, result[i].Logo, HashString(result[i].Address))
+			if err != nil {
+				log.Fatal("Error when upload the image: ", err)
+			}
+
+			if err = s.UpdateLogoContract(result[i].Address, fileName); err != nil {
+				log.Fatal("Error when update the contract: ", err)
+				continue
+			}
+		} else {
+			fileName = result[i].Logo
+		}
+
 		finalResult[i] = &SimpleKRCTokenInfo{
 			Name:       result[i].Name,
 			Address:    result[i].Address,
 			Info:       result[i].Info,
 			Type:       result[i].Type,
-			Logo:       result[i].Logo,
+			Logo:       fileName,
 			IsVerified: result[i].IsVerified,
 		}
 		tokenInfo, err := s.getKRCTokenInfo(ctx, result[i].Address)
@@ -1249,6 +1412,22 @@ func (s *Server) Contracts(c echo.Context) error {
 		Total: total,
 		Data:  finalResult,
 	}).Build(c)
+}
+
+func (s *Server) UpdateLogoContract(address string, pathLogo string) error {
+	ctx := context.Background()
+	contract, addrInfo, err := s.dbClient.Contract(ctx, address)
+	if err != nil {
+		return err
+	}
+
+	contract.Logo = pathLogo
+
+	if err = s.dbClient.UpdateContract(ctx, contract, addrInfo); err != nil {
+		s.logger.Warn("Cannot update a logo for the table Contracts", zap.Error(err), zap.Any("contract", contract), zap.Any("addrInfo", addrInfo))
+		return err
+	}
+	return nil
 }
 
 func (s *Server) Contract(c echo.Context) error {
