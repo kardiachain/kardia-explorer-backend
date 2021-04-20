@@ -1233,8 +1233,7 @@ func ConnectS3Aws(c echo.Context) error {
 func HashString(name string) string {
 	h := sha1.New()
 	h.Write([]byte(name))
-	sha1_hash := hex.EncodeToString(h.Sum(nil))
-	return sha1_hash
+	return hex.EncodeToString(h.Sum(nil))
 }
 
 func Base64ToImage(rawString string) (image.Image, error) {
