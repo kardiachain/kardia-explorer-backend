@@ -19,7 +19,13 @@
 package utils
 
 import (
+	"bytes"
+	"encoding/base64"
 	"fmt"
+	"github.com/chai2010/webp"
+	"image"
+	"image/jpeg"
+	"image/png"
 	"math/big"
 	"strconv"
 	"strings"
@@ -54,4 +60,77 @@ func CalculateVotingPower(raw string, total *big.Int) (string, error) {
 		result = "0" + result
 	}
 	return result, nil
+}
+
+func Base64ToImage(rawString string) (image.Image, error) {
+	var unbased []byte
+	var imageDecode image.Image
+	var errImage error
+	switch {
+	case strings.Contains(rawString, "data:image/png;base64,"):
+		rawString = strings.ReplaceAll(rawString, "data:image/png;base64,", "")
+		unbased, _ = base64.StdEncoding.DecodeString(string(rawString))
+		imageDecode, errImage = png.Decode(bytes.NewReader(unbased))
+		if errImage != nil {
+			return nil, errImage
+		}
+		break
+	case strings.Contains(rawString, "data:image/jpeg;base64,"):
+		rawString = strings.ReplaceAll(rawString, "data:image/jpeg;base64,", "")
+		unbased, _ = base64.StdEncoding.DecodeString(string(rawString))
+		imageDecode, errImage = jpeg.Decode(bytes.NewReader(unbased))
+		if errImage != nil {
+			return nil, errImage
+		}
+		break
+	case strings.Contains(rawString, "data:image/webp;base64"):
+		rawString = strings.ReplaceAll(rawString, "data:image/webp;base64,", "")
+		unbased, _ = base64.StdEncoding.DecodeString(string(rawString))
+		imageDecode, errImage = webp.Decode(bytes.NewReader(unbased))
+		if errImage != nil {
+			return nil, errImage
+		}
+		break
+	default:
+		break
+	}
+
+	return imageDecode, nil
+}
+
+func EncodeImage(image image.Image, rawString string, fileName string) ([]byte, string) {
+	switch {
+	case strings.Contains(rawString, "data:image/png;base64,"):
+		buf := new(bytes.Buffer)
+		errConverter := png.Encode(buf, image)
+		if errConverter != nil {
+			return nil, ""
+		}
+		sendS3 := buf.Bytes()
+		spl := strings.Split(fileName+".png", ".")
+		uploadedFileName := strings.Join(spl, ".")
+		return sendS3, uploadedFileName
+	case strings.Contains(rawString, "data:image/jpeg;base64,"):
+		buf := new(bytes.Buffer)
+		errConverter := jpeg.Encode(buf, image, nil)
+		if errConverter != nil {
+			return nil, ""
+		}
+		sendS3 := buf.Bytes()
+		spl := strings.Split(fileName+".png", ".")
+		uploadedFileName := strings.Join(spl, ".")
+		return sendS3, uploadedFileName
+	case strings.Contains(rawString, "data:image/webp;base64"):
+		buf := new(bytes.Buffer)
+		errConverter := webp.Encode(buf, image, nil)
+		if errConverter != nil {
+			return nil, ""
+		}
+		sendS3 := buf.Bytes()
+		spl := strings.Split(fileName+".webp", ".")
+		uploadedFileName := strings.Join(spl, ".")
+		return sendS3, uploadedFileName
+	}
+
+	return nil, ""
 }

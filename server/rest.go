@@ -5,14 +5,11 @@ import (
 	"bytes"
 	"context"
 	"crypto/sha1"
-	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
-	"image"
-	"image/jpeg"
-	"image/png"
+	"github.com/kardiachain/kardia-explorer-backend/utils"
 	"io/ioutil"
 	"log"
 	"math/big"
@@ -23,7 +20,6 @@ import (
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/s3/s3manager"
-	"github.com/chai2010/webp"
 	"github.com/kardiachain/go-kardia/lib/common"
 	"github.com/labstack/echo"
 	"go.uber.org/zap"
@@ -1239,118 +1235,34 @@ func HashString(name string) string {
 	return hex.EncodeToString(h.Sum(nil))
 }
 
-func Base64ToImage(rawString string) (image.Image, error) {
-	var unbased []byte
-	var imageDecode image.Image
-	var errImage error
-	switch {
-	case strings.Contains(rawString, "data:image/png;base64,"):
-		rawString = strings.ReplaceAll(rawString, "data:image/png;base64,", "")
-		unbased, _ = base64.StdEncoding.DecodeString(string(rawString))
-		imageDecode, errImage = png.Decode(bytes.NewReader(unbased))
-		if errImage != nil {
-			return nil, errImage
-		}
-		break
-	case strings.Contains(rawString, "data:image/jpeg;base64,"):
-		rawString = strings.ReplaceAll(rawString, "data:image/jpeg;base64,", "")
-		unbased, _ = base64.StdEncoding.DecodeString(string(rawString))
-		imageDecode, errImage = jpeg.Decode(bytes.NewReader(unbased))
-		if errImage != nil {
-			return nil, errImage
-		}
-		break
-	case strings.Contains(rawString, "data:image/webp;base64"):
-		rawString = strings.ReplaceAll(rawString, "data:image/webp;base64,", "")
-		unbased, _ = base64.StdEncoding.DecodeString(string(rawString))
-		imageDecode, errImage = webp.Decode(bytes.NewReader(unbased))
-		if errImage != nil {
-			return nil, errImage
-		}
-		break
-	default:
-		break
-	}
-
-	return imageDecode, nil
-}
-
-func EncodeImage(image image.Image, rawString string, fileName string) ([]byte, string) {
-	switch {
-	case strings.Contains(rawString, "data:image/png;base64,"):
-		buf := new(bytes.Buffer)
-		errConverter := png.Encode(buf, image)
-		if errConverter != nil {
-			return nil, ""
-		}
-		sendS3 := buf.Bytes()
-		spl := strings.Split(fileName+".png", ".")
-		uploadedFileName := strings.Join(spl, ".")
-		return sendS3, uploadedFileName
-	case strings.Contains(rawString, "data:image/jpeg;base64,"):
-		buf := new(bytes.Buffer)
-		errConverter := jpeg.Encode(buf, image, nil)
-		if errConverter != nil {
-			return nil, ""
-		}
-		sendS3 := buf.Bytes()
-		spl := strings.Split(fileName+".png", ".")
-		uploadedFileName := strings.Join(spl, ".")
-		return sendS3, uploadedFileName
-	case strings.Contains(rawString, "data:image/webp;base64"):
-		buf := new(bytes.Buffer)
-		errConverter := webp.Encode(buf, image, nil)
-		if errConverter != nil {
-			return nil, ""
-		}
-		sendS3 := buf.Bytes()
-		spl := strings.Split(fileName+".webp", ".")
-		uploadedFileName := strings.Join(spl, ".")
-		return sendS3, uploadedFileName
-	}
-
-	return nil, ""
-}
-
-func UploadLogo(c echo.Context, rawString string, fileName string, session *session.Session) (string, error) {
+func UploadLogo(rawString string, fileName string, session *session.Session) (string, error) {
 	uploader := s3manager.NewUploader(session)
 
 	if strings.Contains(rawString, "https") && (strings.Contains(rawString, "png") || strings.Contains(rawString, "jpeg") || strings.Contains(rawString, "webp")) {
 		return rawString, nil
 	}
 
-	fileUpload, err := Base64ToImage(rawString)
+	fileUpload, err := utils.Base64ToImage(rawString)
 	if err != nil {
-		return "", api.Invalid.Build(c)
+		return "", err
 	}
 
-	sendS3, uploadedFileName := EncodeImage(fileUpload, rawString, fileName)
+	sendS3, uploadedFileName := utils.EncodeImage(fileUpload, rawString, fileName)
 
-	_, newErr := uploader.Upload(&s3manager.UploadInput{
+	_, errUploader := uploader.Upload(&s3manager.UploadInput{
 		Bucket: aws.String("cdn1.bcms.tech"),
 		ACL:    aws.String("public-read"),
 		Key:    aws.String("/kai-explorer-backend/logo/" + uploadedFileName),
 		Body:   bytes.NewReader(sendS3),
 	})
 
-	if newErr != nil {
-		return "", api.Invalid.Build(c)
+	if errUploader != nil {
+		return "", errUploader
 	}
 	pathAvatar := "https://s3-ap-southeast-1.amazonaws.com/cdn1.bcms.tech/kai-explorer-backend/logo/"
 	filepath := pathAvatar + uploadedFileName
 
 	return filepath, nil
-}
-
-func CheckBase64Logo(logo string) bool {
-	if strings.Contains(logo, "data:image/jpeg;base64,") || strings.Contains(logo, "data:image/png;base64,") || strings.Contains(logo, "data:image/webp;base64,") {
-		if _, err := base64.StdEncoding.DecodeString(strings.Split(logo, ",")[1]); err == nil {
-			return true
-		}
-	} else if _, err := base64.StdEncoding.DecodeString(logo); err == nil {
-		return true
-	}
-	return false
 }
 
 func (s *Server) Contracts(c echo.Context) error {
@@ -1478,13 +1390,13 @@ func (s *Server) InsertContract(c echo.Context) error {
 	if krcTokenInfoFromRPC != nil {
 		// cache new token info
 		krcTokenInfoFromRPC.Logo = addrInfo.Logo
-		if CheckBase64Logo(addrInfo.Logo) {
-			fileName, err := UploadLogo(c, addrInfo.Logo, HashString(contract.Address), session)
+		if utils.CheckBase64Logo(addrInfo.Logo) {
+			fileName, err := UploadLogo(addrInfo.Logo, HashString(contract.Address), session)
 			if err != nil {
 				log.Fatal("Error when upload the image: ", err)
 			} else {
 				addrInfo.Logo = fileName
-				krcTokenInfoFromRPC.Logo = fileName
+				contract.Logo = fileName
 			}
 		}
 		_ = s.cacheClient.UpdateKRCTokenInfo(ctx, krcTokenInfoFromRPC)
@@ -1547,13 +1459,13 @@ func (s *Server) UpdateContract(c echo.Context) error {
 		// cache new token info
 		krcTokenInfoFromRPC.Logo = addrInfo.Logo
 
-		if CheckBase64Logo(addrInfo.Logo) {
-			fileName, err := UploadLogo(c, addrInfo.Logo, HashString(contract.Address), session)
+		if utils.CheckBase64Logo(addrInfo.Logo) {
+			fileName, err := UploadLogo(addrInfo.Logo, HashString(contract.Address), session)
 			if err != nil {
 				log.Fatal("Error when upload the image: ", err)
 			} else {
 				addrInfo.Logo = fileName
-				krcTokenInfoFromRPC.Logo = fileName
+				contract.Logo = fileName
 			}
 		}
 
