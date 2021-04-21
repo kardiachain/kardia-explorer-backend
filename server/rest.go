@@ -19,7 +19,6 @@ import (
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
-	"github.com/aws/aws-sdk-go/service/s3/s3manager"
 	"github.com/kardiachain/go-kardia/lib/common"
 	"github.com/labstack/echo"
 	"go.uber.org/zap"
@@ -1235,36 +1234,6 @@ func HashString(name string) string {
 	return hex.EncodeToString(h.Sum(nil))
 }
 
-func UploadLogo(rawString string, fileName string, session *session.Session) (string, error) {
-	uploader := s3manager.NewUploader(session)
-
-	if strings.Contains(rawString, "https") && (strings.Contains(rawString, "png") || strings.Contains(rawString, "jpeg") || strings.Contains(rawString, "webp")) {
-		return rawString, nil
-	}
-
-	fileUpload, err := utils.Base64ToImage(rawString)
-	if err != nil {
-		return "", err
-	}
-
-	sendS3, uploadedFileName := utils.EncodeImage(fileUpload, rawString, fileName)
-
-	_, errUploader := uploader.Upload(&s3manager.UploadInput{
-		Bucket: aws.String("cdn1.bcms.tech"),
-		ACL:    aws.String("public-read"),
-		Key:    aws.String("/kai-explorer-backend/logo/" + uploadedFileName),
-		Body:   bytes.NewReader(sendS3),
-	})
-
-	if errUploader != nil {
-		return "", errUploader
-	}
-	pathAvatar := "https://s3-ap-southeast-1.amazonaws.com/cdn1.bcms.tech/kai-explorer-backend/logo/"
-	filepath := pathAvatar + uploadedFileName
-
-	return filepath, nil
-}
-
 func (s *Server) Contracts(c echo.Context) error {
 	ctx := context.Background()
 	pagination, page, limit := getPagingOption(c)
@@ -1391,7 +1360,8 @@ func (s *Server) InsertContract(c echo.Context) error {
 		// cache new token info
 		krcTokenInfoFromRPC.Logo = addrInfo.Logo
 		if utils.CheckBase64Logo(addrInfo.Logo) {
-			fileName, err := UploadLogo(addrInfo.Logo, HashString(contract.Address), session)
+			s3 := &s3.S3{}
+			fileName, err := s3.UploadLogo(addrInfo.Logo, HashString(contract.Address), session)
 			if err != nil {
 				log.Fatal("Error when upload the image: ", err)
 			} else {
@@ -1460,7 +1430,8 @@ func (s *Server) UpdateContract(c echo.Context) error {
 		krcTokenInfoFromRPC.Logo = addrInfo.Logo
 
 		if utils.CheckBase64Logo(addrInfo.Logo) {
-			fileName, err := UploadLogo(addrInfo.Logo, HashString(contract.Address), session)
+			s3 := &s3.S3{}
+			fileName, err := s3.UploadLogo(addrInfo.Logo, HashString(contract.Address), session)
 			if err != nil {
 				log.Fatal("Error when upload the image: ", err)
 			} else {
