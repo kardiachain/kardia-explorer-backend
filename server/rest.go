@@ -1347,6 +1347,8 @@ func CheckBase64Logo(logo string) bool {
 		if _, err := base64.StdEncoding.DecodeString(strings.Split(logo, ",")[1]); err == nil {
 			return true
 		}
+	} else if _, err := base64.StdEncoding.DecodeString(logo); err == nil {
+		return true
 	}
 	return false
 }
