@@ -17,8 +17,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/kardiachain/go-kardia/lib/common"
 	"github.com/labstack/echo"
 	"go.uber.org/zap"
@@ -1216,18 +1214,6 @@ func (s *Server) ContractEvents(c echo.Context) error {
 	}).Build(c)
 }
 
-func ConnectS3Aws(c echo.Context) (*session.Session, error) {
-	awsS3, err := s3.ConnectAws(s3.Config{
-		KeyID:     "AKIAJI3Y5XWKQTDRL5HQ",
-		KeyAccess: "GWGuKvvVnUAQCGAmY937QcKkX//0RR2SPrdh+F3w",
-		Region:    aws.String("ap-southeast-1"),
-	})
-	if err != nil {
-		return nil, err
-	}
-	return awsS3, nil
-}
-
 func HashString(name string) string {
 	h := sha1.New()
 	h.Write([]byte(name))
@@ -1323,7 +1309,8 @@ func (s *Server) Contract(c echo.Context) error {
 }
 
 func (s *Server) InsertContract(c echo.Context) error {
-	session, err := ConnectS3Aws(c)
+	s3 := &s3.S3{}
+	session, err := s3.ConnectAws()
 	if err != nil {
 		return api.InternalServer.Build(c)
 	}
@@ -1360,7 +1347,6 @@ func (s *Server) InsertContract(c echo.Context) error {
 		// cache new token info
 		krcTokenInfoFromRPC.Logo = addrInfo.Logo
 		if utils.CheckBase64Logo(addrInfo.Logo) {
-			s3 := &s3.S3{}
 			fileName, err := s3.UploadLogo(addrInfo.Logo, HashString(contract.Address), session)
 			if err != nil {
 				log.Fatal("Error when upload the image: ", err)
@@ -1392,7 +1378,8 @@ func (s *Server) InsertContract(c echo.Context) error {
 }
 
 func (s *Server) UpdateContract(c echo.Context) error {
-	session, err := ConnectS3Aws(c)
+	s3 := &s3.S3{}
+	session, err := s3.ConnectAws()
 	if err != nil {
 		return api.InternalServer.Build(c)
 	}
@@ -1430,7 +1417,6 @@ func (s *Server) UpdateContract(c echo.Context) error {
 		krcTokenInfoFromRPC.Logo = addrInfo.Logo
 
 		if utils.CheckBase64Logo(addrInfo.Logo) {
-			s3 := &s3.S3{}
 			fileName, err := s3.UploadLogo(addrInfo.Logo, HashString(contract.Address), session)
 			if err != nil {
 				log.Fatal("Error when upload the image: ", err)

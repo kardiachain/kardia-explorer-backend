@@ -50,12 +50,13 @@ func (S3 *S3) UploadLogo(rawString string, fileName string, session *session.Ses
 	return filepath, nil
 }
 
-func ConnectAws(config Config) (*session.Session, error) {
-	KeyID := config.KeyID
-	KeyAccess := config.KeyAccess
+func (S3 *S3) ConnectAws() (*session.Session, error) {
+	KeyID := "AKIAJI3Y5XWKQTDRL5HQ"
+	KeyAccess := "GWGuKvvVnUAQCGAmY937QcKkX//0RR2SPrdh+F3w"
+	Region := aws.String("ap-southeast-1")
 	sess, err := session.NewSession(
 		&aws.Config{
-			Region: config.Region,
+			Region: Region,
 			Credentials: credentials.NewStaticCredentials(
 				KeyID,
 				KeyAccess,
