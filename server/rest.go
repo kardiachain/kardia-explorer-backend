@@ -4,8 +4,6 @@ package server
 import (
 	"bytes"
 	"context"
-	"crypto/sha1"
-	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -1213,12 +1211,6 @@ func (s *Server) ContractEvents(c echo.Context) error {
 	}).Build(c)
 }
 
-func HashString(name string) string {
-	h := sha1.New()
-	h.Write([]byte(name))
-	return hex.EncodeToString(h.Sum(nil))
-}
-
 func (s *Server) Contracts(c echo.Context) error {
 	ctx := context.Background()
 	pagination, page, limit := getPagingOption(c)
@@ -1341,7 +1333,7 @@ func (s *Server) InsertContract(c echo.Context) error {
 		// cache new token info
 		krcTokenInfoFromRPC.Logo = addrInfo.Logo
 		if utils.CheckBase64Logo(addrInfo.Logo) {
-			fileName, err := s.fileStorage.UploadLogo(addrInfo.Logo, HashString(contract.Address))
+			fileName, err := s.fileStorage.UploadLogo(addrInfo.Logo, utils.HashString(contract.Address))
 			if err != nil {
 				log.Fatal("Error when upload the image: ", err)
 			} else {
@@ -1406,7 +1398,7 @@ func (s *Server) UpdateContract(c echo.Context) error {
 		krcTokenInfoFromRPC.Logo = addrInfo.Logo
 
 		if utils.CheckBase64Logo(addrInfo.Logo) {
-			fileName, err := s.fileStorage.UploadLogo(addrInfo.Logo, HashString(contract.Address))
+			fileName, err := s.fileStorage.UploadLogo(addrInfo.Logo, utils.HashString(contract.Address))
 			if err != nil {
 				log.Fatal("Error when upload the image: ", err)
 			} else {

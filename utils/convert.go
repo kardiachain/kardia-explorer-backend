@@ -20,7 +20,9 @@ package utils
 
 import (
 	"bytes"
+	"crypto/sha1"
 	"encoding/base64"
+	"encoding/hex"
 	"fmt"
 	"github.com/chai2010/webp"
 	"image"
@@ -133,4 +135,10 @@ func EncodeImage(image image.Image, rawString string, fileName string) ([]byte, 
 	}
 
 	return nil, ""
+}
+
+func HashString(name string) string {
+	h := sha1.New()
+	h.Write([]byte(name))
+	return hex.EncodeToString(h.Sum(nil))
 }

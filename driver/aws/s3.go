@@ -7,6 +7,7 @@ import (
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/s3/s3manager"
 	"github.com/kardiachain/kardia-explorer-backend/utils"
+	"io"
 	"strings"
 )
 
@@ -14,6 +15,12 @@ type Config struct {
 	KeyID     string
 	KeyAccess string
 	Region    *string
+}
+
+type ConfigUploader struct {
+	Bucket, ACL, Key *string
+	Body             io.Reader
+	pathAvatar       string
 }
 
 type FileStorage interface {
@@ -38,33 +45,38 @@ func (s *S3) UploadLogo(rawString string, fileName string) (string, error) {
 	}
 
 	sendS3, uploadedFileName := utils.EncodeImage(fileUpload, rawString, fileName)
+	configUploader := ConfigUploader{
+		Bucket:     aws.String("cdn1.bcms.tech"),
+		ACL:        aws.String("public-read"),
+		Key:        aws.String("/kai-explorer-backend/logo/" + uploadedFileName),
+		Body:       bytes.NewReader(sendS3),
+		pathAvatar: "https://s3-ap-southeast-1.amazonaws.com/cdn1.bcms.tech/kai-explorer-backend/logo/",
+	}
 
-	_, errUploader := uploader.Upload(&s3manager.UploadInput{
-		Bucket: aws.String("cdn1.bcms.tech"),
-		ACL:    aws.String("public-read"),
-		Key:    aws.String("/kai-explorer-backend/logo/" + uploadedFileName),
-		Body:   bytes.NewReader(sendS3),
-	})
-
-	if errUploader != nil {
+	if _, errUploader := uploader.Upload(&s3manager.UploadInput{
+		Bucket: configUploader.Bucket,
+		ACL:    configUploader.ACL,
+		Key:    configUploader.Key,
+		Body:   configUploader.Body,
+	}); errUploader != nil {
 		return "", errUploader
 	}
-	pathAvatar := "https://s3-ap-southeast-1.amazonaws.com/cdn1.bcms.tech/kai-explorer-backend/logo/"
-	filepath := pathAvatar + uploadedFileName
 
-	return filepath, nil
+	return configUploader.pathAvatar + uploadedFileName, nil
 }
 
 func ConnectAws() (FileStorage, error) {
-	KeyID := "AKIAJI3Y5XWKQTDRL5HQ"
-	KeyAccess := "GWGuKvvVnUAQCGAmY937QcKkX//0RR2SPrdh+F3w"
-	Region := aws.String("ap-southeast-1")
+	config := Config{
+		KeyID:     "AKIAJI3Y5XWKQTDRL5HQ",
+		KeyAccess: "GWGuKvvVnUAQCGAmY937QcKkX//0RR2SPrdh+F3w",
+		Region:    aws.String("ap-southeast-1"),
+	}
 	sess, err := session.NewSession(
 		&aws.Config{
-			Region: Region,
+			Region: config.Region,
 			Credentials: credentials.NewStaticCredentials(
-				KeyID,
-				KeyAccess,
+				config.KeyID,
+				config.KeyAccess,
 				"",
 			),
 		})
