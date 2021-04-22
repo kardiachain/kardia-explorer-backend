@@ -127,6 +127,6 @@ func New(cfg Config) (*Server, error) {
 		Logger:      cfg.Logger,
 		metrics:     avgMetrics,
 		infoServer:  infoServer,
-		fileStorage: &s3.S3{Session: s3Aws},
+		fileStorage: s3Aws,
 	}, nil
 }

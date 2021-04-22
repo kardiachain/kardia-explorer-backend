@@ -55,7 +55,7 @@ func (s *S3) UploadLogo(rawString string, fileName string) (string, error) {
 	return filepath, nil
 }
 
-func ConnectAws() (*session.Session, error) {
+func ConnectAws() (FileStorage, error) {
 	KeyID := "AKIAJI3Y5XWKQTDRL5HQ"
 	KeyAccess := "GWGuKvvVnUAQCGAmY937QcKkX//0RR2SPrdh+F3w"
 	Region := aws.String("ap-southeast-1")
@@ -73,5 +73,9 @@ func ConnectAws() (*session.Session, error) {
 		return nil, err
 	}
 
-	return sess, nil
+	s3Aws := &S3{
+		Session: sess,
+	}
+
+	return s3Aws, nil
 }
