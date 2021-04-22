@@ -24,7 +24,6 @@ import (
 	"github.com/kardiachain/kardia-explorer-backend/api"
 	"github.com/kardiachain/kardia-explorer-backend/cfg"
 	"github.com/kardiachain/kardia-explorer-backend/db"
-	s3 "github.com/kardiachain/kardia-explorer-backend/driver/aws"
 	"github.com/kardiachain/kardia-explorer-backend/types"
 )
 
@@ -1309,11 +1308,6 @@ func (s *Server) Contract(c echo.Context) error {
 }
 
 func (s *Server) InsertContract(c echo.Context) error {
-	s3 := &s3.S3{}
-	session, err := s3.ConnectAws()
-	if err != nil {
-		return api.InternalServer.Build(c)
-	}
 	lgr := s.logger.With(zap.String("method", "InsertContract"))
 
 	if c.Request().Header.Get("Authorization") != s.infoServer.HttpRequestSecret {
@@ -1347,7 +1341,7 @@ func (s *Server) InsertContract(c echo.Context) error {
 		// cache new token info
 		krcTokenInfoFromRPC.Logo = addrInfo.Logo
 		if utils.CheckBase64Logo(addrInfo.Logo) {
-			fileName, err := s3.UploadLogo(addrInfo.Logo, HashString(contract.Address), session)
+			fileName, err := s.fileStorage.UploadLogo(addrInfo.Logo, HashString(contract.Address))
 			if err != nil {
 				log.Fatal("Error when upload the image: ", err)
 			} else {
@@ -1378,11 +1372,6 @@ func (s *Server) InsertContract(c echo.Context) error {
 }
 
 func (s *Server) UpdateContract(c echo.Context) error {
-	s3 := &s3.S3{}
-	session, err := s3.ConnectAws()
-	if err != nil {
-		return api.InternalServer.Build(c)
-	}
 	lgr := s.logger.With(zap.String("method", "UpdateContract"))
 
 	if c.Request().Header.Get("Authorization") != s.infoServer.HttpRequestSecret {
@@ -1417,7 +1406,7 @@ func (s *Server) UpdateContract(c echo.Context) error {
 		krcTokenInfoFromRPC.Logo = addrInfo.Logo
 
 		if utils.CheckBase64Logo(addrInfo.Logo) {
-			fileName, err := s3.UploadLogo(addrInfo.Logo, HashString(contract.Address), session)
+			fileName, err := s.fileStorage.UploadLogo(addrInfo.Logo, HashString(contract.Address))
 			if err != nil {
 				log.Fatal("Error when upload the image: ", err)
 			} else {

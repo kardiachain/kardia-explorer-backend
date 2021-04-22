@@ -16,12 +16,17 @@ type Config struct {
 	Region    *string
 }
 
-type S3 struct {
-	Config
+type FileStorage interface {
+	UploadLogo(rawString string, fileName string) (string, error)
 }
 
-func (S3 *S3) UploadLogo(rawString string, fileName string, session *session.Session) (string, error) {
-	uploader := s3manager.NewUploader(session)
+type S3 struct {
+	Config
+	Session *session.Session
+}
+
+func (s *S3) UploadLogo(rawString string, fileName string) (string, error) {
+	uploader := s3manager.NewUploader(s.Session)
 
 	if strings.Contains(rawString, "https") && (strings.Contains(rawString, "png") || strings.Contains(rawString, "jpeg") || strings.Contains(rawString, "webp")) {
 		return rawString, nil
@@ -50,7 +55,7 @@ func (S3 *S3) UploadLogo(rawString string, fileName string, session *session.Ses
 	return filepath, nil
 }
 
-func (S3 *S3) ConnectAws() (*session.Session, error) {
+func ConnectAws() (*session.Session, error) {
 	KeyID := "AKIAJI3Y5XWKQTDRL5HQ"
 	KeyAccess := "GWGuKvvVnUAQCGAmY937QcKkX//0RR2SPrdh+F3w"
 	Region := aws.String("ap-southeast-1")

@@ -23,6 +23,7 @@ import (
 
 	"github.com/kardiachain/kardia-explorer-backend/cache"
 	"github.com/kardiachain/kardia-explorer-backend/db"
+	s3 "github.com/kardiachain/kardia-explorer-backend/driver/aws"
 	"github.com/kardiachain/kardia-explorer-backend/kardia"
 	"github.com/kardiachain/kardia-explorer-backend/metrics"
 	"github.com/kardiachain/kardia-explorer-backend/types"
@@ -62,6 +63,8 @@ type Server struct {
 	metrics *metrics.Provider
 
 	VerifyBlockParam *types.VerifyBlockParam
+
+	fileStorage s3.FileStorage
 
 	infoServer
 }
@@ -115,9 +118,15 @@ func New(cfg Config) (*Server, error) {
 		metrics:           avgMetrics,
 	}
 
+	s3Aws, err := s3.ConnectAws()
+	if err != nil {
+		return nil, err
+	}
+
 	return &Server{
-		Logger:     cfg.Logger,
-		metrics:    avgMetrics,
-		infoServer: infoServer,
+		Logger:      cfg.Logger,
+		metrics:     avgMetrics,
+		infoServer:  infoServer,
+		fileStorage: &s3.S3{Session: s3Aws},
 	}, nil
 }
