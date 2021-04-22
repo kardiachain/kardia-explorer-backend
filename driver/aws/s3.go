@@ -29,11 +29,11 @@ type FileStorage interface {
 
 type S3 struct {
 	Config
-	Session *session.Session
+	session *session.Session
 }
 
 func (s *S3) UploadLogo(rawString string, fileName string) (string, error) {
-	uploader := s3manager.NewUploader(s.Session)
+	uploader := s3manager.NewUploader(s.session)
 
 	if strings.Contains(rawString, "https") && (strings.Contains(rawString, "png") || strings.Contains(rawString, "jpeg") || strings.Contains(rawString, "webp")) {
 		return rawString, nil
@@ -86,7 +86,7 @@ func ConnectAws() (FileStorage, error) {
 	}
 
 	s3Aws := &S3{
-		Session: sess,
+		session: sess,
 	}
 
 	return s3Aws, nil
