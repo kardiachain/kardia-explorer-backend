@@ -53,6 +53,15 @@ type Config struct {
 
 	Metrics *metrics.Provider
 	Logger  *zap.Logger
+
+	AwsAccessKeyId     string
+	AwsSecretAccessKey string
+	AwsSecretRegion    string
+
+	UploaderBucket     string
+	UploaderAcl        string
+	UploaderKey        string
+	UploaderPathAvatar string
 }
 
 // Server instance kind of a router, which receive request from client (explorer)
@@ -67,6 +76,8 @@ type Server struct {
 	fileStorage s3.FileStorage
 
 	infoServer
+
+	s3.ConfigUploader
 }
 
 func (s *Server) Metrics() *metrics.Provider { return s.metrics }
@@ -117,8 +128,11 @@ func New(cfg Config) (*Server, error) {
 		logger:            cfg.Logger,
 		metrics:           avgMetrics,
 	}
-
-	s3Aws, err := s3.ConnectAws()
+	s3Aws, err := s3.ConnectAws(s3.Config{
+		KeyID:     cfg.AwsAccessKeyId,
+		AccessKey: cfg.AwsSecretAccessKey,
+		Region:    cfg.AwsSecretRegion,
+	})
 	if err != nil {
 		return nil, err
 	}
@@ -128,5 +142,11 @@ func New(cfg Config) (*Server, error) {
 		metrics:     avgMetrics,
 		infoServer:  infoServer,
 		fileStorage: s3Aws,
+		ConfigUploader: s3.ConfigUploader{
+			Bucket:     cfg.UploaderBucket,
+			ACL:        cfg.UploaderAcl,
+			Key:        cfg.UploaderKey,
+			PathAvatar: cfg.UploaderPathAvatar,
+		},
 	}, nil
 }

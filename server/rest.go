@@ -1333,7 +1333,7 @@ func (s *Server) InsertContract(c echo.Context) error {
 		// cache new token info
 		krcTokenInfoFromRPC.Logo = addrInfo.Logo
 		if utils.CheckBase64Logo(addrInfo.Logo) {
-			fileName, err := s.fileStorage.UploadLogo(addrInfo.Logo, utils.HashString(contract.Address))
+			fileName, err := s.fileStorage.UploadLogo(addrInfo.Logo, utils.HashString(contract.Address), s.ConfigUploader)
 			if err != nil {
 				log.Fatal("Error when upload the image: ", err)
 			} else {
@@ -1398,7 +1398,7 @@ func (s *Server) UpdateContract(c echo.Context) error {
 		krcTokenInfoFromRPC.Logo = addrInfo.Logo
 
 		if utils.CheckBase64Logo(addrInfo.Logo) {
-			fileName, err := s.fileStorage.UploadLogo(addrInfo.Logo, utils.HashString(contract.Address))
+			fileName, err := s.fileStorage.UploadLogo(addrInfo.Logo, utils.HashString(contract.Address), s.ConfigUploader)
 			if err != nil {
 				log.Fatal("Error when upload the image: ", err)
 			} else {
