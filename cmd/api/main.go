@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-
 	"github.com/joho/godotenv"
 	"go.uber.org/zap"
 
@@ -56,6 +55,15 @@ func main() {
 
 		Metrics: nil,
 		Logger:  logger,
+
+		AwsAccessKeyId:     serviceCfg.AwsAccessKeyId,
+		AwsSecretAccessKey: serviceCfg.AwsSecretAccessKey,
+		AwsSecretRegion:    serviceCfg.AwsSecretRegion,
+
+		UploaderBucket:     serviceCfg.UploaderBucket,
+		UploaderAcl:        serviceCfg.UploaderAcl,
+		UploaderKey:        serviceCfg.UploaderKey,
+		UploaderPathAvatar: serviceCfg.UploaderPathAvatar,
 	}
 	srv, err := server.New(srvConfig)
 	if err != nil {

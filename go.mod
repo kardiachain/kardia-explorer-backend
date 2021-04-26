@@ -3,6 +3,8 @@ module github.com/kardiachain/kardia-explorer-backend
 go 1.14
 
 require (
+	github.com/aws/aws-sdk-go v1.34.28 // indirect
+	github.com/chai2010/webp v1.1.0 // indirect
 	github.com/go-redis/redis/v8 v8.2.3
 	github.com/joho/godotenv v1.3.0
 	github.com/kardiachain/go-kaiclient v0.0.0-20210317114326-32548175c496
