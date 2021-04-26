@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"math/big"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -1541,6 +1542,13 @@ func (s *Server) GetInternalTxs(c echo.Context) error {
 		result           = make([]*InternalTransaction, len(iTxs))
 		fromInfo, toInfo *types.Address
 	)
+
+	sort.Slice(iTxs, func(i, j int) bool {
+		iAmount, _ := new(big.Int).SetString(iTxs[i].Value, 10)
+		jAmount, _ := new(big.Int).SetString(iTxs[j].Value, 10)
+		return iAmount.Cmp(jAmount) == 1
+	})
+
 	for i := range iTxs {
 		result[i] = &InternalTransaction{
 			Log: &types.Log{
