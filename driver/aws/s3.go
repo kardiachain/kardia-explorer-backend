@@ -43,7 +43,7 @@ func (s *S3) UploadLogo(rawString string, fileName string, configUploader Config
 	if _, errUploader := uploader.Upload(&s3manager.UploadInput{
 		Bucket: aws.String(configUploader.Bucket),
 		ACL:    aws.String(configUploader.ACL),
-		Key:    aws.String(configUploader.Key),
+		Key:    aws.String(configUploader.Key + uploadedFileName),
 		Body:   bytes.NewReader(sendS3),
 	}); errUploader != nil {
 		return "", errUploader
