@@ -864,6 +864,7 @@ func (m *mongoDB) AddressByName(ctx context.Context, name string) ([]*types.Addr
 	)
 	crit := []bson.M{
 		{"name": bson.D{{"$regex", primitive.Regex{Pattern: name, Options: "i"}}}},
+		{"tokenSymbol": bson.D{{"$regex", primitive.Regex{Pattern: name, Options: "i"}}}},
 	}
 	if strings.HasPrefix(name, "0x") {
 		crit = append(crit, bson.M{"address": bson.D{{"$regex", primitive.Regex{Pattern: name, Options: "i"}}}})
