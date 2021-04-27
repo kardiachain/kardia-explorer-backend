@@ -7,16 +7,17 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/kardiachain/kardia-explorer-backend/utils"
 	"io/ioutil"
+	"log"
 	"math/big"
 	"strconv"
 	"strings"
 	"time"
 
+	"github.com/kardiachain/go-kardia/lib/common"
 	"github.com/labstack/echo"
 	"go.uber.org/zap"
-
-	"github.com/kardiachain/go-kardia/lib/common"
 
 	"github.com/kardiachain/kardia-explorer-backend/api"
 	"github.com/kardiachain/kardia-explorer-backend/cfg"
@@ -1331,6 +1332,15 @@ func (s *Server) InsertContract(c echo.Context) error {
 	if krcTokenInfoFromRPC != nil {
 		// cache new token info
 		krcTokenInfoFromRPC.Logo = addrInfo.Logo
+		if utils.CheckBase64Logo(addrInfo.Logo) {
+			fileName, err := s.fileStorage.UploadLogo(addrInfo.Logo, utils.HashString(contract.Address), s.ConfigUploader)
+			if err != nil {
+				log.Fatal("Error when upload the image: ", err)
+			} else {
+				addrInfo.Logo = fileName
+				contract.Logo = fileName
+			}
+		}
 		_ = s.cacheClient.UpdateKRCTokenInfo(ctx, krcTokenInfoFromRPC)
 
 		addrInfo.TokenName = krcTokenInfoFromRPC.TokenName
@@ -1386,6 +1396,17 @@ func (s *Server) UpdateContract(c echo.Context) error {
 	if krcTokenInfoFromRPC != nil {
 		// cache new token info
 		krcTokenInfoFromRPC.Logo = addrInfo.Logo
+
+		if utils.CheckBase64Logo(addrInfo.Logo) {
+			fileName, err := s.fileStorage.UploadLogo(addrInfo.Logo, utils.HashString(contract.Address), s.ConfigUploader)
+			if err != nil {
+				log.Fatal("Error when upload the image: ", err)
+			} else {
+				addrInfo.Logo = fileName
+				contract.Logo = fileName
+			}
+		}
+
 		_ = s.cacheClient.UpdateKRCTokenInfo(ctx, krcTokenInfoFromRPC)
 
 		addrInfo.TokenName = krcTokenInfoFromRPC.TokenName

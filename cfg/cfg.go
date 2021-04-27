@@ -73,6 +73,15 @@ type ExplorerConfig struct {
 	VerifierInterval time.Duration
 
 	VerifyBlockParam *types.VerifyBlockParam
+
+	AwsAccessKeyId     string
+	AwsSecretAccessKey string
+	AwsSecretRegion    string
+
+	UploaderBucket     string
+	UploaderAcl        string
+	UploaderKey        string
+	UploaderPathAvatar string
 }
 
 func New() (ExplorerConfig, error) {
@@ -188,6 +197,15 @@ func New() (ExplorerConfig, error) {
 		verifyBlockHash = true
 	}
 
+	AwsAccessKeyId := os.Getenv("AWS_ACCESS_KEY_ID")
+	AwsSecretAccessKey := os.Getenv("AWS_SECRET_ACCESS_KEY")
+	AwsSecretRegion := os.Getenv("AWS_SECRET_REGION")
+
+	UploaderBucket := os.Getenv("AWS_UPLOADER_BUCKET")
+	UploaderAcl := os.Getenv("AWS_UPLOADER_ACL")
+	UploaderKey := os.Getenv("AWS_UPLOADER_KEY")
+	UploaderPathAvatar := os.Getenv("AWS_UPLOADER_PATH_AVATAR")
+
 	cfg := ExplorerConfig{
 		ServerMode:            os.Getenv("SERVER_MODE"),
 		Port:                  os.Getenv("PORT"),
@@ -225,6 +243,14 @@ func New() (ExplorerConfig, error) {
 			VerifyTxCount:   verifyTxCount,
 			VerifyBlockHash: verifyBlockHash,
 		},
+		AwsAccessKeyId:     AwsAccessKeyId,
+		AwsSecretAccessKey: AwsSecretAccessKey,
+		AwsSecretRegion:    AwsSecretRegion,
+
+		UploaderBucket:     UploaderBucket,
+		UploaderAcl:        UploaderAcl,
+		UploaderKey:        UploaderKey,
+		UploaderPathAvatar: UploaderPathAvatar,
 	}
 
 	return cfg, nil
