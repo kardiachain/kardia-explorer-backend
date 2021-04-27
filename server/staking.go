@@ -98,7 +98,6 @@ func (s *Server) Validator(c echo.Context) error {
 		lgr.Error("cannot load validator from db", zap.Error(err))
 		return api.Invalid.Build(c)
 	}
-
 	validator.Delegators = delegators
 	total, err := s.dbClient.CountDelegators(ctx, filter)
 	if err != nil {
