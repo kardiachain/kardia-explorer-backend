@@ -1562,7 +1562,6 @@ func (s *Server) GetInternalTxs(c echo.Context) error {
 		result           = make([]*InternalTransaction, len(iTxs))
 		fromInfo, toInfo *types.Address
 	)
-
 	for i := range iTxs {
 		result[i] = &InternalTransaction{
 			Log: &types.Log{
