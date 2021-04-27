@@ -70,6 +70,36 @@ func (s *Server) Candidates(c echo.Context) error {
 	return api.OK.SetData(candidates).Build(c)
 }
 
+func GroupByAddressOwner(address string, delegators []*types.Delegator) []*types.Delegator {
+	var delegatorsOwner []*types.Delegator
+
+	for idx, el := range delegators {
+		if el.Address == address {
+			delegatorsOwner = append(delegatorsOwner, el)
+			delegators = RemoveIndexDelegator(delegators, idx)
+		}
+	}
+
+	sort.Slice(delegatorsOwner, func(i, j int) bool {
+		iAmount, _ := new(big.Int).SetString(delegatorsOwner[i].StakedAmount, 10)
+		jAmount, _ := new(big.Int).SetString(delegatorsOwner[j].StakedAmount, 10)
+		return iAmount.Cmp(jAmount) == 1
+	})
+
+	sort.Slice(delegators, func(i, j int) bool {
+		iAmount, _ := new(big.Int).SetString(delegators[i].StakedAmount, 10)
+		jAmount, _ := new(big.Int).SetString(delegators[j].StakedAmount, 10)
+		return iAmount.Cmp(jAmount) == 1
+	})
+
+	delegators = append(delegatorsOwner, delegators...)
+	return delegators
+}
+
+func RemoveIndexDelegator(s []*types.Delegator, index int) []*types.Delegator {
+	return append(s[:index], s[index+1:]...)
+}
+
 func (s *Server) Validator(c echo.Context) error {
 	lgr := s.logger.With(zap.String("method", "Validator"))
 	ctx := context.Background()
@@ -98,7 +128,14 @@ func (s *Server) Validator(c echo.Context) error {
 		lgr.Error("cannot load validator from db", zap.Error(err))
 		return api.Invalid.Build(c)
 	}
-	validator.Delegators = delegators
+
+	sort.Slice(delegators, func(i, j int) bool {
+		iAmount, _ := new(big.Int).SetString(delegators[i].StakedAmount, 10)
+		jAmount, _ := new(big.Int).SetString(delegators[j].StakedAmount, 10)
+		return iAmount.Cmp(jAmount) == 1
+	})
+
+	validator.Delegators = GroupByAddressOwner(validatorSMCAddress, delegators)
 	total, err := s.dbClient.CountDelegators(ctx, filter)
 	if err != nil {
 		lgr.Error("cannot count delegator", zap.Error(err))
