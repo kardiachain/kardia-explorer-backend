@@ -129,12 +129,6 @@ func (s *Server) Validator(c echo.Context) error {
 		return api.Invalid.Build(c)
 	}
 
-	sort.Slice(delegators, func(i, j int) bool {
-		iAmount, _ := new(big.Int).SetString(delegators[i].StakedAmount, 10)
-		jAmount, _ := new(big.Int).SetString(delegators[j].StakedAmount, 10)
-		return iAmount.Cmp(jAmount) == 1
-	})
-
 	validator.Delegators = GroupByAddressOwner(validatorSMCAddress, delegators)
 	total, err := s.dbClient.CountDelegators(ctx, filter)
 	if err != nil {
