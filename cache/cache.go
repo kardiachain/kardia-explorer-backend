@@ -78,6 +78,9 @@ type Client interface {
 
 	AddressInfo(ctx context.Context, addr string) (*types.Address, error)
 	UpdateAddressInfo(ctx context.Context, addrInfo *types.Address) error
+
+	ServerStatus(ctx context.Context) (*types.ServerStatus, error)
+	UpdateServerStatus(ctx context.Context, serverStatus *types.ServerStatus) error
 }
 
 func New(cfg Config) (Client, error) {

@@ -9,6 +9,8 @@ import (
 type EchoServer interface {
 	// General
 	Ping(c echo.Context) error
+	ServerStatus(c echo.Context) error
+	UpdateServerStatus(c echo.Context) error
 	Stats(c echo.Context) error
 	TotalHolders(c echo.Context) error
 	TokenInfo(c echo.Context) error

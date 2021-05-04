@@ -7,13 +7,14 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/kardiachain/kardia-explorer-backend/utils"
 	"io/ioutil"
 	"log"
 	"math/big"
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/kardiachain/kardia-explorer-backend/utils"
 
 	"github.com/kardiachain/go-kardia/lib/common"
 	"github.com/labstack/echo"
@@ -31,6 +32,46 @@ func (s *Server) Ping(c echo.Context) error {
 	}
 	stats := &pingStat{Version: cfg.ServerVersion}
 	return api.OK.SetData(stats).Build(c)
+}
+
+func (s *Server) ServerStatus(c echo.Context) error {
+	lgr := s.Logger.With(zap.String("method", "ServerStatus"))
+	ctx := context.Background()
+	var status *types.ServerStatus
+	var err error
+	status, err = s.cacheClient.ServerStatus(ctx)
+	if err != nil {
+		lgr.Warn("Cannot get cache, return default instead")
+		status = &types.ServerStatus{
+			Status:        "ONLINE",
+			AppVersion:    "1.0.0",
+			ServerVersion: "1.0.0",
+		}
+		// Return default
+	}
+
+	return api.OK.SetData(status).Build(c)
+}
+
+func (s *Server) UpdateServerStatus(c echo.Context) error {
+	lgr := s.Logger.With(zap.String("method", "UpdateServerStatus"))
+	if c.Request().Header.Get("Authorization") != s.infoServer.HttpRequestSecret {
+		lgr.Warn("Cannot authorization request")
+		return api.Unauthorized.Build(c)
+	}
+	var serverStatus *types.ServerStatus
+	if err := c.Bind(&serverStatus); err != nil {
+		lgr.Error("cannot bind server status", zap.Error(err))
+		return api.Invalid.Build(c)
+	}
+	ctx := context.Background()
+	if err := s.cacheClient.UpdateServerStatus(ctx, serverStatus); err != nil {
+		lgr.Error("cannot update server status", zap.Error(err))
+		return api.Invalid.Build(c)
+	}
+
+	return api.OK.SetData(nil).Build(c)
+
 }
 
 func (s *Server) Stats(c echo.Context) error {
@@ -823,6 +864,7 @@ func (s *Server) AddressHolders(c echo.Context) error {
 }
 
 func (s *Server) TxByHash(c echo.Context) error {
+	lgr := s.Logger.With(zap.String("method", "TxByHash"))
 	ctx := context.Background()
 	txHash := c.Param("txHash")
 	if txHash == "" {
@@ -932,6 +974,7 @@ func (s *Server) TxByHash(c echo.Context) error {
 		return api.OK.SetData(result).Build(c)
 	}
 
+	lgr.Debug("TransactionInfo", zap.Any("Tx", result))
 	return api.OK.SetData(result).Build(c)
 }
 

@@ -43,6 +43,18 @@ func bind(gr *echo.Group, srv EchoServer) {
 			middlewares: nil,
 		},
 		{
+			method:      echo.GET,
+			path:        "/status",
+			fn:          srv.ServerStatus,
+			middlewares: nil,
+		},
+		{
+			method:      echo.PUT,
+			path:        "/status",
+			fn:          srv.UpdateServerStatus,
+			middlewares: nil,
+		},
+		{
 			method: echo.GET,
 			path:   "/dashboard/stats",
 			fn:     srv.Stats,

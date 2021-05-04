@@ -10,8 +10,8 @@ import (
 	"testing"
 
 	"github.com/go-redis/redis/v8"
+	"github.com/stretchr/testify/assert"
 	"go.uber.org/zap"
-	"gotest.tools/assert"
 
 	"github.com/kardiachain/kardia-explorer-backend/cfg"
 	"github.com/kardiachain/kardia-explorer-backend/types"
@@ -994,4 +994,31 @@ func isTxsListEqual(src []*types.Transaction, dest []*types.Transaction) bool {
 
 func isBlockEqual(src *types.Block, dest *types.Block) bool {
 	return (src == nil && dest == nil) || (src.Hash == dest.Hash && src.Height == dest.Height)
+}
+
+func TestRedis_UpdateServerStatus(t *testing.T) {
+	r, err := SetupTestCache()
+	assert.Nil(t, err)
+	/*
+		{
+		  status: "NEED_UPDATE" | "ONLINE" | "UNDER_MAINTAINANCE",
+		  a
+	*/
+	status := &types.ServerStatus{
+		Status:        "NEED_UPDATE",
+		AppVersion:    "1.0.0",
+		ServerVersion: "1.0.1",
+	}
+	if err := r.UpdateServerStatus(context.Background(), status); err != nil {
+		return
+	}
+}
+
+func TestRedis_ServerStatus(t *testing.T) {
+	r, err := SetupTestCache()
+	assert.Nil(t, err)
+
+	status, err := r.ServerStatus(context.Background())
+	assert.Nil(t, err)
+	fmt.Println("Status", status)
 }
