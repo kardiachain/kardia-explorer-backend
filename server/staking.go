@@ -70,7 +70,7 @@ func (s *Server) Candidates(c echo.Context) error {
 	return api.OK.SetData(candidates).Build(c)
 }
 
-func GroupByAddressOwner(address string, delegators []*types.Delegator) []*types.Delegator {
+func SortAscByStakeAmount(address string, delegators []*types.Delegator) []*types.Delegator {
 	var delegatorsOwner []*types.Delegator
 
 	for idx, el := range delegators {
@@ -129,7 +129,7 @@ func (s *Server) Validator(c echo.Context) error {
 		return api.Invalid.Build(c)
 	}
 
-	validator.Delegators = GroupByAddressOwner(validatorSMCAddress, delegators)
+	validator.Delegators = SortAscByStakeAmount(validatorSMCAddress, delegators)
 	total, err := s.dbClient.CountDelegators(ctx, filter)
 	if err != nil {
 		lgr.Error("cannot count delegator", zap.Error(err))
