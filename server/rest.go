@@ -891,8 +891,12 @@ func (s *Server) TxByHash(c echo.Context) error {
 			tx.Status = receipt.Status
 			tx.GasUsed = receipt.GasUsed
 			tx.ContractAddress = receipt.ContractAddress
-		} else {
-			tx.Status = 2 // marked as pending transactions
+		} else { // will be improved later when core blockchain support pending txs API
+			if tx.Time.Sub(time.Now()) < 20*time.Second {
+				tx.Status = 2 // marked as pending transaction if the duration between now and tx.Time is less than 20 seconds
+			} else {
+				tx.Status = 0 // marked as failed tx if this tx is submitted for too long
+			}
 		}
 	}
 
