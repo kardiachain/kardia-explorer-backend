@@ -891,6 +891,12 @@ func (s *Server) TxByHash(c echo.Context) error {
 			tx.Status = receipt.Status
 			tx.GasUsed = receipt.GasUsed
 			tx.ContractAddress = receipt.ContractAddress
+		} else { // will be improved later when core blockchain support pending txs API
+			if tx.Time.Sub(time.Now()) < 20*time.Second {
+				tx.Status = 2 // marked as pending transaction if the duration between now and tx.Time is less than 20 seconds
+			} else {
+				tx.Status = 0 // marked as failed tx if this tx is submitted for too long
+			}
 		}
 	}
 
@@ -918,20 +924,21 @@ func (s *Server) TxByHash(c echo.Context) error {
 		tx.DecodedInputData = functionCall
 	}
 
-	internalTxs := make([]*InternalTransaction, len(tx.Logs))
-	for i := range tx.Logs {
-		if smcABI != nil {
-			unpackedLog, err := s.kaiClient.UnpackLog(&tx.Logs[i], smcABI)
-			if err == nil && unpackedLog != nil {
-				tx.Logs[i] = *unpackedLog
-			}
-		}
+	filter := &types.EventsFilter{
+		TxHash: txHash,
+	}
+	events, _, err := s.dbClient.GetListEvents(ctx, filter)
+	if err != nil {
+		s.logger.Warn("Cannot get events from db", zap.Error(err))
+	}
+	internalTxs := make([]*InternalTransaction, len(events))
+	for i := range events {
 		internalTxs[i] = &InternalTransaction{
-			Log: &tx.Logs[i],
+			Log: events[i],
 		}
-		krcTokenInfo, err = s.getKRCTokenInfo(ctx, tx.Logs[i].Address)
+		krcTokenInfo, err = s.getKRCTokenInfo(ctx, events[i].Address)
 		if err != nil {
-			s.logger.Info("Cannot get KRC Token Info", zap.String("smcAddress", tx.Logs[i].Address), zap.Error(err))
+			s.logger.Info("Cannot get KRC Token Info", zap.String("smcAddress", events[i].Address), zap.Error(err))
 			continue
 		}
 		internalTxs[i].KRCTokenInfo = krcTokenInfo
