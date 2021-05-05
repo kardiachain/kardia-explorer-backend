@@ -48,6 +48,9 @@ func (m *mongoDB) UpdateInternalTxs(ctx context.Context, holdersInfo []*types.To
 }
 
 func (m *mongoDB) GetListInternalTxs(ctx context.Context, filter *types.InternalTxsFilter) ([]*types.TokenTransfer, uint64, error) {
+	opts := []*options.FindOptions{
+		options.Find().SetSort(bson.M{"time": -1}),
+	}
 	var (
 		iTxs    []*types.TokenTransfer
 		andCrit []bson.M
@@ -58,23 +61,19 @@ func (m *mongoDB) GetListInternalTxs(ctx context.Context, filter *types.Internal
 			{"to": filter.Address},
 		}
 		andCrit = append(andCrit, bson.M{"$or": orCrit})
+		opts = append(opts, options.Find().SetHint(bson.M{"from": 1}))
+		opts = append(opts, options.Find().SetHint(bson.M{"to": 1}))
 	}
 	if filter.Contract != "" {
 		andCrit = append(andCrit, bson.M{"contractAddress": filter.Contract})
+		opts = append(opts, options.Find().SetHint(bson.M{"contractAddress": 1}))
 	}
 	if filter.TransactionHash != "" {
 		andCrit = append(andCrit, bson.M{"txHash": filter.TransactionHash})
+		opts = append(opts, options.Find().SetHint(bson.M{"txHash": 1}))
 	}
 	crit := bson.M{"$and": andCrit}
 
-	opts := []*options.FindOptions{
-		options.Find().SetHint(bson.M{"time": -1}),
-		options.Find().SetHint(bson.M{"txHash": 1}),
-		options.Find().SetHint(bson.M{"contractAddress": 1}),
-		options.Find().SetHint(bson.M{"from": 1}),
-		options.Find().SetHint(bson.M{"to": 1}),
-		options.Find().SetSort(bson.M{"time": -1}),
-	}
 	if filter.Pagination != nil {
 		filter.Pagination.Sanitize()
 		opts = append(opts, options.Find().SetSkip(int64(filter.Pagination.Skip)), options.Find().SetLimit(int64(filter.Pagination.Limit)))
