@@ -31,7 +31,12 @@ func (m *mongoDB) createInternalTxsCollectionIndexes() []mongo.IndexModel {
 func (m *mongoDB) UpdateInternalTxs(ctx context.Context, holdersInfo []*types.TokenTransfer) error {
 	iTxsBulkWriter := make([]mongo.WriteModel, len(holdersInfo))
 	for i := range holdersInfo {
-		iTxs := mongo.NewInsertOneModel().SetDocument(holdersInfo[i])
+		iTxs := mongo.NewUpdateOneModel().SetUpsert(true).
+			SetFilter(bson.M{"txHash": holdersInfo[i].TransactionHash}).
+			SetFilter(bson.M{"from": holdersInfo[i].From}).
+			SetFilter(bson.M{"to": holdersInfo[i].To}).
+			SetFilter(bson.M{"logIndex": holdersInfo[i].LogIndex}).
+			SetUpdate(bson.M{"$set": holdersInfo[i]})
 		iTxsBulkWriter[i] = iTxs
 	}
 	if len(iTxsBulkWriter) > 0 {
