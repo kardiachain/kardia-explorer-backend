@@ -61,8 +61,8 @@ func (m *mongoDB) GetListInternalTxs(ctx context.Context, filter *types.Internal
 			{"to": filter.Address},
 		}
 		andCrit = append(andCrit, bson.M{"$or": orCrit})
-		opts = append(opts, options.Find().SetHint(bson.M{"from": 1}))
-		opts = append(opts, options.Find().SetHint(bson.M{"to": 1}))
+		//opts = append(opts, options.Find().SetHint(bson.M{"from": 1}))
+		//opts = append(opts, options.Find().SetHint(bson.M{"to": 1}))
 	}
 	if filter.Contract != "" {
 		andCrit = append(andCrit, bson.M{"contractAddress": filter.Contract})
@@ -76,7 +76,7 @@ func (m *mongoDB) GetListInternalTxs(ctx context.Context, filter *types.Internal
 
 	if filter.Pagination != nil {
 		filter.Pagination.Sanitize()
-		opts = append(opts, options.Find().SetSkip(int64(filter.Pagination.Skip)), options.Find().SetLimit(int64(filter.Pagination.Limit)))
+		opts = append(opts /*options.Find().SetSkip(int64(filter.Pagination.Skip)),*/, options.Find().SetLimit(int64(filter.Pagination.Limit)))
 	}
 	cursor, err := m.wrapper.C(cInternalTxs).Find(crit, opts...)
 	if err != nil {
