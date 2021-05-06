@@ -44,6 +44,8 @@ const (
 
 	KeyKRCTokenInfo = "#krc#info#%s"
 	KeyAddressInfo  = "#addresses#info#%s"
+
+	KeyServerStatus = "#server#status"
 )
 
 type Redis struct {
@@ -619,4 +621,27 @@ func (c *Redis) UpdateAddressInfo(ctx context.Context, addrInfo *types.Address) 
 		return err
 	}
 	return nil
+}
+
+func (c *Redis) UpdateServerStatus(ctx context.Context, serverStatus *types.ServerStatus) error {
+	data, err := json.Marshal(serverStatus)
+	if err != nil {
+		return err
+	}
+	if err := c.client.Set(ctx, KeyServerStatus, data, 0).Err(); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (c *Redis) ServerStatus(ctx context.Context) (*types.ServerStatus, error) {
+	result, err := c.client.Get(ctx, KeyServerStatus).Result()
+	if err != nil {
+		return nil, err
+	}
+	var serverStatus *types.ServerStatus
+	if err := json.Unmarshal([]byte(result), &serverStatus); err != nil {
+		return nil, err
+	}
+	return serverStatus, nil
 }

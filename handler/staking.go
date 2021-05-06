@@ -153,13 +153,15 @@ func (h *handler) reloadProposer(ctx context.Context, proposerAddress string) er
 
 	// Reset validator delegators data every 20 block
 	if totalBlockOfProposer%20 == 0 {
-
 		proposerInfo, err := h.db.Validator(ctx, proposerAddress)
 		if err != nil {
 			lgr.Error("cannot get proposer info", zap.Error(err))
 			return err
 		}
-		lgr.Debug("Reload delegators of proposer", zap.String("Address", proposerAddress), zap.String("Name", proposerInfo.Name), zap.Int64("TotalBlock", totalBlockOfProposer))
+		lgr.Debug("Reload delegators of proposer",
+			zap.String("Address", proposerAddress),
+			zap.String("Name", proposerInfo.Name),
+			zap.Int64("TotalBlock", totalBlockOfProposer))
 		delegators, err := h.w.DelegatorsWithWorker(ctx, proposerInfo.SmcAddress)
 		if err != nil {
 			lgr.Error("cannot get list delegators", zap.Error(err))

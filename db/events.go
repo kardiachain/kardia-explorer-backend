@@ -51,10 +51,10 @@ func (m *mongoDB) InsertEvents(events []types.Log) error {
 func (m *mongoDB) GetListEvents(ctx context.Context, filter *types.EventsFilter) ([]*types.Log, uint64, error) {
 	var (
 		opts = []*options.FindOptions{
-			options.Find().SetHint(bson.M{"blockHeight": -1}),
-			options.Find().SetHint(bson.M{"transactionHash": 1}),
-			options.Find().SetHint(bson.D{{Key: "address", Value: 1}, {Key: "timestamp", Value: -1}}),
-			options.Find().SetHint(bson.D{{Key: "methodName", Value: 1}, {Key: "timestamp", Value: -1}}),
+			//options.Find().SetHint(bson.M{"blockHeight": -1}),
+			//options.Find().SetHint(bson.M{"transactionHash": 1}),
+			//options.Find().SetHint(bson.D{{Key: "address", Value: 1}, {Key: "timestamp", Value: -1}}),
+			//options.Find().SetHint(bson.D{{Key: "methodName", Value: 1}, {Key: "timestamp", Value: -1}}),
 			options.Find().SetSort(bson.M{"blockHeight": -1}),
 		}
 		events []*types.Log

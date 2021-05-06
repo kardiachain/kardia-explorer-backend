@@ -19,7 +19,7 @@ func GetMgo() (*mongoDB, error) {
 	mgoCfg := Config{
 		DbAdapter: "mgo",
 		DbName:    "explorer",
-		URL:       "mongodb://10.10.0.252:27017",
+		URL:       "mongodb://54.255.224.10:27017",
 		MinConn:   1,
 		MaxConn:   4,
 		FlushDB:   false,
