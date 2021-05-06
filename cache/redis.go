@@ -27,7 +27,7 @@ const (
 	KeyErrorBlocks           = "#blocks#error"           // List
 	KeyPersistentErrorBlocks = "#blocks#persistentError" // List
 	KeyUnverifiedBlocks      = "#blocks#unverified"      // List
-	KeyBlocksByProposer      = "#blocks#proposer#%s"
+	KeyNumOfBlocksByProposer = "#blocks#count#proposer#%s"
 
 	KeyLatestTxs = "#txs#latest" // List
 
@@ -648,7 +648,7 @@ func (c *Redis) ServerStatus(ctx context.Context) (*types.ServerStatus, error) {
 }
 
 func (c *Redis) BlocksByProposer(ctx context.Context, proposerAddr string) (int64, error) {
-	keyBlocksByProposer := fmt.Sprintf(KeyBlocksByProposer, proposerAddr)
+	keyBlocksByProposer := fmt.Sprintf(KeyNumOfBlocksByProposer, proposerAddr)
 	result, err := c.client.Get(ctx, keyBlocksByProposer).Result()
 	if err != nil {
 		return 0, err
@@ -657,7 +657,7 @@ func (c *Redis) BlocksByProposer(ctx context.Context, proposerAddr string) (int6
 }
 
 func (c *Redis) UpdateBlocksByProposer(ctx context.Context, proposerAddr string, numOfBlocks int64) error {
-	keyBlocksByProposer := fmt.Sprintf(KeyBlocksByProposer, proposerAddr)
+	keyBlocksByProposer := fmt.Sprintf(KeyNumOfBlocksByProposer, proposerAddr)
 	if err := c.client.Set(ctx, keyBlocksByProposer, strconv.FormatInt(numOfBlocks, 10), 0).Err(); err != nil {
 		return err
 	}
