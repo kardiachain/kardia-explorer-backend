@@ -23,3 +23,10 @@ func (ec *Client) UninstallFilter(ctx context.Context, filterID *rpc.ID) error {
 func (ec *Client) GetFilterChanges(ctx context.Context, filterID *rpc.ID) ([]*types.Log, error) {
 	return nil, nil
 }
+
+// GetLogs
+func (ec *Client) GetLogs(ctx context.Context, query kai.FilterQuery) ([]*types.Log, error) {
+	var result []*types.Log
+	err := ec.defaultClient.c.CallContext(ctx, &result, "kai_getLogs", query)
+	return result, err
+}

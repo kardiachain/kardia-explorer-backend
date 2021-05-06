@@ -14,16 +14,17 @@ import (
 	"strings"
 	"time"
 
-	"github.com/kardiachain/kardia-explorer-backend/utils"
-
-	"github.com/kardiachain/go-kardia/lib/common"
 	"github.com/labstack/echo"
 	"go.uber.org/zap"
+
+	"github.com/kardiachain/go-kardia"
+	"github.com/kardiachain/go-kardia/lib/common"
 
 	"github.com/kardiachain/kardia-explorer-backend/api"
 	"github.com/kardiachain/kardia-explorer-backend/cfg"
 	"github.com/kardiachain/kardia-explorer-backend/db"
 	"github.com/kardiachain/kardia-explorer-backend/types"
+	"github.com/kardiachain/kardia-explorer-backend/utils"
 )
 
 func (s *Server) Ping(c echo.Context) error {
@@ -1642,6 +1643,66 @@ func (s *Server) GetInternalTxs(c echo.Context) error {
 		Total: total,
 		Data:  result,
 	}).Build(c)
+}
+
+func (s *Server) UpdateInternalTxs(c echo.Context) error {
+	var (
+		ctx             = context.Background()
+		crit            *types.TxsFilter
+		internalTxsCrit *types.InternalTxsFilter
+		lgr             = s.logger.With(zap.String("api", "UpdateInternalTxs"))
+		bodyBytes, _    = ioutil.ReadAll(c.Request().Body)
+	)
+	if c.Request().Header.Get("Authorization") != s.infoServer.HttpRequestSecret {
+		lgr.Warn("Cannot authorization request")
+		return api.Unauthorized.Build(c)
+	}
+	c.Request().Body = ioutil.NopCloser(bytes.NewBuffer(bodyBytes))
+	if err := c.Bind(&crit); err != nil {
+		lgr.Error("cannot bind txs filter", zap.Error(err))
+		return api.Invalid.Build(c)
+	}
+	c.Request().Body = ioutil.NopCloser(bytes.NewBuffer(bodyBytes))
+	if err := c.Bind(&internalTxsCrit); err != nil {
+		lgr.Error("cannot bind internal txs filter", zap.Error(err))
+		return api.Invalid.Build(c)
+	}
+	// find the block height where this contract is deployed
+	txs, _, err := s.dbClient.FilterTxs(ctx, crit)
+	lgr.Info("UpdateInternalTxs", zap.Any("criteria", crit), zap.Any("txs", txs))
+	if err != nil {
+		lgr.Error("Cannot get the transaction where this contract was deployed", zap.Error(err))
+		return api.Invalid.Build(c)
+	}
+
+	// filter logs from this initial height to "latest" which satisfy the query
+	logs, err := s.kaiClient.GetLogs(ctx, kardia.FilterQuery{
+		FromBlock: txs[0].BlockNumber,
+		Addresses: []common.Address{common.HexToAddress(crit.ContractAddress)},
+		Topics:    internalTxsCrit.Topics,
+	})
+	if err != nil {
+		lgr.Error("Cannot get contract logs from core", zap.Error(err), zap.Any("criteria", crit))
+		return api.Invalid.Build(c)
+	}
+
+	// parse logs to internal txs
+	internalTxs := make([]*types.TokenTransfer, len(logs))
+	for i := range logs {
+		internalTxs[i] = s.getInternalTxs(ctx, logs[i])
+	}
+	// remove old internal txs satisfy this criteria
+	if err = s.dbClient.RemoveInternalTxs(ctx, internalTxsCrit); err != nil {
+		lgr.Error("Cannot delete old internal txs in db", zap.Error(err), zap.Any("criteria", internalTxsCrit))
+		return api.Invalid.Build(c)
+	}
+
+	// batch inserting to InternalTransactions collection in db
+	if err = s.dbClient.UpdateInternalTxs(ctx, internalTxs); err != nil {
+		lgr.Error("Cannot batch inserting new internal txs in db", zap.Error(err))
+		return api.Invalid.Build(c)
+	}
+	return api.OK.Build(c)
 }
 
 func (s *Server) getAddressInfo(ctx context.Context, address string) (*types.Address, error) {

@@ -1022,11 +1022,13 @@ func (s *infoServer) getInternalTxs(ctx context.Context, log *types.Log) *types.
 	}
 	return &types.TokenTransfer{
 		TransactionHash: log.TxHash,
+		BlockHeight:     log.BlockHeight,
 		Contract:        log.Address,
 		From:            from,
 		To:              to,
 		Value:           value,
 		Time:            log.Time,
+		LogIndex:        log.Index,
 	}
 }
 

@@ -73,6 +73,7 @@ type ClientInterface interface {
 	NewLogsFilter(ctx context.Context, query kai.FilterQuery) (*rpc.ID, error)
 	UninstallFilter(ctx context.Context, filterID *rpc.ID) error
 	GetFilterChanges(ctx context.Context, filterID *rpc.ID) ([]*types.Log, error)
+	GetLogs(ctx context.Context, query kai.FilterQuery) ([]*types.Log, error)
 }
 
 type Config struct {
