@@ -306,6 +306,20 @@ func (s *infoServer) ImportBlock(ctx context.Context, block *types.Block, writeT
 		}
 	}
 
+	// update number of block proposed by this proposer
+	numOfBlocks, err := s.cacheClient.BlocksByProposer(ctx, block.ProposerAddress)
+	if err != nil || numOfBlocks == 0 {
+		numOfBlocks, err = s.dbClient.CountBlocksOfProposer(ctx, block.ProposerAddress)
+		if err != nil {
+			s.logger.Error("cannot get number of blocks by proposer from db", zap.Error(err), zap.String("proposer", block.ProposerAddress))
+		}
+	}
+	if numOfBlocks > 0 {
+		if err = s.cacheClient.UpdateBlocksByProposer(ctx, block.ProposerAddress, numOfBlocks+1); err != nil {
+			s.logger.Warn("cannot set number of blocks by proposer to cache", zap.Error(err), zap.Any("block", block))
+		}
+	}
+
 	// merge receipts into corresponding transactions
 	// because getBlockByHash/Height API returns 2 array contains txs and receipts separately
 	block.Txs = s.mergeAdditionalInfoToTxs(ctx, block.Txs, block.Receipts)
