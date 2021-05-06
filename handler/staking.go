@@ -145,7 +145,7 @@ func (h *handler) onInteractWithValidators(ctx context.Context, tx *kardia.Trans
 func (h *handler) reloadProposer(ctx context.Context, proposerAddress string) error {
 	lgr := h.logger.With(zap.String("method", "reloadProposer"))
 	// Reload number of blocks by proposer, prefer getting from cache
-	totalBlockOfProposer, err := h.cache.BlocksByProposer(ctx, proposerAddress)
+	totalBlockOfProposer, err := h.cache.CountBlocksOfProposer(ctx, proposerAddress)
 	if err != nil || totalBlockOfProposer <= 0 {
 		lgr.Error("cannot get total block of proposer from cache", zap.Error(err))
 		totalBlockOfProposer, err = h.db.CountBlocksOfProposer(ctx, proposerAddress)

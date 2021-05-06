@@ -307,7 +307,7 @@ func (s *infoServer) ImportBlock(ctx context.Context, block *types.Block, writeT
 	}
 
 	// update number of block proposed by this proposer
-	numOfBlocks, err := s.cacheClient.BlocksByProposer(ctx, block.ProposerAddress)
+	numOfBlocks, err := s.cacheClient.CountBlocksOfProposer(ctx, block.ProposerAddress)
 	if err != nil || numOfBlocks == 0 {
 		numOfBlocks, err = s.dbClient.CountBlocksOfProposer(ctx, block.ProposerAddress)
 		if err != nil {
@@ -315,7 +315,7 @@ func (s *infoServer) ImportBlock(ctx context.Context, block *types.Block, writeT
 		}
 	}
 	if numOfBlocks > 0 {
-		if err = s.cacheClient.UpdateBlocksByProposer(ctx, block.ProposerAddress, numOfBlocks+1); err != nil {
+		if err = s.cacheClient.UpdateNumOfBlocksByProposer(ctx, block.ProposerAddress, numOfBlocks+1); err != nil {
 			s.logger.Warn("cannot set number of blocks by proposer to cache", zap.Error(err), zap.Any("block", block))
 		}
 	}
