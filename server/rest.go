@@ -1669,7 +1669,7 @@ func (s *Server) UpdateInternalTxs(c echo.Context) error {
 	}
 	// find the block height where this contract is deployed
 	txs, _, err := s.dbClient.FilterTxs(ctx, crit)
-	lgr.Info("UpdateInternalTxs", zap.Any("criteria", crit), zap.Any("txs", txs))
+	lgr.Info("UpdateInternalTxs", zap.Any("criteria", crit))
 	if err != nil {
 		lgr.Error("Cannot get the transaction where this contract was deployed", zap.Error(err))
 		return api.Invalid.Build(c)
@@ -1687,9 +1687,24 @@ func (s *Server) UpdateInternalTxs(c echo.Context) error {
 	}
 
 	// parse logs to internal txs
-	internalTxs := make([]*types.TokenTransfer, len(logs))
+	var internalTxs []*types.TokenTransfer
+	smcABI, err := s.getSMCAbi(ctx, &types.Log{
+		Address: cfg.SMCTypePrefix + cfg.SMCTypeKRC20,
+	})
+	if err != nil {
+		lgr.Error("Cannot get contract ABI", zap.Error(err), zap.Any("smcAddr", logs[0].Address))
+		return api.Invalid.Build(c)
+	}
 	for i := range logs {
-		internalTxs[i] = s.getInternalTxs(ctx, logs[i])
+		logs[i].Address = common.HexToAddress(logs[i].Address).Hex()
+		decodedLog, err := s.kaiClient.UnpackLog(logs[i], smcABI)
+		if err != nil {
+			decodedLog = logs[i]
+		}
+		internalTx := s.getInternalTxs(ctx, decodedLog)
+		if internalTx != nil {
+			internalTxs = append(internalTxs, internalTx)
+		}
 	}
 	// remove old internal txs satisfy this criteria
 	if err = s.dbClient.RemoveInternalTxs(ctx, internalTxsCrit); err != nil {
@@ -1698,6 +1713,7 @@ func (s *Server) UpdateInternalTxs(c echo.Context) error {
 	}
 
 	// batch inserting to InternalTransactions collection in db
+	lgr.Info("internalTxs ready to be batch inserted", zap.Any("iTxs", len(internalTxs)), zap.Any("logs", len(logs)))
 	if err = s.dbClient.UpdateInternalTxs(ctx, internalTxs); err != nil {
 		lgr.Error("Cannot batch inserting new internal txs in db", zap.Error(err))
 		return api.Invalid.Build(c)
