@@ -7,10 +7,11 @@ type TokenTransfer struct {
 	TransactionHash string `json:"txHash" bson:"txHash"`
 	Contract        string `json:"contractAddress" bson:"contractAddress"`
 
-	From  string    `json:"from" bson:"from"`
-	To    string    `json:"to" bson:"to"`
-	Value string    `json:"value" bson:"value"`
-	Time  time.Time `json:"time" bson:"time"`
+	From     string    `json:"from" bson:"from"`
+	To       string    `json:"to" bson:"to"`
+	Value    string    `json:"value" bson:"value"`
+	Time     time.Time `json:"time" bson:"time"`
+	LogIndex string    `json:"logIndex,omitempty" bson:"logIndex"`
 }
 
 type KRCTokenInfo struct {
