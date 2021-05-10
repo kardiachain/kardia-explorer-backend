@@ -549,6 +549,44 @@ func (m *mongoDB) TxByHash(ctx context.Context, txHash string) (*types.Transacti
 	return tx, nil
 }
 
+func (m *mongoDB) FilterTxs(ctx context.Context, filter *types.TxsFilter) ([]*types.Transaction, uint64, error) {
+	var (
+		txs  []*types.Transaction
+		crit = bson.M{}
+	)
+	critBytes, err := bson.Marshal(filter)
+	if err != nil {
+		m.logger.Warn("Cannot marshal txs filter criteria", zap.Error(err))
+	}
+	err = bson.Unmarshal(critBytes, &crit)
+	if err != nil {
+		m.logger.Warn("Cannot unmarshal txs filter criteria", zap.Error(err))
+	}
+	opts := []*options.FindOptions{
+		options.Find().SetHint(bson.M{"blockNumber": -1}),
+		options.Find().SetSort(bson.M{"blockNumber": -1}),
+	}
+	if filter.Pagination != nil {
+		filter.Pagination.Sanitize()
+		opts = append(opts, options.Find().SetSkip(int64(filter.Pagination.Skip)), options.Find().SetLimit(int64(filter.Pagination.Limit)))
+	}
+	cursor, err := m.wrapper.C(cTxs).Find(crit, opts...)
+	if err != nil {
+		return nil, 0, err
+	}
+
+	if err = cursor.All(ctx, &txs); err != nil {
+		return nil, 0, err
+	}
+
+	total, err := m.wrapper.C(cTxs).Count(crit)
+	if err != nil {
+		return nil, 0, err
+	}
+
+	return txs, uint64(total), nil
+}
+
 // InsertTxs create bulk writer
 func (m *mongoDB) InsertTxs(ctx context.Context, txs []*types.Transaction) error {
 	var (

@@ -62,6 +62,7 @@ type EchoServer interface {
 
 	GetHoldersListByToken(c echo.Context) error
 	GetInternalTxs(c echo.Context) error
+	UpdateInternalTxs(c echo.Context) error
 }
 
 type IContract interface {

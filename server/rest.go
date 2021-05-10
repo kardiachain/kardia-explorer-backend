@@ -9,21 +9,23 @@ import (
 	"fmt"
 	"io/ioutil"
 	"log"
+	"math"
 	"math/big"
 	"strconv"
 	"strings"
 	"time"
 
-	"github.com/kardiachain/kardia-explorer-backend/utils"
-
-	"github.com/kardiachain/go-kardia/lib/common"
 	"github.com/labstack/echo"
 	"go.uber.org/zap"
+
+	"github.com/kardiachain/go-kardia"
+	"github.com/kardiachain/go-kardia/lib/common"
 
 	"github.com/kardiachain/kardia-explorer-backend/api"
 	"github.com/kardiachain/kardia-explorer-backend/cfg"
 	"github.com/kardiachain/kardia-explorer-backend/db"
 	"github.com/kardiachain/kardia-explorer-backend/types"
+	"github.com/kardiachain/kardia-explorer-backend/utils"
 )
 
 func (s *Server) Ping(c echo.Context) error {
@@ -1642,6 +1644,121 @@ func (s *Server) GetInternalTxs(c echo.Context) error {
 		Total: total,
 		Data:  result,
 	}).Build(c)
+}
+
+func (s *Server) UpdateInternalTxs(c echo.Context) error {
+	var (
+		ctx             = context.Background()
+		crit            *types.TxsFilter
+		internalTxsCrit *types.InternalTxsFilter
+		lgr             = s.logger.With(zap.String("api", "UpdateInternalTxs"))
+		bodyBytes, _    = ioutil.ReadAll(c.Request().Body)
+	)
+	if c.Request().Header.Get("Authorization") != s.infoServer.HttpRequestSecret {
+		lgr.Warn("Cannot authorization request")
+		return api.Unauthorized.Build(c)
+	}
+	c.Request().Body = ioutil.NopCloser(bytes.NewBuffer(bodyBytes))
+	if err := c.Bind(&crit); err != nil {
+		lgr.Error("cannot bind txs filter", zap.Error(err))
+		return api.Invalid.Build(c)
+	}
+	c.Request().Body = ioutil.NopCloser(bytes.NewBuffer(bodyBytes))
+	if err := c.Bind(&internalTxsCrit); err != nil {
+		lgr.Error("cannot bind internal txs filter", zap.Error(err))
+		return api.Invalid.Build(c)
+	}
+
+	// filter logs from this initial height to "latest" which satisfy the
+	var (
+		logs              []*types.Log
+		latestBlockHeight uint64 = math.MaxUint64
+		toBlock           uint64
+	)
+	fromBlock, err1 := strconv.ParseUint(c.QueryParam("from"), 10, 64)
+	toBlock, err2 := strconv.ParseUint(c.QueryParam("to"), 10, 64)
+	if err1 == nil && err2 == nil {
+		partLogs, err := s.kaiClient.GetLogs(ctx, kardia.FilterQuery{
+			FromBlock: fromBlock,
+			ToBlock:   toBlock,
+			Addresses: []common.Address{common.HexToAddress(crit.ContractAddress)},
+			Topics:    internalTxsCrit.Topics,
+		})
+		if err != nil {
+			lgr.Error("Cannot get contract logs from core", zap.Error(err), zap.Any("criteria", crit))
+			return api.Invalid.Build(c)
+		}
+		lgr.Info("Filtering events", zap.Uint64("latestBlockHeight", latestBlockHeight), zap.Uint64("from", fromBlock), zap.Uint64("to", toBlock), zap.Int("number of logs", len(partLogs)))
+		logs = append(logs, partLogs...)
+	} else {
+		// find the block height where this contract is deployed
+		txs, _, err := s.dbClient.FilterTxs(ctx, crit)
+		lgr.Info("UpdateInternalTxs", zap.Any("criteria", crit))
+		if err != nil || len(txs) == 0 {
+			lgr.Error("Cannot get the transaction where this contract was deployed", zap.Error(err))
+			return api.Invalid.Build(c)
+		}
+
+		lgr.Info("Filtering events", zap.Uint64("from", txs[0].BlockNumber), zap.Uint64("to", latestBlockHeight))
+		for i := txs[0].BlockNumber; i < latestBlockHeight; i += cfg.FilterLogsInterval {
+			latestBlockHeight, err = s.kaiClient.LatestBlockNumber(ctx)
+			if err != nil {
+				lgr.Error("Cannot get latest block height from RPC", zap.Error(err), zap.Any("criteria", crit))
+				return api.Invalid.Build(c)
+			}
+			if i+cfg.FilterLogsInterval > latestBlockHeight {
+				toBlock = latestBlockHeight
+			} else {
+				toBlock = i + cfg.FilterLogsInterval
+			}
+			partLogs, err := s.kaiClient.GetLogs(ctx, kardia.FilterQuery{
+				FromBlock: i,
+				ToBlock:   toBlock,
+				Addresses: []common.Address{common.HexToAddress(crit.ContractAddress)},
+				Topics:    internalTxsCrit.Topics,
+			})
+			if err != nil {
+				lgr.Error("Cannot get contract logs from core", zap.Error(err), zap.Any("criteria", crit))
+				return api.Invalid.Build(c)
+			}
+			lgr.Info("Filtering events", zap.Uint64("latestBlockHeight", latestBlockHeight), zap.Uint64("from", i), zap.Uint64("to", toBlock), zap.Int("number of logs", len(partLogs)))
+			logs = append(logs, partLogs...)
+		}
+	}
+
+	// parse logs to internal txs
+	var internalTxs []*types.TokenTransfer
+	smcABI, err := s.getSMCAbi(ctx, &types.Log{
+		Address: cfg.SMCTypePrefix + cfg.SMCTypeKRC20,
+	})
+	if err != nil {
+		lgr.Error("Cannot get contract ABI", zap.Error(err), zap.Any("smcAddr", logs[0].Address))
+		return api.Invalid.Build(c)
+	}
+	for i := range logs {
+		logs[i].Address = common.HexToAddress(logs[i].Address).Hex()
+		decodedLog, err := s.kaiClient.UnpackLog(logs[i], smcABI)
+		if err != nil {
+			decodedLog = logs[i]
+		}
+		internalTx := s.getInternalTxs(ctx, decodedLog)
+		if internalTx != nil {
+			internalTxs = append(internalTxs, internalTx)
+		}
+	}
+	// remove old internal txs satisfy this criteria
+	if err = s.dbClient.RemoveInternalTxs(ctx, internalTxsCrit); err != nil {
+		lgr.Error("Cannot delete old internal txs in db", zap.Error(err), zap.Any("criteria", internalTxsCrit))
+		return api.Invalid.Build(c)
+	}
+
+	// batch inserting to InternalTransactions collection in db
+	lgr.Info("internalTxs ready to be batch inserted", zap.Any("iTxs", len(internalTxs)), zap.Any("logs", len(logs)))
+	if err = s.dbClient.UpdateInternalTxs(ctx, internalTxs); err != nil {
+		lgr.Error("Cannot batch inserting new internal txs in db", zap.Error(err))
+		return api.Invalid.Build(c)
+	}
+	return api.OK.Build(c)
 }
 
 func (s *Server) getAddressInfo(ctx context.Context, address string) (*types.Address, error) {
