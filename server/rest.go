@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"log"
+	"math"
 	"math/big"
 	"strconv"
 	"strings"
@@ -1676,14 +1677,33 @@ func (s *Server) UpdateInternalTxs(c echo.Context) error {
 	}
 
 	// filter logs from this initial height to "latest" which satisfy the query
-	logs, err := s.kaiClient.GetLogs(ctx, kardia.FilterQuery{
-		FromBlock: txs[0].BlockNumber,
-		Addresses: []common.Address{common.HexToAddress(crit.ContractAddress)},
-		Topics:    internalTxsCrit.Topics,
-	})
-	if err != nil {
-		lgr.Error("Cannot get contract logs from core", zap.Error(err), zap.Any("criteria", crit))
-		return api.Invalid.Build(c)
+	var (
+		logs              []*types.Log
+		latestBlockHeight uint64 = math.MaxUint64
+		toBlock           uint64
+	)
+	for i := txs[0].BlockNumber; i > latestBlockHeight; i += cfg.FilterLogsInterval {
+		latestBlockHeight, err = s.kaiClient.LatestBlockNumber(ctx)
+		if err != nil {
+			lgr.Error("Cannot get latest block height from RPC", zap.Error(err), zap.Any("criteria", crit))
+			return api.Invalid.Build(c)
+		}
+		if i+cfg.FilterLogsInterval > latestBlockHeight {
+			toBlock = latestBlockHeight
+		} else {
+			toBlock = i + cfg.FilterLogsInterval
+		}
+		partLogs, err := s.kaiClient.GetLogs(ctx, kardia.FilterQuery{
+			FromBlock: i,
+			ToBlock:   toBlock,
+			Addresses: []common.Address{common.HexToAddress(crit.ContractAddress)},
+			Topics:    internalTxsCrit.Topics,
+		})
+		if err != nil {
+			lgr.Error("Cannot get contract logs from core", zap.Error(err), zap.Any("criteria", crit))
+			return api.Invalid.Build(c)
+		}
+		logs = append(logs, partLogs...)
 	}
 
 	// parse logs to internal txs
