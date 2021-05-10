@@ -1020,6 +1020,14 @@ func (s *infoServer) getInternalTxs(ctx context.Context, log *types.Log) *types.
 	if !ok {
 		return nil
 	}
+	// update time of internal transaction
+	block, err := s.dbClient.BlockByHeight(ctx, log.BlockHeight)
+	if err != nil {
+		s.logger.Warn("Cannot get block from db", zap.Uint64("height", log.BlockHeight), zap.Error(err))
+		block = &types.Block{
+			Time: time.Now(),
+		}
+	}
 	return &types.TokenTransfer{
 		TransactionHash: log.TxHash,
 		BlockHeight:     log.BlockHeight,
@@ -1027,7 +1035,7 @@ func (s *infoServer) getInternalTxs(ctx context.Context, log *types.Log) *types.
 		From:            from,
 		To:              to,
 		Value:           value,
-		Time:            log.Time,
+		Time:            block.Time,
 		LogIndex:        log.Index,
 	}
 }
@@ -1047,7 +1055,7 @@ func (s *infoServer) insertHistoryTransferKRC(ctx context.Context, smcAddr strin
 		}
 		block, err := s.dbClient.BlockByHeight(ctx, e.BlockHeight)
 		if err != nil {
-			s.logger.Warn("Cannot get block from db", zap.Uint64("address", e.BlockHeight), zap.Error(err))
+			s.logger.Warn("Cannot get block from db", zap.Uint64("height", e.BlockHeight), zap.Error(err))
 			block = &types.Block{
 				Time: time.Now(),
 			}
