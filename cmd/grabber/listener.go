@@ -75,10 +75,11 @@ func listener(ctx context.Context, srv *server.Server, interval time.Duration) {
 					continue
 				}
 				// insert current block height to cache for re-verifying later
-				err = srv.InsertUnverifiedBlocks(ctx, latest)
-				if err != nil {
-					lgr.Error("Listener: Failed to insert unverified block", zap.Error(err))
-				}
+				// temp remove insert new unverified blocks
+				//err = srv.InsertUnverifiedBlocks(ctx, latest)
+				//if err != nil {
+				//	lgr.Error("Listener: Failed to insert unverified block", zap.Error(err))
+				//}
 				// import this latest block to cache and database
 				if err := srv.ImportBlock(ctx, block, true); err != nil {
 					lgr.Debug("Listener: Failed to import block", zap.Error(err))

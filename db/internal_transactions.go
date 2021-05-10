@@ -40,7 +40,7 @@ func (m *mongoDB) UpdateInternalTxs(ctx context.Context, holdersInfo []*types.To
 		iTxsBulkWriter[i] = iTxs
 	}
 	if len(iTxsBulkWriter) > 0 {
-		if _, err := m.wrapper.C(cInternalTxs).BulkWrite(iTxsBulkWriter); err != nil {
+		if _, err := m.wrapper.C(cInternalTxs).BulkUpsert(iTxsBulkWriter); err != nil {
 			return err
 		}
 	}

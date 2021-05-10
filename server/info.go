@@ -19,6 +19,7 @@ import (
 
 	"github.com/kardiachain/go-kardia/lib/abi"
 	"github.com/kardiachain/go-kardia/lib/common"
+
 	"github.com/kardiachain/kardia-explorer-backend/cache"
 	"github.com/kardiachain/kardia-explorer-backend/cfg"
 	"github.com/kardiachain/kardia-explorer-backend/db"
@@ -679,9 +680,7 @@ func (s *infoServer) mergeAdditionalInfoToTxs(ctx context.Context, txs []*types.
 		txFeeInHydro *big.Int
 	)
 	for _, tx := range txs {
-		smcABI, err := s.getSMCAbi(ctx, &types.Log{
-			Address: tx.To,
-		})
+		smcABI, err := s.getSMCAbi(ctx, &types.Log{Address: tx.To})
 		if err == nil {
 			decoded, err := s.kaiClient.DecodeInputWithABI(tx.To, tx.InputData, smcABI)
 			if err == nil {
