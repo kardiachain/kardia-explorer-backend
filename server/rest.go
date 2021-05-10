@@ -1676,26 +1676,17 @@ func (s *Server) UpdateInternalTxs(c echo.Context) error {
 		return api.Invalid.Build(c)
 	}
 
-	// filter logs from this initial height to "latest" which satisfy the query
+	// filter logs from this initial height to "latest" which satisfy the
 	var (
 		logs              []*types.Log
 		latestBlockHeight uint64 = math.MaxUint64
 		toBlock           uint64
 	)
-	lgr.Info("Filtering events", zap.Uint64("from", txs[0].BlockNumber), zap.Uint64("to", latestBlockHeight))
-	for i := txs[0].BlockNumber; i < latestBlockHeight; i += cfg.FilterLogsInterval {
-		latestBlockHeight, err = s.kaiClient.LatestBlockNumber(ctx)
-		if err != nil {
-			lgr.Error("Cannot get latest block height from RPC", zap.Error(err), zap.Any("criteria", crit))
-			return api.Invalid.Build(c)
-		}
-		if i+cfg.FilterLogsInterval > latestBlockHeight {
-			toBlock = latestBlockHeight
-		} else {
-			toBlock = i + cfg.FilterLogsInterval
-		}
+	fromBlock, err1 := strconv.ParseUint(c.QueryParam("from"), 10, 64)
+	toBlock, err = strconv.ParseUint(c.QueryParam("to"), 10, 64)
+	if err1 == nil && err == nil {
 		partLogs, err := s.kaiClient.GetLogs(ctx, kardia.FilterQuery{
-			FromBlock: i,
+			FromBlock: fromBlock,
 			ToBlock:   toBlock,
 			Addresses: []common.Address{common.HexToAddress(crit.ContractAddress)},
 			Topics:    internalTxsCrit.Topics,
@@ -1704,8 +1695,34 @@ func (s *Server) UpdateInternalTxs(c echo.Context) error {
 			lgr.Error("Cannot get contract logs from core", zap.Error(err), zap.Any("criteria", crit))
 			return api.Invalid.Build(c)
 		}
-		lgr.Info("Filtering events", zap.Uint64("latestBlockHeight", latestBlockHeight), zap.Uint64("from", i), zap.Uint64("to", toBlock), zap.Int("number of logs", len(partLogs)))
+		lgr.Info("Filtering events", zap.Uint64("latestBlockHeight", latestBlockHeight), zap.Uint64("from", fromBlock), zap.Uint64("to", toBlock), zap.Int("number of logs", len(partLogs)))
 		logs = append(logs, partLogs...)
+	} else {
+		lgr.Info("Filtering events", zap.Uint64("from", txs[0].BlockNumber), zap.Uint64("to", latestBlockHeight))
+		for i := txs[0].BlockNumber; i < latestBlockHeight; i += cfg.FilterLogsInterval {
+			latestBlockHeight, err = s.kaiClient.LatestBlockNumber(ctx)
+			if err != nil {
+				lgr.Error("Cannot get latest block height from RPC", zap.Error(err), zap.Any("criteria", crit))
+				return api.Invalid.Build(c)
+			}
+			if i+cfg.FilterLogsInterval > latestBlockHeight {
+				toBlock = latestBlockHeight
+			} else {
+				toBlock = i + cfg.FilterLogsInterval
+			}
+			partLogs, err := s.kaiClient.GetLogs(ctx, kardia.FilterQuery{
+				FromBlock: i,
+				ToBlock:   toBlock,
+				Addresses: []common.Address{common.HexToAddress(crit.ContractAddress)},
+				Topics:    internalTxsCrit.Topics,
+			})
+			if err != nil {
+				lgr.Error("Cannot get contract logs from core", zap.Error(err), zap.Any("criteria", crit))
+				return api.Invalid.Build(c)
+			}
+			lgr.Info("Filtering events", zap.Uint64("latestBlockHeight", latestBlockHeight), zap.Uint64("from", i), zap.Uint64("to", toBlock), zap.Int("number of logs", len(partLogs)))
+			logs = append(logs, partLogs...)
+		}
 	}
 
 	// parse logs to internal txs
