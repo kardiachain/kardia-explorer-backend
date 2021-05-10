@@ -1747,9 +1747,12 @@ func (s *Server) UpdateInternalTxs(c echo.Context) error {
 		}
 	}
 	// remove old internal txs satisfy this criteria
-	if err = s.dbClient.RemoveInternalTxs(ctx, internalTxsCrit); err != nil {
-		lgr.Error("Cannot delete old internal txs in db", zap.Error(err), zap.Any("criteria", internalTxsCrit))
-		return api.Invalid.Build(c)
+	isRemove, err := strconv.ParseInt(c.QueryParam("remove"), 10, 64)
+	if err == nil && isRemove == 1 {
+		if err = s.dbClient.RemoveInternalTxs(ctx, internalTxsCrit); err != nil {
+			lgr.Error("Cannot delete old internal txs in db", zap.Error(err), zap.Any("criteria", internalTxsCrit))
+			return api.Invalid.Build(c)
+		}
 	}
 
 	// batch inserting to InternalTransactions collection in db
