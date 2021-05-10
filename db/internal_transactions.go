@@ -3,6 +3,8 @@ package db
 import (
 	"context"
 
+	"github.com/kardiachain/go-kardia/lib/common"
+
 	"go.uber.org/zap"
 
 	"go.mongodb.org/mongo-driver/bson"
@@ -34,6 +36,7 @@ func (m *mongoDB) createInternalTxsCollectionIndexes() []mongo.IndexModel {
 func (m *mongoDB) UpdateInternalTxs(ctx context.Context, internalTxs []*types.TokenTransfer) error {
 	iTxsBulkWriter := make([]mongo.WriteModel, len(internalTxs))
 	for i := range internalTxs {
+		internalTxs[i].Contract = common.HexToAddress(internalTxs[i].Contract).Hex()
 		iTxs := mongo.NewInsertOneModel().SetDocument(internalTxs[i])
 		iTxsBulkWriter[i] = iTxs
 	}
