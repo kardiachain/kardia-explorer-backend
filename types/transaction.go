@@ -9,7 +9,7 @@ import (
 
 type Transaction struct {
 	BlockHash   string `json:"blockHash" bson:"blockHash"`
-	BlockNumber uint64 `json:"blockNumber" bson:"blockNumber"`
+	BlockNumber uint64 `json:"blockHeight" bson:"blockNumber"`
 
 	Hash             string        `json:"hash" bson:"hash"`
 	From             string        `json:"from" bson:"from"`
