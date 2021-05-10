@@ -1668,13 +1668,6 @@ func (s *Server) UpdateInternalTxs(c echo.Context) error {
 		lgr.Error("cannot bind internal txs filter", zap.Error(err))
 		return api.Invalid.Build(c)
 	}
-	// find the block height where this contract is deployed
-	txs, _, err := s.dbClient.FilterTxs(ctx, crit)
-	lgr.Info("UpdateInternalTxs", zap.Any("criteria", crit))
-	if err != nil || len(txs) == 0 {
-		lgr.Error("Cannot get the transaction where this contract was deployed", zap.Error(err))
-		return api.Invalid.Build(c)
-	}
 
 	// filter logs from this initial height to "latest" which satisfy the
 	var (
@@ -1683,8 +1676,8 @@ func (s *Server) UpdateInternalTxs(c echo.Context) error {
 		toBlock           uint64
 	)
 	fromBlock, err1 := strconv.ParseUint(c.QueryParam("from"), 10, 64)
-	toBlock, err = strconv.ParseUint(c.QueryParam("to"), 10, 64)
-	if err1 == nil && err == nil {
+	toBlock, err2 := strconv.ParseUint(c.QueryParam("to"), 10, 64)
+	if err1 == nil && err2 == nil {
 		partLogs, err := s.kaiClient.GetLogs(ctx, kardia.FilterQuery{
 			FromBlock: fromBlock,
 			ToBlock:   toBlock,
@@ -1698,6 +1691,14 @@ func (s *Server) UpdateInternalTxs(c echo.Context) error {
 		lgr.Info("Filtering events", zap.Uint64("latestBlockHeight", latestBlockHeight), zap.Uint64("from", fromBlock), zap.Uint64("to", toBlock), zap.Int("number of logs", len(partLogs)))
 		logs = append(logs, partLogs...)
 	} else {
+		// find the block height where this contract is deployed
+		txs, _, err := s.dbClient.FilterTxs(ctx, crit)
+		lgr.Info("UpdateInternalTxs", zap.Any("criteria", crit))
+		if err != nil || len(txs) == 0 {
+			lgr.Error("Cannot get the transaction where this contract was deployed", zap.Error(err))
+			return api.Invalid.Build(c)
+		}
+
 		lgr.Info("Filtering events", zap.Uint64("from", txs[0].BlockNumber), zap.Uint64("to", latestBlockHeight))
 		for i := txs[0].BlockNumber; i < latestBlockHeight; i += cfg.FilterLogsInterval {
 			latestBlockHeight, err = s.kaiClient.LatestBlockNumber(ctx)
