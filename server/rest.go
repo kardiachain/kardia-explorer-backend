@@ -1671,7 +1671,7 @@ func (s *Server) UpdateInternalTxs(c echo.Context) error {
 	// find the block height where this contract is deployed
 	txs, _, err := s.dbClient.FilterTxs(ctx, crit)
 	lgr.Info("UpdateInternalTxs", zap.Any("criteria", crit))
-	if err != nil {
+	if err != nil || len(txs) == 0 {
 		lgr.Error("Cannot get the transaction where this contract was deployed", zap.Error(err))
 		return api.Invalid.Build(c)
 	}
@@ -1682,7 +1682,8 @@ func (s *Server) UpdateInternalTxs(c echo.Context) error {
 		latestBlockHeight uint64 = math.MaxUint64
 		toBlock           uint64
 	)
-	for i := txs[0].BlockNumber; i > latestBlockHeight; i += cfg.FilterLogsInterval {
+	lgr.Info("Filtering events", zap.Uint64("from", txs[0].BlockNumber), zap.Uint64("to", latestBlockHeight))
+	for i := txs[0].BlockNumber; i < latestBlockHeight; i += cfg.FilterLogsInterval {
 		latestBlockHeight, err = s.kaiClient.LatestBlockNumber(ctx)
 		if err != nil {
 			lgr.Error("Cannot get latest block height from RPC", zap.Error(err), zap.Any("criteria", crit))
@@ -1703,6 +1704,7 @@ func (s *Server) UpdateInternalTxs(c echo.Context) error {
 			lgr.Error("Cannot get contract logs from core", zap.Error(err), zap.Any("criteria", crit))
 			return api.Invalid.Build(c)
 		}
+		lgr.Info("Filtering events", zap.Uint64("latestBlockHeight", latestBlockHeight), zap.Uint64("from", i), zap.Uint64("to", toBlock), zap.Int("number of logs", len(partLogs)))
 		logs = append(logs, partLogs...)
 	}
 
