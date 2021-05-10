@@ -19,6 +19,7 @@ import (
 
 	"github.com/kardiachain/go-kardia/lib/abi"
 	"github.com/kardiachain/go-kardia/lib/common"
+
 	"github.com/kardiachain/kardia-explorer-backend/cache"
 	"github.com/kardiachain/kardia-explorer-backend/cfg"
 	"github.com/kardiachain/kardia-explorer-backend/db"
@@ -303,6 +304,20 @@ func (s *infoServer) ImportBlock(ctx context.Context, block *types.Block, writeT
 	if writeToCache {
 		if err := s.cacheClient.InsertBlock(ctx, block); err != nil {
 			s.logger.Debug("cannot import block to cache", zap.Error(err))
+		}
+	}
+
+	// update number of block proposed by this proposer
+	numOfBlocks, err := s.cacheClient.CountBlocksOfProposer(ctx, block.ProposerAddress)
+	if err != nil || numOfBlocks == 0 {
+		numOfBlocks, err = s.dbClient.CountBlocksOfProposer(ctx, block.ProposerAddress)
+		if err != nil {
+			s.logger.Error("cannot get number of blocks by proposer from db", zap.Error(err), zap.String("proposer", block.ProposerAddress))
+		}
+	}
+	if numOfBlocks > 0 {
+		if err = s.cacheClient.UpdateNumOfBlocksByProposer(ctx, block.ProposerAddress, numOfBlocks+1); err != nil {
+			s.logger.Warn("cannot set number of blocks by proposer to cache", zap.Error(err), zap.Any("block", block))
 		}
 	}
 
@@ -679,9 +694,7 @@ func (s *infoServer) mergeAdditionalInfoToTxs(ctx context.Context, txs []*types.
 		txFeeInHydro *big.Int
 	)
 	for _, tx := range txs {
-		smcABI, err := s.getSMCAbi(ctx, &types.Log{
-			Address: tx.To,
-		})
+		smcABI, err := s.getSMCAbi(ctx, &types.Log{Address: tx.To})
 		if err == nil {
 			decoded, err := s.kaiClient.DecodeInputWithABI(tx.To, tx.InputData, smcABI)
 			if err == nil {
