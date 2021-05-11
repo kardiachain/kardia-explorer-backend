@@ -1037,8 +1037,11 @@ func (s *infoServer) getInternalTxs(ctx context.Context, log *types.Log) *types.
 	block, err := s.dbClient.BlockByHeight(ctx, log.BlockHeight)
 	if err != nil {
 		s.logger.Warn("Cannot get block from db", zap.Uint64("height", log.BlockHeight), zap.Error(err))
-		block = &types.Block{
-			Time: time.Now(),
+		block, err = s.kaiClient.BlockByHeight(ctx, log.BlockHeight)
+		if err != nil {
+			block = &types.Block{
+				Time: time.Now(),
+			}
 		}
 	}
 	return &types.TokenTransfer{
@@ -1069,8 +1072,11 @@ func (s *infoServer) insertHistoryTransferKRC(ctx context.Context, smcAddr strin
 		block, err := s.dbClient.BlockByHeight(ctx, e.BlockHeight)
 		if err != nil {
 			s.logger.Warn("Cannot get block from db", zap.Uint64("height", e.BlockHeight), zap.Error(err))
-			block = &types.Block{
-				Time: time.Now(),
+			block, err = s.kaiClient.BlockByHeight(ctx, e.BlockHeight)
+			if err != nil {
+				block = &types.Block{
+					Time: time.Now(),
+				}
 			}
 		}
 		err = s.storeEvents(ctx, []types.Log{
