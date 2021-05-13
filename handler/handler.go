@@ -27,6 +27,7 @@ type Config struct {
 }
 
 type Handler interface {
+	IEvent
 	IStakingHandler
 }
 

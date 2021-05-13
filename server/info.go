@@ -736,6 +736,7 @@ func (s *infoServer) storeEvents(ctx context.Context, logs []types.Log, blockTim
 		smcABI, err = s.getSMCAbi(ctx, &logs[i])
 		if err != nil {
 			// automatically detect if this contract is KRC or not
+
 			var tokenInfo *types.KRCTokenInfo
 			tokenInfo, err = s.getKRCTokenInfoFromRPC(ctx, logs[i].Address, cfg.SMCTypeKRC20)
 			if err != nil && tokenInfo == nil {

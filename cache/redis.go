@@ -46,6 +46,8 @@ const (
 	KeyAddressInfo  = "#addresses#info#%s"
 
 	KeyServerStatus = "#server#status"
+
+	KeySMCType = "#smc#%s#type"
 )
 
 type Redis struct {
@@ -53,6 +55,14 @@ type Redis struct {
 	client *redis.Client
 
 	logger *zap.Logger
+}
+
+func (c *Redis) SMCType(ctx context.Context, key string) (string, error) {
+	panic("implement me")
+}
+
+func (c *Redis) UpdateSMCType(ctx context.Context, key, smcType string) error {
+	panic("implement me")
 }
 
 func (c *Redis) UpdateTokenInfo(ctx context.Context, tokenInfo *types.TokenInfo) error {
