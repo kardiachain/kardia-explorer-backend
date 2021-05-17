@@ -72,6 +72,7 @@ type Client interface {
 
 	// Tx detail
 	TxByHash(ctx context.Context, txHash string) (*types.Transaction, error)
+	FilterTxs(ctx context.Context, filter *types.TxsFilter) ([]*types.Transaction, uint64, error)
 
 	// Interact with tx
 	InsertTxs(ctx context.Context, txs []*types.Transaction) error

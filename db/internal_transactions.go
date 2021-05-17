@@ -3,6 +3,10 @@ package db
 import (
 	"context"
 
+	"github.com/kardiachain/go-kardia/lib/common"
+
+	"go.uber.org/zap"
+
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
@@ -14,7 +18,8 @@ var cInternalTxs = "InternalTransactions"
 
 type IInternalTransaction interface {
 	createInternalTxsCollectionIndexes() []mongo.IndexModel
-	UpdateInternalTxs(ctx context.Context, holdersInfo []*types.TokenTransfer) error
+	RemoveInternalTxs(ctx context.Context, filter *types.InternalTxsFilter) error
+	UpdateInternalTxs(ctx context.Context, internalTxs []*types.TokenTransfer) error
 	GetListInternalTxs(ctx context.Context, filter *types.InternalTxsFilter) ([]*types.TokenTransfer, uint64, error)
 }
 
@@ -28,16 +33,33 @@ func (m *mongoDB) createInternalTxsCollectionIndexes() []mongo.IndexModel {
 	}
 }
 
-func (m *mongoDB) UpdateInternalTxs(ctx context.Context, holdersInfo []*types.TokenTransfer) error {
-	iTxsBulkWriter := make([]mongo.WriteModel, len(holdersInfo))
-	for i := range holdersInfo {
-		iTxs := mongo.NewInsertOneModel().SetDocument(holdersInfo[i])
+func (m *mongoDB) UpdateInternalTxs(ctx context.Context, internalTxs []*types.TokenTransfer) error {
+	iTxsBulkWriter := make([]mongo.WriteModel, len(internalTxs))
+	for i := range internalTxs {
+		internalTxs[i].Contract = common.HexToAddress(internalTxs[i].Contract).Hex()
+		iTxs := mongo.NewInsertOneModel().SetDocument(internalTxs[i])
 		iTxsBulkWriter[i] = iTxs
 	}
 	if len(iTxsBulkWriter) > 0 {
 		if _, err := m.wrapper.C(cInternalTxs).BulkUpsert(iTxsBulkWriter); err != nil {
 			return err
 		}
+	}
+	return nil
+}
+
+func (m *mongoDB) RemoveInternalTxs(ctx context.Context, filter *types.InternalTxsFilter) error {
+	var crit bson.M
+	critBytes, err := bson.Marshal(filter)
+	if err != nil {
+		m.logger.Warn("Cannot marshal txs filter criteria", zap.Error(err))
+	}
+	err = bson.Unmarshal(critBytes, &crit)
+	if err != nil {
+		m.logger.Warn("Cannot unmarshal txs filter criteria", zap.Error(err))
+	}
+	if _, err = m.wrapper.C(cInternalTxs).RemoveAll(crit); err != nil {
+		return err
 	}
 	return nil
 }
@@ -71,7 +93,7 @@ func (m *mongoDB) GetListInternalTxs(ctx context.Context, filter *types.Internal
 
 	if filter.Pagination != nil {
 		filter.Pagination.Sanitize()
-		opts = append(opts /*options.Find().SetSkip(int64(filter.Pagination.Skip)),*/, options.Find().SetLimit(int64(filter.Pagination.Limit)))
+		opts = append(opts, options.Find().SetSkip(int64(filter.Pagination.Skip)), options.Find().SetLimit(int64(filter.Pagination.Limit)))
 	}
 	cursor, err := m.wrapper.C(cInternalTxs).Find(crit, opts...)
 	if err != nil {

@@ -118,6 +118,8 @@ func main() {
 		logger.Panic(err.Error())
 	}
 
+	// todo: Temp remove verify worker
+	// todo: Redis still store unverified block
 	//srvConfigForVerifying := server.Config{
 	//	StorageAdapter: db.Adapter(serviceCfg.StorageDriver),
 	//	StorageURI:     serviceCfg.StorageURI,
