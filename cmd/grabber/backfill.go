@@ -69,11 +69,13 @@ func backfill(ctx context.Context, srv *server.Server, interval time.Duration) {
 				continue
 			}
 			lgr.Info("Refilling:")
+			//todo: Temp remove insert new block into verifier
+
 			// insert current block height to cache for re-verifying later
-			err = srv.InsertUnverifiedBlocks(ctx, blockHeight)
-			if err != nil {
-				lgr.Error("Refilling: Failed to insert unverified block", zap.Error(err))
-			}
+			//err = srv.InsertUnverifiedBlocks(ctx, blockHeight)
+			//if err != nil {
+			//	lgr.Error("Refilling: Failed to insert unverified block", zap.Error(err))
+			//}
 			// try to get block
 			block, err := srv.BlockByHeight(ctx, blockHeight)
 			if err != nil {
