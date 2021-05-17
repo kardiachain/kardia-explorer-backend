@@ -24,19 +24,25 @@ import (
 	"encoding/base64"
 	"encoding/hex"
 	"fmt"
-	"github.com/chai2010/webp"
 	"image"
 	"image/jpeg"
 	"image/png"
 	"math/big"
 	"strconv"
 	"strings"
+
+	"github.com/chai2010/webp"
 )
 
 var Hydro = big.NewInt(1000000000000000000)
 
 func StrToUint64(data string) uint64 {
 	i, _ := strconv.ParseUint(data, 10, 64)
+	return i
+}
+
+func StrToInt64(data string) int64 {
+	i, _ := strconv.ParseInt(data, 10, 64)
 	return i
 }
 

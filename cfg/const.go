@@ -64,6 +64,7 @@ const (
 	SMCTypeValidator = "Validator"
 	KRCTransferTopic = "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef"
 
+	FilterLogsInterval uint64 = 15000 // number of blocks
 	DefaultKRCTokenLogo = "https://kardiachain-explorer.s3-ap-southeast-1.amazonaws.com/explorer.kardiachain.io/logo/default.png"
 )
 

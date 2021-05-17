@@ -2,6 +2,8 @@ package types
 
 import (
 	"time"
+
+	"github.com/kardiachain/go-kardia/lib/common"
 )
 
 const (
@@ -10,8 +12,8 @@ const (
 )
 
 type Pagination struct {
-	Skip  int
-	Limit int
+	Skip  int `json:"skip"`
+	Limit int `json:"limit"`
 }
 
 func (f *Pagination) Sanitize() {
@@ -57,14 +59,18 @@ type ContractsFilter struct {
 type InternalTxsFilter struct {
 	Pagination *Pagination `bson:"-"`
 
-	TransactionHash string `bson:"txHash,omitempty"`
-	Contract        string `bson:"contractAddress,omitempty"`
-	Address         string `bson:"address,omitempty"`
+	TransactionHash string          `bson:"txHash,omitempty"`
+	Contract        string          `json:"contractAddress" bson:"contractAddress,omitempty"`
+	Address         string          `bson:"address,omitempty"`
+	Topics          [][]common.Hash `json:"topics" bson:"-"`
 }
 
 type TxsFilter struct {
-	Pagination
-	TimeFilter
+	Pagination *Pagination `json:"pagination" bson:"-"`
+	TimeFilter *TimeFilter `bson:"-"`
+
+	ContractAddress string `json:"contractAddress" bson:"contractAddress,omitempty"`
+	To              string `json:"to" bson:"to,omitempty"`
 }
 
 type BlocksFilter struct {

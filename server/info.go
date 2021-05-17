@@ -307,6 +307,20 @@ func (s *infoServer) ImportBlock(ctx context.Context, block *types.Block, writeT
 		}
 	}
 
+	// update number of block proposed by this proposer
+	numOfBlocks, err := s.cacheClient.CountBlocksOfProposer(ctx, block.ProposerAddress)
+	if err != nil || numOfBlocks == 0 {
+		numOfBlocks, err = s.dbClient.CountBlocksOfProposer(ctx, block.ProposerAddress)
+		if err != nil {
+			s.logger.Error("cannot get number of blocks by proposer from db", zap.Error(err), zap.String("proposer", block.ProposerAddress))
+		}
+	}
+	if numOfBlocks > 0 {
+		if err = s.cacheClient.UpdateNumOfBlocksByProposer(ctx, block.ProposerAddress, numOfBlocks+1); err != nil {
+			s.logger.Warn("cannot set number of blocks by proposer to cache", zap.Error(err), zap.Any("block", block))
+		}
+	}
+
 	// merge receipts into corresponding transactions
 	// because getBlockByHash/Height API returns 2 array contains txs and receipts separately
 	block.Txs = s.mergeAdditionalInfoToTxs(ctx, block.Txs, block.Receipts)
@@ -1019,13 +1033,23 @@ func (s *infoServer) getInternalTxs(ctx context.Context, log *types.Log) *types.
 	if !ok {
 		return nil
 	}
+	// update time of internal transaction
+	block, err := s.dbClient.BlockByHeight(ctx, log.BlockHeight)
+	if err != nil {
+		s.logger.Warn("Cannot get block from db", zap.Uint64("height", log.BlockHeight), zap.Error(err))
+		block = &types.Block{
+			Time: time.Now(),
+		}
+	}
 	return &types.TokenTransfer{
 		TransactionHash: log.TxHash,
+		BlockHeight:     log.BlockHeight,
 		Contract:        log.Address,
 		From:            from,
 		To:              to,
 		Value:           value,
-		Time:            log.Time,
+		Time:            block.Time,
+		LogIndex:        log.Index,
 	}
 }
 
@@ -1044,7 +1068,7 @@ func (s *infoServer) insertHistoryTransferKRC(ctx context.Context, smcAddr strin
 		}
 		block, err := s.dbClient.BlockByHeight(ctx, e.BlockHeight)
 		if err != nil {
-			s.logger.Warn("Cannot get block from db", zap.Uint64("address", e.BlockHeight), zap.Error(err))
+			s.logger.Warn("Cannot get block from db", zap.Uint64("height", e.BlockHeight), zap.Error(err))
 			block = &types.Block{
 				Time: time.Now(),
 			}
