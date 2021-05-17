@@ -276,6 +276,8 @@ github.com/kardiachain/go-kaiclient v0.0.0-20210317111913-9c451424a257 h1:s6gdox
 github.com/kardiachain/go-kaiclient v0.0.0-20210317111913-9c451424a257/go.mod h1:3zvgL/+YwUwp65R69O3FaM4YpaQ5A2LP1A1xRpUA2pw=
 github.com/kardiachain/go-kaiclient v0.0.0-20210317114326-32548175c496 h1:tT3483iMN+cuIF+RHZyxq6f0jGxnp5LA3AXHmedf5Gg=
 github.com/kardiachain/go-kaiclient v0.0.0-20210317114326-32548175c496/go.mod h1:3zvgL/+YwUwp65R69O3FaM4YpaQ5A2LP1A1xRpUA2pw=
+github.com/kardiachain/go-kaiclient v1.0.2-0.20210428182148-1ae2114485f2 h1:3qA/FDO1Btbu6RYooR9dHgmwZtaNPnt80AP+TC9/dp4=
+github.com/kardiachain/go-kaiclient v1.0.2-0.20210428182148-1ae2114485f2/go.mod h1:FaHERrNBidOTNgLKmKafj6m3Lq8RDoTH7M/cLZi+JXI=
 github.com/kardiachain/go-kardia v0.11.0 h1:8rD5tYjkGjTBRWVzu6c9DkLwFWhVTxDhgfIbmvslPeU=
 github.com/kardiachain/go-kardia v0.11.0/go.mod h1:qt2xzOyQlhqhyS8DGbByL5qTNXJffIx+2JzTZlNXibg=
 github.com/karrick/godirwalk v1.8.0/go.mod h1:H5KPZjojv4lE+QYImBI8xVtrBRgYrIVsaRPx4tDPEn4=
@@ -447,6 +449,8 @@ github.com/sasha-s/go-deadlock v0.2.0/go.mod h1:StQn567HiB1fF2yJ44N9au7wOhrPS3iZ
 github.com/sean-/seed v0.0.0-20170313163322-e2103e2c3529/go.mod h1:DxrIzT+xaE7yg65j358z/aeFdxmN0P9QXhEzd20vsDc=
 github.com/shirou/gopsutil v2.20.5+incompatible h1:tYH07UPoQt0OCQdgWWMgYHy3/a9bcxNpBIysykNIP7I=
 github.com/shirou/gopsutil v2.20.5+incompatible/go.mod h1:5b4v6he4MtMOwMlS0TUMTu2PcXUg8+E1lC7eC3UO/RA=
+github.com/shopspring/decimal v1.2.0 h1:abSATXmQEYyShuxI4/vyW3tV1MrKAJzCZ/0zLUXYbsQ=
+github.com/shopspring/decimal v1.2.0/go.mod h1:DKyhrW/HYNuLGql+MJL6WCR6knT2jwCFRcu2hWCYk4o=
 github.com/shurcooL/sanitized_anchor_name v1.0.0/go.mod h1:1NzhyTcUVG4SuEtjjoZeVRXNmyL/1OwPU0+IJeTBvfc=
 github.com/sirupsen/logrus v1.2.0/go.mod h1:LxeOpSwHxABJmUn/MG1IvRgCAasNZTLOkJPxbbu5VWo=
 github.com/sirupsen/logrus v1.4.0/go.mod h1:LxeOpSwHxABJmUn/MG1IvRgCAasNZTLOkJPxbbu5VWo=
