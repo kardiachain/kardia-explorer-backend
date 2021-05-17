@@ -53,16 +53,22 @@ const (
 type Redis struct {
 	cfg    Config
 	client *redis.Client
-
 	logger *zap.Logger
 }
 
-func (c *Redis) SMCType(ctx context.Context, key string) (string, error) {
-	panic("implement me")
+func (c *Redis) SMCType(ctx context.Context, smcAddress string) (string, error) {
+	result, err := c.client.Get(ctx, fmt.Sprintf(KeySMCType, smcAddress)).Result()
+	if err != nil {
+		return types.TypeContractNormal, err
+	}
+	return result, nil
 }
 
-func (c *Redis) UpdateSMCType(ctx context.Context, key, smcType string) error {
-	panic("implement me")
+func (c *Redis) UpdateSMCType(ctx context.Context, smcAddress, smcType string) error {
+	if _, err := c.client.Set(ctx, fmt.Sprintf(KeySMCType, smcAddress), smcType, 24*time.Hour).Result(); err != nil {
+		return err
+	}
+	return nil
 }
 
 func (c *Redis) UpdateTokenInfo(ctx context.Context, tokenInfo *types.TokenInfo) error {

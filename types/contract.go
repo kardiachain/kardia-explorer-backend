@@ -1,6 +1,14 @@
 // Package types
 package types
 
+const (
+	TypeContractNormal    = "Normal"
+	TypeContractValidator = "Validator"
+	TypeContractStaking   = "Staking"
+	TypeContractKRC20     = "KRC20"
+	TypeContractKRC721    = "KRC721"
+)
+
 // Contract define simple information about a SMC in kardia system
 type Contract struct {
 	Name         string `json:"name" bson:"name"`
