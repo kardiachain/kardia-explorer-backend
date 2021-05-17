@@ -81,6 +81,9 @@ type Client interface {
 
 	ServerStatus(ctx context.Context) (*types.ServerStatus, error)
 	UpdateServerStatus(ctx context.Context, serverStatus *types.ServerStatus) error
+
+	CountBlocksOfProposer(ctx context.Context, proposerAddr string) (int64, error)
+	UpdateNumOfBlocksByProposer(ctx context.Context, proposerAddr string, numOfBlocks int64) error
 }
 
 func New(cfg Config) (Client, error) {
