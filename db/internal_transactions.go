@@ -93,7 +93,7 @@ func (m *mongoDB) GetListInternalTxs(ctx context.Context, filter *types.Internal
 
 	if filter.Pagination != nil {
 		filter.Pagination.Sanitize()
-		opts = append(opts /*options.Find().SetSkip(int64(filter.Pagination.Skip)),*/, options.Find().SetLimit(int64(filter.Pagination.Limit)))
+		opts = append(opts, options.Find().SetSkip(int64(filter.Pagination.Skip)), options.Find().SetLimit(int64(filter.Pagination.Limit)))
 	}
 	cursor, err := m.wrapper.C(cInternalTxs).Find(crit, opts...)
 	if err != nil {
