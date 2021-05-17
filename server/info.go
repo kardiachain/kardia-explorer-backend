@@ -1056,56 +1056,6 @@ func (s *infoServer) getInternalTxs(ctx context.Context, log *types.Log) *types.
 	}
 }
 
-func (s *infoServer) insertHistoryTransferKRC(ctx context.Context, smcAddr string) error {
-	filter := &types.EventsFilter{
-		Pagination:      nil,
-		ContractAddress: smcAddr,
-	}
-	events, _, err := s.dbClient.GetListEvents(ctx, filter)
-	if err != nil {
-		return err
-	}
-	for _, e := range events {
-		if e.MethodName != "" {
-			continue
-		}
-		block, err := s.dbClient.BlockByHeight(ctx, e.BlockHeight)
-		if err != nil {
-			s.logger.Warn("Cannot get block from db", zap.Uint64("height", e.BlockHeight), zap.Error(err))
-			block, err = s.kaiClient.BlockByHeight(ctx, e.BlockHeight)
-			if err != nil {
-				block = &types.Block{
-					Time: time.Now(),
-				}
-			}
-		}
-		err = s.storeEvents(ctx, []types.Log{
-			{
-				Address:     smcAddr,
-				Topics:      e.Topics,
-				Data:        e.Data,
-				BlockHeight: e.BlockHeight,
-				Time:        block.Time,
-				TxHash:      e.TxHash,
-				TxIndex:     e.TxIndex,
-				BlockHash:   block.Hash,
-				Index:       e.Index,
-				Removed:     e.Removed,
-			},
-		}, block.Time)
-		if err != nil {
-			s.logger.Warn("Cannot store events to db", zap.Error(err))
-		}
-	}
-
-	err = s.dbClient.DeleteEmptyEvents(ctx, smcAddr)
-	if err != nil {
-		s.logger.Warn("Cannot delete empty events", zap.Error(err), zap.String("smcAddr", smcAddr))
-		return err
-	}
-	return nil
-}
-
 func (s *infoServer) getKRCTokenInfoFromRPC(ctx context.Context, krcTokenAddress, krcType string) (*types.KRCTokenInfo, error) {
 	var tokenInfo *types.KRCTokenInfo
 	if strings.EqualFold(krcType, cfg.SMCTypeKRC20) {
