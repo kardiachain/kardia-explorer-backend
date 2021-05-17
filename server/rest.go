@@ -1675,21 +1675,22 @@ func (s *Server) UpdateInternalTxs(c echo.Context) error {
 		latestBlockHeight uint64 = math.MaxUint64
 		toBlock           uint64
 	)
-	fromBlock, err1 := strconv.ParseUint(c.QueryParam("from"), 10, 64)
+	fromBlock, err := strconv.ParseUint(c.QueryParam("from"), 10, 64)
 	toBlock, err2 := strconv.ParseUint(c.QueryParam("to"), 10, 64)
-	if err1 == nil && err2 == nil {
-		partLogs, err := s.kaiClient.GetLogs(ctx, kardia.FilterQuery{
+	if err == nil && err2 == nil {
+		criteria := kardia.FilterQuery{
 			FromBlock: fromBlock,
 			ToBlock:   toBlock,
 			Addresses: []common.Address{common.HexToAddress(crit.ContractAddress)},
 			Topics:    internalTxsCrit.Topics,
-		})
+		}
+		logs, err = s.kaiClient.GetLogs(ctx, criteria)
 		if err != nil {
 			lgr.Error("Cannot get contract logs from core", zap.Error(err), zap.Any("criteria", crit))
 			return api.Invalid.Build(c)
 		}
-		lgr.Info("Filtering events", zap.Uint64("latestBlockHeight", latestBlockHeight), zap.Uint64("from", fromBlock), zap.Uint64("to", toBlock), zap.Int("number of logs", len(partLogs)))
-		logs = append(logs, partLogs...)
+		lgr.Info("Filtering events", zap.Uint64("latestBlockHeight", latestBlockHeight), zap.Uint64("from", fromBlock), zap.Uint64("to", toBlock),
+			zap.Any("criteria", criteria), zap.Int("number of logs", len(logs)))
 	} else {
 		// find the block height where this contract is deployed
 		txs, _, err := s.dbClient.FilterTxs(ctx, crit)
@@ -1711,17 +1712,19 @@ func (s *Server) UpdateInternalTxs(c echo.Context) error {
 			} else {
 				toBlock = i + cfg.FilterLogsInterval
 			}
-			partLogs, err := s.kaiClient.GetLogs(ctx, kardia.FilterQuery{
+			criteria := kardia.FilterQuery{
 				FromBlock: i,
 				ToBlock:   toBlock,
 				Addresses: []common.Address{common.HexToAddress(crit.ContractAddress)},
 				Topics:    internalTxsCrit.Topics,
-			})
+			}
+			partLogs, err := s.kaiClient.GetLogs(ctx, criteria)
 			if err != nil {
 				lgr.Error("Cannot get contract logs from core", zap.Error(err), zap.Any("criteria", crit))
 				return api.Invalid.Build(c)
 			}
-			lgr.Info("Filtering events", zap.Uint64("latestBlockHeight", latestBlockHeight), zap.Uint64("from", i), zap.Uint64("to", toBlock), zap.Int("number of logs", len(partLogs)))
+			lgr.Info("Filtering events", zap.Uint64("latestBlockHeight", latestBlockHeight), zap.Uint64("from", i), zap.Uint64("to", toBlock),
+				zap.Any("criteria", criteria), zap.Int("number of logs", len(partLogs)))
 			logs = append(logs, partLogs...)
 		}
 	}
@@ -1732,7 +1735,7 @@ func (s *Server) UpdateInternalTxs(c echo.Context) error {
 		Address: cfg.SMCTypePrefix + cfg.SMCTypeKRC20,
 	})
 	if err != nil {
-		lgr.Error("Cannot get contract ABI", zap.Error(err), zap.Any("smcAddr", logs[0].Address))
+		lgr.Error("Cannot get contract ABI", zap.Error(err), zap.Any("smcAddr", crit.ContractAddress))
 		return api.Invalid.Build(c)
 	}
 	for i := range logs {
