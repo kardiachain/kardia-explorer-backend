@@ -1755,7 +1755,7 @@ func (s *Server) UpdateInternalTxs(c echo.Context) error {
 			partLogs, err := s.kaiClient.GetLogs(ctx, criteria)
 			if err != nil {
 				lgr.Error("Cannot get contract logs from core", zap.Error(err), zap.Any("criteria", crit))
-				return api.Invalid.Build(c)
+				continue
 			}
 			lgr.Info("Filtering events", zap.Uint64("latestBlockHeight", latestBlockHeight), zap.Uint64("from", i), zap.Uint64("to", toBlock),
 				zap.Any("criteria", criteria), zap.Int("number of logs", len(partLogs)))
