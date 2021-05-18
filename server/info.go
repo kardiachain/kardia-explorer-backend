@@ -307,6 +307,20 @@ func (s *infoServer) ImportBlock(ctx context.Context, block *types.Block, writeT
 		}
 	}
 
+	// update number of block proposed by this proposer
+	numOfBlocks, err := s.cacheClient.CountBlocksOfProposer(ctx, block.ProposerAddress)
+	if err != nil || numOfBlocks == 0 {
+		numOfBlocks, err = s.dbClient.CountBlocksOfProposer(ctx, block.ProposerAddress)
+		if err != nil {
+			s.logger.Error("cannot get number of blocks by proposer from db", zap.Error(err), zap.String("proposer", block.ProposerAddress))
+		}
+	}
+	if numOfBlocks > 0 {
+		if err = s.cacheClient.UpdateNumOfBlocksByProposer(ctx, block.ProposerAddress, numOfBlocks+1); err != nil {
+			s.logger.Warn("cannot set number of blocks by proposer to cache", zap.Error(err), zap.Any("block", block))
+		}
+	}
+
 	// merge receipts into corresponding transactions
 	// because getBlockByHash/Height API returns 2 array contains txs and receipts separately
 	block.Txs = s.mergeAdditionalInfoToTxs(ctx, block.Txs, block.Receipts)
@@ -1019,61 +1033,27 @@ func (s *infoServer) getInternalTxs(ctx context.Context, log *types.Log) *types.
 	if !ok {
 		return nil
 	}
-	return &types.TokenTransfer{
-		TransactionHash: log.TxHash,
-		Contract:        log.Address,
-		From:            from,
-		To:              to,
-		Value:           value,
-		Time:            log.Time,
-	}
-}
-
-func (s *infoServer) insertHistoryTransferKRC(ctx context.Context, smcAddr string) error {
-	filter := &types.EventsFilter{
-		Pagination:      nil,
-		ContractAddress: smcAddr,
-	}
-	events, _, err := s.dbClient.GetListEvents(ctx, filter)
+	// update time of internal transaction
+	block, err := s.dbClient.BlockByHeight(ctx, log.BlockHeight)
 	if err != nil {
-		return err
-	}
-	for _, e := range events {
-		if e.MethodName != "" {
-			continue
-		}
-		block, err := s.dbClient.BlockByHeight(ctx, e.BlockHeight)
+		s.logger.Warn("Cannot get block from db", zap.Uint64("height", log.BlockHeight), zap.Error(err))
+		block, err = s.kaiClient.BlockByHeight(ctx, log.BlockHeight)
 		if err != nil {
-			s.logger.Warn("Cannot get block from db", zap.Uint64("address", e.BlockHeight), zap.Error(err))
 			block = &types.Block{
 				Time: time.Now(),
 			}
 		}
-		err = s.storeEvents(ctx, []types.Log{
-			{
-				Address:     smcAddr,
-				Topics:      e.Topics,
-				Data:        e.Data,
-				BlockHeight: e.BlockHeight,
-				Time:        block.Time,
-				TxHash:      e.TxHash,
-				TxIndex:     e.TxIndex,
-				BlockHash:   block.Hash,
-				Index:       e.Index,
-				Removed:     e.Removed,
-			},
-		}, block.Time)
-		if err != nil {
-			s.logger.Warn("Cannot store events to db", zap.Error(err))
-		}
 	}
-
-	err = s.dbClient.DeleteEmptyEvents(ctx, smcAddr)
-	if err != nil {
-		s.logger.Warn("Cannot delete empty events", zap.Error(err), zap.String("smcAddr", smcAddr))
-		return err
+	return &types.TokenTransfer{
+		TransactionHash: log.TxHash,
+		BlockHeight:     log.BlockHeight,
+		Contract:        log.Address,
+		From:            from,
+		To:              to,
+		Value:           value,
+		Time:            block.Time,
+		LogIndex:        log.Index,
 	}
-	return nil
 }
 
 func (s *infoServer) getKRCTokenInfoFromRPC(ctx context.Context, krcTokenAddress, krcType string) (*types.KRCTokenInfo, error) {

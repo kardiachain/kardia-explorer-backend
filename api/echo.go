@@ -217,6 +217,12 @@ func bind(gr *echo.Group, srv EchoServer) {
 			fn:          srv.GetInternalTxs,
 			middlewares: nil,
 		},
+		{
+			method:      echo.PUT,
+			path:        "/token/txs",
+			fn:          srv.UpdateInternalTxs,
+			middlewares: nil,
+		},
 	}
 	bindContractAPIs(gr, srv)
 	bindEventAPIs(gr, srv)
