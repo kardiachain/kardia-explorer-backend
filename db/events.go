@@ -6,6 +6,7 @@ import (
 	"fmt"
 
 	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 	"go.uber.org/zap"
@@ -22,6 +23,7 @@ type IEvents interface {
 	InsertEvents(events []types.Log) error
 	GetListEvents(ctx context.Context, filter *types.EventsFilter) ([]*types.Log, uint64, error)
 	DeleteEmptyEvents(ctx context.Context, contractAddress string) error
+	RemoveDuplicateEvents(ctx context.Context) error
 }
 
 func (m *mongoDB) createEventsCollectionIndexes() []mongo.IndexModel {
@@ -41,6 +43,64 @@ func (m *mongoDB) InsertEvents(events []types.Log) error {
 	}
 	if len(eventsBulkWriter) > 0 {
 		if _, err := m.wrapper.C(cEvents).BulkWrite(eventsBulkWriter); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func (m *mongoDB) RemoveDuplicateEvents(ctx context.Context) error {
+	groupStage := bson.D{{Key: "$group", Value: bson.D{{Key: "_id",
+		Value: bson.D{{Key: "address", Value: "$address"},
+			{Key: "methodName", Value: "$methodName"},
+			{Key: "argumentsName", Value: "$argumentsName"},
+			{Key: "arguments", Value: "$arguments"},
+			{Key: "topics", Value: "$topics"},
+			{Key: "data", Value: "$data"},
+			{Key: "blockHeight", Value: "$blockHeight"},
+			{Key: "time", Value: "$time"},
+			{Key: "transactionHash", Value: "$transactionHash"},
+			{Key: "transactionIndex", Value: "$transactionIndex"},
+			{Key: "blockHash", Value: "$blockHash"},
+			{Key: "logIndex", Value: "$logIndex"},
+			{Key: "removed", Value: "$removed"}}},
+		{Key: "uniqueIds",
+			Value: bson.D{{Key: "$addToSet", Value: "$_id"}}},
+		{Key: "count",
+			Value: bson.D{{Key: "$sum", Value: 1}}},
+	}}}
+	matchStage := bson.D{{Key: "$match", Value: bson.D{{Key: "count", Value: bson.D{{Key: "$gt", Value: 1}}}}}}
+	opts := []*options.AggregateOptions{
+		options.Aggregate().SetAllowDiskUse(true),
+	}
+	row, err := m.wrapper.C(cEvents).FindDuplicate(mongo.Pipeline{groupStage, matchStage}, opts...)
+	if err != nil {
+		return err
+	}
+	type DataDuplicateResponse struct {
+		UniqueIds []string `json:"uniqueIds"`
+		Count     int64    `json:"count"`
+	}
+
+	var groupIDRowDuplicates []primitive.ObjectID
+
+	var dataDuplicate DataDuplicateResponse
+	for row.Next(ctx) {
+		errDecode := row.Decode(&dataDuplicate)
+		if errDecode != nil {
+			return errDecode
+		}
+		for index, e := range dataDuplicate.UniqueIds {
+			if index > 0 {
+				idRowDuplicate, _ := primitive.ObjectIDFromHex(e)
+				groupIDRowDuplicates = append(groupIDRowDuplicates, idRowDuplicate)
+			}
+		}
+	}
+	if len(groupIDRowDuplicates) > 0 {
+		_, err = m.wrapper.C(cEvents).RemoveAll(bson.D{{Key: "_id", Value: bson.D{{Key: "$in", Value: groupIDRowDuplicates}}}})
+		if err != nil {
 			return err
 		}
 	}

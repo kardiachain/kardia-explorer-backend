@@ -55,6 +55,8 @@ type EchoServer interface {
 	RemoveNetworkNodes(c echo.Context) error
 	UpdateSupplyAmounts(c echo.Context) error
 
+	RemoveDuplicateEvents(c echo.Context) error
+
 	IContract
 
 	//

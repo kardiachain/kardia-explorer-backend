@@ -257,6 +257,15 @@ func (s *Server) GetProposalDetails(c echo.Context) error {
 	return api.OK.SetData(result).Build(c)
 }
 
+func (s *Server) RemoveDuplicateEvents(c echo.Context) error {
+	ctx := context.Background()
+	err := s.dbClient.RemoveDuplicateEvents(ctx)
+	if err != nil {
+		return api.InternalServer.Build(c)
+	}
+	return api.OK.Build(c)
+}
+
 func (s *Server) GetParams(c echo.Context) error {
 	ctx := context.Background()
 	params, err := s.kaiClient.GetParams(ctx)

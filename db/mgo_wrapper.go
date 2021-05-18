@@ -72,6 +72,11 @@ func (w *KaiMgo) Upsert(filter interface{}, update interface{},
 	return w.col.UpdateOne(context.Background(), filter, bson.M{"$set": update}, opts...)
 }
 
+func (w *KaiMgo) FindDuplicate(pipeline interface{},
+	opts ...*options.AggregateOptions) (*mongo.Cursor, error) {
+	return w.col.Aggregate(context.Background(), pipeline, opts...)
+}
+
 func (w *KaiMgo) RemoveAll(filter interface{},
 	opts ...*options.DeleteOptions) (*mongo.DeleteResult, error) {
 	return w.col.DeleteMany(context.Background(), filter, opts...)
