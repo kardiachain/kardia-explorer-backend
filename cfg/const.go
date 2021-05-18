@@ -58,14 +58,15 @@ const (
 	ParamsContractName        = "Params Contract"
 	UpdateStatsInterval       = 10
 
-	SMCTypePrefix    = "SMCType:"
-	SMCTypeKRC20     = "KRC20"
-	SMCTypeKRC721    = "KRC721"
-	SMCTypeValidator = "Validator"
-	KRCTransferTopic = "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef"
+	SMCTypePrefix         = "SMCType:"
+	SMCTypeKRC20          = "KRC20"
+	SMCTypeKRC721         = "KRC721"
+	SMCTypeValidator      = "Validator"
+	KRCTransferTopic      = "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef"
+	KRCTransferMethodName = "Transfer"
 
-	FilterLogsInterval uint64 = 1000 // number of blocks
-	DefaultKRCTokenLogo = "https://kardiachain-explorer.s3-ap-southeast-1.amazonaws.com/explorer.kardiachain.io/logo/default.png"
+	FilterLogsInterval  uint64 = 1000 // number of blocks
+	DefaultKRCTokenLogo        = "https://kardiachain-explorer.s3-ap-southeast-1.amazonaws.com/explorer.kardiachain.io/logo/default.png"
 )
 
 var (
