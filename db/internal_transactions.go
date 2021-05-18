@@ -83,7 +83,7 @@ func (m *mongoDB) GetListInternalTxs(ctx context.Context, filter *types.Internal
 	}
 	if filter.Contract != "" {
 		andCrit = append(andCrit, bson.M{"contractAddress": filter.Contract})
-		opts = append(opts, options.Find().SetHint(bson.M{"contractAddress": 1}))
+		//opts = append(opts, options.Find().SetHint(bson.M{"contractAddress": 1}))
 	}
 	if filter.TransactionHash != "" {
 		andCrit = append(andCrit, bson.M{"txHash": filter.TransactionHash})
