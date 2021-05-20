@@ -80,6 +80,7 @@ type Transaction struct {
 	TransactionIndex   uint                   `json:"transactionIndex"`
 	LogsBloom          coreTypes.Bloom        `json:"logsBloom"`
 	Root               string                 `json:"root"`
+	RevertReason       string                 `json:"revertReason"`
 }
 
 type NodeInfo struct {

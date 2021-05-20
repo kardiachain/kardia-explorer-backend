@@ -52,3 +52,10 @@ type CallArgsJSON struct {
 	Value    *big.Int `json:"value"`    // amount of HYDRO sent along with the call
 	Data     string   `json:"data"`     // input data, usually an ABI-encoded contract method invocation
 }
+
+type TxTraceResult struct {
+	UsedGas      uint64 `json:"usedGas"`
+	Err          error  `json:"err"`
+	ReturnData   string `json:"returnData"`
+	RevertReason string `json:"revertReason"`
+}

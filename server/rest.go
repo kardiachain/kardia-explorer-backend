@@ -1007,7 +1007,12 @@ func (s *Server) TxByHash(c echo.Context) error {
 		result.IsInValidatorsList = true
 		return api.OK.SetData(result).Build(c)
 	}
-
+	if result.Status == 0 {
+		txTraceResult, _ := s.kaiClient.TraceTransaction(ctx, result.Hash)
+		if txTraceResult != nil {
+			result.RevertReason = txTraceResult.RevertReason
+		}
+	}
 	lgr.Debug("TransactionInfo", zap.Any("Tx", result))
 	return api.OK.SetData(result).Build(c)
 }
