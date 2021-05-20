@@ -54,8 +54,8 @@ type CallArgsJSON struct {
 }
 
 type TxTraceResult struct {
-	UsedGas      uint64 `json:"usedGas"`
-	Err          error  `json:"err"`
-	ReturnData   string `json:"returnData"`
-	RevertReason string `json:"revertReason"`
+	UsedGas      uint64      `json:"usedGas"`
+	Err          interface{} `json:"err"`
+	ReturnData   string      `json:"returnData"`
+	RevertReason string      `json:"revertReason"`
 }
