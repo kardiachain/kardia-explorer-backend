@@ -331,10 +331,13 @@ func (ec *Client) NodesInfo(ctx context.Context) ([]*types.NodeInfo, error) {
 	return nodes, nil
 }
 
-func (ec *Client) Datadir(ctx context.Context) (string, error) {
-	var result string
-	err := ec.chooseClient().c.CallContext(ctx, &result, "node_datadir")
-	return result, err
+func (ec *Client) TraceTransaction(ctx context.Context, hash string) (*types.TxTraceResult, error) {
+	var result *types.TxTraceResult
+	err := ec.chooseClient().c.CallContext(ctx, &result, "debug_traceTransaction", common.HexToHash(hash))
+	if err != nil {
+		return nil, err
+	}
+	return result, nil
 }
 
 //func (ec *Client) Validators(ctx context.Context) (*types.Validators, error) {

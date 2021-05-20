@@ -42,6 +42,7 @@ type ClientInterface interface {
 	NodesInfo(ctx context.Context) ([]*types.NodeInfo, error)
 	Validator(ctx context.Context, address string) (*types.Validator, error)
 	Validators(ctx context.Context) ([]*types.Validator, error)
+	TraceTransaction(ctx context.Context, hash string) (*types.TxTraceResult, error)
 
 	// staking related methods
 	GetValidatorsByDelegator(ctx context.Context, delAddr common.Address) ([]*types.ValidatorsByDelegator, error)
