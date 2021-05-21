@@ -5,6 +5,8 @@ import (
 	"context"
 	"fmt"
 
+	"time"
+
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
@@ -23,7 +25,7 @@ type IEvents interface {
 	InsertEvents(events []types.Log) error
 	GetListEvents(ctx context.Context, filter *types.EventsFilter) ([]*types.Log, uint64, error)
 	DeleteEmptyEvents(ctx context.Context, contractAddress string) error
-	RemoveDuplicateEvents(ctx context.Context) error
+	RemoveDuplicateEvents(ctx context.Context) ([]*types.Log, error)
 }
 
 func (m *mongoDB) createEventsCollectionIndexes() []mongo.IndexModel {
@@ -50,7 +52,7 @@ func (m *mongoDB) InsertEvents(events []types.Log) error {
 	return nil
 }
 
-func (m *mongoDB) RemoveDuplicateEvents(ctx context.Context) error {
+func (m *mongoDB) RemoveDuplicateEvents(ctx context.Context) ([]*types.Log, error) {
 	groupStage := bson.D{{Key: "$group", Value: bson.D{{Key: "_id",
 		Value: bson.D{{Key: "address", Value: "$address"},
 			{Key: "methodName", Value: "$methodName"},
@@ -74,23 +76,53 @@ func (m *mongoDB) RemoveDuplicateEvents(ctx context.Context) error {
 	opts := []*options.AggregateOptions{
 		options.Aggregate().SetAllowDiskUse(true),
 	}
-	row, err := m.wrapper.C(cEvents).FindDuplicate(mongo.Pipeline{groupStage, matchStage}, opts...)
+	row, err := m.wrapper.C(cEvents).Aggregate(mongo.Pipeline{groupStage, matchStage}, opts...)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	type DataDuplicateResponse struct {
-		UniqueIds []string `json:"uniqueIds"`
-		Count     int64    `json:"count"`
+		UniqueIds     []string               `json:"uniqueIds"`
+		Count         int64                  `json:"count"`
+		Address       string                 `json:"address"`
+		MethodName    string                 `json:"methodName"`
+		ArgumentsName string                 `json:"argumentsName"`
+		Arguments     map[string]interface{} `json:"arguments"`
+		Topics        []string               `json:"topics"`
+		Data          string                 `json:"data"`
+		BlockHeight   uint64                 `json:"blockHeight"`
+		Time          time.Time              `json:"time"`
+		TxHash        string                 `json:"transactionHash"`
+		TxIndex       uint                   `json:"transactionIndex"`
+		BlockHash     string                 `json:"blockHash"`
+		Index         uint                   `json:"logIndex"`
+		Removed       bool                   `json:"removed"`
 	}
 
 	var groupIDRowDuplicates []primitive.ObjectID
 
 	var dataDuplicate DataDuplicateResponse
+	var events []*types.Log
 	for row.Next(ctx) {
 		errDecode := row.Decode(&dataDuplicate)
 		if errDecode != nil {
-			return errDecode
+			return nil, errDecode
 		}
+		event := &types.Log{
+			Address:       dataDuplicate.Address,
+			MethodName:    dataDuplicate.MethodName,
+			ArgumentsName: dataDuplicate.ArgumentsName,
+			Arguments:     dataDuplicate.Arguments,
+			Topics:        dataDuplicate.Topics,
+			Data:          dataDuplicate.Data,
+			BlockHeight:   dataDuplicate.BlockHeight,
+			Time:          dataDuplicate.Time,
+			TxHash:        dataDuplicate.TxHash,
+			TxIndex:       dataDuplicate.TxIndex,
+			BlockHash:     dataDuplicate.BlockHash,
+			Index:         dataDuplicate.Index,
+			Removed:       dataDuplicate.Removed,
+		}
+		events = append(events, event)
 		for index, e := range dataDuplicate.UniqueIds {
 			if index > 0 {
 				idRowDuplicate, _ := primitive.ObjectIDFromHex(e)
@@ -98,14 +130,15 @@ func (m *mongoDB) RemoveDuplicateEvents(ctx context.Context) error {
 			}
 		}
 	}
+
 	if len(groupIDRowDuplicates) > 0 {
 		_, err = m.wrapper.C(cEvents).RemoveAll(bson.D{{Key: "_id", Value: bson.D{{Key: "$in", Value: groupIDRowDuplicates}}}})
 		if err != nil {
-			return err
+			return nil, err
 		}
 	}
 
-	return nil
+	return events, nil
 }
 
 func (m *mongoDB) GetListEvents(ctx context.Context, filter *types.EventsFilter) ([]*types.Log, uint64, error) {

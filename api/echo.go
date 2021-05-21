@@ -235,8 +235,8 @@ func bind(gr *echo.Group, srv EchoServer) {
 func bindEventAPIs(gr *echo.Group, srv EchoServer) {
 	apis := []restDefinition{
 		{
-			method:      echo.POST,
-			path:        "/event/removeduplicate",
+			method:      echo.DELETE,
+			path:        "/event/duplicate",
 			fn:          srv.RemoveDuplicateEvents,
 			middlewares: nil,
 		},
