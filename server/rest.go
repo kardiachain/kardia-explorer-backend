@@ -48,6 +48,7 @@ func (s *Server) ServerStatus(c echo.Context) error {
 			Status:        "ONLINE",
 			AppVersion:    "1.0.0",
 			ServerVersion: "1.0.0",
+			DexStatus:     "ONLINE",
 		}
 		// Return default
 	}
