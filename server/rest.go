@@ -48,6 +48,7 @@ func (s *Server) ServerStatus(c echo.Context) error {
 			Status:        "ONLINE",
 			AppVersion:    "1.0.0",
 			ServerVersion: "1.0.0",
+			DexStatus:     "ONLINE",
 		}
 		// Return default
 	}
@@ -875,7 +876,6 @@ func (s *Server) AddressHolders(c echo.Context) error {
 }
 
 func (s *Server) TxByHash(c echo.Context) error {
-	lgr := s.Logger.With(zap.String("method", "TxByHash"))
 	ctx := context.Background()
 	txHash := c.Param("txHash")
 	if txHash == "" {
@@ -903,6 +903,7 @@ func (s *Server) TxByHash(c echo.Context) error {
 			tx.Status = receipt.Status
 			tx.GasUsed = receipt.GasUsed
 			tx.ContractAddress = receipt.ContractAddress
+			tx.TxFee = new(big.Int).Mul(new(big.Int).SetUint64(tx.GasPrice), new(big.Int).SetUint64(receipt.GasUsed)).String()
 		} else { // will be improved later when core blockchain support pending txs API
 			if tx.Time.Sub(time.Now()) < 20*time.Second {
 				tx.Status = 2 // marked as pending transaction if the duration between now and tx.Time is less than 20 seconds
@@ -1016,8 +1017,14 @@ func (s *Server) TxByHash(c echo.Context) error {
 		result.IsInValidatorsList = true
 		return api.OK.SetData(result).Build(c)
 	}
-
-	lgr.Debug("TransactionInfo", zap.Any("Tx", result))
+	if result.Status == 0 {
+		txTraceResult, err := s.kaiClient.TraceTransaction(ctx, result.Hash)
+		if err != nil {
+			s.logger.Warn("Cannot trace tx hash", zap.Error(err), zap.String("txHash", result.Hash))
+			return api.OK.SetData(result).Build(c)
+		}
+		result.RevertReason = txTraceResult.RevertReason
+	}
 	return api.OK.SetData(result).Build(c)
 }
 
