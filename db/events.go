@@ -5,8 +5,6 @@ import (
 	"context"
 	"fmt"
 
-	"time"
-
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
@@ -81,21 +79,9 @@ func (m *mongoDB) RemoveDuplicateEvents(ctx context.Context) ([]*types.Log, erro
 		return nil, err
 	}
 	type DataDuplicateResponse struct {
-		UniqueIds     []string               `json:"uniqueIds"`
-		Count         int64                  `json:"count"`
-		Address       string                 `json:"address"`
-		MethodName    string                 `json:"methodName"`
-		ArgumentsName string                 `json:"argumentsName"`
-		Arguments     map[string]interface{} `json:"arguments"`
-		Topics        []string               `json:"topics"`
-		Data          string                 `json:"data"`
-		BlockHeight   uint64                 `json:"blockHeight"`
-		Time          time.Time              `json:"time"`
-		TxHash        string                 `json:"transactionHash"`
-		TxIndex       uint                   `json:"transactionIndex"`
-		BlockHash     string                 `json:"blockHash"`
-		Index         uint                   `json:"logIndex"`
-		Removed       bool                   `json:"removed"`
+		UniqueIds []string  `json:"uniqueIds"`
+		Count     int64     `json:"count"`
+		ID        types.Log `json:"_id"`
 	}
 
 	var groupIDRowDuplicates []primitive.ObjectID
@@ -108,19 +94,19 @@ func (m *mongoDB) RemoveDuplicateEvents(ctx context.Context) ([]*types.Log, erro
 			return nil, errDecode
 		}
 		event := &types.Log{
-			Address:       dataDuplicate.Address,
-			MethodName:    dataDuplicate.MethodName,
-			ArgumentsName: dataDuplicate.ArgumentsName,
-			Arguments:     dataDuplicate.Arguments,
-			Topics:        dataDuplicate.Topics,
-			Data:          dataDuplicate.Data,
-			BlockHeight:   dataDuplicate.BlockHeight,
-			Time:          dataDuplicate.Time,
-			TxHash:        dataDuplicate.TxHash,
-			TxIndex:       dataDuplicate.TxIndex,
-			BlockHash:     dataDuplicate.BlockHash,
-			Index:         dataDuplicate.Index,
-			Removed:       dataDuplicate.Removed,
+			Address:       dataDuplicate.ID.Address,
+			MethodName:    dataDuplicate.ID.MethodName,
+			ArgumentsName: dataDuplicate.ID.ArgumentsName,
+			Arguments:     dataDuplicate.ID.Arguments,
+			Topics:        dataDuplicate.ID.Topics,
+			Data:          dataDuplicate.ID.Data,
+			BlockHeight:   dataDuplicate.ID.BlockHeight,
+			Time:          dataDuplicate.ID.Time,
+			TxHash:        dataDuplicate.ID.TxHash,
+			TxIndex:       dataDuplicate.ID.TxIndex,
+			BlockHash:     dataDuplicate.ID.BlockHash,
+			Index:         dataDuplicate.ID.Index,
+			Removed:       dataDuplicate.ID.Removed,
 		}
 		events = append(events, event)
 		for index, e := range dataDuplicate.UniqueIds {
