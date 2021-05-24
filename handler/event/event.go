@@ -9,6 +9,7 @@ import (
 
 	"github.com/kardiachain/go-kaiclient/kardia"
 	"github.com/kardiachain/go-kardia/lib/abi"
+	"github.com/kardiachain/go-kardia/lib/common"
 
 	"go.uber.org/zap"
 
@@ -45,6 +46,8 @@ type Event struct {
 
 func (h *Event) ProcessNewEventLog(ctx context.Context, l *kardia.Log) error {
 	lgr := h.logger.With(zap.String("method", "ProcessNewEventLog"))
+	lgr.Info("Process log event", zap.Any("Log", l))
+	l.Address = common.HexToAddress(l.Address).String()
 	tx, err := h.node.GetTransaction(ctx, l.TxHash)
 	if err != nil {
 		lgr.Error("Cannot get transaction", zap.Error(err))
@@ -105,8 +108,9 @@ func (h *Event) ProcessNewEventLog(ctx context.Context, l *kardia.Log) error {
 	lgr.Debug("Fetch ABI time", zap.Duration("Consumed", time.Since(getABITime)))
 
 	if l.Topics[0] == cfg.KRCTransferTopic {
-		// Build list internal txs
-		// Build list krc holders
+		if err := h.processKrcSMC(ctx, eventLog); err != nil {
+			return err
+		}
 	}
 
 	return h.db.InsertEvents([]types.Log{eventLog})
@@ -116,8 +120,17 @@ func (h *Event) processNormalSMC() error {
 	return nil
 }
 
-func (h *Event) processKrcSMC() error {
-	return nil
+func (h *Event) processKrcSMC(ctx context.Context, l types.Log) error {
+	iTx := h.getInternalTxs(ctx, l)
+	if iTx != nil {
+		internalTxsList = append(internalTxsList, iTx)
+	}
+	holders, err := s.getKRCHolder(ctx, decodedLog)
+	if err != nil {
+		s.logger.Warn("Cannot get KRC holder", zap.Error(err), zap.Any("log", logs[i]))
+		continue
+	}
+	holdersList = append(holdersList, holders...)
 }
 
 func (h *Event) getABIByAddress(ctx context.Context, l *kardia.Log) (*abi.ABI, error) {
@@ -242,5 +255,34 @@ func (h *Event) processHolders(ctx context.Context, holders []*types.TokenHolder
 		// Check if new address if contract
 		fmt.Println("h", h)
 
+	}
+}
+
+func (h *Event) getInternalTxs(ctx context.Context, log types.Log) *types.TokenTransfer {
+	var (
+		from, to, value string
+		ok              bool
+	)
+	from, ok = log.Arguments["from"].(string)
+	if !ok {
+		return nil
+	}
+	to, ok = log.Arguments["to"].(string)
+	if !ok {
+		return nil
+	}
+	value, ok = log.Arguments["value"].(string)
+	if !ok {
+		return nil
+	}
+	return &types.TokenTransfer{
+		TransactionHash: log.TxHash,
+		BlockHeight:     log.BlockHeight,
+		Contract:        log.Address,
+		From:            from,
+		To:              to,
+		Value:           value,
+		Time:            log.Time,
+		LogIndex:        log.Index,
 	}
 }
