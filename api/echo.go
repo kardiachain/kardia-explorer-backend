@@ -225,7 +225,22 @@ func bind(gr *echo.Group, srv EchoServer) {
 		},
 	}
 	bindContractAPIs(gr, srv)
+	bindEventAPIs(gr, srv)
 	bindStakingAPIs(gr, srv)
+	for _, api := range apis {
+		gr.Add(api.method, api.path, api.fn, api.middlewares...)
+	}
+}
+
+func bindEventAPIs(gr *echo.Group, srv EchoServer) {
+	apis := []restDefinition{
+		{
+			method:      echo.DELETE,
+			path:        "/event/duplicate",
+			fn:          srv.RemoveDuplicateEvents,
+			middlewares: nil,
+		},
+	}
 	for _, api := range apis {
 		gr.Add(api.method, api.path, api.fn, api.middlewares...)
 	}
