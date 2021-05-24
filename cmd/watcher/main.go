@@ -12,6 +12,7 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/kardiachain/kardia-explorer-backend/cfg"
+	"github.com/kardiachain/kardia-explorer-backend/utils"
 )
 
 func main() {
@@ -25,7 +26,11 @@ func main() {
 		panic(err.Error())
 	}
 
-	zap.L().Info("Start subscribe event")
+	logger, err := utils.NewLogger(serviceCfg)
+	if err != nil {
+		panic(err.Error())
+	}
+	logger.Info("Start subscribe event")
 	ctx, cancel := context.WithCancel(context.Background())
 	sigCh := make(chan os.Signal, 1)
 	waitExit := make(chan bool)
@@ -36,8 +41,8 @@ func main() {
 			waitExit <- true
 		}
 	}()
-	go runEventSubscriber(ctx, serviceCfg)
-	//go runStakingSubscriber(ctx, serviceCfg)
+
+	go runStakingSubscriber(ctx, serviceCfg)
 
 	<-waitExit
 	zap.L().Info("Stopped")

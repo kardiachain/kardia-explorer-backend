@@ -1,5 +1,5 @@
 // Package handler
-package handler
+package event
 
 import (
 	"context"
@@ -12,42 +12,42 @@ import (
 
 	"go.uber.org/zap"
 
+	"github.com/kardiachain/kardia-explorer-backend/cache"
 	"github.com/kardiachain/kardia-explorer-backend/cfg"
+	"github.com/kardiachain/kardia-explorer-backend/db"
 	"github.com/kardiachain/kardia-explorer-backend/types"
 	"github.com/kardiachain/kardia-explorer-backend/utils"
 )
 
-type IEvent interface {
-	ProcessNewEventLog(ctx context.Context)
+type Config struct {
+	Node   kardia.Node
+	DB     db.Client
+	Cache  cache.Client
+	Logger *zap.Logger
 }
 
-func (h *handler) ProcessNewEventLog(ctx context.Context) {
+func NewEventHandler(cfg Config) (*Event, error) {
+	e := &Event{
+		node:   cfg.Node,
+		db:     cfg.DB,
+		cache:  cfg.Cache,
+		logger: cfg.Logger.With(zap.String("Handler", "Event")),
+	}
+	return e, nil
+}
+
+type Event struct {
+	node   kardia.Node
+	db     db.Client
+	cache  cache.Client
+	logger *zap.Logger
+}
+
+func (h *Event) ProcessNewEventLog(ctx context.Context, l *kardia.Log) error {
 	lgr := h.logger.With(zap.String("method", "ProcessNewEventLog"))
-	wsNode := h.w.WSNode()
-	args := kardia.FilterArgs{}
-	logEventCh := make(chan *kardia.Log)
-	sub, err := wsNode.KaiSubscribe(context.Background(), logEventCh, "logs", args)
+	tx, err := h.node.GetTransaction(ctx, l.TxHash)
 	if err != nil {
-		return
-	}
-
-	for {
-		select {
-		case err := <-sub.Err():
-			lgr.Debug("subscribe err", zap.Error(err))
-		case log := <-logEventCh:
-			lgr.Debug("Log", zap.Any("detail", log))
-			if err := h.onNewLogEvent(ctx, log); err != nil {
-				return
-			}
-		}
-	}
-}
-
-func (h *handler) onNewLogEvent(ctx context.Context, l *kardia.Log) error {
-	lgr := h.logger.With(zap.String("method", "onNewLogEvent"))
-	tx, err := h.w.TrustedNode().GetTransaction(ctx, l.TxHash)
-	if err != nil {
+		lgr.Error("Cannot get transaction", zap.Error(err))
 		return err
 	}
 	eventLog := types.Log{
@@ -63,7 +63,7 @@ func (h *handler) onNewLogEvent(ctx context.Context, l *kardia.Log) error {
 		Index:       l.Index,
 		Removed:     l.Removed,
 	}
-	r, err := h.w.TrustedNode().GetTransactionReceipt(ctx, l.TxHash)
+	r, err := h.node.GetTransactionReceipt(ctx, l.TxHash)
 	if err != nil {
 		lgr.Error("cannot get receipt", zap.Error(err))
 	}
@@ -91,11 +91,14 @@ func (h *handler) onNewLogEvent(ctx context.Context, l *kardia.Log) error {
 		// Check KRC
 
 		// Not kind of KRC20
+
+		if err := h.cache.UpdateSMCType(ctx, l.Address, types.TypeContractNormal); err != nil {
+			lgr.Error("cannot update SMCType to Normal", zap.Error(err))
+		}
 	}
 
 	if errors.Is(err, types.ErrSMCTypeNormal) {
 		lgr.Debug("SMCType: Normal. Do nothing")
-
 	}
 
 	fmt.Println("SMC ABI", smcABI)
@@ -109,15 +112,15 @@ func (h *handler) onNewLogEvent(ctx context.Context, l *kardia.Log) error {
 	return h.db.InsertEvents([]types.Log{eventLog})
 }
 
-func (h *handler) processNormalSMC() error {
+func (h *Event) processNormalSMC() error {
 	return nil
 }
 
-func (h *handler) processKrcSMC() error {
+func (h *Event) processKrcSMC() error {
 	return nil
 }
 
-func (h *handler) getABIByAddress(ctx context.Context, l *kardia.Log) (*abi.ABI, error) {
+func (h *Event) getABIByAddress(ctx context.Context, l *kardia.Log) (*abi.ABI, error) {
 	// Get ABI string from cache
 	smcABIStr, err := h.cache.SMCAbi(ctx, l.Address)
 	if err == nil {
@@ -141,7 +144,7 @@ func (h *handler) getABIByAddress(ctx context.Context, l *kardia.Log) (*abi.ABI,
 	return nil, fmt.Errorf("%w", types.ErrABINotFound)
 }
 
-func (h *handler) getSMCAbi(ctx context.Context, log *kardia.Log) (*abi.ABI, error) {
+func (h *Event) getSMCAbi(ctx context.Context, log *kardia.Log) (*abi.ABI, error) {
 	lgr := h.logger.With(zap.String("method", "getSMCAbi"))
 	// Get ABI string from cache
 	smcABIStr, err := h.cache.SMCAbi(ctx, log.Address)
@@ -167,7 +170,7 @@ func (h *handler) getSMCAbi(ctx context.Context, log *kardia.Log) (*abi.ABI, err
 	smc, _, err := h.db.Contract(ctx, log.Address)
 	if err != nil {
 		lgr.Error("Cannot get smc info from db", zap.Error(err), zap.String("smcAddr", log.Address))
-		return nil, err
+		return nil, fmt.Errorf("%w", types.ErrABINotFound)
 	}
 
 	if smc.ABI != "" {
@@ -213,11 +216,11 @@ func (h *handler) getSMCAbi(ctx context.Context, log *kardia.Log) (*abi.ABI, err
 	return utils.DecodeSMCABIFromBase64(smcABIStr)
 }
 
-func (h *handler) isKRC() {
+func (h *Event) isKRC() {
 
 }
 
-func (h *handler) SyncKRC(ctx context.Context, l *types.Log) error {
+func (h *Event) SyncKRC(ctx context.Context, l *types.Log) error {
 	if l.Topics[0] != cfg.KRCTransferTopic {
 		return nil
 	}
@@ -234,7 +237,7 @@ func (h *handler) SyncKRC(ctx context.Context, l *types.Log) error {
 
 }
 
-func (h *handler) processHolders(ctx context.Context, holders []*types.TokenHolder) {
+func (h *Event) processHolders(ctx context.Context, holders []*types.TokenHolder) {
 	for _, h := range holders {
 		// Check if new address if contract
 		fmt.Println("h", h)
