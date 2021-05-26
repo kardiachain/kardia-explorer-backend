@@ -774,7 +774,7 @@ func (s *infoServer) mergeAdditionalInfoToTxs(ctx context.Context, txs []*types.
 		txFeeInHydro *big.Int
 	)
 
-	for _, tx := range txs {
+	for id := range txs {
 		// todo: Temp remove since we going to decode when get tx details
 		//smcABI, err := s.getSMCAbi(ctx, &types.Log{Address: tx.To})
 		//if err == nil {
@@ -783,22 +783,21 @@ func (s *infoServer) mergeAdditionalInfoToTxs(ctx context.Context, txs []*types.
 		//		tx.DecodedInputData = decoded
 		//	}
 		//}
-		if (receiptIndex > len(receipts)-1) || !(receipts[receiptIndex].TransactionHash == tx.Hash) {
-			tx.Status = 0
+		if (receiptIndex > len(receipts)-1) || !(receipts[receiptIndex].TransactionHash == txs[id].Hash) {
+			txs[id].Status = 0
 			continue
 		}
 
-		tx.Logs = receipts[receiptIndex].Logs
-		tx.Root = receipts[receiptIndex].Root
-		tx.Status = receipts[receiptIndex].Status
-		tx.GasUsed = receipts[receiptIndex].GasUsed
-		tx.ContractAddress = receipts[receiptIndex].ContractAddress
+		txs[id].Logs = receipts[receiptIndex].Logs
+		txs[id].Root = receipts[receiptIndex].Root
+		txs[id].Status = receipts[receiptIndex].Status
+		txs[id].GasUsed = receipts[receiptIndex].GasUsed
+		txs[id].ContractAddress = receipts[receiptIndex].ContractAddress
 		// update txFee
-		gasPrice = new(big.Int).SetUint64(tx.GasPrice)
-		gasUsed = new(big.Int).SetUint64(tx.GasUsed)
+		gasPrice = new(big.Int).SetUint64(txs[id].GasPrice)
+		gasUsed = new(big.Int).SetUint64(txs[id].GasUsed)
 		txFeeInHydro = new(big.Int).Mul(gasPrice, gasUsed)
-		tx.TxFee = txFeeInHydro.String()
-
+		txs[id].TxFee = txFeeInHydro.String()
 		receiptIndex++
 	}
 	return txs
