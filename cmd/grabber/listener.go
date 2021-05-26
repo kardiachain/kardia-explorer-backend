@@ -47,7 +47,7 @@ func listener(ctx context.Context, srv *server.Server, interval time.Duration) {
 			return
 		case <-t.C:
 			latest, err := srv.LatestBlockHeight(ctx)
-			srv.Logger.Info("Listener: Get block height from network", zap.Uint64("BlockHeight", latest), zap.Uint64("PrevHeader", prevHeader))
+			srv.Logger.Info("-----------------------------Get block height from network", zap.Uint64("BlockHeight", latest), zap.Uint64("PrevHeader", prevHeader))
 			if err != nil {
 				srv.Logger.Error("Listener: Failed to get latest block number", zap.Error(err))
 				continue
@@ -81,17 +81,19 @@ func listener(ctx context.Context, srv *server.Server, interval time.Duration) {
 					lgr.Error("Listener: Failed to insert unverified block", zap.Error(err))
 				}
 				// import this latest block to cache and database
+				totalImportTime := time.Now()
 				if err := srv.ImportBlock(ctx, block, true); err != nil {
 					lgr.Debug("Listener: Failed to import block", zap.Error(err))
 					continue
 				}
+				lgr.Debug("Total import block time", zap.Duration("TotalTime", time.Since(totalImportTime)))
 				if latest-1 > prevHeader {
-					lgr.Warn("Listener: We are behind network, inserting error blocks", zap.Uint64("from", prevHeader), zap.Uint64("to", latest))
-					err := srv.InsertErrorBlocks(ctx, prevHeader, latest)
-					if err != nil {
-						lgr.Error("Listener: Failed to insert error block height", zap.Error(err))
-						continue
-					}
+					//lgr.Warn("Listener: We are behind network, inserting error blocks", zap.Uint64("from", prevHeader), zap.Uint64("to", latest))
+					//err := srv.InsertErrorBlocks(ctx, prevHeader, latest)
+					//if err != nil {
+					//	lgr.Error("Listener: Failed to insert error block height", zap.Error(err))
+					//	continue
+					//}
 				}
 				prevHeader = latest
 				if latest%cfg.UpdateStatsInterval == 0 {
