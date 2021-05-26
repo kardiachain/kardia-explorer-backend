@@ -87,7 +87,7 @@ func listener(ctx context.Context, srv *server.Server, interval time.Duration) {
 					continue
 				}
 
-				if err := srv.ProcessTxs(ctx, block); err != nil {
+				if err := srv.ProcessTxs(ctx, block, true); err != nil {
 					lgr.Debug("Listener: Failed to process txs", zap.Error(err))
 				}
 

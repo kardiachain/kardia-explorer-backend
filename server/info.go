@@ -331,12 +331,6 @@ func (s *infoServer) ImportBlock(ctx context.Context, block *types.Block, writeT
 	s.metrics.RecordInsertBlockTime(endTime)
 	s.logger.Info("Total time for import block", zap.Duration("TimeConsumed", endTime), zap.String("Avg", s.metrics.GetInsertBlockTime()))
 
-	if writeToCache {
-		if err := s.cacheClient.InsertTxsOfBlock(ctx, block); err != nil {
-			return err
-		}
-	}
-
 	//startTime = time.Now()
 	//if err := s.dbClient.InsertTxs(ctx, block.Txs); err != nil {
 	//	return err
@@ -377,11 +371,14 @@ func (s *infoServer) ImportBlock(ctx context.Context, block *types.Block, writeT
 	return nil
 }
 
-func (s *infoServer) ProcessTxs(ctx context.Context, block *types.Block) error {
+func (s *infoServer) ProcessTxs(ctx context.Context, block *types.Block, writeToCache bool) error {
 	startTime := time.Now()
 	// merge receipts into corresponding transactions
 	// because getBlockByHash/Height API returns 2 array contains txs and receipts separately
 	block.Txs = s.mergeAdditionalInfoToTxs(ctx, block.Txs, block.Receipts)
+	for _, tx := range block.Txs {
+		s.logger.Debug("Txs", zap.Any("Tx", tx))
+	}
 	if err := s.dbClient.InsertTxs(ctx, block.Txs); err != nil {
 		return err
 	}
@@ -390,6 +387,12 @@ func (s *infoServer) ProcessTxs(ctx context.Context, block *types.Block) error {
 	s.logger.Info("Total time for import tx", zap.Duration("TimeConsumed", endTime), zap.String("Avg", s.metrics.GetInsertTxsTime()))
 	if _, err := s.cacheClient.UpdateTotalTxs(ctx, block.NumTxs); err != nil {
 		return err
+	}
+
+	if writeToCache {
+		if err := s.cacheClient.InsertTxsOfBlock(ctx, block); err != nil {
+			return err
+		}
 	}
 
 	return nil
