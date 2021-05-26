@@ -71,11 +71,12 @@ func main() {
 		}
 	}()
 
-	srvConfig := server.Config{
+	// Try to setup new srv instance since if we use same instance, maybe we will meet pool limit conn for mgo
+	srvConfigForBackfill := server.Config{
 		StorageAdapter: db.Adapter(serviceCfg.StorageDriver),
 		StorageURI:     serviceCfg.StorageURI,
 		StorageDB:      serviceCfg.StorageDB,
-		StorageIsFlush: serviceCfg.StorageIsFlush,
+		StorageIsFlush: false,
 
 		KardiaURLs:         serviceCfg.KardiaPublicNodes,
 		KardiaTrustedNodes: serviceCfg.KardiaTrustedNodes,
@@ -87,36 +88,12 @@ func main() {
 		BlockBuffer:  serviceCfg.BufferedBlocks,
 
 		Metrics: nil,
-		Logger:  logger.With(zap.String("service", "listener")),
+		Logger:  logger.With(zap.String("service", "backfill")),
 	}
-	srv, err := server.New(srvConfig)
+	backfillSrv, err := server.New(srvConfigForBackfill)
 	if err != nil {
 		logger.Panic(err.Error())
 	}
-
-	//// Try to setup new srv instance since if we use same instance, maybe we will meet pool limit conn for mgo
-	//srvConfigForBackfill := server.Config{
-	//	StorageAdapter: db.Adapter(serviceCfg.StorageDriver),
-	//	StorageURI:     serviceCfg.StorageURI,
-	//	StorageDB:      serviceCfg.StorageDB,
-	//	StorageIsFlush: false,
-	//
-	//	KardiaURLs:         serviceCfg.KardiaPublicNodes,
-	//	KardiaTrustedNodes: serviceCfg.KardiaTrustedNodes,
-	//
-	//	CacheAdapter: cache.Adapter(serviceCfg.CacheEngine),
-	//	CacheURL:     serviceCfg.CacheURL,
-	//	CacheDB:      serviceCfg.CacheDB,
-	//	CacheIsFlush: serviceCfg.CacheIsFlush,
-	//	BlockBuffer:  serviceCfg.BufferedBlocks,
-	//
-	//	Metrics: nil,
-	//	Logger:  logger.With(zap.String("service", "backfill")),
-	//}
-	//backfillSrv, err := server.New(srvConfigForBackfill)
-	//if err != nil {
-	//	logger.Panic(err.Error())
-	//}
 
 	// todo: Temp remove verify worker
 	// todo: Redis still store unverified block
@@ -146,9 +123,9 @@ func main() {
 	//}
 
 	// Start listener in new go routine
-	go listener(ctx, srv, serviceCfg.ListenerInterval)
+	//go listener(ctx, srv, serviceCfg.ListenerInterval)
 	//backfillCtx, _ := context.WithCancel(context.Background())
-	//go backfill(backfillCtx, backfillSrv, serviceCfg.BackfillInterval)
+	go backfill(ctx, backfillSrv, serviceCfg.BackfillInterval)
 	//verifyCtx, _ := context.WithCancel(context.Background())
 	//go verify(verifyCtx, verifySrv, serviceCfg.VerifierInterval)
 	<-waitExit
