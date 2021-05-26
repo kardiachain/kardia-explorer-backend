@@ -350,17 +350,65 @@ func (s *infoServer) ImportBlock(ctx context.Context, block *types.Block, writeT
 		}
 	}
 
-	startTime = time.Now()
+	//startTime = time.Now()
+	//if err := s.dbClient.InsertTxs(ctx, block.Txs); err != nil {
+	//	return err
+	//}
+	//endTime = time.Since(startTime)
+	//s.metrics.RecordInsertTxsTime(endTime)
+	//s.logger.Info("Total time for import tx", zap.Duration("TimeConsumed", endTime), zap.String("Avg", s.metrics.GetInsertTxsTime()))
+
+	//// update active addresses
+	//startTime = time.Now()
+	//addrsMap := filterAddrSet(block.Txs)
+	//getBalanceTime := time.Now()
+	//addrsList := s.getAddressBalances(ctx, addrsMap)
+	//lgr.Debug("GetAddressBalance time", zap.Duration("TotalTime", time.Since(getBalanceTime)))
+	//
+	//updateAddressTime := time.Now()
+	//if err := s.dbClient.UpdateAddresses(ctx, addrsList); err != nil {
+	//	return err
+	//}
+	//lgr.Debug("UpdateAddressTime", zap.Duration("TotalTime", time.Since(updateAddressTime)))
+	//endTime = time.Since(startTime)
+	//s.metrics.RecordInsertActiveAddressTime(endTime)
+	//s.logger.Info("Total time for update addresses", zap.Duration("TimeConsumed", endTime), zap.String("Avg", s.metrics.GetInsertActiveAddressTime()))
+	//startTime = time.Now()
+	//totalAddr, totalContractAddr, err := s.dbClient.GetTotalAddresses(ctx)
+	//if err != nil {
+	//	return err
+	//}
+	//err = s.cacheClient.UpdateTotalHolders(ctx, totalAddr, totalContractAddr)
+	//if err != nil {
+	//	return err
+	//}
+	//s.logger.Info("Total time for getting active addresses", zap.Duration("TimeConsumed", time.Since(startTime)))
+	//
+	//if _, err := s.cacheClient.UpdateTotalTxs(ctx, block.NumTxs); err != nil {
+	//	return err
+	//}
+	return nil
+}
+
+func (s *infoServer) ProcessTxs(ctx context.Context, block *types.Block) error {
+	startTime := time.Now()
 	if err := s.dbClient.InsertTxs(ctx, block.Txs); err != nil {
 		return err
 	}
-	endTime = time.Since(startTime)
+	endTime := time.Since(startTime)
 	s.metrics.RecordInsertTxsTime(endTime)
 	s.logger.Info("Total time for import tx", zap.Duration("TimeConsumed", endTime), zap.String("Avg", s.metrics.GetInsertTxsTime()))
+	if _, err := s.cacheClient.UpdateTotalTxs(ctx, block.NumTxs); err != nil {
+		return err
+	}
+	return nil
+}
 
+func (s *infoServer) ProcessActiveAddress(ctx context.Context, txs []*types.Transaction) error {
+	lgr := s.logger.With(zap.String("method", "ProcessActiveAddress"))
 	// update active addresses
-	startTime = time.Now()
-	addrsMap := filterAddrSet(block.Txs)
+	startTime := time.Now()
+	addrsMap := filterAddrSet(txs)
 	getBalanceTime := time.Now()
 	addrsList := s.getAddressBalances(ctx, addrsMap)
 	lgr.Debug("GetAddressBalance time", zap.Duration("TotalTime", time.Since(getBalanceTime)))
@@ -370,7 +418,7 @@ func (s *infoServer) ImportBlock(ctx context.Context, block *types.Block, writeT
 		return err
 	}
 	lgr.Debug("UpdateAddressTime", zap.Duration("TotalTime", time.Since(updateAddressTime)))
-	endTime = time.Since(startTime)
+	endTime := time.Since(startTime)
 	s.metrics.RecordInsertActiveAddressTime(endTime)
 	s.logger.Info("Total time for update addresses", zap.Duration("TimeConsumed", endTime), zap.String("Avg", s.metrics.GetInsertActiveAddressTime()))
 	startTime = time.Now()
@@ -383,10 +431,6 @@ func (s *infoServer) ImportBlock(ctx context.Context, block *types.Block, writeT
 		return err
 	}
 	s.logger.Info("Total time for getting active addresses", zap.Duration("TimeConsumed", time.Since(startTime)))
-
-	if _, err := s.cacheClient.UpdateTotalTxs(ctx, block.NumTxs); err != nil {
-		return err
-	}
 	return nil
 }
 

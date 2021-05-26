@@ -86,6 +86,16 @@ func listener(ctx context.Context, srv *server.Server, interval time.Duration) {
 					lgr.Debug("Listener: Failed to import block", zap.Error(err))
 					continue
 				}
+
+				if err := srv.ProcessTxs(ctx, block); err != nil {
+					lgr.Debug("Listener: Failed to process txs", zap.Error(err))
+					continue
+				}
+				if err := srv.ProcessActiveAddress(ctx, block.Txs); err != nil {
+					lgr.Debug("Listener: Failed to process active address", zap.Error(err))
+					continue
+				}
+
 				lgr.Debug("Total import block time", zap.Duration("TotalTime", time.Since(totalImportTime)))
 				if latest-1 > prevHeader {
 					//lgr.Warn("Listener: We are behind network, inserting error blocks", zap.Uint64("from", prevHeader), zap.Uint64("to", latest))
