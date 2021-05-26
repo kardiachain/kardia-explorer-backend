@@ -878,7 +878,7 @@ func (s *infoServer) getSMCAbi(ctx context.Context, log *types.Log) (*abi.ABI, e
 	if err != nil {
 		smc, _, err := s.dbClient.Contract(ctx, log.Address)
 		if err != nil {
-			s.logger.Warn("Cannot get smc info from db", zap.Error(err), zap.String("smcAddr", log.Address))
+			s.logger.Debug("Cannot get smc info from db", zap.Error(err), zap.String("smcAddr", log.Address))
 			return nil, err
 		}
 		if smc.Type != "" {
@@ -1043,7 +1043,7 @@ func (s *infoServer) getInternalTxs(ctx context.Context, log *types.Log) *types.
 	// update time of internal transaction
 	block, err := s.dbClient.BlockByHeight(ctx, log.BlockHeight)
 	if err != nil {
-		s.logger.Warn("Cannot get block from db", zap.Uint64("height", log.BlockHeight), zap.Error(err))
+		s.logger.Debug("Cannot get block from db", zap.Uint64("height", log.BlockHeight), zap.Error(err))
 		block, err = s.kaiClient.BlockByHeight(ctx, log.BlockHeight)
 		if err != nil {
 			block = &types.Block{
