@@ -87,14 +87,14 @@ func listener(ctx context.Context, srv *server.Server, interval time.Duration) {
 					continue
 				}
 
-				if err := srv.ProcessTxs(ctx, block); err != nil {
-					lgr.Debug("Listener: Failed to process txs", zap.Error(err))
-					continue
-				}
-				if err := srv.ProcessActiveAddress(ctx, block.Txs); err != nil {
-					lgr.Debug("Listener: Failed to process active address", zap.Error(err))
-					continue
-				}
+				go func() {
+					if err := srv.ProcessTxs(ctx, block); err != nil {
+						lgr.Debug("Listener: Failed to process txs", zap.Error(err))
+					}
+					if err := srv.ProcessActiveAddress(ctx, block.Txs); err != nil {
+						lgr.Debug("Listener: Failed to process active address", zap.Error(err))
+					}
+				}()
 
 				lgr.Debug("Total import block time", zap.Duration("TotalTime", time.Since(totalImportTime)))
 				if latest-1 > prevHeader {
