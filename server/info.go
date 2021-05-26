@@ -634,6 +634,7 @@ func filterAddrSet(txs []*types.Transaction) map[string]*types.Address {
 }
 
 func (s *infoServer) getAddressBalances(ctx context.Context, addrs map[string]*types.Address) []*types.Address {
+	lgr := s.logger.With(zap.String("method", "getAddressBalance"))
 	if addrs == nil || len(addrs) == 0 {
 		return nil
 	}
@@ -653,7 +654,12 @@ func (s *infoServer) getAddressBalances(ctx context.Context, addrs map[string]*t
 		code     common.Bytes
 		addrsMap = map[string]*types.Address{}
 	)
+	lgr.Debug("Start process address", zap.Int("TotalAddress", len(addrs)))
+
+	// Spawn go routine
+
 	for addr := range addrs {
+		timePerAddress := time.Now()
 		addressInfo := &types.Address{
 			Address: addr,
 			Name:    "",
@@ -680,6 +686,7 @@ func (s *infoServer) getAddressBalances(ctx context.Context, addrs map[string]*t
 			addressInfo.Name = addressesName[addr]
 		}
 		addrsMap[addr] = addressInfo
+		lgr.Debug("FinishedRefreshAddress", zap.Duration("TotalTime", time.Since(timePerAddress)))
 	}
 	var result []*types.Address
 	for _, info := range addrsMap {
