@@ -322,19 +322,6 @@ func (s *infoServer) ImportBlock(ctx context.Context, block *types.Block, writeT
 		}
 	}
 
-	// merge receipts into corresponding transactions
-	// because getBlockByHash/Height API returns 2 array contains txs and receipts separately
-	block.Txs = s.mergeAdditionalInfoToTxs(ctx, block.Txs, block.Receipts)
-	blockTime := block.Time
-
-	if err := s.processLogsOfTxs(ctx, block.Txs, blockTime); err != nil {
-		lgr.Error("cannot process logs", zap.Error(err))
-	}
-
-	if err := s.filterProposalEvent(ctx, block.Txs); err != nil {
-		s.logger.Warn("Filter proposal event failed", zap.Error(err))
-	}
-
 	// Start import block
 	startTime := time.Now()
 	if err := s.dbClient.InsertBlock(ctx, block); err != nil {
@@ -391,6 +378,7 @@ func (s *infoServer) ImportBlock(ctx context.Context, block *types.Block, writeT
 }
 
 func (s *infoServer) ProcessTxs(ctx context.Context, block *types.Block) error {
+	lgr := s.logger.With(zap.String("method", "ProcessTxs"))
 	startTime := time.Now()
 	if err := s.dbClient.InsertTxs(ctx, block.Txs); err != nil {
 		return err
@@ -401,6 +389,20 @@ func (s *infoServer) ProcessTxs(ctx context.Context, block *types.Block) error {
 	if _, err := s.cacheClient.UpdateTotalTxs(ctx, block.NumTxs); err != nil {
 		return err
 	}
+
+	// merge receipts into corresponding transactions
+	// because getBlockByHash/Height API returns 2 array contains txs and receipts separately
+	block.Txs = s.mergeAdditionalInfoToTxs(ctx, block.Txs, block.Receipts)
+	blockTime := block.Time
+
+	if err := s.processLogsOfTxs(ctx, block.Txs, blockTime); err != nil {
+		lgr.Error("cannot process logs", zap.Error(err))
+	}
+
+	if err := s.filterProposalEvent(ctx, block.Txs); err != nil {
+		s.logger.Warn("Filter proposal event failed", zap.Error(err))
+	}
+
 	return nil
 }
 
