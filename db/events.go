@@ -51,6 +51,7 @@ func (m *mongoDB) InsertEvents(events []types.Log) error {
 }
 
 func (m *mongoDB) RemoveDuplicateEvents(ctx context.Context) ([]*types.Log, error) {
+
 	groupStage := bson.D{{Key: "$group", Value: bson.D{{Key: "_id",
 		Value: bson.D{{Key: "address", Value: "$address"},
 			{Key: "methodName", Value: "$methodName"},
@@ -71,44 +72,31 @@ func (m *mongoDB) RemoveDuplicateEvents(ctx context.Context) ([]*types.Log, erro
 			Value: bson.D{{Key: "$sum", Value: 1}}},
 	}}}
 	matchStage := bson.D{{Key: "$match", Value: bson.D{{Key: "count", Value: bson.D{{Key: "$gt", Value: 1}}}}}}
+
 	opts := []*options.AggregateOptions{
 		options.Aggregate().SetAllowDiskUse(true),
 	}
-	row, err := m.wrapper.C(cEvents).Aggregate(mongo.Pipeline{groupStage, matchStage}, opts...)
+	pipeline := mongo.Pipeline{groupStage, matchStage}
+	row, err := m.wrapper.C(cEvents).Aggregate(pipeline, opts...)
 	if err != nil {
 		return nil, err
 	}
 	type DataDuplicateResponse struct {
-		UniqueIds []string  `json:"uniqueIds"`
-		Count     int64     `json:"count"`
-		ID        types.Log `json:"_id"`
+		UniqueIds []string `json:"uniqueIds"`
+		Count     int64    `json:"count"`
 	}
 
 	var groupIDRowDuplicates []primitive.ObjectID
 
 	var dataDuplicate DataDuplicateResponse
-	var events []*types.Log
+
 	for row.Next(ctx) {
+
 		errDecode := row.Decode(&dataDuplicate)
 		if errDecode != nil {
 			return nil, errDecode
 		}
-		event := &types.Log{
-			Address:       dataDuplicate.ID.Address,
-			MethodName:    dataDuplicate.ID.MethodName,
-			ArgumentsName: dataDuplicate.ID.ArgumentsName,
-			Arguments:     dataDuplicate.ID.Arguments,
-			Topics:        dataDuplicate.ID.Topics,
-			Data:          dataDuplicate.ID.Data,
-			BlockHeight:   dataDuplicate.ID.BlockHeight,
-			Time:          dataDuplicate.ID.Time,
-			TxHash:        dataDuplicate.ID.TxHash,
-			TxIndex:       dataDuplicate.ID.TxIndex,
-			BlockHash:     dataDuplicate.ID.BlockHash,
-			Index:         dataDuplicate.ID.Index,
-			Removed:       dataDuplicate.ID.Removed,
-		}
-		events = append(events, event)
+
 		for index, e := range dataDuplicate.UniqueIds {
 			if index > 0 {
 				idRowDuplicate, _ := primitive.ObjectIDFromHex(e)
@@ -124,6 +112,13 @@ func (m *mongoDB) RemoveDuplicateEvents(ctx context.Context) ([]*types.Log, erro
 		}
 	}
 
+	events, total, err := m.GetListEvents(ctx, &types.EventsFilter{})
+	if err != nil {
+		return nil, err
+	}
+	if total == 0 {
+		return nil, nil
+	}
 	return events, nil
 }
 
