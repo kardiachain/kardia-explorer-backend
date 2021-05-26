@@ -35,6 +35,12 @@ services:
     volumes:
       - .env.sample:/go/bin/.env
     command: "grabber"
+  backfill:
+    image: kardiachain/backend-explorer
+    container_name: "explorer-backfill"
+    volumes:
+      - .env.sample:/go/bin/.env
+    command: "backfill"
   watcher:
     image: kardiachain/backend-explorer
     container_name: "explorer-watcher"
