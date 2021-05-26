@@ -12,7 +12,7 @@ import (
 	"github.com/kardiachain/kardia-explorer-backend/types"
 )
 
-func (s *infoServer) filterProposalEvent(ctx context.Context, txs []*types.Transaction) error {
+func (s *infoServer) FilterProposalEvent(ctx context.Context, txs []*types.Transaction) error {
 	lgr := s.logger.With(zap.String("method", "filterProposalEvent"))
 
 	for _, tx := range txs {

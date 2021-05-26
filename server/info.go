@@ -378,12 +378,10 @@ func (s *infoServer) ImportBlock(ctx context.Context, block *types.Block, writeT
 }
 
 func (s *infoServer) ProcessTxs(ctx context.Context, block *types.Block) error {
-	lgr := s.logger.With(zap.String("method", "ProcessTxs"))
 	startTime := time.Now()
 	// merge receipts into corresponding transactions
 	// because getBlockByHash/Height API returns 2 array contains txs and receipts separately
 	block.Txs = s.mergeAdditionalInfoToTxs(ctx, block.Txs, block.Receipts)
-	blockTime := block.Time
 	if err := s.dbClient.InsertTxs(ctx, block.Txs); err != nil {
 		return err
 	}
@@ -392,14 +390,6 @@ func (s *infoServer) ProcessTxs(ctx context.Context, block *types.Block) error {
 	s.logger.Info("Total time for import tx", zap.Duration("TimeConsumed", endTime), zap.String("Avg", s.metrics.GetInsertTxsTime()))
 	if _, err := s.cacheClient.UpdateTotalTxs(ctx, block.NumTxs); err != nil {
 		return err
-	}
-
-	if err := s.processLogsOfTxs(ctx, block.Txs, blockTime); err != nil {
-		lgr.Error("cannot process logs", zap.Error(err))
-	}
-
-	if err := s.filterProposalEvent(ctx, block.Txs); err != nil {
-		s.logger.Warn("Filter proposal event failed", zap.Error(err))
 	}
 
 	return nil
@@ -435,7 +425,7 @@ func (s *infoServer) ProcessActiveAddress(ctx context.Context, txs []*types.Tran
 	return nil
 }
 
-func (s *infoServer) processLogsOfTxs(ctx context.Context, txs []*types.Transaction, blockTime time.Time) error {
+func (s *infoServer) ProcessLogsOfTxs(ctx context.Context, txs []*types.Transaction, blockTime time.Time) error {
 	lgr := s.logger.With(zap.String("method", "processLogsOfTxs"))
 	poolSize := 4
 	p, err := ants.NewPoolWithFunc(poolSize, func(i interface{}) {

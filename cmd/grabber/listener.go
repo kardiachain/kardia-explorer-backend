@@ -87,9 +87,17 @@ func listener(ctx context.Context, srv *server.Server, interval time.Duration) {
 					continue
 				}
 
+				if err := srv.ProcessTxs(ctx, block); err != nil {
+					lgr.Debug("Listener: Failed to process txs", zap.Error(err))
+				}
+
 				go func() {
-					if err := srv.ProcessTxs(ctx, block); err != nil {
-						lgr.Debug("Listener: Failed to process txs", zap.Error(err))
+					if err := srv.ProcessLogsOfTxs(ctx, block.Txs, block.Time); err != nil {
+						lgr.Debug("cannot process logs", zap.Error(err))
+					}
+
+					if err := srv.FilterProposalEvent(ctx, block.Txs); err != nil {
+						lgr.Debug("Filter proposal event failed", zap.Error(err))
 					}
 					if err := srv.ProcessActiveAddress(ctx, block.Txs); err != nil {
 						lgr.Debug("Listener: Failed to process active address", zap.Error(err))
