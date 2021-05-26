@@ -355,10 +355,15 @@ func (s *infoServer) ImportBlock(ctx context.Context, block *types.Block, writeT
 	// update active addresses
 	startTime = time.Now()
 	addrsMap := filterAddrSet(block.Txs)
+	getBalanceTime := time.Now()
 	addrsList := s.getAddressBalances(ctx, addrsMap)
+	lgr.Debug("GetAddressBalance time", zap.Duration("TotalTime", time.Since(getBalanceTime)))
+
+	updateAddressTime := time.Now()
 	if err := s.dbClient.UpdateAddresses(ctx, addrsList); err != nil {
 		return err
 	}
+	lgr.Debug("UpdateAddressTime", zap.Duration("TotalTime", time.Since(updateAddressTime)))
 	endTime = time.Since(startTime)
 	s.metrics.RecordInsertActiveAddressTime(endTime)
 	s.logger.Info("Total time for update addresses", zap.Duration("TimeConsumed", endTime), zap.String("Avg", s.metrics.GetInsertActiveAddressTime()))

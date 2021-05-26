@@ -59,7 +59,6 @@ type EchoServer interface {
 
 	IContract
 
-	//
 	SearchAddressByName(c echo.Context) error
 
 	GetHoldersListByToken(c echo.Context) error
