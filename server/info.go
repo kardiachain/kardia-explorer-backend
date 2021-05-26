@@ -684,6 +684,7 @@ func (s *infoServer) getAddressBalances(ctx context.Context, addrs map[string]*t
 }
 
 func (s *infoServer) mergeAdditionalInfoToTxs(ctx context.Context, txs []*types.Transaction, receipts []*types.Receipt) []*types.Transaction {
+	lgr := s.logger.With(zap.String("method", "mergeAdditionalInfoToTxs"))
 	if receipts == nil || len(receipts) == 0 {
 		return txs
 	}
@@ -708,10 +709,12 @@ func (s *infoServer) mergeAdditionalInfoToTxs(ctx context.Context, txs []*types.
 
 		tx.Logs = receipts[receiptIndex].Logs
 		if len(tx.Logs) > 0 {
+			storeEventTime := time.Now()
 			err := s.storeEvents(ctx, tx.Logs, txs[0].Time)
 			if err != nil {
 				s.logger.Warn("Cannot store events to db", zap.Error(err))
 			}
+			lgr.Debug("StoreEvent ", zap.Duration("TotalTime", time.Since(storeEventTime)))
 		}
 		tx.Root = receipts[receiptIndex].Root
 		tx.Status = receipts[receiptIndex].Status
@@ -737,6 +740,8 @@ func (s *infoServer) BlockCacheSize(ctx context.Context) (int64, error) {
 }
 
 func (s *infoServer) storeEvents(ctx context.Context, logs []types.Log, blockTime time.Time) error {
+	lgr := s.logger.With(zap.String("method", "storeEvents"))
+	lgr.Info("Start store events")
 	var (
 		holdersList     []*types.TokenHolder
 		internalTxsList []*types.TokenTransfer
@@ -747,6 +752,7 @@ func (s *infoServer) storeEvents(ctx context.Context, logs []types.Log, blockTim
 		if logs[i].Address == "" || logs[i].Address == "0x" {
 			continue
 		}
+		getABITime := time.Now()
 		smcABI, err = s.getSMCAbi(ctx, &logs[i])
 		if err != nil {
 			// automatically detect if this contract is KRC or not
@@ -795,6 +801,7 @@ func (s *infoServer) storeEvents(ctx context.Context, logs []types.Log, blockTim
 			}
 			holdersList = append(holdersList, holders...)
 		}
+		lgr.Debug("Get ABI time", zap.Duration("TotalTime", time.Since(getABITime)))
 	}
 	// insert holders and internal txs to db
 	err = s.dbClient.UpdateHolders(ctx, holdersList)
