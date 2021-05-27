@@ -49,7 +49,7 @@ func main() {
 	if err != nil {
 		panic("cannot init logger")
 	}
-	logger.Info("Start grabber...")
+	logger.Info("Start verifier...")
 
 	defer func() {
 		if err := recover(); err != nil {
@@ -86,16 +86,17 @@ func main() {
 		CacheIsFlush: serviceCfg.CacheIsFlush,
 		BlockBuffer:  serviceCfg.BufferedBlocks,
 
+		VerifyBlockParam: serviceCfg.VerifyBlockParam,
+
 		Metrics: nil,
-		Logger:  logger.With(zap.String("service", "listener")),
+		Logger:  logger.With(zap.String("service", "verifier")),
 	}
 	srv, err := server.New(srvConfig)
 	if err != nil {
 		logger.Panic(err.Error())
 	}
 
-	// Start listener in new go routine
-	go listener(ctx, srv, serviceCfg.ListenerInterval)
+	go verify(ctx, srv, serviceCfg.VerifierInterval)
 	<-waitExit
 	logger.Info("Stopped")
 }

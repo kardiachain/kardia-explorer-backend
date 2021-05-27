@@ -71,11 +71,12 @@ func main() {
 		}
 	}()
 
-	srvConfig := server.Config{
+	// Try to setup new srv instance since if we use same instance, maybe we will meet pool limit conn for mgo
+	srvCfg := server.Config{
 		StorageAdapter: db.Adapter(serviceCfg.StorageDriver),
 		StorageURI:     serviceCfg.StorageURI,
 		StorageDB:      serviceCfg.StorageDB,
-		StorageIsFlush: serviceCfg.StorageIsFlush,
+		StorageIsFlush: false,
 
 		KardiaURLs:         serviceCfg.KardiaPublicNodes,
 		KardiaTrustedNodes: serviceCfg.KardiaTrustedNodes,
@@ -87,15 +88,14 @@ func main() {
 		BlockBuffer:  serviceCfg.BufferedBlocks,
 
 		Metrics: nil,
-		Logger:  logger.With(zap.String("service", "listener")),
+		Logger:  logger.With(zap.String("service", "backfill")),
 	}
-	srv, err := server.New(srvConfig)
+	srv, err := server.New(srvCfg)
 	if err != nil {
 		logger.Panic(err.Error())
 	}
 
-	// Start listener in new go routine
-	go listener(ctx, srv, serviceCfg.ListenerInterval)
+	go backfill(ctx, srv, serviceCfg.BackfillInterval)
 	<-waitExit
 	logger.Info("Stopped")
 }

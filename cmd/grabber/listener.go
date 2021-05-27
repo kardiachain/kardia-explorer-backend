@@ -47,9 +47,9 @@ func listener(ctx context.Context, srv *server.Server, interval time.Duration) {
 			return
 		case <-t.C:
 			latest, err := srv.LatestBlockHeight(ctx)
-			srv.Logger.Info("Listener: Get block height from network", zap.Uint64("BlockHeight", latest), zap.Uint64("PrevHeader", prevHeader))
+			srv.Logger.Info("------------Get network latest block------------", zap.Uint64("BlockHeight", latest), zap.Uint64("PrevHeader", prevHeader))
 			if err != nil {
-				srv.Logger.Error("Listener: Failed to get latest block number", zap.Error(err))
+				srv.Logger.Error("failed to get latest block number", zap.Error(err))
 				continue
 			}
 			// delay listener for 1 block for correct responses of kardiaCall
@@ -64,32 +64,52 @@ func listener(ctx context.Context, srv *server.Server, interval time.Duration) {
 				startTime = time.Now()
 				block, err := srv.BlockByHeight(ctx, latest)
 				if err != nil {
-					lgr.Error("Listener: Failed to get block from RPC", zap.Error(err))
+					lgr.Error("Failed to get block from RPC", zap.Error(err))
 					continue
 				}
 				endTime = time.Since(startTime)
 				srv.Metrics().RecordScrapingTime(endTime)
-				lgr.Info("Listener: Scraping block time", zap.Duration("TimeConsumed", endTime), zap.String("Avg", srv.Metrics().GetScrapingTime()))
+				lgr.Info("scraping block time", zap.Duration("TimeConsumed", endTime), zap.String("Avg", srv.Metrics().GetScrapingTime()))
 				if block == nil {
-					lgr.Error("Listener: Block not found")
+					lgr.Error("Block not found")
 					continue
 				}
 				// insert current block height to cache for re-verifying later
 				// temp remove insert new unverified blocks
 				err = srv.InsertUnverifiedBlocks(ctx, latest)
 				if err != nil {
-					lgr.Error("Listener: Failed to insert unverified block", zap.Error(err))
+					lgr.Error("Failed to insert unverified block", zap.Error(err))
 				}
 				// import this latest block to cache and database
+				totalImportTime := time.Now()
 				if err := srv.ImportBlock(ctx, block, true); err != nil {
-					lgr.Debug("Listener: Failed to import block", zap.Error(err))
+					lgr.Debug("Failed to import block", zap.Error(err))
 					continue
 				}
+
+				if err := srv.ProcessTxs(ctx, block, true); err != nil {
+					lgr.Debug("Failed to process txs", zap.Error(err))
+				}
+
+				go func() {
+					if err := srv.ProcessLogsOfTxs(ctx, block.Txs, block.Time); err != nil {
+						lgr.Debug("cannot process logs", zap.Error(err))
+					}
+
+					if err := srv.FilterProposalEvent(ctx, block.Txs); err != nil {
+						lgr.Debug("filter proposal event failed", zap.Error(err))
+					}
+					if err := srv.ProcessActiveAddress(ctx, block.Txs); err != nil {
+						lgr.Debug("failed to process active address", zap.Error(err))
+					}
+				}()
+
+				lgr.Debug("Total import block time", zap.Duration("TotalTime", time.Since(totalImportTime)))
 				if latest-1 > prevHeader {
-					lgr.Warn("Listener: We are behind network, inserting error blocks", zap.Uint64("from", prevHeader), zap.Uint64("to", latest))
+					lgr.Warn("we are behind network, inserting error blocks", zap.Uint64("from", prevHeader), zap.Uint64("to", latest))
 					err := srv.InsertErrorBlocks(ctx, prevHeader, latest)
 					if err != nil {
-						lgr.Error("Listener: Failed to insert error block height", zap.Error(err))
+						lgr.Error("failed to insert error block height", zap.Error(err))
 						continue
 					}
 				}
