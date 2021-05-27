@@ -262,11 +262,11 @@ func (s *Server) GetProposalDetails(c echo.Context) error {
 
 func (s *Server) RemoveDuplicateEvents(c echo.Context) error {
 	ctx := context.Background()
-	data, err := s.dbClient.RemoveDuplicateEvents(ctx)
+	err := s.dbClient.RemoveDuplicateEvents(ctx)
 	if err != nil {
 		return api.InternalServer.Build(c)
 	}
-	return api.OK.SetData(data).Build(c)
+	return api.OK.Build(c)
 }
 
 func (s *Server) GetParams(c echo.Context) error {

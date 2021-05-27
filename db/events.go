@@ -23,7 +23,7 @@ type IEvents interface {
 	InsertEvents(events []types.Log) error
 	GetListEvents(ctx context.Context, filter *types.EventsFilter) ([]*types.Log, uint64, error)
 	DeleteEmptyEvents(ctx context.Context, contractAddress string) error
-	RemoveDuplicateEvents(ctx context.Context) ([]*types.Log, error)
+	RemoveDuplicateEvents(ctx context.Context) error
 }
 
 func (m *mongoDB) createEventsCollectionIndexes() []mongo.IndexModel {
@@ -50,8 +50,7 @@ func (m *mongoDB) InsertEvents(events []types.Log) error {
 	return nil
 }
 
-func (m *mongoDB) RemoveDuplicateEvents(ctx context.Context) ([]*types.Log, error) {
-
+func (m *mongoDB) RemoveDuplicateEvents(ctx context.Context) error {
 	groupStage := bson.D{{Key: "$group", Value: bson.D{{Key: "_id",
 		Value: bson.D{{Key: "address", Value: "$address"},
 			{Key: "methodName", Value: "$methodName"},
@@ -79,47 +78,37 @@ func (m *mongoDB) RemoveDuplicateEvents(ctx context.Context) ([]*types.Log, erro
 	pipeline := mongo.Pipeline{groupStage, matchStage}
 	row, err := m.wrapper.C(cEvents).Aggregate(pipeline, opts...)
 	if err != nil {
-		return nil, err
+		return err
 	}
-	type DataDuplicateResponse struct {
+	type EventDuplicateResponse struct {
 		UniqueIds []string `json:"uniqueIds"`
 		Count     int64    `json:"count"`
 	}
 
-	var groupIDRowDuplicates []primitive.ObjectID
-
-	var dataDuplicate DataDuplicateResponse
+	var eventIdDuplicates []primitive.ObjectID
+	var eventDuplicateResponse EventDuplicateResponse
 
 	for row.Next(ctx) {
-
-		errDecode := row.Decode(&dataDuplicate)
+		errDecode := row.Decode(&eventDuplicateResponse)
 		if errDecode != nil {
-			return nil, errDecode
+			return errDecode
 		}
-
-		for index, e := range dataDuplicate.UniqueIds {
+		for index, e := range eventDuplicateResponse.UniqueIds {
 			if index > 0 {
-				idRowDuplicate, _ := primitive.ObjectIDFromHex(e)
-				groupIDRowDuplicates = append(groupIDRowDuplicates, idRowDuplicate)
+				eventIdDuplicate, _ := primitive.ObjectIDFromHex(e)
+				eventIdDuplicates = append(eventIdDuplicates, eventIdDuplicate)
 			}
 		}
 	}
 
-	if len(groupIDRowDuplicates) > 0 {
-		_, err = m.wrapper.C(cEvents).RemoveAll(bson.D{{Key: "_id", Value: bson.D{{Key: "$in", Value: groupIDRowDuplicates}}}})
+	if len(eventIdDuplicates) > 0 {
+		_, err = m.wrapper.C(cEvents).RemoveAll(bson.D{{Key: "_id", Value: bson.D{{Key: "$in", Value: eventIdDuplicates}}}})
 		if err != nil {
-			return nil, err
+			return err
 		}
 	}
 
-	events, total, err := m.GetListEvents(ctx, &types.EventsFilter{})
-	if err != nil {
-		return nil, err
-	}
-	if total == 0 {
-		return nil, nil
-	}
-	return events, nil
+	return nil
 }
 
 func (m *mongoDB) GetListEvents(ctx context.Context, filter *types.EventsFilter) ([]*types.Log, uint64, error) {
@@ -128,6 +117,7 @@ func (m *mongoDB) GetListEvents(ctx context.Context, filter *types.EventsFilter)
 			//options.Find().SetHint(bson.M{"blockHeight": -1}),
 			//options.Find().SetHint(bson.M{"transactionHash": 1}),
 			//options.Find().SetHint(bson.D{{Key: "address", Value: 1}, {Key: "timestamp", Value: -1}}),
+
 			//options.Find().SetHint(bson.D{{Key: "methodName", Value: 1}, {Key: "timestamp", Value: -1}}),
 			options.Find().SetSort(bson.M{"blockHeight": -1}),
 		}
