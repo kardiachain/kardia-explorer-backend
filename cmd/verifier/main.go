@@ -49,7 +49,7 @@ func main() {
 	if err != nil {
 		panic("cannot init logger")
 	}
-	logger.Info("Start grabber...")
+	logger.Info("Start verifier...")
 
 	defer func() {
 		if err := recover(); err != nil {
@@ -71,12 +71,11 @@ func main() {
 		}
 	}()
 
-	// Try to setup new srv instance since if we use same instance, maybe we will meet pool limit conn for mgo
-	srvCfg := server.Config{
+	srvConfig := server.Config{
 		StorageAdapter: db.Adapter(serviceCfg.StorageDriver),
 		StorageURI:     serviceCfg.StorageURI,
 		StorageDB:      serviceCfg.StorageDB,
-		StorageIsFlush: false,
+		StorageIsFlush: serviceCfg.StorageIsFlush,
 
 		KardiaURLs:         serviceCfg.KardiaPublicNodes,
 		KardiaTrustedNodes: serviceCfg.KardiaTrustedNodes,
@@ -88,14 +87,14 @@ func main() {
 		BlockBuffer:  serviceCfg.BufferedBlocks,
 
 		Metrics: nil,
-		Logger:  logger.With(zap.String("service", "backfill")),
+		Logger:  logger.With(zap.String("service", "verifier")),
 	}
-	srv, err := server.New(srvCfg)
+	srv, err := server.New(srvConfig)
 	if err != nil {
 		logger.Panic(err.Error())
 	}
 
-	go backfill(ctx, srv, serviceCfg.BackfillInterval)
+	go verify(ctx, srv, serviceCfg.VerifierInterval)
 	<-waitExit
 	logger.Info("Stopped")
 }

@@ -28,6 +28,7 @@ import (
 )
 
 func verify(ctx context.Context, srv *server.Server, interval time.Duration) {
+	lgr := srv.Logger.With(zap.String("task", "verify"))
 	srv.Logger.Info("Start verifying data...")
 	t := time.NewTicker(interval)
 	defer t.Stop()
@@ -38,22 +39,21 @@ func verify(ctx context.Context, srv *server.Server, interval time.Duration) {
 			if err != nil {
 				continue
 			}
-			lgr := srv.Logger.With(zap.Uint64("block", blockHeight))
-			lgr.Info("Verifier: Checking block integrity...")
+			lgr.Info("checking block integrity...", zap.Uint64("Height", blockHeight))
 			// get block by height from RPC in order to verify database block at the same height
 			networkBlock, err := srv.BlockByHeightFromRPC(ctx, blockHeight)
 			if err != nil {
-				lgr.Warn("Verifier: Error while get compare block from RPC, re-inserting this block to unverified list...", zap.Error(err))
+				lgr.Warn("error while get compare block from RPC, re-inserting this block to unverified list...", zap.Error(err))
 				_ = srv.InsertUnverifiedBlocks(ctx, blockHeight)
 				continue
 			}
 			result, err := srv.VerifyBlock(ctx, blockHeight, networkBlock)
 			if err != nil {
-				lgr.Warn("Verifier: Error while verifying block", zap.Error(err))
+				lgr.Warn("error while verifying block", zap.Error(err))
 				continue
 			}
 			if result {
-				lgr.Warn("Verifier: Block in database is corrupted and successfully replaced")
+				lgr.Warn("block in database is corrupted and successfully replaced")
 			}
 		}
 	}

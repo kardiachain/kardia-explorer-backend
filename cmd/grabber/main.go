@@ -96,10 +96,6 @@ func main() {
 
 	// Start listener in new go routine
 	go listener(ctx, srv, serviceCfg.ListenerInterval)
-	//backfillCtx, _ := context.WithCancel(context.Background())
-	//go backfill(backfillCtx, backfillSrv, serviceCfg.BackfillInterval)
-	//verifyCtx, _ := context.WithCancel(context.Background())
-	//go verify(verifyCtx, verifySrv, serviceCfg.VerifierInterval)
 	<-waitExit
 	logger.Info("Stopped")
 }
