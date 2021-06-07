@@ -232,6 +232,19 @@ func parseBytesArrayIntoString(v interface{}) interface{} {
 		if value, ok := v.(*big.Int); ok {
 			return value.String()
 		}
+	} else if reflect.TypeOf(v).Kind() == reflect.Slice {
+		arr, ok := v.([]byte)
+		if !ok {
+			return v
+		}
+		slice := arr[:]
+		// convert any slice of uint8 into a hex string
+		if reflect.TypeOf(slice).Elem().Kind() == reflect.Uint8 {
+			return "0x" + common.Bytes2Hex(slice[:])
+		} else {
+			// otherwise recursively check other arguments
+			return parseBytesArrayIntoString(v)
+		}
 	}
 	return v
 }
