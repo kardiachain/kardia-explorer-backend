@@ -1449,7 +1449,7 @@ func (s *Server) InsertContract(c echo.Context) error {
 		// cache new token info
 		krcTokenInfoFromRPC.Logo = addrInfo.Logo
 		if utils.CheckBase64Logo(addrInfo.Logo) {
-			fileName, err := s.fileStorage.UploadLogo(addrInfo.Logo, contract.Address, s.ConfigUploader)
+			fileName, err := s.fileStorage.UploadLogo(addrInfo.Logo, utils.HashString(contract.Address), s.ConfigUploader)
 			if err != nil {
 				log.Fatal("Error when upload the image: ", err)
 			} else {
@@ -1470,6 +1470,27 @@ func (s *Server) InsertContract(c echo.Context) error {
 	}
 
 	return api.OK.Build(c)
+}
+
+func (s *Server) VerifyContract(ctx context.Context) error {
+	lgr := s.logger.With(zap.String("method", "VerifyContract"))
+	lgr.Debug("Start verify contract data")
+	type verifyRequest struct {
+		SMCAddress string `json:"smc_address"`
+		Code       string `json:"code"`
+	}
+	var req verifyRequest
+
+	code, err := s.kaiClient.GetCode(ctx, req.SMCAddress)
+	if err != nil {
+		return err
+	}
+
+	if req.Code != string(code) {
+		return err
+	}
+
+	return nil
 }
 
 func (s *Server) UpdateContract(c echo.Context) error {
@@ -1507,7 +1528,7 @@ func (s *Server) UpdateContract(c echo.Context) error {
 		krcTokenInfoFromRPC.Logo = addrInfo.Logo
 
 		if utils.CheckBase64Logo(addrInfo.Logo) {
-			fileName, err := s.fileStorage.UploadLogo(addrInfo.Logo, contract.Address, s.ConfigUploader)
+			fileName, err := s.fileStorage.UploadLogo(addrInfo.Logo, utils.HashString(contract.Address), s.ConfigUploader)
 			if err != nil {
 				log.Fatal("Error when upload the image: ", err)
 			} else {
