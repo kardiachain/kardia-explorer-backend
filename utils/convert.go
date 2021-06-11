@@ -27,7 +27,10 @@ import (
 	"image"
 	"image/jpeg"
 	"image/png"
+	"io/ioutil"
+	"log"
 	"math/big"
+	"net/http"
 	"strconv"
 	"strings"
 
@@ -147,4 +150,28 @@ func HashString(name string) string {
 	h := sha1.New()
 	h.Write([]byte(name))
 	return hex.EncodeToString(h.Sum(nil))
+}
+
+func toBase64(b []byte) string {
+	return base64.StdEncoding.EncodeToString(b)
+}
+
+func ConvertUrlPngToBase64(url string) string {
+	resp, err := http.Get(url)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	defer resp.Body.Close()
+
+	bytes, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	var base64Encoding string
+	base64Encoding += "data:image/png;base64,"
+
+	base64Encoding += toBase64(bytes)
+	return base64Encoding
 }
