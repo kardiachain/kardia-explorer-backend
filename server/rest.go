@@ -1482,6 +1482,28 @@ func (s *Server) InsertContract(c echo.Context) error {
 
 	return api.OK.Build(c)
 }
+
+func (s *Server) VerifyContract(ctx context.Context) error {
+	lgr := s.logger.With(zap.String("method", "VerifyContract"))
+	lgr.Debug("Start verify contract data")
+	type verifyRequest struct {
+		SMCAddress string `json:"smc_address"`
+		Code       string `json:"code"`
+	}
+	var req verifyRequest
+
+	code, err := s.kaiClient.GetCode(ctx, req.SMCAddress)
+	if err != nil {
+		return err
+	}
+
+	if req.Code != string(code) {
+		return err
+	}
+
+	return nil
+}
+
 func (s *Server) UpdateContract(c echo.Context) error {
 	lgr := s.logger.With(zap.String("method", "UpdateContract"))
 
