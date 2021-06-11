@@ -1449,7 +1449,10 @@ func (s *Server) InsertContract(c echo.Context) error {
 		// cache new token info
 		krcTokenInfoFromRPC.Logo = addrInfo.Logo
 
-		if (strings.Contains(addrInfo.Logo, "https") || strings.Contains(addrInfo.Logo, "http")) && strings.Contains(addrInfo.Logo, "png") {
+		if (strings.Contains(addrInfo.Logo, "https") ||
+			strings.Contains(addrInfo.Logo, "http")) &&
+			strings.Contains(addrInfo.Logo, "png") &&
+			!strings.HasPrefix(addrInfo.Logo, s.ConfigUploader.PathAvatar) {
 			addrInfo.Logo = utils.ConvertUrlPngToBase64(addrInfo.Logo)
 		}
 
@@ -1539,7 +1542,10 @@ func (s *Server) UpdateContract(c echo.Context) error {
 		// cache new token info
 		krcTokenInfoFromRPC.Logo = addrInfo.Logo
 
-		if (strings.Contains(addrInfo.Logo, "https") || strings.Contains(addrInfo.Logo, "http")) && strings.Contains(addrInfo.Logo, "png") {
+		if (strings.Contains(addrInfo.Logo, "https") ||
+			strings.Contains(addrInfo.Logo, "http")) &&
+			strings.Contains(addrInfo.Logo, "png") &&
+			!strings.HasPrefix(addrInfo.Logo, s.ConfigUploader.PathAvatar) {
 			addrInfo.Logo = utils.ConvertUrlPngToBase64(addrInfo.Logo)
 		}
 
