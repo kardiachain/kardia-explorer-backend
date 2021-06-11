@@ -1449,7 +1449,7 @@ func (s *Server) InsertContract(c echo.Context) error {
 		// cache new token info
 		krcTokenInfoFromRPC.Logo = addrInfo.Logo
 
-		if strings.Contains(addrInfo.Logo, "https") && strings.Contains(addrInfo.Logo, "png") {
+		if (strings.Contains(addrInfo.Logo, "https") || strings.Contains(addrInfo.Logo, "http")) && strings.Contains(addrInfo.Logo, "png") {
 			addrInfo.Logo = utils.ConvertUrlPngToBase64(addrInfo.Logo)
 		}
 
@@ -1457,11 +1457,10 @@ func (s *Server) InsertContract(c echo.Context) error {
 
 			addressHash := contract.Address
 			if strings.HasPrefix(addressHash, "0x") {
-				address := []rune(addressHash)
-				addressHash = string(address[2:])
+				addressHash = string(addressHash[2:])
 			}
 
-			fileName, err := s.fileStorage.UploadLogo(addrInfo.Logo, utils.HashString(addressHash), s.ConfigUploader)
+			fileName, err := s.fileStorage.UploadLogo(addrInfo.Logo, addressHash, s.ConfigUploader)
 
 			if err != nil {
 				log.Fatal("Error when upload the image: ", err)
@@ -1540,17 +1539,16 @@ func (s *Server) UpdateContract(c echo.Context) error {
 		// cache new token info
 		krcTokenInfoFromRPC.Logo = addrInfo.Logo
 
-		if strings.Contains(addrInfo.Logo, "https") && strings.Contains(addrInfo.Logo, "png") {
+		if (strings.Contains(addrInfo.Logo, "https") || strings.Contains(addrInfo.Logo, "http")) && strings.Contains(addrInfo.Logo, "png") {
 			addrInfo.Logo = utils.ConvertUrlPngToBase64(addrInfo.Logo)
 		}
 
 		if utils.CheckBase64Logo(addrInfo.Logo) {
 			addressHash := contract.Address
 			if strings.HasPrefix(addressHash, "0x") {
-				address := []rune(addressHash)
-				addressHash = string(address[2:])
+				addressHash = string(addressHash[2:])
 			}
-			fileName, err := s.fileStorage.UploadLogo(addrInfo.Logo, utils.HashString(addressHash), s.ConfigUploader)
+			fileName, err := s.fileStorage.UploadLogo(addrInfo.Logo, addressHash, s.ConfigUploader)
 
 			if err != nil {
 				log.Fatal("Error when upload the image: ", err)

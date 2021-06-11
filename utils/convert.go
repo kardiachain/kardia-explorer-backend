@@ -20,9 +20,7 @@ package utils
 
 import (
 	"bytes"
-	"crypto/sha1"
 	"encoding/base64"
-	"encoding/hex"
 	"fmt"
 	"image"
 	"image/jpeg"
@@ -144,12 +142,6 @@ func EncodeImage(image image.Image, rawString string, fileName string) ([]byte, 
 	}
 
 	return nil, ""
-}
-
-func HashString(name string) string {
-	h := sha1.New()
-	h.Write([]byte(name))
-	return hex.EncodeToString(h.Sum(nil))
 }
 
 func toBase64(b []byte) string {
