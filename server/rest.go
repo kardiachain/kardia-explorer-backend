@@ -1448,8 +1448,23 @@ func (s *Server) InsertContract(c echo.Context) error {
 	if krcTokenInfoFromRPC != nil {
 		// cache new token info
 		krcTokenInfoFromRPC.Logo = addrInfo.Logo
+
+		if (strings.Contains(addrInfo.Logo, "https") ||
+			strings.Contains(addrInfo.Logo, "http")) &&
+			strings.Contains(addrInfo.Logo, "png") &&
+			!strings.HasPrefix(addrInfo.Logo, s.ConfigUploader.PathAvatar) {
+			addrInfo.Logo = utils.ConvertUrlPngToBase64(addrInfo.Logo)
+		}
+
 		if utils.CheckBase64Logo(addrInfo.Logo) {
-			fileName, err := s.fileStorage.UploadLogo(addrInfo.Logo, utils.HashString(contract.Address), s.ConfigUploader)
+
+			addressHash := contract.Address
+			if strings.HasPrefix(addressHash, "0x") {
+				addressHash = string(addressHash[2:])
+			}
+
+			fileName, err := s.fileStorage.UploadLogo(addrInfo.Logo, addressHash, s.ConfigUploader)
+
 			if err != nil {
 				log.Fatal("Error when upload the image: ", err)
 			} else {
@@ -1527,8 +1542,20 @@ func (s *Server) UpdateContract(c echo.Context) error {
 		// cache new token info
 		krcTokenInfoFromRPC.Logo = addrInfo.Logo
 
+		if (strings.Contains(addrInfo.Logo, "https") ||
+			strings.Contains(addrInfo.Logo, "http")) &&
+			strings.Contains(addrInfo.Logo, "png") &&
+			!strings.HasPrefix(addrInfo.Logo, s.ConfigUploader.PathAvatar) {
+			addrInfo.Logo = utils.ConvertUrlPngToBase64(addrInfo.Logo)
+		}
+
 		if utils.CheckBase64Logo(addrInfo.Logo) {
-			fileName, err := s.fileStorage.UploadLogo(addrInfo.Logo, utils.HashString(contract.Address), s.ConfigUploader)
+			addressHash := contract.Address
+			if strings.HasPrefix(addressHash, "0x") {
+				addressHash = string(addressHash[2:])
+			}
+			fileName, err := s.fileStorage.UploadLogo(addrInfo.Logo, addressHash, s.ConfigUploader)
+
 			if err != nil {
 				log.Fatal("Error when upload the image: ", err)
 			} else {
