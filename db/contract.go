@@ -21,16 +21,32 @@ var (
 
 type IContract interface {
 	InsertContract(ctx context.Context, contract *types.Contract, addrInfo *types.Address) error
+	UpsertContract(ctx context.Context, contract *types.Contract, addrInfo *types.Address) error
 	Contract(ctx context.Context, contractAddr string) (*types.Contract, *types.Address, error)
 	UpdateContract(ctx context.Context, contract *types.Contract, addrInfo *types.Address) error
 	UpdateKRCTotalSupply(ctx context.Context, krcTokenAddress, totalSupply string) error
 	Contracts(ctx context.Context, filter *types.ContractsFilter) ([]*types.Contract, uint64, error)
-
 	UpsertSMCABIByType(ctx context.Context, smcType, abi string) error
 	SMCABIByType(ctx context.Context, smcType string) (string, error)
 }
 
 func (m *mongoDB) InsertContract(ctx context.Context, contract *types.Contract, addrInfo *types.Address) error {
+	if contract != nil {
+		contract.CreatedAt = time.Now().Unix()
+		if _, err := m.wrapper.C(cContract).Insert(contract); err != nil {
+			return err
+		}
+	}
+	if addrInfo != nil {
+		addrInfo.UpdatedAt = time.Now().Unix()
+		if _, err := m.wrapper.C(cAddresses).Insert(addrInfo); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (m *mongoDB) UpsertContract(ctx context.Context, contract *types.Contract, addrInfo *types.Address) error {
 	if contract != nil {
 		contract.CreatedAt = time.Now().Unix()
 		if _, err := m.wrapper.C(cContract).Insert(contract); err != nil {

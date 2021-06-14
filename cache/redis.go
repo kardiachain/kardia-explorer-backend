@@ -394,11 +394,16 @@ func (c *Redis) LatestTransactions(ctx context.Context, pagination *types.Pagina
 }
 
 func (c *Redis) InsertErrorBlocks(ctx context.Context, start uint64, end uint64) error {
+	var missedBlocks []interface{}
 	for i := start + 1; i < end; i++ {
-		_, err := c.client.LPush(ctx, KeyErrorBlocks, strconv.FormatUint(i, 10)).Result()
-		if err != nil {
-			return err
-		}
+		missedBlocks = append(missedBlocks, strconv.FormatUint(i, 10))
+	}
+	if len(missedBlocks) == 0 {
+		return nil
+	}
+	_, err := c.client.LPush(ctx, KeyErrorBlocks, missedBlocks...).Result()
+	if err != nil {
+		return err
 	}
 	return nil
 }

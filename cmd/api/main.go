@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+
 	"github.com/joho/godotenv"
 	"go.uber.org/zap"
 
@@ -72,11 +73,8 @@ func main() {
 	ctx := context.Background()
 
 	if serviceCfg.IsReloadBootData {
-		//if err := srv.LoadBootData(ctx); err != nil {
-		//	logger.Panic("cannot load boot data", zap.Error(err))
-		//}
-		if err := srv.LoadBootContracts(ctx); err != nil {
-			logger.Panic("cannot load boot contracts", zap.Error(err))
+		if err := srv.LoadBootData(ctx); err != nil {
+			logger.Panic("cannot load boot data", zap.Error(err))
 		}
 	}
 

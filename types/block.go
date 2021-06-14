@@ -66,6 +66,9 @@ type Block struct {
 
 	Txs      []*Transaction `json:"txs,omitempty" bson:"-"`
 	Receipts []*Receipt     `json:"receipts,omitempty" bson:"-"`
+
+	// 0 = Unverified, 1 = Verified
+	Status int `json:"-" bson:"status"`
 }
 
 type VerifyBlockParam struct {

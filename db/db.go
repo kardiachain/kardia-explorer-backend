@@ -42,6 +42,7 @@ type Client interface {
 	IEvents
 	IHolders
 	IInternalTransaction
+	IReceipt
 	ping() error
 	dropCollection(collectionName string)
 	dropDatabase(ctx context.Context) error

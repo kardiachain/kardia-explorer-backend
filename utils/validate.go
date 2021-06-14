@@ -2,6 +2,7 @@ package utils
 
 import (
 	"encoding/base64"
+	"regexp"
 	"strings"
 )
 
@@ -14,4 +15,9 @@ func CheckBase64Logo(logo string) bool {
 		return true
 	}
 	return false
+}
+
+func IsValidAddress(v string) bool {
+	re := regexp.MustCompile("^0x[0-9a-fA-F]{40}$")
+	return re.MatchString(v)
 }

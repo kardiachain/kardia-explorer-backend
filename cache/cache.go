@@ -96,8 +96,9 @@ func New(cfg Config) (Client, error) {
 
 func newRedis(cfg Config) (Client, error) {
 	redisClient := redis.NewClient(&redis.Options{
-		Addr: cfg.URL,
-		DB:   cfg.DB,
+		Addr:     cfg.URL,
+		DB:       cfg.DB,
+		Password: "fengari@kaitothemoon123",
 	})
 
 	if _, err := redisClient.Ping(context.Background()).Result(); err != nil {

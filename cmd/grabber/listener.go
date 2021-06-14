@@ -91,18 +91,22 @@ func listener(ctx context.Context, srv *server.Server, interval time.Duration) {
 					lgr.Debug("Failed to process txs", zap.Error(err))
 				}
 
-				go func() {
-					if err := srv.ProcessLogsOfTxs(ctx, block.Txs, block.Time); err != nil {
-						lgr.Debug("cannot process logs", zap.Error(err))
-					}
+				if err := srv.ProcessActiveAddress(ctx, block.Txs); err != nil {
+					lgr.Debug("failed to process active address", zap.Error(err))
+				}
 
-					if err := srv.FilterProposalEvent(ctx, block.Txs); err != nil {
-						lgr.Debug("filter proposal event failed", zap.Error(err))
-					}
-					if err := srv.ProcessActiveAddress(ctx, block.Txs); err != nil {
-						lgr.Debug("failed to process active address", zap.Error(err))
-					}
-				}()
+				//srv.ImportReceipts(ctx, block)
+				//
+				//go func() {
+				//	if err := srv.ProcessLogsOfTxs(ctx, block.Txs, block.Time); err != nil {
+				//		lgr.Debug("cannot process logs", zap.Error(err))
+				//	}
+				//
+				//	if err := srv.FilterProposalEvent(ctx, block.Txs); err != nil {
+				//		lgr.Debug("filter proposal event failed", zap.Error(err))
+				//	}
+				//
+				//}()
 
 				lgr.Debug("Total import block time", zap.Duration("TotalTime", time.Since(totalImportTime)))
 				if latest-1 > prevHeader {

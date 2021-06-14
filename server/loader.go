@@ -17,8 +17,17 @@ import (
 	"github.com/kardiachain/kardia-explorer-backend/types"
 )
 
-func (s *infoServer) LoadBootContracts(ctx context.Context) error {
-	// read and encode ABI base64
+func (s *infoServer) LoadBootData(ctx context.Context) error {
+	// Reload cache data
+
+	if err := s.loadBootContracts(ctx); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (s *infoServer) loadBootContracts(ctx context.Context) error {
+	// Setup common contract ABI
 	krc20ABI, err := readAndEncodeABIFile("./abi/krc20.json")
 	if err != nil {
 		return err

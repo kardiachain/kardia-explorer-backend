@@ -7,6 +7,12 @@ import (
 	"github.com/kardiachain/go-kardia/types"
 )
 
+type TxsDailyStat struct {
+	DateID      string
+	Txs         int64
+	TotalAmount string
+}
+
 type Transaction struct {
 	BlockHash   string `json:"blockHash" bson:"blockHash"`
 	BlockNumber uint64 `json:"blockNumber" bson:"blockNumber"`

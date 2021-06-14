@@ -1487,25 +1487,37 @@ func (s *Server) InsertContract(c echo.Context) error {
 	return api.OK.Build(c)
 }
 
-func (s *Server) VerifyContract(ctx context.Context) error {
+func (s *Server) VerifyContract(c echo.Context) error {
 	lgr := s.logger.With(zap.String("method", "VerifyContract"))
 	lgr.Debug("Start verify contract data")
+	ctx := context.Background()
+	r := api.BuildResponse(c)
 	type verifyRequest struct {
-		SMCAddress string `json:"smc_address"`
-		Code       string `json:"code"`
+		ContractAddress string                 `json:"contractAddress"`
+		Compiler        string                 `json:"compiler"`
+		SourceCode      string                 `json:"code"`
+		Args            map[string]interface{} `json:"args"`
 	}
+
 	var req verifyRequest
 
-	code, err := s.kaiClient.GetCode(ctx, req.SMCAddress)
+	if err := c.Bind(&req); err != nil {
+		return r.Err(err)
+	}
+	fmt.Println("data", req)
+
+	if !utils.IsValidAddress(req.ContractAddress) {
+		return r.Err(errors.New("invalid contract address"))
+	}
+
+	code, err := s.kaiClient.GetCode(ctx, req.ContractAddress)
 	if err != nil {
-		return err
+		return r.Err(err)
 	}
 
-	if req.Code != string(code) {
-		return err
-	}
+	fmt.Println("SMC network code", code)
 
-	return nil
+	return r.OK(nil)
 }
 
 func (s *Server) UpdateContract(c echo.Context) error {

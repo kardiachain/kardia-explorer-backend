@@ -331,54 +331,15 @@ func (s *infoServer) ImportBlock(ctx context.Context, block *types.Block, writeT
 	s.metrics.RecordInsertBlockTime(endTime)
 	s.logger.Info("Total time for import block", zap.Duration("TimeConsumed", endTime), zap.String("Avg", s.metrics.GetInsertBlockTime()))
 
-	//startTime = time.Now()
-	//if err := s.dbClient.InsertTxs(ctx, block.Txs); err != nil {
-	//	return err
-	//}
-	//endTime = time.Since(startTime)
-	//s.metrics.RecordInsertTxsTime(endTime)
-	//s.logger.Info("Total time for import tx", zap.Duration("TimeConsumed", endTime), zap.String("Avg", s.metrics.GetInsertTxsTime()))
-
-	//// update active addresses
-	//startTime = time.Now()
-	//addrsMap := filterAddrSet(block.Txs)
-	//getBalanceTime := time.Now()
-	//addrsList := s.getAddressBalances(ctx, addrsMap)
-	//lgr.Debug("GetAddressBalance time", zap.Duration("TotalTime", time.Since(getBalanceTime)))
-	//
-	//updateAddressTime := time.Now()
-	//if err := s.dbClient.UpdateAddresses(ctx, addrsList); err != nil {
-	//	return err
-	//}
-	//lgr.Debug("UpdateAddressTime", zap.Duration("TotalTime", time.Since(updateAddressTime)))
-	//endTime = time.Since(startTime)
-	//s.metrics.RecordInsertActiveAddressTime(endTime)
-	//s.logger.Info("Total time for update addresses", zap.Duration("TimeConsumed", endTime), zap.String("Avg", s.metrics.GetInsertActiveAddressTime()))
-	//startTime = time.Now()
-	//totalAddr, totalContractAddr, err := s.dbClient.GetTotalAddresses(ctx)
-	//if err != nil {
-	//	return err
-	//}
-	//err = s.cacheClient.UpdateTotalHolders(ctx, totalAddr, totalContractAddr)
-	//if err != nil {
-	//	return err
-	//}
-	//s.logger.Info("Total time for getting active addresses", zap.Duration("TimeConsumed", time.Since(startTime)))
-	//
-	//if _, err := s.cacheClient.UpdateTotalTxs(ctx, block.NumTxs); err != nil {
-	//	return err
-	//}
 	return nil
 }
 
 func (s *infoServer) ProcessTxs(ctx context.Context, block *types.Block, writeToCache bool) error {
+	lgr := s.logger.With(zap.String("method", "ProcessTxs"))
 	startTime := time.Now()
 	// merge receipts into corresponding transactions
 	// because getBlockByHash/Height API returns 2 array contains txs and receipts separately
 	block.Txs = s.mergeAdditionalInfoToTxs(ctx, block.Txs, block.Receipts)
-	for _, tx := range block.Txs {
-		s.logger.Debug("Txs", zap.Any("Tx", tx))
-	}
 	if err := s.dbClient.InsertTxs(ctx, block.Txs); err != nil {
 		return err
 	}
@@ -393,6 +354,11 @@ func (s *infoServer) ProcessTxs(ctx context.Context, block *types.Block, writeTo
 		if err := s.cacheClient.InsertTxsOfBlock(ctx, block); err != nil {
 			return err
 		}
+	}
+
+	if err := s.dbClient.InsertReceipts(ctx, block.Receipts); err != nil {
+		lgr.Error("cannot insert receipts", zap.Error(err))
+		return err
 	}
 
 	return nil
@@ -722,7 +688,7 @@ func (s *infoServer) getAddressBalances(ctx context.Context, addrs map[string]*t
 	addressesName[cfg.StakingContractAddr] = cfg.StakingContractName
 
 	var (
-		code     common.Bytes
+		//code     common.Bytes
 		addrsMap = map[string]*types.Address{}
 	)
 	lgr.Debug("Start process address", zap.Int("TotalAddress", len(addrs)))
@@ -747,12 +713,12 @@ func (s *infoServer) getAddressBalances(ctx context.Context, addrs map[string]*t
 		}
 		balance, _ := new(big.Int).SetString(addressInfo.BalanceString, 10)
 		addressInfo.BalanceFloat, _ = new(big.Float).SetPrec(100).Quo(new(big.Float).SetInt(balance), new(big.Float).SetInt(cfg.Hydro)).Float64() //converting to KAI from HYDRO
-		if !addrs[addr].IsContract {
-			code, _ = s.kaiClient.GetCode(ctx, addr)
-			if len(code) > 0 { // is contract
-				addressInfo.IsContract = true
-			}
-		}
+		//if !addrs[addr].IsContract {
+		//	code, _ = s.kaiClient.GetCode(ctx, addr)
+		//	if len(code) > 0 { // is contract
+		//		addressInfo.IsContract = true
+		//	}
+		//}
 		if addressesName[addr] != "" {
 			addressInfo.Name = addressesName[addr]
 		}
