@@ -171,6 +171,18 @@ func (s *infoServer) TokenInfo(ctx context.Context) (*types.TokenInfo, error) {
 	return tokenInfo, nil
 }
 
+func (s *infoServer) SyncStats(ctx context.Context) error {
+	stats := s.dbClient.Stats(ctx)
+	if stats == nil {
+		// Cannot find stats
+	}
+
+	s.logger.Info("Current stats of network", zap.Uint64("UpdatedAtBlock", stats.UpdatedAtBlock),
+		zap.Uint64("TotalTransactions", stats.TotalTransactions), zap.Uint64("TotalAddresses", stats.TotalAddresses),
+		zap.Uint64("TotalContracts", stats.TotalContracts))
+	return nil
+}
+
 func (s *infoServer) GetCurrentStats(ctx context.Context) uint64 {
 	stats := s.dbClient.Stats(ctx)
 	s.logger.Info("Current stats of network", zap.Uint64("UpdatedAtBlock", stats.UpdatedAtBlock),
@@ -675,18 +687,6 @@ func (s *infoServer) getAddressBalances(ctx context.Context, addrs map[string]*t
 	if addrs == nil || len(addrs) == 0 {
 		return nil
 	}
-	vals, err := s.cacheClient.Validators(ctx)
-	if err != nil {
-		vals = &types.Validators{
-			Validators: []*types.Validator{},
-		}
-	}
-	addressesName := map[string]string{}
-	for _, v := range vals.Validators {
-		addressesName[v.SmcAddress] = v.Name
-	}
-	addressesName[cfg.StakingContractAddr] = cfg.StakingContractName
-
 	var (
 		//code     common.Bytes
 		addrsMap = map[string]*types.Address{}
@@ -719,11 +719,9 @@ func (s *infoServer) getAddressBalances(ctx context.Context, addrs map[string]*t
 		//		addressInfo.IsContract = true
 		//	}
 		//}
-		if addressesName[addr] != "" {
-			addressInfo.Name = addressesName[addr]
-		}
+
 		addrsMap[addr] = addressInfo
-		lgr.Debug("FinishedRefreshAddress", zap.Duration("TotalTime", time.Since(timePerAddress)))
+		lgr.Debug("Process time per address", zap.Duration("TotalTime", time.Since(timePerAddress)))
 	}
 	var result []*types.Address
 	for _, info := range addrsMap {
