@@ -28,10 +28,13 @@ func (m *mongoDB) createHoldersCollectionIndexes() []mongo.IndexModel {
 }
 
 func (m *mongoDB) UpdateHolders(ctx context.Context, holdersInfo []*types.TokenHolder) error {
-	holdersBulkWriter := make([]mongo.WriteModel, len(holdersInfo))
+	var holdersBulkWriter []mongo.WriteModel
 	for i := range holdersInfo {
+		if holdersInfo[i].BalanceString == "0" {
+			continue
+		}
 		txModel := mongo.NewUpdateOneModel().SetUpsert(true).SetFilter(bson.M{"holderAddress": holdersInfo[i].HolderAddress, "contractAddress": holdersInfo[i].ContractAddress}).SetUpdate(bson.M{"$set": holdersInfo[i]})
-		holdersBulkWriter[i] = txModel
+		holdersBulkWriter = append(holdersBulkWriter, txModel)
 	}
 	if len(holdersBulkWriter) > 0 {
 		if _, err := m.wrapper.C(cHolders).BulkWrite(holdersBulkWriter); err != nil {

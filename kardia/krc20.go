@@ -27,9 +27,6 @@ func (ec *Client) getKRC20TotalSupply(ctx context.Context, a *abi.ABI, krcTokenA
 		ec.lgr.Warn("getKRC20TotalSupply KardiaCall error: ", zap.Error(err))
 		return nil, err
 	}
-	if len(res) == 0 {
-		return nil, ErrEmptyList
-	}
 
 	var totalSupply *big.Int
 	// unpack result
@@ -164,7 +161,7 @@ func (ec *Client) GetKRC20TokenInfo(ctx context.Context, a *abi.ABI, krcTokenAdd
 	totalSupply, err := ec.getKRC20TotalSupply(ctx, a, krcTokenAddr)
 	if err != nil {
 		ec.lgr.Error("Cannot get KRC20 token total supply", zap.String("smcAddress", krcTokenAddr.Hex()), zap.Error(err))
-		return nil, err
+		totalSupply = new(big.Int).SetInt64(0)
 	}
 	decimals, err := ec.getKRC20TokenDecimal(ctx, a, krcTokenAddr)
 	if err != nil {
