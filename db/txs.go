@@ -13,12 +13,36 @@ import (
 	"gopkg.in/mgo.v2"
 )
 
+type ITxs interface {
+	TxsByBlockHash(ctx context.Context, blockHash string, pagination *types.Pagination) ([]*types.Transaction, uint64, error)
+	TxsByBlockHeight(ctx context.Context, blockNumber uint64, pagination *types.Pagination) ([]*types.Transaction, uint64, error)
+	TxsByAddress(ctx context.Context, address string, pagination *types.Pagination) ([]*types.Transaction, uint64, error)
+	LatestTxs(ctx context.Context, pagination *types.Pagination) ([]*types.Transaction, error)
+	TxsCount(ctx context.Context) (uint64, error)
+	TxByHash(ctx context.Context, txHash string) (*types.Transaction, error)
+	FilterTxs(ctx context.Context, filter *types.TxsFilter) ([]*types.Transaction, uint64, error)
+	InsertTxs(ctx context.Context, txs []*types.Transaction) error
+	InsertListTxByAddress(ctx context.Context, list []*types.TransactionByAddress) error
+}
+
+const (
+	cTxs = "Transactions"
+)
+
 func (m *mongoDB) TxsCount(ctx context.Context) (uint64, error) {
 	total, err := m.wrapper.C(cTxs).Count(bson.M{})
 	if err != nil {
 		return 0, err
 	}
 	return uint64(total), nil
+}
+
+func (m *mongoDB) RemoveTxsOfBlock(ctx context.Context, blockHeight uint64) error {
+	if _, err := m.wrapper.C(cTxs).RemoveAll(bson.M{"blockNumber": blockHeight}); err != nil {
+		m.logger.Warn("cannot remove txs of block", zap.Error(err), zap.Uint64("latest BlockHeight", blockHeight))
+		return err
+	}
+	return nil
 }
 
 func (m *mongoDB) TxsByBlockHash(ctx context.Context, blockHash string, pagination *types.Pagination) ([]*types.Transaction, uint64, error) {

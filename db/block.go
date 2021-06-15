@@ -13,6 +13,19 @@ import (
 	"gopkg.in/mgo.v2"
 )
 
+type IBlock interface {
+	BlockByHeight(ctx context.Context, blockHeight uint64) (*types.Block, error)
+	BlockByHash(ctx context.Context, blockHash string) (*types.Block, error)
+	IsBlockExist(ctx context.Context, blockHeight uint64) (bool, error)
+	LatestBlockHeight(ctx context.Context) (uint64, error)
+	Blocks(ctx context.Context, pagination *types.Pagination) ([]*types.Block, error)
+	InsertBlock(ctx context.Context, block *types.Block) error
+	DeleteLatestBlock(ctx context.Context) (uint64, error)
+	DeleteBlockByHeight(ctx context.Context, blockHeight uint64) error
+	BlocksByProposer(ctx context.Context, proposer string, pagination *types.Pagination) ([]*types.Block, uint64, error)
+	CountBlocksOfProposer(ctx context.Context, proposerAddress string) (int64, error)
+}
+
 func (m *mongoDB) LatestBlockHeight(ctx context.Context) (uint64, error) {
 	latestBlock, err := m.Blocks(ctx, &types.Pagination{
 		Skip:  0,
@@ -126,12 +139,18 @@ func (m *mongoDB) DeleteLatestBlock(ctx context.Context) (uint64, error) {
 }
 
 func (m *mongoDB) DeleteBlockByHeight(ctx context.Context, blockHeight uint64) error {
+	lgr := m.logger.With(zap.String("method", "DeleteBlockByHeight"))
+	lgr.Debug("Delete block ", zap.Uint64("Height", blockHeight))
 	if _, err := m.wrapper.C(cBlocks).RemoveAll(bson.M{"height": blockHeight}); err != nil {
-		m.logger.Warn("cannot remove old latest block", zap.Error(err), zap.Uint64("latest block height", blockHeight))
+		lgr.Error("cannot remove block", zap.Error(err), zap.Uint64("BlockHeight", blockHeight))
 		return err
 	}
-	if _, err := m.wrapper.C(cTxs).RemoveAll(bson.M{"blockNumber": blockHeight}); err != nil {
-		m.logger.Warn("cannot remove old latest block txs", zap.Error(err), zap.Uint64("latest block height", blockHeight))
+
+	if err := m.RemoveTxsOfBlock(ctx, blockHeight); err != nil {
+		return err
+	}
+
+	if err := m.RemoveReceiptsOfBlock(ctx, blockHeight); err != nil {
 		return err
 	}
 	return nil

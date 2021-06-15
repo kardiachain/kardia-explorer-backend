@@ -11,7 +11,7 @@ import (
 	"github.com/kardiachain/kardia-explorer-backend/types"
 )
 
-var cHolders = "Holders"
+const cHolders = "Holders"
 
 type IHolders interface {
 	createHoldersCollectionIndexes() []mongo.IndexModel

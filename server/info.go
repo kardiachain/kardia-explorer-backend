@@ -171,16 +171,8 @@ func (s *infoServer) TokenInfo(ctx context.Context) (*types.TokenInfo, error) {
 	return tokenInfo, nil
 }
 
-func (s *infoServer) SyncStats(ctx context.Context) error {
-	stats := s.dbClient.Stats(ctx)
-	if stats == nil {
-		// Cannot find stats
-	}
+func (s *infoServer) LatestBlock(ctx context.Context) uint64 {
 
-	s.logger.Info("Current stats of network", zap.Uint64("UpdatedAtBlock", stats.UpdatedAtBlock),
-		zap.Uint64("TotalTransactions", stats.TotalTransactions), zap.Uint64("TotalAddresses", stats.TotalAddresses),
-		zap.Uint64("TotalContracts", stats.TotalContracts))
-	return nil
 }
 
 func (s *infoServer) GetCurrentStats(ctx context.Context) uint64 {
@@ -349,15 +341,14 @@ func (s *infoServer) ImportBlock(ctx context.Context, block *types.Block, writeT
 func (s *infoServer) ProcessTxs(ctx context.Context, block *types.Block, writeToCache bool) error {
 	lgr := s.logger.With(zap.String("method", "ProcessTxs"))
 	startTime := time.Now()
+	defer lgr.Debug("Finished process txs", zap.Duration("TimeConsumed", time.Since(startTime)))
 	// merge receipts into corresponding transactions
 	// because getBlockByHash/Height API returns 2 array contains txs and receipts separately
 	block.Txs = s.mergeAdditionalInfoToTxs(ctx, block.Txs, block.Receipts)
 	if err := s.dbClient.InsertTxs(ctx, block.Txs); err != nil {
 		return err
 	}
-	endTime := time.Since(startTime)
-	s.metrics.RecordInsertTxsTime(endTime)
-	s.logger.Info("Total time for import tx", zap.Duration("TimeConsumed", endTime), zap.String("Avg", s.metrics.GetInsertTxsTime()))
+
 	if _, err := s.cacheClient.UpdateTotalTxs(ctx, block.NumTxs); err != nil {
 		return err
 	}
@@ -368,6 +359,18 @@ func (s *infoServer) ProcessTxs(ctx context.Context, block *types.Block, writeTo
 		}
 	}
 
+	return nil
+}
+
+//ProcessReceipts insert block's receipts into storage
+func (s *infoServer) ProcessReceipts(ctx context.Context, block *types.Block) error {
+	lgr := s.logger.With(zap.String("method", "ProcessReceipts"))
+	start := time.Now()
+	for id := range block.Receipts {
+		// Add addition information
+		block.Receipts[id].BlockHeight = block.Height
+	}
+	defer lgr.Debug("Finished process receipts", zap.Duration("TimeConsumed", time.Since(start)))
 	if err := s.dbClient.InsertReceipts(ctx, block.Receipts); err != nil {
 		lgr.Error("cannot insert receipts", zap.Error(err))
 		return err
@@ -378,22 +381,21 @@ func (s *infoServer) ProcessTxs(ctx context.Context, block *types.Block, writeTo
 
 func (s *infoServer) ProcessActiveAddress(ctx context.Context, txs []*types.Transaction) error {
 	lgr := s.logger.With(zap.String("method", "ProcessActiveAddress"))
-	// update active addresses
 	startTime := time.Now()
-	addrsMap := filterAddrSet(txs)
-	getBalanceTime := time.Now()
-	addrsList := s.getAddressBalances(ctx, addrsMap)
-	lgr.Debug("GetAddressBalance time", zap.Duration("TotalTime", time.Since(getBalanceTime)))
+	defer s.logger.Info("Total time for getting active addresses", zap.Duration("TimeConsumed", time.Since(startTime)))
 
-	updateAddressTime := time.Now()
+	addrsMap := filterAddrSet(txs)
+	contractAddresses := filterNewContractAddresses(txs)
+	if len(contractAddresses) > 0 {
+
+	}
+
+	addrsList := s.getAddressBalances(ctx, addrsMap)
+
+	lgr.Debug("GetAddressBalance time", zap.Duration("TotalTime", time.Since(startTime)))
 	if err := s.dbClient.UpdateAddresses(ctx, addrsList); err != nil {
 		return err
 	}
-	lgr.Debug("UpdateAddressTime", zap.Duration("TotalTime", time.Since(updateAddressTime)))
-	endTime := time.Since(startTime)
-	s.metrics.RecordInsertActiveAddressTime(endTime)
-	s.logger.Info("Total time for update addresses", zap.Duration("TimeConsumed", endTime), zap.String("Avg", s.metrics.GetInsertActiveAddressTime()))
-	startTime = time.Now()
 	totalAddr, totalContractAddr, err := s.dbClient.GetTotalAddresses(ctx)
 	if err != nil {
 		return err
@@ -402,7 +404,7 @@ func (s *infoServer) ProcessActiveAddress(ctx context.Context, txs []*types.Tran
 	if err != nil {
 		return err
 	}
-	s.logger.Info("Total time for getting active addresses", zap.Duration("TimeConsumed", time.Since(startTime)))
+
 	return nil
 }
 

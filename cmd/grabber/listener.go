@@ -53,9 +53,9 @@ func listener(ctx context.Context, srv *server.Server, interval time.Duration) {
 				continue
 			}
 			// delay listener for 1 block for correct responses of kardiaCall
-			if latest != 0 {
-				latest--
-			}
+			//if latest != 0 {
+			//	latest--
+			//}
 			lgr := srv.Logger.With(zap.Uint64("block", latest))
 			if latest <= prevHeader {
 				continue
@@ -81,30 +81,24 @@ func listener(ctx context.Context, srv *server.Server, interval time.Duration) {
 			// import this latest block to cache and database
 			totalImportTime := time.Now()
 			if err := srv.ImportBlock(ctx, block, true); err != nil {
-				lgr.Debug("Failed to import block", zap.Error(err))
+				lgr.Error("Failed to import block", zap.Error(err))
 				continue
 			}
 
 			if err := srv.ProcessTxs(ctx, block, true); err != nil {
-				lgr.Debug("Failed to process txs", zap.Error(err))
+				lgr.Error("Failed to process txs", zap.Error(err))
+				continue
+			}
+
+			if err := srv.ProcessReceipts(ctx, block); err != nil {
+				lgr.Error("Failed to process receipts", zap.Error(err))
+				continue
 			}
 
 			if err := srv.ProcessActiveAddress(ctx, block.Txs); err != nil {
-				lgr.Debug("failed to process active address", zap.Error(err))
+				lgr.Error("Failed to process active address", zap.Error(err))
+				continue
 			}
-
-			//srv.ImportReceipts(ctx, block)
-			//
-			//go func() {
-			//	if err := srv.ProcessLogsOfTxs(ctx, block.Txs, block.Time); err != nil {
-			//		lgr.Debug("cannot process logs", zap.Error(err))
-			//	}
-			//
-			//	if err := srv.FilterProposalEvent(ctx, block.Txs); err != nil {
-			//		lgr.Debug("filter proposal event failed", zap.Error(err))
-			//	}
-			//
-			//}()
 
 			lgr.Debug("Total import block time", zap.Duration("TotalTime", time.Since(totalImportTime)))
 			if latest-1 > prevHeader {

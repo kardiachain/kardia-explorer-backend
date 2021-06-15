@@ -14,6 +14,18 @@ import (
 	"go.uber.org/zap"
 )
 
+type IAddress interface {
+	AddressByHash(ctx context.Context, addressHash string) (*types.Address, error)
+	InsertAddress(ctx context.Context, address *types.Address) error
+	UpdateAddresses(ctx context.Context, addresses []*types.Address) error
+	GetTotalAddresses(ctx context.Context) (uint64, uint64, error)
+	GetListAddresses(ctx context.Context, sortDirection int, pagination *types.Pagination) ([]*types.Address, error)
+	Addresses(ctx context.Context) ([]*types.Address, error)
+
+	AddressByName(ctx context.Context, name string) ([]*types.Address, error)
+	ContractByName(ctx context.Context, name string) ([]*types.Contract, error)
+}
+
 func (m *mongoDB) AddressByHash(ctx context.Context, address string) (*types.Address, error) {
 	var c types.Address
 	err := m.wrapper.C(cAddresses).FindOne(bson.M{"address": address}).Decode(&c)
