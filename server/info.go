@@ -172,7 +172,7 @@ func (s *infoServer) TokenInfo(ctx context.Context) (*types.TokenInfo, error) {
 }
 
 func (s *infoServer) LatestBlock(ctx context.Context) uint64 {
-
+	return 0
 }
 
 func (s *infoServer) GetCurrentStats(ctx context.Context) uint64 {

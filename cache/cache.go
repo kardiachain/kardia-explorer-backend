@@ -33,30 +33,8 @@ type Config struct {
 
 type Client interface {
 	IStaking
-
-	InsertBlock(ctx context.Context, block *types.Block) error
-	InsertTxsOfBlock(ctx context.Context, block *types.Block) error
-	BlockByHeight(ctx context.Context, blockHeight uint64) (*types.Block, error)
-	BlockByHash(ctx context.Context, blockHash string) (*types.Block, error)
-	TxsByBlockHash(ctx context.Context, blockHash string, pagination *types.Pagination) ([]*types.Transaction, uint64, error)
-	TxsByBlockHeight(ctx context.Context, blockHeight uint64, pagination *types.Pagination) ([]*types.Transaction, uint64, error)
-
-	ListSize(ctx context.Context, key string) (int64, error)
-
-	LatestBlocks(ctx context.Context, pagination *types.Pagination) ([]*types.Block, error)
-	LatestTransactions(ctx context.Context, pagination *types.Pagination) ([]*types.Transaction, error)
-
-	InsertErrorBlocks(ctx context.Context, start uint64, end uint64) error
-	PopErrorBlockHeight(ctx context.Context) (uint64, error)
-	InsertPersistentErrorBlocks(ctx context.Context, blockHeight uint64) error
-	PersistentErrorBlockHeights(ctx context.Context) ([]uint64, error)
-	InsertUnverifiedBlocks(ctx context.Context, height uint64) error
-	PopUnverifiedBlockHeight(ctx context.Context) (uint64, error)
-
-	UpdateTotalTxs(ctx context.Context, blockTxs uint64) (uint64, error)
-	SetTotalTxs(ctx context.Context, numTxs uint64) error
-	TotalTxs(ctx context.Context) uint64
-	LatestBlockHeight(ctx context.Context) uint64
+	IBlock
+	ITxs
 
 	// GetListHolders summary
 	UpdateTotalHolders(ctx context.Context, holders uint64, contracts uint64) error
