@@ -6,7 +6,6 @@ import (
 	"errors"
 	"time"
 
-	"github.com/go-redis/redis/v8"
 	"go.uber.org/zap"
 
 	"github.com/kardiachain/kardia-explorer-backend/types"
@@ -35,6 +34,8 @@ type Client interface {
 	IStaking
 	IBlock
 	ITxs
+
+	IAddress
 
 	// GetListHolders summary
 	UpdateTotalHolders(ctx context.Context, holders uint64, contracts uint64) error

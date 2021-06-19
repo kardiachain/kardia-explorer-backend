@@ -32,10 +32,6 @@ var prevHeader uint64 = 0 // the highest persistent block in database, don't nee
 
 // listener fetch LatestBlockNumber every second and check if we stay behind latest block
 func listener(ctx context.Context, srv *server.Server, interval time.Duration) {
-	var (
-		startTime time.Time
-		endTime   time.Duration
-	)
 	// update current stats of network and get highest persistent block in database
 	prevHeader = srv.GetCurrentStats(ctx)
 	srv.Logger.Info("Start listening...", zap.Uint64("prevHeader", prevHeader))
@@ -52,22 +48,18 @@ func listener(ctx context.Context, srv *server.Server, interval time.Duration) {
 				srv.Logger.Error("failed to get latest block number", zap.Error(err))
 				continue
 			}
-			// delay listener for 1 block for correct responses of kardiaCall
-			//if latest != 0 {
-			//	latest--
-			//}
+
 			lgr := srv.Logger.With(zap.Uint64("block", latest))
 			if latest <= prevHeader {
 				continue
 			}
-			startTime = time.Now()
+
 			block, err := srv.BlockByHeight(ctx, latest)
 			if err != nil {
 				lgr.Error("Failed to get block from RPC", zap.Error(err))
 				continue
 			}
-			endTime = time.Since(startTime)
-			lgr.Info("scraping block time", zap.Duration("TimeConsumed", endTime), zap.String("Avg", srv.Metrics().GetScrapingTime()))
+
 			if block == nil {
 				lgr.Error("Block not found")
 				continue

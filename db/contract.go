@@ -20,14 +20,16 @@ var (
 )
 
 type IContract interface {
-	InsertContract(ctx context.Context, contract *types.Contract, addrInfo *types.Address) error
+	InsertContracts(ctx context.Context, contract []*types.Contract) error
 	UpsertContract(ctx context.Context, contract *types.Contract, addrInfo *types.Address) error
+	InsertContract(ctx context.Context, contract *types.Contract, addrInfo *types.Address) error
 	Contract(ctx context.Context, contractAddr string) (*types.Contract, *types.Address, error)
 	UpdateContract(ctx context.Context, contract *types.Contract, addrInfo *types.Address) error
 	UpdateKRCTotalSupply(ctx context.Context, krcTokenAddress, totalSupply string) error
 	Contracts(ctx context.Context, filter *types.ContractsFilter) ([]*types.Contract, uint64, error)
 	UpsertSMCABIByType(ctx context.Context, smcType, abi string) error
 	SMCABIByType(ctx context.Context, smcType string) (string, error)
+	CountContracts(ctx context.Context) (uint64, error)
 }
 
 func (m *mongoDB) InsertContract(ctx context.Context, contract *types.Contract, addrInfo *types.Address) error {
@@ -43,6 +45,29 @@ func (m *mongoDB) InsertContract(ctx context.Context, contract *types.Contract, 
 			return err
 		}
 	}
+	return nil
+}
+
+func (m *mongoDB) CountContracts(ctx context.Context) (uint64, error) {
+	totalContracts, err := m.wrapper.C(cContract).Count(bson.M{})
+	if err != nil {
+		return 0, err
+	}
+	return uint64(totalContracts), nil
+}
+
+func (m *mongoDB) InsertContracts(ctx context.Context, contracts []*types.Contract) error {
+	var contractsBulkWriter []mongo.WriteModel
+	for _, c := range contracts {
+		contractModel := mongo.NewInsertOneModel().SetDocument(c)
+		contractsBulkWriter = append(contractsBulkWriter, contractModel)
+	}
+	if len(contractsBulkWriter) > 0 {
+		if _, err := m.wrapper.C(cTxs).BulkWrite(contractsBulkWriter); err != nil {
+			return err
+		}
+	}
+
 	return nil
 }
 

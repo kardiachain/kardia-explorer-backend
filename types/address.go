@@ -13,13 +13,13 @@ type AddressInfo struct {
 }
 
 type Address struct {
-	Address        string  `json:"address" bson:"address"`
-	Rank           uint64  `json:"rank"`
-	IndexByBalance float64 `json:"-" bson:"indexByBalance"`
-	BalanceFloat   float64 `json:"-" bson:"balanceFloat"`        // low precise balance for sorting purposes
-	BalanceString  string  `json:"balance" bson:"balanceString"` // high precise balance for API
-	Name           string  `json:"name" bson:"name"`             // alias of an address
-	Info           string  `json:"info,omitempty" bson:"-"`      // additional info of this address
+	Address        string  `json:"address" bson:"address,omitempty"`
+	Rank           uint64  `json:"rank,omitempty"`
+	IndexByBalance float64 `json:"-" bson:"indexByBalance,omitempty"`
+	BalanceFloat   float64 `json:"-" bson:"balanceFloat,omitempty"`        // low precise balance for sorting purposes
+	BalanceString  string  `json:"balance" bson:"balanceString,omitempty"` // high precise balance for API
+	Name           string  `json:"name" bson:"name,omitempty"`             // alias of an address
+	Info           string  `json:"info,omitempty" bson:"-"`                // additional info of this address
 	Logo           string  `json:"logo" bson:"-"`
 
 	// Token
@@ -30,8 +30,8 @@ type Address struct {
 
 	// SMC
 	IsContract   bool   `json:"isContract" bson:"-"`
-	KrcTypes     string `json:"type" bson:"type"`
-	OwnerAddress string `json:"ownerAddress,omitempty" bson:"-"`
+	KrcTypes     string `json:"type" bson:"type,omitempty"`
+	OwnerAddress string `json:"ownerAddress,omitempty" bson:"ownerAddress"`
 
 	// Stats
 	TxCount         int `json:"txCount,omitempty" bson:"-"`
@@ -39,7 +39,7 @@ type Address struct {
 	InternalTxCount int `json:"internalTxCount,omitempty" bson:"-"`
 	TokenTxCount    int `json:"tokenTxCount,omitempty" bson:"-"`
 
-	UpdatedAt int64 `json:"updatedAt" bson:"updatedAt"`
+	UpdatedAt int64 `json:"updatedAt" bson:"updatedAt,omitempty"`
 }
 
 type UpdateAddress struct {

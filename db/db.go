@@ -49,6 +49,7 @@ type Client interface {
 	IBlock
 	ITxs
 	IAddress
+	IProposal
 
 	// Stats
 	UpdateStats(ctx context.Context, stats *types.Stats) error

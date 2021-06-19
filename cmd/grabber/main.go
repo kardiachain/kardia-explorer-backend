@@ -85,9 +85,7 @@ func main() {
 		CacheDB:      serviceCfg.CacheDB,
 		CacheIsFlush: serviceCfg.CacheIsFlush,
 		BlockBuffer:  serviceCfg.BufferedBlocks,
-
-		Metrics: nil,
-		Logger:  logger.With(zap.String("service", "listener")),
+		Logger:       logger.With(zap.String("service", "listener")),
 	}
 	srv, err := server.New(srvConfig)
 	if err != nil {

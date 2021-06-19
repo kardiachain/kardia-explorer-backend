@@ -15,15 +15,32 @@ import (
 )
 
 type IAddress interface {
-	AddressByHash(ctx context.Context, addressHash string) (*types.Address, error)
-	InsertAddress(ctx context.Context, address *types.Address) error
+	UpsertAddresses(ctx context.Context, addresses []*types.Address) error
 	UpdateAddresses(ctx context.Context, addresses []*types.Address) error
+	InsertAddress(ctx context.Context, address *types.Address) error
+
+	Addresses(ctx context.Context) ([]*types.Address, error)
+	AddressByHash(ctx context.Context, addressHash string) (*types.Address, error)
 	GetTotalAddresses(ctx context.Context) (uint64, uint64, error)
 	GetListAddresses(ctx context.Context, sortDirection int, pagination *types.Pagination) ([]*types.Address, error)
-	Addresses(ctx context.Context) ([]*types.Address, error)
-
 	AddressByName(ctx context.Context, name string) ([]*types.Address, error)
 	ContractByName(ctx context.Context, name string) ([]*types.Contract, error)
+}
+
+func (m *mongoDB) UpsertAddresses(ctx context.Context, addresses []*types.Address) error {
+	if addresses == nil || len(addresses) == 0 {
+		return nil
+	}
+	var updateAddressOperations []mongo.WriteModel
+	for _, addrInfo := range addresses {
+		addrInfo.Address = common.HexToAddress(addrInfo.Address).String()
+		updateAddressOperations = append(updateAddressOperations,
+			mongo.NewUpdateOneModel().SetUpsert(true).SetFilter(bson.M{"address": addrInfo.Address}).SetUpdate(bson.M{"$set": addrInfo}))
+	}
+	if _, err := m.wrapper.C(cAddresses).BulkWrite(updateAddressOperations); err != nil {
+		return err
+	}
+	return nil
 }
 
 func (m *mongoDB) AddressByHash(ctx context.Context, address string) (*types.Address, error) {
@@ -63,6 +80,14 @@ func (m *mongoDB) UpdateAddresses(ctx context.Context, addresses []*types.Addres
 		return err
 	}
 	return nil
+}
+
+func (m *mongoDB) CountAddresses(ctx context.Context) (uint64, error) {
+	totalAddr, err := m.wrapper.C(cAddresses).Count(bson.M{"isContract": false})
+	if err != nil {
+		return 0, err
+	}
+	return uint64(totalAddr), nil
 }
 
 func (m *mongoDB) GetTotalAddresses(ctx context.Context) (uint64, uint64, error) {

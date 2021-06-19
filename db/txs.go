@@ -10,7 +10,6 @@ import (
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 	"go.uber.org/zap"
-	"gopkg.in/mgo.v2"
 )
 
 type ITxs interface {
@@ -214,9 +213,7 @@ func (m *mongoDB) FilterTxs(ctx context.Context, filter *types.TxsFilter) ([]*ty
 
 // InsertTxs create bulk writer
 func (m *mongoDB) InsertTxs(ctx context.Context, txs []*types.Transaction) error {
-	var (
-		txsBulkWriter []mongo.WriteModel
-	)
+	var txsBulkWriter []mongo.WriteModel
 	for _, tx := range txs {
 		txModel := mongo.NewInsertOneModel().SetDocument(tx)
 		txsBulkWriter = append(txsBulkWriter, txModel)

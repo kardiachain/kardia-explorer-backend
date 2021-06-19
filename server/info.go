@@ -15,7 +15,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/panjf2000/ants/v2"
 	"go.uber.org/zap"
 
 	"github.com/kardiachain/go-kardia/lib/abi"
@@ -382,20 +381,20 @@ func (s *infoServer) ProcessReceipts(ctx context.Context, block *types.Block) er
 func (s *infoServer) ProcessActiveAddress(ctx context.Context, txs []*types.Transaction) error {
 	lgr := s.logger.With(zap.String("method", "ProcessActiveAddress"))
 	startTime := time.Now()
-	defer s.logger.Info("Total time for getting active addresses", zap.Duration("TimeConsumed", time.Since(startTime)))
-
-	addrsMap := filterAddrSet(txs)
-	contractAddresses := filterNewContractAddresses(txs)
-	if len(contractAddresses) > 0 {
-
-	}
-
-	addrsList := s.getAddressBalances(ctx, addrsMap)
-
-	lgr.Debug("GetAddressBalance time", zap.Duration("TotalTime", time.Since(startTime)))
-	if err := s.dbClient.UpdateAddresses(ctx, addrsList); err != nil {
+	defer lgr.Info("Finish ProcessActiveAddresses", zap.Duration("TimeConsumed", time.Since(startTime)))
+	// reduce into unique address list
+	addresses, contracts := filterUniqueAddressesAndContracts(txs)
+	if err := s.dbClient.UpsertAddresses(ctx, addresses); err != nil {
+		lgr.Error("cannot upsert address", zap.Error(err))
 		return err
 	}
+
+	if len(contracts) > 0 {
+		if err := s.dbClient.InsertContracts(ctx, contracts); err != nil {
+			return err
+		}
+	}
+
 	totalAddr, totalContractAddr, err := s.dbClient.GetTotalAddresses(ctx)
 	if err != nil {
 		return err
@@ -661,27 +660,6 @@ func (s *infoServer) VerifyBlock(ctx context.Context, blockHeight uint64, networ
 		return true, nil
 	}
 	return false, nil
-}
-
-func filterAddrSet(txs []*types.Transaction) map[string]*types.Address {
-	addrs := make(map[string]*types.Address)
-	for _, tx := range txs {
-		addrs[tx.From] = &types.Address{
-			Address:    tx.From,
-			IsContract: false,
-		}
-		addrs[tx.To] = &types.Address{
-			Address:    tx.To,
-			IsContract: false,
-		}
-		addrs[tx.ContractAddress] = &types.Address{
-			Address:    tx.ContractAddress,
-			IsContract: true,
-		}
-	}
-	delete(addrs, "")
-	delete(addrs, "0x")
-	return addrs
 }
 
 func (s *infoServer) getAddressBalances(ctx context.Context, addrs map[string]*types.Address) []*types.Address {

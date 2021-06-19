@@ -15,4 +15,15 @@ func balancer(ctx context.Context, srv *server.Server, interval time.Duration) {
 	t := time.NewTicker(interval)
 	defer t.Stop()
 
+	for {
+		select {
+		case <-t.C:
+			// Fetch address from cache and sync
+
+			// If no new address then continue
+
+			// Else than get address balance into db
+		}
+	}
+
 }
