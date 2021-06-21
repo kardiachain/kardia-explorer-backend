@@ -841,6 +841,7 @@ func (s *infoServer) storeEvents(ctx context.Context, logs []types.Log, blockTim
 					continue
 				}
 			}
+			/* Temp remove auto add new KRC20 token into db
 			// insert new KRC SMC to db
 			contract, addrInfo := convertTokenInfoToSMCInfo(tokenInfo)
 			if err = s.dbClient.UpdateContract(ctx, contract, addrInfo); err != nil {
@@ -857,6 +858,7 @@ func (s *infoServer) storeEvents(ctx context.Context, logs []types.Log, blockTim
 				s.logger.Warn("Cannot decode smc abi by type from base64", zap.Error(err))
 				continue
 			}
+			*/
 		}
 		lgr.Debug("Get ABI time", zap.Duration("TotalTime", time.Since(getABITime)))
 		decodedLog, err := s.kaiClient.UnpackLog(&logs[i], smcABI)
