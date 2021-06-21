@@ -18,8 +18,12 @@ var cInternalTxs = "InternalTransactions"
 
 type IInternalTransaction interface {
 	createInternalTxsCollectionIndexes() []mongo.IndexModel
-	RemoveInternalTxs(ctx context.Context, filter *types.InternalTxsFilter) error
+	InsertInternalTxs(ctx context.Context, internalTxs []*types.TokenTransfer) error
+	UpsertInternalTxs(ctx context.Context, internalTxs []*types.TokenTransfer) error
 	UpdateInternalTxs(ctx context.Context, internalTxs []*types.TokenTransfer) error
+
+	RemoveInternalTxs(ctx context.Context, filter *types.InternalTxsFilter) error
+
 	GetListInternalTxs(ctx context.Context, filter *types.InternalTxsFilter) ([]*types.TokenTransfer, uint64, error)
 }
 

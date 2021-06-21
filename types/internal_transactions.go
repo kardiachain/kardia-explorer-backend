@@ -2,6 +2,16 @@ package types
 
 import "time"
 
+type InternalTransaction struct {
+	From            string    `json:"from" bson:"from"`
+	To              string    `json:"to" bson:"to"`
+	TokenAddress    string    `json:"tokenAddress" bson:"tokenAddress"`
+	Value           string    `json:"value" bson:"value"`
+	TransactionHash string    `json:"transactionHash" bson:"transactionHash"`
+	BlockHeight     string    `json:"blockHeight" bson:"blockHeight"`
+	Time            time.Time `json:"time" bson:"time"`
+}
+
 // TokenTransfer represents a Transfer event emitted from an ERC20 or ERC721.
 type TokenTransfer struct {
 	TransactionHash string `json:"txHash" bson:"txHash"`
