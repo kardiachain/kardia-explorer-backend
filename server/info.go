@@ -330,44 +330,6 @@ func (s *infoServer) ImportBlock(ctx context.Context, block *types.Block, writeT
 	endTime := time.Since(startTime)
 	s.metrics.RecordInsertBlockTime(endTime)
 	s.logger.Info("Total time for import block", zap.Duration("TimeConsumed", endTime), zap.String("Avg", s.metrics.GetInsertBlockTime()))
-
-	//startTime = time.Now()
-	//if err := s.dbClient.InsertTxs(ctx, block.Txs); err != nil {
-	//	return err
-	//}
-	//endTime = time.Since(startTime)
-	//s.metrics.RecordInsertTxsTime(endTime)
-	//s.logger.Info("Total time for import tx", zap.Duration("TimeConsumed", endTime), zap.String("Avg", s.metrics.GetInsertTxsTime()))
-
-	//// update active addresses
-	//startTime = time.Now()
-	//addrsMap := filterAddrSet(block.Txs)
-	//getBalanceTime := time.Now()
-	//addrsList := s.getAddressBalances(ctx, addrsMap)
-	//lgr.Debug("GetAddressBalance time", zap.Duration("TotalTime", time.Since(getBalanceTime)))
-	//
-	//updateAddressTime := time.Now()
-	//if err := s.dbClient.UpdateAddresses(ctx, addrsList); err != nil {
-	//	return err
-	//}
-	//lgr.Debug("UpdateAddressTime", zap.Duration("TotalTime", time.Since(updateAddressTime)))
-	//endTime = time.Since(startTime)
-	//s.metrics.RecordInsertActiveAddressTime(endTime)
-	//s.logger.Info("Total time for update addresses", zap.Duration("TimeConsumed", endTime), zap.String("Avg", s.metrics.GetInsertActiveAddressTime()))
-	//startTime = time.Now()
-	//totalAddr, totalContractAddr, err := s.dbClient.GetTotalAddresses(ctx)
-	//if err != nil {
-	//	return err
-	//}
-	//err = s.cacheClient.UpdateTotalHolders(ctx, totalAddr, totalContractAddr)
-	//if err != nil {
-	//	return err
-	//}
-	//s.logger.Info("Total time for getting active addresses", zap.Duration("TimeConsumed", time.Since(startTime)))
-	//
-	//if _, err := s.cacheClient.UpdateTotalTxs(ctx, block.NumTxs); err != nil {
-	//	return err
-	//}
 	return nil
 }
 
@@ -830,6 +792,7 @@ func (s *infoServer) storeEvents(ctx context.Context, logs []types.Log, blockTim
 		getABITime := time.Now()
 		smcABI, err = s.getSMCAbi(ctx, &logs[i])
 		if err != nil {
+			lgr.Info("Cannot get SMC ABI", zap.Error(err))
 			// automatically detect if this contract is KRC or not
 			var tokenInfo *types.KRCTokenInfo
 			tokenInfo, err = s.getKRCTokenInfoFromRPC(ctx, logs[i].Address, cfg.SMCTypeKRC20)
@@ -863,11 +826,13 @@ func (s *infoServer) storeEvents(ctx context.Context, logs []types.Log, blockTim
 		lgr.Debug("Get ABI time", zap.Duration("TotalTime", time.Since(getABITime)))
 		decodedLog, err := s.kaiClient.UnpackLog(&logs[i], smcABI)
 		if err != nil {
+			lgr.Info("Cannot unpack logs", zap.Any("logs", logs[i]))
 			decodedLog = &logs[i]
 		}
 		decodedLog.Time = blockTime
 		logs[i] = *decodedLog
 		if logs[i].Topics[0] == cfg.KRCTransferTopic {
+			lgr.Info("New transfer event", zap.Any("LogsDetail", logs[i]))
 			iTx := s.getInternalTxs(ctx, decodedLog)
 			if iTx != nil {
 				internalTxsList = append(internalTxsList, iTx)

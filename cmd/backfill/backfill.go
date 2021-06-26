@@ -87,6 +87,23 @@ func backfill(ctx context.Context, srv *server.Server, interval time.Duration) {
 				_ = srv.InsertErrorBlocks(ctx, blockHeight-1, blockHeight+1)
 				continue
 			}
+			if err := srv.ProcessTxs(ctx, block, false); err != nil {
+				lgr.Debug("Failed to process txs", zap.Error(err))
+			}
+
+			go func() {
+				if err := srv.ProcessLogsOfTxs(ctx, block.Txs, block.Time); err != nil {
+					lgr.Debug("cannot process logs", zap.Error(err))
+				}
+
+				if err := srv.FilterProposalEvent(ctx, block.Txs); err != nil {
+					lgr.Debug("filter proposal event failed", zap.Error(err))
+				}
+				if err := srv.ProcessActiveAddress(ctx, block.Txs); err != nil {
+					lgr.Debug("failed to process active address", zap.Error(err))
+				}
+			}()
+
 		}
 	}
 }

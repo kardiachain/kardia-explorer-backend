@@ -1370,10 +1370,13 @@ func (s *Server) Contracts(c echo.Context) error {
 
 func (s *Server) Contract(c echo.Context) error {
 	ctx := context.Background()
-	smc, addrInfo, err := s.dbClient.Contract(ctx, c.Param("contractAddress"))
+	contractAddress := c.Param("contractAddress")
+
+	smc, addrInfo, err := s.dbClient.Contract(ctx, contractAddress)
 	if err != nil {
 		return api.Invalid.Build(c)
 	}
+
 	if smc.ABI == "" && smc.Type != "" {
 		abiStr, err := s.cacheClient.SMCAbi(ctx, cfg.SMCTypePrefix+smc.Type)
 		if err != nil {
