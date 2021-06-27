@@ -319,7 +319,7 @@ func (s *Server) Blocks(c echo.Context) error {
 			Height:          block.Height,
 			Hash:            block.Hash,
 			Time:            block.Time,
-			ProposerAddress: block.ProposerAddress,
+			ProposerAddress: common.HexToAddress(block.ProposerAddress).String(),
 			NumTxs:          block.NumTxs,
 			GasLimit:        block.GasLimit,
 			GasUsed:         block.GasUsed,
