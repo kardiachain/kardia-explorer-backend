@@ -39,22 +39,22 @@ type Validators struct {
 }
 
 type Validator struct {
-	Address               string       `json:"address" bson:"address"`
-	SmcAddress            string       `json:"smcAddress" bson:"smcAddress"`
-	Status                uint8        `json:"status" bson:"status"`
-	Role                  int          `json:"role" bson:"role"`
-	Jailed                bool         `json:"jailed" bson:"jailed"`
-	Name                  string       `json:"name,omitempty" bson:"name"`
-	VotingPowerPercentage string       `json:"votingPowerPercentage" bson:"votingPowerPercentage"`
-	StakedAmount          string       `json:"stakedAmount" bson:"stakedAmount"`
-	AccumulatedCommission string       `json:"accumulatedCommission" bson:"accumulatedCommission"`
-	UpdateTime            uint64       `json:"updateTime" bson:"updateTime"`
-	CommissionRate        string       `json:"commissionRate" bson:"commissionRate"`
-	TotalDelegators       int          `json:"totalDelegators" bson:"totalDelegators"`
-	MaxRate               string       `json:"maxRate" bson:"maxRate"`
-	MaxChangeRate         string       `json:"maxChangeRate" bson:"maxChangeRate"`
-	SigningInfo           *SigningInfo `json:"signingInfo" bson:"signingInfo"`
-	Delegators            []*Delegator `json:"delegators,omitempty" bson:"delegators"`
+	Address               string       `json:"address" bson:"address,omitempty"`
+	SmcAddress            string       `json:"smcAddress" bson:"smcAddress,omitempty"`
+	Status                uint8        `json:"status" bson:"status,omitempty"`
+	Role                  int          `json:"role" bson:"role,omitempty"`
+	Jailed                bool         `json:"jailed" bson:"jailed,omitempty"`
+	Name                  string       `json:"name,omitempty" bson:"name,omitempty"`
+	VotingPowerPercentage string       `json:"votingPowerPercentage" bson:"votingPowerPercentage,omitempty"`
+	StakedAmount          string       `json:"stakedAmount" bson:"stakedAmount,omitempty"`
+	AccumulatedCommission string       `json:"accumulatedCommission" bson:"accumulatedCommission,omitempty"`
+	UpdateTime            uint64       `json:"updateTime" bson:"updateTime,omitempty"`
+	CommissionRate        string       `json:"commissionRate" bson:"commissionRate,omitempty"`
+	TotalDelegators       int          `json:"totalDelegators" bson:"totalDelegators,omitempty"`
+	MaxRate               string       `json:"maxRate" bson:"maxRate,omitempty"`
+	MaxChangeRate         string       `json:"maxChangeRate" bson:"maxChangeRate,omitempty"`
+	SigningInfo           *SigningInfo `json:"signingInfo" bson:"signingInfo,omitempty"`
+	Delegators            []*Delegator `json:"delegators,omitempty" bson:"delegators,omitempty"`
 }
 
 type RPCValidator struct {
@@ -85,10 +85,10 @@ type RPCDelegator struct {
 }
 
 type Delegator struct {
-	ValidatorSMCAddress string `json:"validatorSMCAddress" bson:"validatorSMCAddress"`
-	Address             string `json:"address" bson:"address"`
-	StakedAmount        string `json:"stakedAmount" bson:"stakedAmount"`
-	Reward              string `json:"reward" bson:"reward"`
+	ValidatorSMCAddress string `json:"validatorSMCAddress" bson:"validatorSMCAddress,omitempty"`
+	Address             string `json:"address" bson:"address,omitempty"`
+	StakedAmount        string `json:"stakedAmount" bson:"stakedAmount,omitempty"`
+	Reward              string `json:"reward" bson:"reward,omitempty"`
 }
 
 type SlashEvents struct {

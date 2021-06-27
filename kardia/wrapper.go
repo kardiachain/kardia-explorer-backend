@@ -353,6 +353,26 @@ func (w *Wrapper) DelegatorsWithWorker(ctx context.Context, validatorSMC string)
 	return delegators, nil
 }
 
+func (w *Wrapper) DelegatorWithReward(ctx context.Context, validatorSMCAddress string, delegatorAddress string) (*types.Delegator, error) {
+	//reward, err := w.pickTrusted().DelegationRewards(ctx, validatorSMCAddress, delegatorAddress)
+	//if err != nil {
+	//	return nil, err
+	//}
+
+	stakedAmount, err := w.pickTrusted().DelegatorStakedAmount(ctx, validatorSMCAddress, delegatorAddress)
+	if err != nil {
+		return nil, err
+	}
+	d := &types.Delegator{
+		Address:             delegatorAddress,
+		StakedAmount:        stakedAmount.String(),
+		ValidatorSMCAddress: validatorSMCAddress,
+		//		Reward:              reward.String(),
+	}
+
+	return d, nil
+}
+
 func (w *Wrapper) Delegator(ctx context.Context, validatorSMCAddress string, delegatorAddress string) (*types.Delegator, error) {
 	reward, err := w.pickTrusted().DelegationRewards(ctx, validatorSMCAddress, delegatorAddress)
 	if err != nil {
@@ -375,11 +395,11 @@ func (w *Wrapper) Delegator(ctx context.Context, validatorSMCAddress string, del
 
 func (w *Wrapper) DelegatorWithNode(ctx context.Context, node kardia.Node, validatorSMCAddress string, delegatorAddress string) (*types.Delegator, error) {
 	lgr := w.logger.With(zap.String("method", "DelegatorWithNode"))
-	reward, err := node.DelegationRewards(ctx, validatorSMCAddress, delegatorAddress)
-	if err != nil {
-		lgr.Error("cannot get delegation rewards", zap.Error(err), zap.Any("node", node.Url()))
-		return nil, err
-	}
+	//reward, err := node.DelegationRewards(ctx, validatorSMCAddress, delegatorAddress)
+	//if err != nil {
+	//	lgr.Error("cannot get delegation rewards", zap.Error(err), zap.Any("node", node.Url()))
+	//	return nil, err
+	//}
 
 	stakedAmount, err := node.DelegatorStakedAmount(ctx, validatorSMCAddress, delegatorAddress)
 	if err != nil {
@@ -390,7 +410,7 @@ func (w *Wrapper) DelegatorWithNode(ctx context.Context, node kardia.Node, valid
 		Address:             delegatorAddress,
 		ValidatorSMCAddress: validatorSMCAddress,
 		StakedAmount:        stakedAmount.String(),
-		Reward:              reward.String(),
+		//Reward:              reward.String(),
 	}
 
 	return d, nil
