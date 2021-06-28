@@ -957,7 +957,9 @@ func (s *infoServer) getSMCAbi(ctx context.Context, log *types.Log) (*abi.ABI, e
 			s.logger.Debug("Cannot get smc info from db", zap.Error(err), zap.String("smcAddr", log.Address))
 			return nil, err
 		}
-		if smc.Type != "" {
+		if smc.ABI != "" {
+			smcABIStr = smc.ABI
+		} else if smc.Type != "" {
 			err = s.cacheClient.UpdateSMCAbi(ctx, log.Address, cfg.SMCTypePrefix+smc.Type)
 			if err != nil {
 				s.logger.Warn("Cannot store smc abi to cache", zap.Error(err))
@@ -982,8 +984,6 @@ func (s *infoServer) getSMCAbi(ctx context.Context, log *types.Log) (*abi.ABI, e
 					return nil, err
 				}
 			}
-		} else if smc.ABI != "" {
-			smcABIStr = smc.ABI
 		}
 	}
 	return s.decodeSMCABIFromBase64(ctx, smcABIStr, log.Address)
