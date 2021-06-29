@@ -15,6 +15,7 @@ import (
 	"strings"
 	"time"
 
+	kClient "github.com/kardiachain/go-kaiclient/kardia"
 	"github.com/labstack/echo"
 	"go.uber.org/zap"
 
@@ -1414,6 +1415,19 @@ func (s *Server) Contract(c echo.Context) error {
 	err = json.Unmarshal(addrInfoJSON, &result)
 	if err != nil {
 		return api.Invalid.Build(c)
+	}
+
+	if smc.Type == cfg.SMCTypeKRC20 {
+		// Get totalSupply from network
+		abi, err := kClient.KRC20ABI()
+		if err == nil {
+			krcInfo, err := s.kaiClient.GetKRC20TokenInfo(ctx, abi, common.HexToAddress(smc.Address))
+			if err != nil {
+				return api.Invalid.Build(c)
+			}
+			result.TotalSupply = krcInfo.TotalSupply
+		}
+
 	}
 	return api.OK.SetData(result).Build(c)
 }
