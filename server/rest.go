@@ -1475,6 +1475,7 @@ func (s *Server) InsertContract(c echo.Context) error {
 			}
 		}
 		_ = s.cacheClient.UpdateKRCTokenInfo(ctx, krcTokenInfoFromRPC)
+		_ = s.cacheClient.UpdateSMCAbi(ctx, contract.Address, contract.ABI)
 
 		addrInfo.TokenName = krcTokenInfoFromRPC.TokenName
 		addrInfo.TokenSymbol = krcTokenInfoFromRPC.TokenSymbol
@@ -1555,6 +1556,7 @@ func (s *Server) UpdateContract(c echo.Context) error {
 		}
 
 		_ = s.cacheClient.UpdateKRCTokenInfo(ctx, krcTokenInfoFromRPC)
+		_ = s.cacheClient.UpdateSMCAbi(ctx, contract.Address, contract.ABI)
 
 		addrInfo.TokenName = krcTokenInfoFromRPC.TokenName
 		addrInfo.TokenSymbol = krcTokenInfoFromRPC.TokenSymbol
