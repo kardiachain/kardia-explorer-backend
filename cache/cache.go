@@ -33,6 +33,7 @@ type Config struct {
 
 type Client interface {
 	IStaking
+	IReceipts
 
 	InsertBlock(ctx context.Context, block *types.Block) error
 	InsertTxsOfBlock(ctx context.Context, block *types.Block) error

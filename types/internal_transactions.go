@@ -4,6 +4,7 @@ import "time"
 
 // TokenTransfer represents a Transfer event emitted from an ERC20 or ERC721.
 type TokenTransfer struct {
+	TransferID      string `json:"transferID" json:"transferID"`
 	TransactionHash string `json:"txHash" bson:"txHash"`
 	BlockHeight     uint64 `json:"blockHeight" bson:"blockHeight"`
 	Contract        string `json:"contractAddress" bson:"contractAddress"`
