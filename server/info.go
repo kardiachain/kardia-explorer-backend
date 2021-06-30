@@ -666,6 +666,27 @@ func filterAddrSet(txs []*types.Transaction) map[string]*types.Address {
 	return addrs
 }
 
+func filterContracts(txs []*types.Transaction) map[string]*types.Address {
+	addrs := make(map[string]*types.Address)
+	for _, tx := range txs {
+		addrs[tx.From] = &types.Address{
+			Address:    tx.From,
+			IsContract: false,
+		}
+		addrs[tx.To] = &types.Address{
+			Address:    tx.To,
+			IsContract: false,
+		}
+		addrs[tx.ContractAddress] = &types.Address{
+			Address:    tx.ContractAddress,
+			IsContract: true,
+		}
+	}
+	delete(addrs, "")
+	delete(addrs, "0x")
+	return addrs
+}
+
 func (s *infoServer) getAddressBalances(ctx context.Context, addrs map[string]*types.Address) []*types.Address {
 	lgr := s.logger.With(zap.String("method", "getAddressBalance"))
 	if addrs == nil || len(addrs) == 0 {
