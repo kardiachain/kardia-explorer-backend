@@ -362,6 +362,7 @@ func (s *infoServer) ProcessTxs(ctx context.Context, block *types.Block, writeTo
 		receiptHashes = append(receiptHashes, r.TransactionHash)
 	}
 	if len(receiptHashes) > 0 {
+		lgr.Debug("Push receipts", zap.Any("Receipts", receiptHashes))
 		if err := s.cacheClient.PushReceipts(ctx, receiptHashes); err != nil {
 			lgr.Error("cannot push receipts", zap.Error(err))
 			return err
