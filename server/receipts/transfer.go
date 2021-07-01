@@ -12,11 +12,13 @@ import (
 )
 
 func (s *Server) processTransferLog(ctx context.Context, l *kClient.Log) error {
+	lgr := s.logger
 	contract, _, err := s.db.Contract(ctx, l.Address)
 	if err != nil {
+		lgr.Error("cannot get contract from db", zap.Error(err))
 		return nil
 	}
-
+	lgr.Info("process transfer logs")
 	switch contract.Type {
 	case cfg.SMCTypeKRC20:
 		return s.onKRC20Transfer(ctx, contract, l)
@@ -29,6 +31,7 @@ func (s *Server) processTransferLog(ctx context.Context, l *kClient.Log) error {
 
 func (s *Server) onUndetectedContractTransfer(ctx context.Context, c *types.Contract, l *kClient.Log) error {
 	lgr := s.logger
+	lgr.Debug("handle undetected token transfer")
 	// Try with KRC721 first
 	var (
 		unpackedLog *kClient.Log
@@ -39,40 +42,37 @@ func (s *Server) onUndetectedContractTransfer(ctx context.Context, c *types.Cont
 		// Try get basic information about this token and update into storage
 		token, err := kClient.NewToken(s.node, c.Address)
 		if err != nil {
-			return err
+			lgr.Error("cannot create token instance", zap.Error(err))
 		}
 
-		krc20Info, err := token.KRC20Info(ctx)
-		if err != nil {
-			return err
-		}
-		if krc20Info.Name != "" {
-			c.Name = krc20Info.Name
-		}
+		krc721Info, err := token.KRC721Info(ctx)
+		if err == nil {
+			lgr.Error("cannot get KRC721 info", zap.Error(err))
+			if krc721Info.Name != "" {
+				c.Name = krc721Info.Name
+			}
 
-		if krc20Info.Symbol != "" {
-			c.Name = krc20Info.Name
-		}
+			if krc721Info.Symbol != "" {
+				c.Symbol = krc721Info.Symbol
+			}
 
-		if krc20Info.Name != "" {
-			c.Name = krc20Info.Name
-		}
-
-		if krc20Info.Name != "" {
-			c.Name = krc20Info.Name
+			if krc721Info.TotalSupply != nil {
+				c.TotalSupply = krc721Info.TotalSupply.String()
+			}
 		}
 
 		c.Type = cfg.SMCTypeKRC721
 		// Update into db
 		if err := s.db.UpdateContract(ctx, c, nil); err != nil {
+			lgr.Error("cannot update contract", zap.Error(err))
 			return err
 		}
 		// Insert new transfer and holder
-		if err := s.insertTokenTransfer(ctx, unpackedLog); err != nil {
+		if err := s.insertKRC721Transfer(ctx, unpackedLog); err != nil {
 			return err
 		}
 
-		if err := s.upsertTokenHolder(ctx, unpackedLog); err != nil {
+		if err := s.upsertKRC721Holder(ctx, unpackedLog); err != nil {
 			return err
 		}
 
@@ -85,37 +85,52 @@ func (s *Server) onUndetectedContractTransfer(ctx context.Context, c *types.Cont
 		// Try get basic information about this token and update into storage
 		token, err := kClient.NewToken(s.node, c.Address)
 		if err != nil {
-			return err
+			lgr.Error("cannot create token instance", zap.Error(err))
 		}
 
-		krc721Info, err := token.KRC721Info(ctx)
-		if err != nil {
-			return err
+		krc20Info, err := token.KRC20Info(ctx)
+		if err == nil {
+			if krc20Info.Name != "" {
+				c.Name = krc20Info.Name
+			}
+
+			if krc20Info.Symbol != "" {
+				c.Symbol = krc20Info.Symbol
+			}
+
+			if krc20Info.Decimals != 0 {
+				c.Decimals = krc20Info.Decimals
+			}
+
+			if krc20Info.TotalSupply != nil {
+				c.TotalSupply = krc20Info.TotalSupply.String()
+			}
 		}
-		c.Name = krc721Info.Name
-		c.Type = cfg.SMCTypeKRC721
+
+		c.Type = cfg.SMCTypeKRC20
 		// Update into db
 		if err := s.db.UpdateContract(ctx, c, nil); err != nil {
+			lgr.Error("cannot update contract", zap.Error(err))
 			return err
 		}
 
 		// Insert new transfer and holder
-		if err := s.insertTokenTransfer(ctx, unpackedLog); err != nil {
+		if err := s.insertKRC20Transfer(ctx, unpackedLog); err != nil {
 			return err
 		}
 
-		if err := s.upsertTokenHolder(ctx, unpackedLog); err != nil {
+		if err := s.upsertKRC20Holder(ctx, unpackedLog); err != nil {
 			return err
 		}
 
 		lgr.Info("Contract is KRC20", zap.String("Address", c.Address))
 		return nil
 	}
-
 	return nil
 }
 
 func (s *Server) onKRC20Transfer(ctx context.Context, c *types.Contract, l *kClient.Log) error {
+	lgr := s.logger
 	var krcABI *abi.ABI
 	krcABI, err := kClient.KRC20ABI()
 	if err != nil {
@@ -123,20 +138,23 @@ func (s *Server) onKRC20Transfer(ctx context.Context, c *types.Contract, l *kCli
 	}
 	if c.ABI != "" {
 		// Decode and use contract ABI instead
+
 	}
 
 	unpackedLog, err := kClient.UnpackLog(l, krcABI)
 	if err != nil {
 		return err
 	}
-	s.logger.Info("UnpackLog", zap.Any("UnpackedLog", unpackedLog))
+	lgr.Info("UnpackLog", zap.Any("UnpackedLog", unpackedLog))
 
 	// Insert new transfer and holder
-	if err := s.insertTokenTransfer(ctx, unpackedLog); err != nil {
+	if err := s.insertKRC20Transfer(ctx, unpackedLog); err != nil {
+		lgr.Error("cannot insert token transfer", zap.Error(err))
 		return err
 	}
 
-	if err := s.upsertTokenHolder(ctx, unpackedLog); err != nil {
+	if err := s.upsertKRC20Holder(ctx, unpackedLog); err != nil {
+		lgr.Error("cannot upsert token holder", zap.Error(err))
 		return err
 	}
 
@@ -144,8 +162,9 @@ func (s *Server) onKRC20Transfer(ctx context.Context, c *types.Contract, l *kCli
 }
 
 func (s *Server) onKRC721Transfer(ctx context.Context, c *types.Contract, l *kClient.Log) error {
+	lgr := s.logger
 	var krcABI *abi.ABI
-	krcABI, err := kClient.KRC20ABI()
+	krcABI, err := kClient.KRC721ABI()
 	if err != nil {
 		return err
 	}
@@ -157,13 +176,15 @@ func (s *Server) onKRC721Transfer(ctx context.Context, c *types.Contract, l *kCl
 	if err != nil {
 		return err
 	}
-	s.logger.Info("UnpackLog", zap.Any("UnpackedLog", unpackedLog))
+	lgr.Info("UnpackLog", zap.Any("UnpackedLog", unpackedLog))
 	// Insert new transfer and holder
-	if err := s.insertTokenTransfer(ctx, unpackedLog); err != nil {
+	if err := s.insertKRC721Transfer(ctx, unpackedLog); err != nil {
+		lgr.Error("cannot insert token transfer", zap.Error(err))
 		return err
 	}
 
-	if err := s.upsertTokenHolder(ctx, unpackedLog); err != nil {
+	if err := s.upsertKRC721Holder(ctx, unpackedLog); err != nil {
+		lgr.Error("cannot insert token holder", zap.Error(err))
 		return err
 	}
 

@@ -13,7 +13,7 @@ type Contract struct {
 	// TokenInfo
 	Symbol      string `json:"symbol" bson:"symbol,omitempty"`
 	TotalSupply string `json:"totalSupply" bson:"totalSupply,omitempty"`
-	Decimals    int64  `json:"decimals" bson:"decimals,omitempty"`
+	Decimals    uint8  `json:"decimals" bson:"decimals,omitempty"`
 	Logo        string `json:"logo" bson:"logo"`
 
 	// Addition information

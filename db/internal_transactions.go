@@ -39,7 +39,7 @@ func (m *mongoDB) createInternalTxsCollectionIndexes() []mongo.IndexModel {
 func (m *mongoDB) InsertInternalTxs(ctx context.Context, internalTx *types.TokenTransfer) error {
 	// Create uniqueID by combine txHash-Contract-LogIndex
 	// TransferID is unique by index
-	internalTx.TransferID = fmt.Sprintf("%s-%s-%s", internalTx.TransactionHash, internalTx.Contract, internalTx.LogIndex)
+	internalTx.TransferID = fmt.Sprintf("%s-%s-%d", internalTx.TransactionHash, internalTx.Contract, internalTx.LogIndex)
 	if _, err := m.wrapper.C(cInternalTxs).Insert(internalTx); err != nil {
 		return err
 	}

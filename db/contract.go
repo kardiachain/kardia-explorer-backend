@@ -5,6 +5,7 @@ import (
 	"context"
 	"time"
 
+	"github.com/kardiachain/kardia-explorer-backend/cfg"
 	"go.mongodb.org/mongo-driver/mongo/options"
 
 	"go.mongodb.org/mongo-driver/bson"
@@ -101,7 +102,7 @@ func (m *mongoDB) Contract(ctx context.Context, contractAddr string) (*types.Con
 	if err != nil {
 		return nil, nil, err
 	}
-	if contract.ABI == "" && contract.Type != "" {
+	if contract.ABI == "" && contract.Type != "" && contract.Type != cfg.SMCTypeNormal {
 		var smcABI *types.ContractABI
 		err = m.wrapper.C(cABI).FindOne(bson.M{"type": contract.Type}).Decode(&smcABI)
 		if err != nil {

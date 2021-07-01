@@ -52,6 +52,12 @@ func BalanceToFloat(balance string) float64 {
 	return balanceF
 }
 
+func BalanceToFloatWithDecimals(balance *big.Int, decimals int64) float64 {
+	tenPoweredByDecimal := new(big.Int).Exp(big.NewInt(10), big.NewInt(decimals), nil)
+	floatFromBalance, _ := new(big.Float).SetPrec(100).Quo(new(big.Float).SetInt(balance), new(big.Float).SetInt(tenPoweredByDecimal)).Float64()
+	return floatFromBalance
+}
+
 func CalculateVotingPower(raw string, total *big.Int) (string, error) {
 	var (
 		tenPoweredBy5 = new(big.Int).Exp(big.NewInt(10), big.NewInt(5), nil)

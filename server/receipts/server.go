@@ -75,6 +75,7 @@ func (s *Server) HandleReceipts(ctx context.Context, interval time.Duration) {
 					// todo: Implement notify
 					continue
 				}
+				continue
 			}
 
 			// If failed
@@ -96,8 +97,10 @@ func (s *Server) HandleReceipts(ctx context.Context, interval time.Duration) {
 }
 
 func (s *Server) processReceipt(ctx context.Context, r *kClient.Receipt) error {
+	lgr := s.logger
 	for _, l := range r.Logs {
 		// Process if transfer event
+		lgr.Debug("process log", zap.Any("log", l))
 		if l.Topics[0] == cfg.KRCTransferTopic {
 			s.processTransferLog(ctx, l)
 		}
