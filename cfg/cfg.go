@@ -54,6 +54,7 @@ type ExplorerConfig struct {
 	CacheDB          int
 	CacheFile        string
 	CacheIsFlush     bool
+	CachePassword    string
 	CacheExpiredTime time.Duration
 
 	KardiaProtocol     string
@@ -218,8 +219,9 @@ func New() (ExplorerConfig, error) {
 		CoinMarketAPIKey:      os.Getenv("COIN_MARKET_API_KEY"),
 		CacheEngine:           os.Getenv("CACHE_ENGINE"),
 		CacheURL:              os.Getenv("CACHE_URI"),
-		CacheDB:               cacheDB,
+		CachePassword:         os.Getenv("CACHE_PASSWORD"),
 		CacheFile:             os.Getenv("CACHE_FILE"),
+		CacheDB:               cacheDB,
 		CacheExpiredTime:      time.Duration(cacheExpiredTime) * time.Hour,
 
 		CacheIsFlush: cacheIsFlush,

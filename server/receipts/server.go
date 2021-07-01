@@ -21,11 +21,31 @@ type Server struct {
 	logger *zap.Logger
 }
 
+func (s *Server) SetLogger(logger *zap.Logger) *Server {
+	s.logger = logger
+	return s
+}
+
+func (s *Server) SetStorage(db db.Client) *Server {
+	s.db = db
+	return s
+}
+
+func (s *Server) SetCache(cache cache.Client) *Server {
+	s.cache = cache
+	return s
+}
+
+func (s *Server) SetNode(node kClient.Node) *Server {
+	s.node = node
+	return s
+}
+
 var ErrRedisNil = errors.New("redis: nil")
 
-func (s *Server) ProcessReceipts(ctx context.Context, interval time.Duration) {
+func (s *Server) HandleReceipts(ctx context.Context, interval time.Duration) {
 	// Read receipt from cache and start processing flow
-	lgr := s.logger.With(zap.String("Task", "ProcessReceipts"))
+	lgr := s.logger.With(zap.String("task", "handle_receipts"))
 	lgr.Info("Run process receipts flow...")
 	t := time.NewTicker(interval)
 	defer t.Stop()
@@ -39,6 +59,11 @@ func (s *Server) ProcessReceipts(ctx context.Context, interval time.Duration) {
 					continue
 				}
 			}
+
+			if receiptHash == "" {
+				continue
+			}
+
 			lgr.Info("Processing", zap.String("ReceiptHash", receiptHash))
 			// Get receipt from network
 			r, err := s.node.GetTransactionReceipt(ctx, receiptHash)

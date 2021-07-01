@@ -334,6 +334,7 @@ func (s *infoServer) ImportBlock(ctx context.Context, block *types.Block, writeT
 }
 
 func (s *infoServer) ProcessTxs(ctx context.Context, block *types.Block, writeToCache bool) error {
+	lgr := s.logger
 	startTime := time.Now()
 	// merge receipts into corresponding transactions
 	// because getBlockByHash/Height API returns 2 array contains txs and receipts separately
@@ -353,6 +354,16 @@ func (s *infoServer) ProcessTxs(ctx context.Context, block *types.Block, writeTo
 
 	if writeToCache {
 		if err := s.cacheClient.InsertTxsOfBlock(ctx, block); err != nil {
+			return err
+		}
+	}
+	var receiptHashes []string
+	for _, r := range block.Receipts {
+		receiptHashes = append(receiptHashes, r.TransactionHash)
+	}
+	if len(receiptHashes) > 0 {
+		if err := s.cacheClient.PushReceipts(ctx, receiptHashes); err != nil {
+			lgr.Error("cannot push receipts", zap.Error(err))
 			return err
 		}
 	}

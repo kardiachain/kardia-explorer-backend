@@ -19,9 +19,10 @@ const (
 )
 
 type Config struct {
-	Adapter Adapter
-	URL     string
-	DB      int
+	Adapter  Adapter
+	URL      string
+	DB       int
+	Password string
 
 	IsFlush bool
 
