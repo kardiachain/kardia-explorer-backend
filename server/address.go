@@ -46,6 +46,7 @@ func (s *infoServer) filterContracts(ctx context.Context, txs []*types.Transacti
 	lgr := s.logger
 	for _, tx := range txs {
 		if tx.ContractAddress != "" {
+
 			c := &types.Contract{
 				Address:      tx.ContractAddress,
 				Bytecode:     tx.InputData,
@@ -55,8 +56,9 @@ func (s *infoServer) filterContracts(ctx context.Context, txs []*types.Transacti
 				Type:         cfg.SMCTypeNormal, // Set normal by default
 				IsVerified:   false,
 			}
+			lgr.Info("Detect new contract", zap.String("ContractAddress", c.Address), zap.String("TxHash", c.TxHash))
 			if err := s.dbClient.InsertContract(ctx, c, nil); err != nil {
-				lgr.Error("cannot insert new contract", zap.Error(err), zap.String("ContractAddress", c.Address), zap.String("TxHash", c.TxHash))
+				lgr.Error("cannot insert new contract", zap.Error(err))
 			}
 		}
 	}
