@@ -19,42 +19,25 @@ func (s *Server) processTransferLog(ctx context.Context, l *kClient.Log) error {
 		lgr.Info("Try get token info from network")
 		// todo: Maybe insert new contract here since it may create in SMC
 		// Try to get basic information about its
-		token, err := kClient.NewToken(s.node, l.Address)
-		if err != nil {
-			lgr.Error("cannot create token object", zap.Error(err))
-			return nil
-		}
-
-		newKRC20Info, err := token.KRC20Info(ctx)
-		if err != nil {
-			lgr.Error("cannot get KRC20 info", zap.Error(err))
-			return nil
-		}
 		// Fetch tx info for fill into contract
 		tx, err := s.node.GetTransaction(ctx, l.TxHash)
 		if err != nil {
 			lgr.Error("cannot get tx", zap.Error(err))
 			return nil
 		}
-		newKRC20 := &types.Contract{
-			Name:         newKRC20Info.Name,
+		newToken := &types.Contract{
 			Address:      l.Address,
 			OwnerAddress: tx.From,
 			TxHash:       tx.Hash,
-			Type:         cfg.SMCTypeKRC20,
-			Symbol:       newKRC20Info.Symbol,
-			TotalSupply:  newKRC20Info.TotalSupply.String(),
-			Decimals:     newKRC20Info.Decimals,
-			Logo:         cfg.DefaultKRCTokenLogo,
-			IsVerified:   false,
+			Type:         cfg.SMCTypeNormal,
 			CreatedAt:    tx.Time.Unix(),
 			UpdatedAt:    tx.Time.Unix(),
 		}
-		if err := s.db.InsertContract(ctx, newKRC20, nil); err != nil {
+		if err := s.db.InsertContract(ctx, newToken, nil); err != nil {
 			lgr.Error("cannot insert contract", zap.Error(err))
 			return nil
 		}
-		contract = newKRC20
+		contract = newToken
 	}
 	lgr.Info("process transfer logs")
 	switch contract.Type {
