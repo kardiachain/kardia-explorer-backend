@@ -1345,20 +1345,16 @@ func (s *Server) Contracts(c echo.Context) error {
 	finalResult := make([]*SimpleKRCTokenInfo, len(result))
 	for i := range result {
 		finalResult[i] = &SimpleKRCTokenInfo{
-			Name:       result[i].Name,
-			Address:    result[i].Address,
-			Info:       result[i].Info,
-			Type:       result[i].Type,
-			Logo:       result[i].Logo,
-			IsVerified: result[i].IsVerified,
+			Name:        result[i].Name,
+			Address:     result[i].Address,
+			Info:        result[i].Info,
+			Type:        result[i].Type,
+			Logo:        result[i].Logo,
+			IsVerified:  result[i].IsVerified,
+			TotalSupply: result[i].TotalSupply,
+			TokenSymbol: result[i].Symbol,
+			Decimal:     int64(result[i].Decimals),
 		}
-		tokenInfo, err := s.getKRCTokenInfo(ctx, result[i].Address)
-		if err != nil {
-			continue
-		}
-		finalResult[i].TokenSymbol = tokenInfo.TokenSymbol
-		finalResult[i].TotalSupply = tokenInfo.TotalSupply
-		finalResult[i].Decimal = tokenInfo.Decimals
 	}
 	return api.OK.SetData(PagingResponse{
 		Page:  page,
