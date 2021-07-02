@@ -1854,6 +1854,51 @@ func (s *Server) getAddressInfo(ctx context.Context, address string) (*types.Add
 	return addrInfo, nil
 }
 
+func (s *Server) RefreshKRC20Info(c echo.Context) error {
+	lgr := s.Logger
+	ctx := context.Background()
+	if c.Request().Header.Get("Authorization") != s.infoServer.HttpRequestSecret {
+		return api.Unauthorized.Build(c)
+	}
+
+	krc20Tokens, err := s.dbClient.KRC20Contracts(ctx)
+	if err != nil {
+		return api.Invalid.Build(c)
+	}
+
+	for _, krc20 := range krc20Tokens {
+		if krc20.Address == "0x7715994b29854C0FFA20aF79B5F8e2f951a21782" {
+			fmt.Println("Data")
+		}
+		token, err := kClient.NewToken(s.node, krc20.Address)
+		if err != nil {
+			lgr.Error("cannot create token object", zap.Error(err))
+			continue
+		}
+		krc20Info, err := token.KRC20Info(ctx)
+		if err != nil {
+			lgr.Error("cannot get KRC20 info of token", zap.Error(err))
+			continue
+		}
+		if krc20Info.Name != "" {
+			krc20.Name = krc20Info.Name
+		}
+
+		krc20.Symbol = krc20Info.Symbol
+		krc20.Decimals = krc20Info.Decimals
+
+		if krc20Info.TotalSupply != nil {
+			krc20.TotalSupply = krc20Info.TotalSupply.String()
+		}
+		if err := s.dbClient.UpdateContract(ctx, krc20, nil); err != nil {
+			lgr.Error("cannot update contract", zap.Error(err))
+			continue
+		}
+	}
+
+	return api.OK.Build(c)
+}
+
 func (s *Server) SyncContractInfo(c echo.Context) error {
 	lgr := s.Logger
 	ctx := context.Background()
@@ -1870,25 +1915,12 @@ func (s *Server) SyncContractInfo(c echo.Context) error {
 	// Find contract info in `Address` collection and upsert with addition information into `Contracts` collection
 	for _, tx := range contractCreationTxs {
 		contract := &types.Contract{
-			//Name:            "",
 			Address:      tx.ContractAddress,
 			OwnerAddress: tx.From,
 			TxHash:       tx.Hash,
 			Type:         cfg.SMCTypeNormal,
-			//Info:            "",
-			//Symbol:          "",
-			//TotalSupply:     "",
-			//Decimals:        0,
-			//Logo:            "",
-			//IsVerified:      false,
-			//Status:          0,
-			//Bytecode:        "",
-			//ABI:             "",
-			//Source:          "",
-			//CompilerVersion: "",
-			//IsOptimize:      false,
-			CreatedAt: tx.Time.Unix(),
-			UpdatedAt: tx.Time.Unix(),
+			CreatedAt:    tx.Time.Unix(),
+			UpdatedAt:    tx.Time.Unix(),
 		}
 
 		addressInfo, err := s.dbClient.AddressByHash(ctx, tx.ContractAddress)
