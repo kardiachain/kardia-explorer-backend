@@ -4,7 +4,6 @@ package server
 import (
 	"bytes"
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"io/ioutil"
@@ -1378,43 +1377,21 @@ func (s *Server) Contract(c echo.Context) error {
 		return api.Invalid.Build(c)
 	}
 
-	if smc.ABI == "" && smc.Type != "" {
-		abiStr, err := s.cacheClient.SMCAbi(ctx, cfg.SMCTypePrefix+smc.Type)
-		if err != nil {
-			abiStr, err = s.dbClient.SMCABIByType(ctx, smc.Type)
-			if err != nil {
-				s.logger.Warn("Cannot get ABI by type from db", zap.String("type", smc.Type), zap.Error(err))
-			}
-		}
-		// update KRC token total supply from RPC
-		if abiStr != "" {
-			smc.ABI = abiStr
-			krcTokenInfoRPC, err := s.getKRCTokenInfo(ctx, smc.Type)
-			if err != nil {
-				s.logger.Warn("New contract is not a KRC token", zap.Error(err), zap.Any("tokenInfo", krcTokenInfoRPC))
-			} else {
-				addrInfo.TotalSupply = krcTokenInfoRPC.TotalSupply
-			}
-		}
-	}
-	var result *KRCTokenInfo
-	// map smc info to result
-	smcJSON, err := json.Marshal(smc)
-	if err != nil {
-		return api.Invalid.Build(c)
-	}
-	err = json.Unmarshal(smcJSON, &result)
-	if err != nil {
-		return api.Invalid.Build(c)
-	}
-	// map address info to result
-	addrInfoJSON, err := json.Marshal(addrInfo)
-	if err != nil {
-		return api.Invalid.Build(c)
-	}
-	err = json.Unmarshal(addrInfoJSON, &result)
-	if err != nil {
-		return api.Invalid.Build(c)
+	result := &KRCTokenInfo{
+		Name:          smc.Name,
+		Address:       smc.Address,
+		OwnerAddress:  smc.OwnerAddress,
+		TxHash:        smc.TxHash,
+		CreatedAt:     smc.CreatedAt,
+		Type:          smc.Type,
+		BalanceString: addrInfo.BalanceString,
+		Info:          addrInfo.Info,
+		Logo:          addrInfo.Logo,
+		IsContract:    addrInfo.IsContract,
+		TokenName:     smc.Name,
+		TokenSymbol:   smc.Symbol,
+		Decimals:      int64(smc.Decimals),
+		TotalSupply:   smc.TotalSupply,
 	}
 
 	if smc.Type == cfg.SMCTypeKRC20 {
@@ -1427,7 +1404,6 @@ func (s *Server) Contract(c echo.Context) error {
 			}
 			result.TotalSupply = krcInfo.TotalSupply
 		}
-
 	}
 	return api.OK.SetData(result).Build(c)
 }

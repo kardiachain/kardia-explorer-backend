@@ -107,34 +107,34 @@ type valInfoResponse struct {
 }
 
 type KRCTokenInfo struct {
-	Name          string `json:"name,omitempty" bson:"name"`
-	Address       string `json:"address" bson:"address"`
-	Bytecode      string `json:"bytecode,omitempty" bson:"bytecode"`
-	ABI           string `json:"abi,omitempty" bson:"abi"`
-	OwnerAddress  string `json:"ownerAddress,omitempty" bson:"ownerAddress"`
-	TxHash        string `json:"txHash,omitempty" bson:"txHash"`
-	CreatedAt     int64  `json:"createdAt" bson:"createdAt"`
-	Type          string `json:"type" bson:"type"`
-	BalanceString string `json:"balance" bson:"balanceString"` // high precise balance for API
-	Info          string `json:"info,omitempty" bson:"info"`   // additional info of this address
-	Logo          string `json:"logo,omitempty" bson:"logo"`
+	Name          string `json:"name" bson:"name,omitempty"`
+	Address       string `json:"address" bson:"address,omitempty"`
+	Bytecode      string `json:"bytecode,omitempty" bson:"bytecode,omitempty"`
+	ABI           string `json:"abi,omitempty" bson:"abi,omitempty"`
+	OwnerAddress  string `json:"ownerAddress,omitempty" bson:"ownerAddress,omitempty"`
+	TxHash        string `json:"txHash,omitempty" bson:"txHash,omitempty"`
+	CreatedAt     int64  `json:"createdAt" bson:"createdAt,omitempty"`
+	Type          string `json:"type" bson:"type,omitempty"`
+	BalanceString string `json:"balance" bson:"balanceString,omitempty"` // high precise balance for API
+	Info          string `json:"info" bson:"info,omitempty"`             // additional info of this address
+	Logo          string `json:"logo" bson:"logo,omitempty"`
 
 	// SMC
-	IsContract bool `json:"isContract" bson:"isContract"`
+	IsContract bool `json:"isContract,omitempty" bson:"isContract,omitempty"`
 
 	// Token
-	TokenName   string `json:"tokenName,omitempty" bson:"tokenName"`
-	TokenSymbol string `json:"tokenSymbol,omitempty" bson:"tokenSymbol"`
-	Decimals    int64  `json:"decimals" bson:"decimals"`
-	TotalSupply string `json:"totalSupply,omitempty" bson:"totalSupply"`
+	TokenName   string `json:"tokenName,omitempty" bson:"tokenName,omitempty"`
+	TokenSymbol string `json:"tokenSymbol,omitempty" bson:"tokenSymbol,omitempty"`
+	Decimals    int64  `json:"decimals" bson:"decimals,omitempty"`
+	TotalSupply string `json:"totalSupply,omitempty" bson:"totalSupply,omitempty"`
 
 	// Stats
-	TxCount         int `json:"txCount,omitempty" bson:"txCount"`
-	HolderCount     int `json:"holderCount,omitempty" bson:"holderCount"`
-	InternalTxCount int `json:"internalTxCount,omitempty" bson:"internalTxCount"`
-	TokenTxCount    int `json:"tokenTxCount,omitempty" bson:"tokenTxCount"`
+	TxCount         int `json:"txCount,omitempty" bson:"txCount,omitempty"`
+	HolderCount     int `json:"holderCount,omitempty" bson:"holderCount,omitempty"`
+	InternalTxCount int `json:"internalTxCount,omitempty" bson:"internalTxCount,omitempty"`
+	TokenTxCount    int `json:"tokenTxCount,omitempty" bson:"tokenTxCount,omitempty"`
 
-	UpdatedAt int64 `json:"updatedAt" bson:"updatedAt"`
+	UpdatedAt int64 `json:"updatedAt,omitempty" bson:"updatedAt,omitempty"`
 }
 
 type SimpleKRCTokenInfo struct {
