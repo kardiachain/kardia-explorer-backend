@@ -1,6 +1,12 @@
 // Package types
 package types
 
+const (
+	ContractStatusUnverified     = 1
+	ContractStatusSourceUploaded = 2
+	ContractStatusVerified       = 3
+)
+
 // Contract define simple information about a SMC in kardia system
 type Contract struct {
 	Name         string `json:"name" bson:"name,omitempty"`

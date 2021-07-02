@@ -16,6 +16,8 @@ type IPrivate interface {
 	RemoveDuplicateEvents(c echo.Context) error
 	SyncContractInfo(c echo.Context) error
 	RefreshKRC20Info(c echo.Context) error
+	RefreshKRC721Info(c echo.Context) error
+	RefreshContractsInfo(c echo.Context) error
 }
 
 func bindPrivateAPIs(gr *echo.Group, srv EchoServer) {
@@ -30,6 +32,18 @@ func bindPrivateAPIs(gr *echo.Group, srv EchoServer) {
 			method:      echo.PUT,
 			path:        "/contracts/kcr20/refresh",
 			fn:          srv.RefreshKRC20Info,
+			middlewares: nil,
+		},
+		{
+			method:      echo.PUT,
+			path:        "/contracts/kcr721/refresh",
+			fn:          srv.RefreshKRC721Info,
+			middlewares: nil,
+		},
+		{
+			method:      echo.PUT,
+			path:        "/contracts/refresh",
+			fn:          srv.RefreshContractsInfo,
 			middlewares: nil,
 		},
 	}

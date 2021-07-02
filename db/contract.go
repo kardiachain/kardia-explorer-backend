@@ -27,7 +27,8 @@ type IContract interface {
 	UpdateKRCTotalSupply(ctx context.Context, krcTokenAddress, totalSupply string) error
 	Contracts(ctx context.Context, filter *types.ContractsFilter) ([]*types.Contract, uint64, error)
 
-	KRC20Contracts(ctx context.Context) ([]*types.Contract, error)
+	AllContracts(ctx context.Context) ([]*types.Contract, error)
+	ContractByType(ctx context.Context, contractType string) ([]*types.Contract, error)
 	UpsertSMCABIByType(ctx context.Context, smcType, abi string) error
 	SMCABIByType(ctx context.Context, smcType string) (string, error)
 }
@@ -48,10 +49,25 @@ func (m *mongoDB) InsertContract(ctx context.Context, contract *types.Contract, 
 	return nil
 }
 
-func (m *mongoDB) KRC20Contracts(ctx context.Context) ([]*types.Contract, error) {
+func (m *mongoDB) AllContracts(ctx context.Context) ([]*types.Contract, error) {
 	var contracts []*types.Contract
 	var opts []*options.FindOptions
-	cursor, err := m.wrapper.C(cContract).Find(bson.M{"type": cfg.SMCTypeKRC20}, opts...)
+	cursor, err := m.wrapper.C(cContract).Find(bson.M{}, opts...)
+	if err != nil {
+		return nil, err
+	}
+
+	if err := cursor.All(ctx, &contracts); err != nil {
+		return nil, err
+	}
+
+	return contracts, nil
+}
+
+func (m *mongoDB) ContractByType(ctx context.Context, contractType string) ([]*types.Contract, error) {
+	var contracts []*types.Contract
+	var opts []*options.FindOptions
+	cursor, err := m.wrapper.C(cContract).Find(bson.M{"type": contractType}, opts...)
 	if err != nil {
 		return nil, err
 	}

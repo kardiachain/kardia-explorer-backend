@@ -32,6 +32,7 @@ func (s *Server) processTransferLog(ctx context.Context, l *kClient.Log) error {
 			Type:         cfg.SMCTypeNormal,
 			CreatedAt:    tx.Time.Unix(),
 			UpdatedAt:    tx.Time.Unix(),
+			Status:       types.ContractStatusUnverified,
 		}
 		if err := s.db.InsertContract(ctx, newToken, nil); err != nil {
 			lgr.Error("cannot insert contract", zap.Error(err))
