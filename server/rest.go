@@ -1853,3 +1853,63 @@ func (s *Server) getAddressInfo(ctx context.Context, address string) (*types.Add
 	}
 	return addrInfo, nil
 }
+
+func (s *Server) SyncContractInfo(c echo.Context) error {
+	lgr := s.Logger
+	ctx := context.Background()
+	if c.Request().Header.Get("Authorization") != s.infoServer.HttpRequestSecret {
+		return api.Unauthorized.Build(c)
+	}
+
+	//  Select all txs which contractAddress != ''
+	contractCreationTxs, err := s.dbClient.FindContractCreationTxs(ctx)
+	if err != nil {
+		return api.Invalid.Build(c)
+	}
+
+	// Find contract info in `Address` collection and upsert with addition information into `Contracts` collection
+	for _, tx := range contractCreationTxs {
+		contract := &types.Contract{
+			//Name:            "",
+			Address:      tx.ContractAddress,
+			OwnerAddress: tx.From,
+			TxHash:       tx.Hash,
+			Type:         cfg.SMCTypeNormal,
+			//Info:            "",
+			//Symbol:          "",
+			//TotalSupply:     "",
+			//Decimals:        0,
+			//Logo:            "",
+			//IsVerified:      false,
+			//Status:          0,
+			//Bytecode:        "",
+			//ABI:             "",
+			//Source:          "",
+			//CompilerVersion: "",
+			//IsOptimize:      false,
+			CreatedAt: tx.Time.Unix(),
+			UpdatedAt: tx.Time.Unix(),
+		}
+
+		addressInfo, err := s.dbClient.AddressByHash(ctx, tx.ContractAddress)
+		if err == nil {
+			contract.Name = addressInfo.Name
+			if addressInfo.KrcTypes != "" {
+				contract.Type = addressInfo.KrcTypes
+			}
+			contract.Info = addressInfo.Info
+
+			if contract.Type == cfg.SMCTypeKRC20 { // Sync KRC20 information
+				contract.Name = addressInfo.TokenName
+				contract.Symbol = addressInfo.TokenSymbol
+				contract.Decimals = uint8(addressInfo.Decimals)
+				contract.TotalSupply = addressInfo.TotalSupply
+			}
+		}
+		if err := s.dbClient.UpdateContract(ctx, contract, nil); err != nil {
+			lgr.Error("cannot update contract", zap.Error(err))
+		}
+	}
+
+	return api.OK.Build(c)
+}

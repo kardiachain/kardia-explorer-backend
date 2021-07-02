@@ -7,6 +7,8 @@ import (
 
 // EchoServer define all API expose
 type EchoServer interface {
+	IPrivate
+	IContract
 	// General
 	Ping(c echo.Context) error
 	ServerStatus(c echo.Context) error
@@ -47,31 +49,9 @@ type EchoServer interface {
 	Txs(c echo.Context) error
 	TxByHash(c echo.Context) error
 
-	// Admin sector
-	ReloadAddressesBalance(c echo.Context) error
-	ReloadValidators(c echo.Context) error
-	UpdateAddressName(c echo.Context) error
-	UpsertNetworkNodes(c echo.Context) error
-	RemoveNetworkNodes(c echo.Context) error
-	UpdateSupplyAmounts(c echo.Context) error
-
-	RemoveDuplicateEvents(c echo.Context) error
-
-	IContract
-
 	SearchAddressByName(c echo.Context) error
 
 	GetHoldersListByToken(c echo.Context) error
 	GetInternalTxs(c echo.Context) error
 	UpdateInternalTxs(c echo.Context) error
-}
-
-type IContract interface {
-	Contracts(c echo.Context) error
-	Contract(c echo.Context) error
-	InsertContract(c echo.Context) error
-	UpdateContract(c echo.Context) error
-	UpdateSMCABIByType(c echo.Context) error
-
-	ContractEvents(c echo.Context) error
 }

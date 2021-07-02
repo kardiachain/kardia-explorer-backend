@@ -17,7 +17,7 @@ type Contract struct {
 	Logo        string `json:"logo" bson:"logo"`
 
 	// Addition information
-	IsVerified bool `json:"isVerified" bson:"isVerified"`
+	IsVerified bool `json:"isVerified" bson:"isVerified,omitempty"`
 	Status     int  `json:"status" bson:"status,omitempty"`
 
 	// Source information

@@ -27,7 +27,6 @@ import (
 	"github.com/kardiachain/kardia-explorer-backend/kardia"
 	"github.com/kardiachain/kardia-explorer-backend/metrics"
 	"github.com/kardiachain/kardia-explorer-backend/types"
-	"github.com/kardiachain/kardia-explorer-backend/utils"
 )
 
 type InfoServer interface {
@@ -467,106 +466,107 @@ func (s *infoServer) PopUnverifiedBlockHeight(ctx context.Context) (uint64, erro
 	return height, nil
 }
 
-func (s *infoServer) ImportReceipts(ctx context.Context, block *types.Block) error {
-	var listTxByFromAddress []*types.TransactionByAddress
-	var listTxByToAddress []*types.TransactionByAddress
-	jobs := make(chan types.Transaction, block.NumTxs)
-	type response struct {
-		err         error
-		txByFromAdd *types.TransactionByAddress
-		txByToAdd   *types.TransactionByAddress
-	}
-	results := make(chan response, block.NumTxs)
-	var addresses []*types.Address
-
-	for w := 0; w <= 10; w++ {
-		go func(jobs <-chan types.Transaction, results chan<- response) {
-			for tx := range jobs {
-				receipt, err := s.kaiClient.GetTransactionReceipt(ctx, tx.Hash)
-				if err != nil {
-					s.logger.Warn("get receipt err", zap.String("tx hash", tx.Hash), zap.Error(err))
-					results <- response{
-						err: err,
-					}
-					continue
-				}
-				toAddress := tx.To
-				if tx.To == "" {
-					if !utils.IsNilAddress(receipt.ContractAddress) {
-						tx.ContractAddress = receipt.ContractAddress
-					}
-					tx.Status = receipt.Status
-					toAddress = tx.ContractAddress
-				}
-
-				address, err := s.dbClient.AddressByHash(ctx, toAddress)
-				if err != nil {
-					s.logger.Warn("cannot get address by hash")
-					results <- response{
-						err: err,
-					}
-					continue
-				}
-
-				if address == nil || address.IsContract {
-					if err := s.dbClient.UpdateAddresses(ctx, addresses); err != nil {
-						results <- response{
-							err: err,
-						}
-						continue
-					}
-				}
-				var res response
-				res.txByFromAdd = &types.TransactionByAddress{
-					Address: tx.From,
-					TxHash:  tx.Hash,
-					Time:    tx.Time,
-				}
-
-				if tx.From != toAddress {
-					res.txByToAdd = &types.TransactionByAddress{
-						Address: toAddress,
-						TxHash:  tx.Hash,
-						Time:    tx.Time,
-					}
-				}
-				results <- res
-			}
-		}(jobs, results)
-	}
-
-	for _, tx := range block.Txs {
-		jobs <- *tx
-	}
-	close(jobs)
-	size := int(block.NumTxs)
-	for i := 0; i < size; i++ {
-		r := <-results
-		if r.err != nil {
-			continue
-		}
-		if r.txByFromAdd != nil {
-			listTxByFromAddress = append(listTxByFromAddress, r.txByFromAdd)
-		}
-		if r.txByToAdd != nil {
-			listTxByToAddress = append(listTxByToAddress, r.txByToAdd)
-		}
-	}
-
-	if len(listTxByToAddress) > 0 {
-		if err := s.dbClient.InsertListTxByAddress(ctx, listTxByFromAddress); err != nil {
-			return err
-		}
-	}
-
-	if len(listTxByToAddress) > 0 {
-		if err := s.dbClient.InsertListTxByAddress(ctx, listTxByToAddress); err != nil {
-			return err
-		}
-	}
-
-	return nil
-}
+//
+//func (s *infoServer) ImportReceipts(ctx context.Context, block *types.Block) error {
+//	var listTxByFromAddress []*types.TransactionByAddress
+//	var listTxByToAddress []*types.TransactionByAddress
+//	jobs := make(chan types.Transaction, block.NumTxs)
+//	type response struct {
+//		err         error
+//		txByFromAdd *types.TransactionByAddress
+//		txByToAdd   *types.TransactionByAddress
+//	}
+//	results := make(chan response, block.NumTxs)
+//	var addresses []*types.Address
+//
+//	for w := 0; w <= 10; w++ {
+//		go func(jobs <-chan types.Transaction, results chan<- response) {
+//			for tx := range jobs {
+//				receipt, err := s.kaiClient.GetTransactionReceipt(ctx, tx.Hash)
+//				if err != nil {
+//					s.logger.Warn("get receipt err", zap.String("tx hash", tx.Hash), zap.Error(err))
+//					results <- response{
+//						err: err,
+//					}
+//					continue
+//				}
+//				toAddress := tx.To
+//				if tx.To == "" {
+//					if !utils.IsNilAddress(receipt.ContractAddress) {
+//						tx.ContractAddress = receipt.ContractAddress
+//					}
+//					tx.Status = receipt.Status
+//					toAddress = tx.ContractAddress
+//				}
+//
+//				address, err := s.dbClient.AddressByHash(ctx, toAddress)
+//				if err != nil {
+//					s.logger.Warn("cannot get address by hash")
+//					results <- response{
+//						err: err,
+//					}
+//					continue
+//				}
+//
+//				if address == nil || address.IsContract {
+//					if err := s.dbClient.UpdateAddresses(ctx, addresses); err != nil {
+//						results <- response{
+//							err: err,
+//						}
+//						continue
+//					}
+//				}
+//				var res response
+//				res.txByFromAdd = &types.TransactionByAddress{
+//					Address: tx.From,
+//					TxHash:  tx.Hash,
+//					Time:    tx.Time,
+//				}
+//
+//				if tx.From != toAddress {
+//					res.txByToAdd = &types.TransactionByAddress{
+//						Address: toAddress,
+//						TxHash:  tx.Hash,
+//						Time:    tx.Time,
+//					}
+//				}
+//				results <- res
+//			}
+//		}(jobs, results)
+//	}
+//
+//	for _, tx := range block.Txs {
+//		jobs <- *tx
+//	}
+//	close(jobs)
+//	size := int(block.NumTxs)
+//	for i := 0; i < size; i++ {
+//		r := <-results
+//		if r.err != nil {
+//			continue
+//		}
+//		if r.txByFromAdd != nil {
+//			listTxByFromAddress = append(listTxByFromAddress, r.txByFromAdd)
+//		}
+//		if r.txByToAdd != nil {
+//			listTxByToAddress = append(listTxByToAddress, r.txByToAdd)
+//		}
+//	}
+//
+//	if len(listTxByToAddress) > 0 {
+//		if err := s.dbClient.InsertListTxByAddress(ctx, listTxByFromAddress); err != nil {
+//			return err
+//		}
+//	}
+//
+//	if len(listTxByToAddress) > 0 {
+//		if err := s.dbClient.InsertListTxByAddress(ctx, listTxByToAddress); err != nil {
+//			return err
+//		}
+//	}
+//
+//	return nil
+//}
 
 func (s *infoServer) blockVerifier(db, network *types.Block) bool {
 	if s.verifyBlockParam.VerifyTxCount {

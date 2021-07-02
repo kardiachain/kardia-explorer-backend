@@ -11,28 +11,6 @@ import (
 	"github.com/kardiachain/kardia-explorer-backend/types"
 )
 
-func GetMgo() (*mongoDB, error) {
-	lgr, err := zap.NewDevelopment()
-	if err != nil {
-		return nil, err
-	}
-	mgoCfg := Config{
-		DbAdapter: "mgo",
-		DbName:    "explorer",
-		URL:       "mongodb://10.10.0.252:27018",
-		MinConn:   1,
-		MaxConn:   4,
-		FlushDB:   false,
-		Logger:    lgr,
-	}
-
-	mgo, err := newMongoDB(mgoCfg)
-	if err != nil {
-		return nil, err
-	}
-	return mgo, nil
-}
-
 func TestMGO_UpsertNode(t *testing.T) {
 	ctx := context.Background()
 	mgo, err := GetMgo()
