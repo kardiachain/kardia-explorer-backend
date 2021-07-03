@@ -1942,33 +1942,40 @@ func (s *Server) SyncContractInfo(c echo.Context) error {
 
 	// Find contract info in `Address` collection and upsert with addition information into `Contracts` collection
 	for _, tx := range contractCreationTxs {
-		contract := &types.Contract{
-			Address:      tx.ContractAddress,
-			OwnerAddress: tx.From,
-			TxHash:       tx.Hash,
-			Type:         cfg.SMCTypeNormal,
-			CreatedAt:    tx.Time.Unix(),
-			UpdatedAt:    tx.Time.Unix(),
-		}
-
-		addressInfo, err := s.dbClient.AddressByHash(ctx, tx.ContractAddress)
-		if err == nil {
-			contract.Name = addressInfo.Name
-			if addressInfo.KrcTypes != "" {
-				contract.Type = addressInfo.KrcTypes
-			}
-			contract.Info = addressInfo.Info
-
-			if contract.Type == cfg.SMCTypeKRC20 { // Sync KRC20 information
-				contract.Name = addressInfo.TokenName
-				contract.Symbol = addressInfo.TokenSymbol
-				contract.Decimals = uint8(addressInfo.Decimals)
-				contract.TotalSupply = addressInfo.TotalSupply
+		if tx.Status == types.TransactionStatusSuccess {
+			contract := &types.Contract{
+				Address:      tx.ContractAddress,
+				OwnerAddress: tx.From,
+				TxHash:       tx.Hash,
+				Type:         cfg.SMCTypeNormal,
+				CreatedAt:    tx.Time.Unix(),
+				UpdatedAt:    tx.Time.Unix(),
 			}
 
+			addressInfo, err := s.dbClient.AddressByHash(ctx, tx.ContractAddress)
+			if err == nil {
+				contract.Name = addressInfo.Name
+				if addressInfo.KrcTypes != "" {
+					contract.Type = addressInfo.KrcTypes
+				}
+				contract.Info = addressInfo.Info
+
+				if contract.Type == cfg.SMCTypeKRC20 { // Sync KRC20 information
+					contract.Name = addressInfo.TokenName
+					contract.Symbol = addressInfo.TokenSymbol
+					contract.Decimals = uint8(addressInfo.Decimals)
+					contract.TotalSupply = addressInfo.TotalSupply
+				}
+
+			}
+			if err := s.dbClient.UpdateContract(ctx, contract, nil); err != nil {
+				lgr.Error("cannot update contract", zap.Error(err))
+			}
 		}
-		if err := s.dbClient.UpdateContract(ctx, contract, nil); err != nil {
-			lgr.Error("cannot update contract", zap.Error(err))
+		if tx.Status == types.TransactionStatusFailed {
+			if err := s.dbClient.RemoveContract(ctx, tx.ContractAddress); err != nil {
+				lgr.Error("cannot delete contract")
+			}
 		}
 	}
 

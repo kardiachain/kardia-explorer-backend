@@ -7,6 +7,11 @@ import (
 	"github.com/kardiachain/go-kardia/types"
 )
 
+const (
+	TransactionStatusFailed  = 0
+	TransactionStatusSuccess = 1
+)
+
 type Transaction struct {
 	BlockHash   string `json:"blockHash" bson:"blockHash"`
 	BlockNumber uint64 `json:"blockNumber" bson:"blockNumber"`

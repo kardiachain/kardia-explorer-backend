@@ -31,6 +31,9 @@ type IContract interface {
 	ContractByType(ctx context.Context, contractType string) ([]*types.Contract, error)
 	UpsertSMCABIByType(ctx context.Context, smcType, abi string) error
 	SMCABIByType(ctx context.Context, smcType string) (string, error)
+
+	// Remove
+	RemoveContract(ctx context.Context, contractAddress string) error
 }
 
 func (m *mongoDB) InsertContract(ctx context.Context, contract *types.Contract, addrInfo *types.Address) error {
@@ -45,6 +48,13 @@ func (m *mongoDB) InsertContract(ctx context.Context, contract *types.Contract, 
 		if _, err := m.wrapper.C(cAddresses).Insert(addrInfo); err != nil {
 			return err
 		}
+	}
+	return nil
+}
+
+func (m *mongoDB) RemoveContract(ctx context.Context, contractAddress string) error {
+	if _, err := m.wrapper.C(cContract).Remove(bson.M{"address": contractAddress}); err != nil {
+		return err
 	}
 	return nil
 }
