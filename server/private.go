@@ -3,6 +3,7 @@ package server
 
 import (
 	"context"
+	"fmt"
 	"strings"
 
 	kClient "github.com/kardiachain/go-kaiclient/kardia"
@@ -26,7 +27,9 @@ func (s *Server) RefreshContractsInfo(c echo.Context) error {
 	}
 
 	for _, c := range contracts {
-
+		if c.Type == "" {
+			c.Type = cfg.SMCTypeNormal
+		}
 		c.Status = types.ContractStatusUnverified
 		if c.IsVerified {
 			c.Status = types.ContractStatusVerified
@@ -93,6 +96,7 @@ func (s *Server) RefreshKRC20Info(c echo.Context) error {
 	}
 
 	for _, krc20 := range krc20Tokens {
+		lgr.Info("Process KRC20", zap.String("Address", krc20.Address))
 		krc20.Status = types.ContractStatusUnverified
 		if krc20.IsVerified {
 			krc20.Status = types.ContractStatusVerified
@@ -135,6 +139,7 @@ func (s *Server) RefreshKRC20Info(c echo.Context) error {
 func (s *Server) SyncContractInfo(c echo.Context) error {
 	lgr := s.Logger
 	ctx := context.Background()
+	fmt.Println("Test")
 	if c.Request().Header.Get("Authorization") != s.infoServer.HttpRequestSecret {
 		return api.Unauthorized.Build(c)
 	}
@@ -144,6 +149,8 @@ func (s *Server) SyncContractInfo(c echo.Context) error {
 	if err != nil {
 		return api.Invalid.Build(c)
 	}
+
+	fmt.Println("Total contract to sync", len(contractCreationTxs))
 
 	// Find contract info in `Address` collection and upsert with addition information into `Contracts` collection
 	for _, tx := range contractCreationTxs {
@@ -166,9 +173,11 @@ func (s *Server) SyncContractInfo(c echo.Context) error {
 				contract.Info = addressInfo.Info
 
 				if contract.Type == cfg.SMCTypeKRC20 { // Sync KRC20 information
+					fmt.Println("KRC20 Contract", contract.Address)
 					contract.Name = addressInfo.TokenName
 					contract.Symbol = addressInfo.TokenSymbol
 					contract.Decimals = uint8(addressInfo.Decimals)
+					contract.Logo = addressInfo.Logo
 					contract.TotalSupply = addressInfo.TotalSupply
 				}
 
