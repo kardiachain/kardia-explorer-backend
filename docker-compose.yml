@@ -26,6 +26,7 @@ services:
     command: "api"
     volumes:
       - .env.sample:/go/bin/.env
+      - ./abi:/go/bin/abi
     depends_on:
       - grabber
       - mongodb
@@ -34,12 +35,14 @@ services:
     container_name: "explorer-grabber"
     volumes:
       - .env.sample:/go/bin/.env
+      - ./abi:/go/bin/abi
     command: "grabber"
   backfill:
     image: kardiachain/backend-explorer
     container_name: "explorer-backfill"
     volumes:
       - .env.sample:/go/bin/.env
+      - ./abi:/go/bin/abi
     command: "backfill"
     depends_on:
       - grabber
@@ -49,6 +52,7 @@ services:
     container_name: "explorer-verifier"
     volumes:
       - .env.sample:/go/bin/.env
+      - ./abi:/go/bin/abi
     command: "verifier"
     depends_on:
       - grabber
@@ -58,6 +62,7 @@ services:
     container_name: "explorer-receipts"
     volumes:
       - .env.sample:/go/bin/.env
+      - ./abi:/go/bin/abi
     command: "receipts"
     depends_on:
       - grabber
@@ -67,6 +72,7 @@ services:
     container_name: "explorer-watcher"
     volumes:
       - .env.sample:/go/bin/.env
+      - ./abi:/go/bin/abi
     command: "watcher"
     depends_on:
       - grabber
