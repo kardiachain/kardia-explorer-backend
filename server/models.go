@@ -107,46 +107,49 @@ type valInfoResponse struct {
 }
 
 type KRCTokenInfo struct {
-	Name          string `json:"name" bson:"name,omitempty"`
-	Address       string `json:"address" bson:"address,omitempty"`
-	Bytecode      string `json:"bytecode,omitempty" bson:"bytecode,omitempty"`
-	ABI           string `json:"abi,omitempty" bson:"abi,omitempty"`
-	OwnerAddress  string `json:"ownerAddress,omitempty" bson:"ownerAddress,omitempty"`
-	TxHash        string `json:"txHash,omitempty" bson:"txHash,omitempty"`
-	CreatedAt     int64  `json:"createdAt" bson:"createdAt,omitempty"`
-	Type          string `json:"type" bson:"type,omitempty"`
-	BalanceString string `json:"balance" bson:"balanceString,omitempty"` // high precise balance for API
-	Info          string `json:"info" bson:"info,omitempty"`             // additional info of this address
-	Logo          string `json:"logo" bson:"logo,omitempty"`
+	Name         string `json:"name"`
+	Address      string `json:"address"`
+	Bytecode     string `json:"bytecode,omitempty"`
+	ABI          string `json:"abi,omitempty"`
+	OwnerAddress string `json:"ownerAddress,omitempty"`
+	TxHash       string `json:"txHash,omitempty"`
+
+	Type          string `json:"type"`
+	BalanceString string `json:"balance"` // high precise balance for API
+	Info          string `json:"info"`    // additional info of this address
+	Logo          string `json:"logo"`
 
 	// SMC
-	IsContract bool `json:"isContract,omitempty" bson:"isContract,omitempty"`
+	IsContract bool `json:"isContract,omitempty"`
 
 	// Token
-	TokenName   string `json:"tokenName,omitempty" bson:"tokenName,omitempty"`
-	TokenSymbol string `json:"tokenSymbol,omitempty" bson:"tokenSymbol,omitempty"`
-	Decimals    int64  `json:"decimals" bson:"decimals,omitempty"`
-	TotalSupply string `json:"totalSupply,omitempty" bson:"totalSupply,omitempty"`
+	TokenName   string `json:"tokenName,omitempty"`
+	TokenSymbol string `json:"tokenSymbol,omitempty"`
+	Decimals    int64  `json:"decimals"`
+	TotalSupply string `json:"totalSupply,omitempty"`
 
 	// Stats
-	TxCount         int `json:"txCount,omitempty" bson:"txCount,omitempty"`
-	HolderCount     int `json:"holderCount,omitempty" bson:"holderCount,omitempty"`
-	InternalTxCount int `json:"internalTxCount,omitempty" bson:"internalTxCount,omitempty"`
-	TokenTxCount    int `json:"tokenTxCount,omitempty" bson:"tokenTxCount,omitempty"`
-
-	UpdatedAt int64 `json:"updatedAt,omitempty" bson:"updatedAt,omitempty"`
+	TxCount         int   `json:"txCount,omitempty"`
+	HolderCount     int   `json:"holderCount,omitempty"`
+	InternalTxCount int   `json:"internalTxCount,omitempty"`
+	TokenTxCount    int   `json:"tokenTxCount,omitempty"`
+	Status          int64 `json:"status"`
+	CreatedAt       int64 `json:"createdAt"`
+	UpdatedAt       int64 `json:"updatedAt,omitempty"`
 }
 
 type SimpleKRCTokenInfo struct {
-	Name        string `json:"name,omitempty" bson:"name"`
-	Address     string `json:"address,omitempty" bson:"address"`
-	Info        string `json:"info,omitempty" bson:"info"`
-	Type        string `json:"type,omitempty" bson:"type"`
-	TokenSymbol string `json:"tokenSymbol,omitempty" bson:"tokenSymbol"`
-	TotalSupply string `json:"totalSupply,omitempty" bson:"totalSupply"`
-	Decimal     int64  `json:"decimal" bson:"decimal"`
-	Logo        string `json:"logo,omitempty" bson:"logo"`
-	IsVerified  bool   `json:"isVerified" bson:"isVerified"`
+	Name        string `json:"name,omitempty"`
+	Address     string `json:"address,omitempty"`
+	Info        string `json:"info,omitempty"`
+	Type        string `json:"type,omitempty"`
+	TokenSymbol string `json:"tokenSymbol,omitempty"`
+	TotalSupply string `json:"totalSupply,omitempty"`
+	Decimal     int64  `json:"decimal"`
+	Logo        string `json:"logo,omitempty"`
+	Status      int64  `json:"status"`
+	// Todo: Remove in next version
+	IsVerified bool `json:"isVerified"`
 }
 
 type InternalTransaction struct {

@@ -1351,6 +1351,7 @@ func (s *Server) Contracts(c echo.Context) error {
 			Type:        result[i].Type,
 			Logo:        result[i].Logo,
 			IsVerified:  result[i].IsVerified,
+			Status:      int64(result[i].Status),
 			TotalSupply: result[i].TotalSupply,
 			TokenSymbol: result[i].Symbol,
 			Decimal:     int64(result[i].Decimals),
@@ -1378,7 +1379,6 @@ func (s *Server) Contract(c echo.Context) error {
 		Address:       smc.Address,
 		OwnerAddress:  smc.OwnerAddress,
 		TxHash:        smc.TxHash,
-		CreatedAt:     smc.CreatedAt,
 		Type:          smc.Type,
 		BalanceString: addrInfo.BalanceString,
 		Info:          addrInfo.Info,
@@ -1388,6 +1388,8 @@ func (s *Server) Contract(c echo.Context) error {
 		TokenSymbol:   smc.Symbol,
 		Decimals:      int64(smc.Decimals),
 		TotalSupply:   smc.TotalSupply,
+		Status:        int64(smc.Status),
+		CreatedAt:     smc.CreatedAt,
 	}
 
 	if smc.Type == cfg.SMCTypeKRC20 {
@@ -1402,64 +1404,6 @@ func (s *Server) Contract(c echo.Context) error {
 		}
 	}
 	return api.OK.SetData(result).Build(c)
-}
-
-func (s *Server) InsertContract(c echo.Context) error {
-	lgr := s.logger.With(zap.String("method", "InsertContract"))
-
-	if c.Request().Header.Get("Authorization") != s.infoServer.HttpRequestSecret {
-		return api.Unauthorized.Build(c)
-	}
-
-	lgr.Debug("Start insert contract")
-	var (
-		contract     types.Contract
-		addrInfo     types.Address
-		bodyBytes, _ = ioutil.ReadAll(c.Request().Body)
-	)
-	c.Request().Body = ioutil.NopCloser(bytes.NewBuffer(bodyBytes))
-	if err := c.Bind(&contract); err != nil {
-		lgr.Error("cannot bind data", zap.Error(err))
-		return api.Invalid.Build(c)
-	}
-	contract.IsVerified = true
-	c.Request().Body = ioutil.NopCloser(bytes.NewBuffer(bodyBytes))
-	if err := c.Bind(&addrInfo); err != nil {
-		lgr.Error("cannot bind data", zap.Error(err))
-		return api.Invalid.Build(c)
-	}
-	ctx := context.Background()
-	krcTokenInfoFromRPC, err := s.getKRCTokenInfoFromRPC(ctx, addrInfo.Address, addrInfo.KrcTypes)
-	if err != nil && strings.HasPrefix(addrInfo.KrcTypes, "KRC") {
-		s.logger.Warn("Updating contract is not KRC type", zap.Any("smcInfo", addrInfo))
-		return api.Invalid.Build(c)
-	}
-	if krcTokenInfoFromRPC != nil {
-		// cache new token info
-		krcTokenInfoFromRPC.Logo = addrInfo.Logo
-		if utils.CheckBase64Logo(addrInfo.Logo) {
-			fileName, err := s.fileStorage.UploadLogo(addrInfo.Logo, utils.HashString(contract.Address), s.ConfigUploader)
-			if err != nil {
-				log.Fatal("Error when upload the image: ", err)
-			} else {
-				addrInfo.Logo = fileName
-				contract.Logo = fileName
-			}
-		}
-		_ = s.cacheClient.UpdateKRCTokenInfo(ctx, krcTokenInfoFromRPC)
-		_ = s.cacheClient.UpdateSMCAbi(ctx, contract.Address, contract.ABI)
-
-		addrInfo.TokenName = krcTokenInfoFromRPC.TokenName
-		addrInfo.TokenSymbol = krcTokenInfoFromRPC.TokenSymbol
-		addrInfo.TotalSupply = krcTokenInfoFromRPC.TokenName
-		addrInfo.Decimals = krcTokenInfoFromRPC.Decimals
-	}
-	if err := s.dbClient.InsertContract(ctx, &contract, &addrInfo); err != nil {
-		lgr.Error("cannot bind insert", zap.Error(err))
-		return api.InternalServer.Build(c)
-	}
-
-	return api.OK.Build(c)
 }
 
 func (s *Server) VerifyContract(ctx context.Context) error {
@@ -1485,12 +1429,10 @@ func (s *Server) VerifyContract(ctx context.Context) error {
 
 func (s *Server) UpdateContract(c echo.Context) error {
 	lgr := s.logger.With(zap.String("method", "UpdateContract"))
-
 	if c.Request().Header.Get("Authorization") != s.infoServer.HttpRequestSecret {
 		return api.Unauthorized.Build(c)
 	}
 
-	lgr.Debug("Start insert contract")
 	var (
 		contract     types.Contract
 		addrInfo     types.Address
@@ -1907,26 +1849,6 @@ func (s *Server) RefreshKRC721Info(c echo.Context) error {
 			krc721.Status = types.ContractStatusVerified
 		}
 
-		//token, err := kClient.NewToken(s.node, krc721.Address)
-		//if err != nil {
-		//	lgr.Error("cannot create token object", zap.Error(err))
-		//	continue
-		//}
-		//krc20Info, err := token.KRC20Info(ctx)
-		//if err != nil {
-		//	lgr.Error("cannot get KRC20 info of token", zap.Error(err))
-		//	continue
-		//}
-		//if krc20Info.Name != "" {
-		//	krc721.Name = krc20Info.Name
-		//}
-		//
-		//krc721.Symbol = krc20Info.Symbol
-		//krc721.Decimals = krc20Info.Decimals
-		//
-		//if krc20Info.TotalSupply != nil {
-		//	krc721.TotalSupply = krc20Info.TotalSupply.String()
-		//}
 		// Change base64 image to default token
 		if strings.HasPrefix(krc721.Logo, "data:image") {
 			krc721.Logo = cfg.DefaultKRCTokenLogo
