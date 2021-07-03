@@ -94,9 +94,9 @@ func (m *mongoDB) Contracts(ctx context.Context, filter *types.ContractsFilter) 
 	}
 	switch filter.Status {
 	case "Verified":
-		crit["isVerified"] = true
+		crit["status"] = types.ContractStatusVerified
 	case "Unverified":
-		crit["isVerified"] = false
+		crit["status"] = types.ContractStatusUnverified
 	default:
 
 	}
