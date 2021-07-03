@@ -14,4 +14,5 @@ RUN go install
 WORKDIR /go/src/github/kardiachain/explorer-backend/cmd/watcher
 RUN go install
 WORKDIR /go/bin
-ADD abi .
+RUN mkdir -p abi
+ADD abi /go/bin/abi
