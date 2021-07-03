@@ -39,6 +39,11 @@ func (s *Server) SetStorage(db db.Client) *Server {
 	return s
 }
 
+func (s *Server) SetKaiClient(kaiClient kardia.ClientInterface) *Server {
+	s.kaiClient = kaiClient
+	return s
+}
+
 func (s *Server) SetCache(cache cache.Client) *Server {
 	s.cacheClient = cache
 	return s

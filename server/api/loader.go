@@ -6,8 +6,8 @@ import (
 	"encoding/base64"
 	"fmt"
 	"io/ioutil"
+	"os"
 	"path"
-	"runtime"
 
 	"github.com/kardiachain/go-kardia/types/time"
 	"github.com/kardiachain/kardia-explorer-backend/cfg"
@@ -18,27 +18,27 @@ import (
 
 func (s *Server) LoadBootContracts(ctx context.Context) error {
 	// read and encode ABI base64
-	krc20ABI, err := readAndEncodeABIFile("./abi/krc20.json")
+	krc20ABI, err := readAndEncodeABIFile("/abi/krc20.json")
 	if err != nil {
 		return err
 	}
-	krc721ABI, err := readAndEncodeABIFile("./abi/krc721.json")
+	krc721ABI, err := readAndEncodeABIFile("/abi/krc721.json")
 	if err != nil {
 		return err
 	}
-	paramsABI, err := readAndEncodeABIFile("./abi/params.json")
+	paramsABI, err := readAndEncodeABIFile("/abi/params.json")
 	if err != nil {
 		return err
 	}
-	stakingABI, err := readAndEncodeABIFile("./abi/staking.json")
+	stakingABI, err := readAndEncodeABIFile("/abi/staking.json")
 	if err != nil {
 		return err
 	}
-	treasuryABI, err := readAndEncodeABIFile("./abi/treasury.json")
+	treasuryABI, err := readAndEncodeABIFile("/abi/treasury.json")
 	if err != nil {
 		return err
 	}
-	validatorABI, err := readAndEncodeABIFile("./abi/validator.json")
+	validatorABI, err := readAndEncodeABIFile("/abi/validator.json")
 	if err != nil {
 		return err
 	}
@@ -110,8 +110,8 @@ func (s *Server) LoadBootContracts(ctx context.Context) error {
 }
 
 func readAndEncodeABIFile(filePath string) (string, error) {
-	_, filename, _, _ := runtime.Caller(1)
-	abiFileContent, err := ioutil.ReadFile(path.Join(path.Dir(filename), filePath))
+	wd, _ := os.Getwd()
+	abiFileContent, err := ioutil.ReadFile(path.Join(wd, filePath))
 	if err != nil {
 		return "", fmt.Errorf("cannot read ABI file %s", filePath)
 	}

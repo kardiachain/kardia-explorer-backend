@@ -8,6 +8,7 @@ import (
 	"syscall"
 
 	"github.com/joho/godotenv"
+	"github.com/kardiachain/kardia-explorer-backend/kardia"
 	"github.com/kardiachain/kardia-explorer-backend/server/api"
 	"go.uber.org/zap"
 
@@ -47,6 +48,12 @@ func main() {
 		}
 	}()
 
+	kaiClientCfg := kardia.NewConfig(serviceCfg.KardiaPublicNodes, serviceCfg.KardiaTrustedNodes, lgr)
+	kaiClient, err := kardia.NewKaiClient(kaiClientCfg)
+	if err != nil {
+		panic(err)
+	}
+
 	dbConfig := db.Config{
 		DbAdapter: db.MGO,
 		DbName:    serviceCfg.StorageDB,
@@ -82,6 +89,7 @@ func main() {
 		SetLogger(lgr).
 		SetStorage(dbClient).
 		SetCache(cacheClient).
+		SetKaiClient(kaiClient).
 		SetNode(node)
 
 	if serviceCfg.IsReloadBootData {
