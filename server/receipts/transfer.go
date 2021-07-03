@@ -51,6 +51,14 @@ func (s *Server) processTransferLog(ctx context.Context, l *kClient.Log) error {
 	}
 }
 
+//onUndetectedContractTransfer support transfer interface:
+// KRC721:
+// event Transfer(address indexed from, address indexed to, uint256 indexed tokenId);
+// todo: Detect KRC721 transfer event with format
+// event Transfer(address indexed from, address indexed to, uint value);
+// KRC20:
+// event Transfer(address indexed from, address indexed to, uint value);
+
 func (s *Server) onUndetectedContractTransfer(ctx context.Context, c *types.Contract, l *kClient.Log) error {
 	lgr := s.logger
 	lgr.Debug("handle undetected token transfer")
@@ -59,6 +67,7 @@ func (s *Server) onUndetectedContractTransfer(ctx context.Context, c *types.Cont
 		unpackedLog *kClient.Log
 		err         error
 	)
+
 	unpackedLog, err = tryKRC721(l)
 	if err == nil {
 		// Try get basic information about this token and update into storage
