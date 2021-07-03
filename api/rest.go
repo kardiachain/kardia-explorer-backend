@@ -9,6 +9,8 @@ import (
 type EchoServer interface {
 	IPrivate
 	IContract
+	ITx
+
 	// General
 	Ping(c echo.Context) error
 	ServerStatus(c echo.Context) error
@@ -44,14 +46,4 @@ type EchoServer interface {
 	AddressInfo(c echo.Context) error
 	AddressTxs(c echo.Context) error
 	AddressHolders(c echo.Context) error
-
-	// Tx
-	Txs(c echo.Context) error
-	TxByHash(c echo.Context) error
-
-	SearchAddressByName(c echo.Context) error
-
-	GetHoldersListByToken(c echo.Context) error
-	GetInternalTxs(c echo.Context) error
-	UpdateInternalTxs(c echo.Context) error
 }

@@ -6,14 +6,17 @@ import (
 )
 
 type IPrivate interface {
-	// Admin sector
 	ReloadAddressesBalance(c echo.Context) error
-	ReloadValidators(c echo.Context) error
 	UpdateAddressName(c echo.Context) error
 	UpsertNetworkNodes(c echo.Context) error
 	RemoveNetworkNodes(c echo.Context) error
 	UpdateSupplyAmounts(c echo.Context) error
 	RemoveDuplicateEvents(c echo.Context) error
+
+	//todo: Rework or remove
+	ReloadValidators(c echo.Context) error
+
+	//
 	SyncContractInfo(c echo.Context) error
 	RefreshKRC20Info(c echo.Context) error
 	RefreshKRC721Info(c echo.Context) error
