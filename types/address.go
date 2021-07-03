@@ -1,5 +1,12 @@
 package types
 
+const (
+	AddressTypeWallet  = 1
+	AddressTypeKRC20   = 2
+	AddressTypeKRC721  = 3
+	AddressTypeStaking = 4
+)
+
 type Address struct {
 	Address       string  `json:"address" bson:"address,omitempty"`
 	Rank          uint64  `json:"rank,omitempty"`

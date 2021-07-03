@@ -15,6 +15,7 @@ var cHolders = "Holders"
 
 type IHolders interface {
 	createHoldersCollectionIndexes() []mongo.IndexModel
+	UpsertHolders(ctx context.Context, holdersInfo []*types.TokenHolder) error
 	UpdateHolders(ctx context.Context, holdersInfo []*types.TokenHolder) error
 	GetListHolders(ctx context.Context, filter *types.HolderFilter) ([]*types.TokenHolder, uint64, error)
 }
@@ -25,6 +26,20 @@ func (m *mongoDB) createHoldersCollectionIndexes() []mongo.IndexModel {
 		{Keys: bson.M{"contractAddress": 1}, Options: options.Index().SetSparse(true)},
 		{Keys: bson.M{"holderAddress": 1}, Options: options.Index().SetSparse(true)},
 	}
+}
+
+func (m *mongoDB) UpsertHolders(ctx context.Context, holdersInfo []*types.TokenHolder) error {
+	holdersBulkWriter := make([]mongo.WriteModel, len(holdersInfo))
+	for i := range holdersInfo {
+		txModel := mongo.NewUpdateOneModel().SetUpsert(true).SetFilter(bson.M{"holderAddress": holdersInfo[i].HolderAddress, "contractAddress": holdersInfo[i].ContractAddress}).SetUpdate(bson.M{"$set": holdersInfo[i]})
+		holdersBulkWriter[i] = txModel
+	}
+	if len(holdersBulkWriter) > 0 {
+		if _, err := m.wrapper.C(cHolders).BulkWrite(holdersBulkWriter); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func (m *mongoDB) UpdateHolders(ctx context.Context, holdersInfo []*types.TokenHolder) error {

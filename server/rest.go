@@ -4,7 +4,6 @@ package server
 import (
 	"bytes"
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"io/ioutil"
@@ -1346,20 +1345,17 @@ func (s *Server) Contracts(c echo.Context) error {
 	finalResult := make([]*SimpleKRCTokenInfo, len(result))
 	for i := range result {
 		finalResult[i] = &SimpleKRCTokenInfo{
-			Name:       result[i].Name,
-			Address:    result[i].Address,
-			Info:       result[i].Info,
-			Type:       result[i].Type,
-			Logo:       result[i].Logo,
-			IsVerified: result[i].IsVerified,
+			Name:        result[i].Name,
+			Address:     result[i].Address,
+			Info:        result[i].Info,
+			Type:        result[i].Type,
+			Logo:        result[i].Logo,
+			IsVerified:  result[i].IsVerified,
+			Status:      int64(result[i].Status),
+			TotalSupply: result[i].TotalSupply,
+			TokenSymbol: result[i].Symbol,
+			Decimal:     int64(result[i].Decimals),
 		}
-		tokenInfo, err := s.getKRCTokenInfo(ctx, result[i].Address)
-		if err != nil {
-			continue
-		}
-		finalResult[i].TokenSymbol = tokenInfo.TokenSymbol
-		finalResult[i].TotalSupply = tokenInfo.TotalSupply
-		finalResult[i].Decimal = tokenInfo.Decimals
 	}
 	return api.OK.SetData(PagingResponse{
 		Page:  page,
@@ -1378,43 +1374,22 @@ func (s *Server) Contract(c echo.Context) error {
 		return api.Invalid.Build(c)
 	}
 
-	if smc.ABI == "" && smc.Type != "" {
-		abiStr, err := s.cacheClient.SMCAbi(ctx, cfg.SMCTypePrefix+smc.Type)
-		if err != nil {
-			abiStr, err = s.dbClient.SMCABIByType(ctx, smc.Type)
-			if err != nil {
-				s.logger.Warn("Cannot get ABI by type from db", zap.String("type", smc.Type), zap.Error(err))
-			}
-		}
-		// update KRC token total supply from RPC
-		if abiStr != "" {
-			smc.ABI = abiStr
-			krcTokenInfoRPC, err := s.getKRCTokenInfo(ctx, smc.Type)
-			if err != nil {
-				s.logger.Warn("New contract is not a KRC token", zap.Error(err), zap.Any("tokenInfo", krcTokenInfoRPC))
-			} else {
-				addrInfo.TotalSupply = krcTokenInfoRPC.TotalSupply
-			}
-		}
-	}
-	var result *KRCTokenInfo
-	// map smc info to result
-	smcJSON, err := json.Marshal(smc)
-	if err != nil {
-		return api.Invalid.Build(c)
-	}
-	err = json.Unmarshal(smcJSON, &result)
-	if err != nil {
-		return api.Invalid.Build(c)
-	}
-	// map address info to result
-	addrInfoJSON, err := json.Marshal(addrInfo)
-	if err != nil {
-		return api.Invalid.Build(c)
-	}
-	err = json.Unmarshal(addrInfoJSON, &result)
-	if err != nil {
-		return api.Invalid.Build(c)
+	result := &KRCTokenInfo{
+		Name:          smc.Name,
+		Address:       smc.Address,
+		OwnerAddress:  smc.OwnerAddress,
+		TxHash:        smc.TxHash,
+		Type:          smc.Type,
+		BalanceString: addrInfo.BalanceString,
+		Info:          addrInfo.Info,
+		Logo:          addrInfo.Logo,
+		IsContract:    addrInfo.IsContract,
+		TokenName:     smc.Name,
+		TokenSymbol:   smc.Symbol,
+		Decimals:      int64(smc.Decimals),
+		TotalSupply:   smc.TotalSupply,
+		Status:        int64(smc.Status),
+		CreatedAt:     smc.CreatedAt,
 	}
 
 	if smc.Type == cfg.SMCTypeKRC20 {
@@ -1427,67 +1402,8 @@ func (s *Server) Contract(c echo.Context) error {
 			}
 			result.TotalSupply = krcInfo.TotalSupply
 		}
-
 	}
 	return api.OK.SetData(result).Build(c)
-}
-
-func (s *Server) InsertContract(c echo.Context) error {
-	lgr := s.logger.With(zap.String("method", "InsertContract"))
-
-	if c.Request().Header.Get("Authorization") != s.infoServer.HttpRequestSecret {
-		return api.Unauthorized.Build(c)
-	}
-
-	lgr.Debug("Start insert contract")
-	var (
-		contract     types.Contract
-		addrInfo     types.Address
-		bodyBytes, _ = ioutil.ReadAll(c.Request().Body)
-	)
-	c.Request().Body = ioutil.NopCloser(bytes.NewBuffer(bodyBytes))
-	if err := c.Bind(&contract); err != nil {
-		lgr.Error("cannot bind data", zap.Error(err))
-		return api.Invalid.Build(c)
-	}
-	contract.IsVerified = true
-	c.Request().Body = ioutil.NopCloser(bytes.NewBuffer(bodyBytes))
-	if err := c.Bind(&addrInfo); err != nil {
-		lgr.Error("cannot bind data", zap.Error(err))
-		return api.Invalid.Build(c)
-	}
-	ctx := context.Background()
-	krcTokenInfoFromRPC, err := s.getKRCTokenInfoFromRPC(ctx, addrInfo.Address, addrInfo.KrcTypes)
-	if err != nil && strings.HasPrefix(addrInfo.KrcTypes, "KRC") {
-		s.logger.Warn("Updating contract is not KRC type", zap.Any("smcInfo", addrInfo))
-		return api.Invalid.Build(c)
-	}
-	if krcTokenInfoFromRPC != nil {
-		// cache new token info
-		krcTokenInfoFromRPC.Logo = addrInfo.Logo
-		if utils.CheckBase64Logo(addrInfo.Logo) {
-			fileName, err := s.fileStorage.UploadLogo(addrInfo.Logo, utils.HashString(contract.Address), s.ConfigUploader)
-			if err != nil {
-				log.Fatal("Error when upload the image: ", err)
-			} else {
-				addrInfo.Logo = fileName
-				contract.Logo = fileName
-			}
-		}
-		_ = s.cacheClient.UpdateKRCTokenInfo(ctx, krcTokenInfoFromRPC)
-		_ = s.cacheClient.UpdateSMCAbi(ctx, contract.Address, contract.ABI)
-
-		addrInfo.TokenName = krcTokenInfoFromRPC.TokenName
-		addrInfo.TokenSymbol = krcTokenInfoFromRPC.TokenSymbol
-		addrInfo.TotalSupply = krcTokenInfoFromRPC.TokenName
-		addrInfo.Decimals = krcTokenInfoFromRPC.Decimals
-	}
-	if err := s.dbClient.InsertContract(ctx, &contract, &addrInfo); err != nil {
-		lgr.Error("cannot bind insert", zap.Error(err))
-		return api.InternalServer.Build(c)
-	}
-
-	return api.OK.Build(c)
 }
 
 func (s *Server) VerifyContract(ctx context.Context) error {
@@ -1513,12 +1429,10 @@ func (s *Server) VerifyContract(ctx context.Context) error {
 
 func (s *Server) UpdateContract(c echo.Context) error {
 	lgr := s.logger.With(zap.String("method", "UpdateContract"))
-
 	if c.Request().Header.Get("Authorization") != s.infoServer.HttpRequestSecret {
 		return api.Unauthorized.Build(c)
 	}
 
-	lgr.Debug("Start insert contract")
 	var (
 		contract     types.Contract
 		addrInfo     types.Address
@@ -1880,4 +1794,171 @@ func (s *Server) getAddressInfo(ctx context.Context, address string) (*types.Add
 		s.logger.Warn("Cannot store address info to cache", zap.String("address", address), zap.Error(err))
 	}
 	return addrInfo, nil
+}
+
+func (s *Server) RefreshContractsInfo(c echo.Context) error {
+	lgr := s.Logger
+	ctx := context.Background()
+	if c.Request().Header.Get("Authorization") != s.infoServer.HttpRequestSecret {
+		return api.Unauthorized.Build(c)
+	}
+
+	contracts, err := s.dbClient.AllContracts(ctx)
+	if err != nil {
+		return api.Invalid.Build(c)
+	}
+
+	for _, c := range contracts {
+
+		c.Status = types.ContractStatusUnverified
+		if c.IsVerified {
+			c.Status = types.ContractStatusVerified
+		}
+
+		if c.Type == cfg.SMCTypeValidator ||
+			c.Type == cfg.SMCTypeStaking ||
+			c.Type == cfg.SMCTypeParams ||
+			c.Type == cfg.SMCTypeTreasury {
+			// Set verified for special contracts
+			c.Status = types.ContractStatusVerified
+		}
+		if err := s.dbClient.UpdateContract(ctx, c, nil); err != nil {
+			lgr.Error("cannot update contract", zap.Error(err))
+			continue
+		}
+	}
+
+	return api.OK.Build(c)
+}
+
+func (s *Server) RefreshKRC721Info(c echo.Context) error {
+	lgr := s.Logger
+	ctx := context.Background()
+	if c.Request().Header.Get("Authorization") != s.infoServer.HttpRequestSecret {
+		return api.Unauthorized.Build(c)
+	}
+
+	krc721Tokens, err := s.dbClient.ContractByType(ctx, cfg.SMCTypeKRC721)
+	if err != nil {
+		return api.Invalid.Build(c)
+	}
+
+	for _, krc721 := range krc721Tokens {
+		krc721.Status = types.ContractStatusUnverified
+		if krc721.IsVerified {
+			krc721.Status = types.ContractStatusVerified
+		}
+
+		// Change base64 image to default token
+		if strings.HasPrefix(krc721.Logo, "data:image") {
+			krc721.Logo = cfg.DefaultKRCTokenLogo
+		}
+
+		if err := s.dbClient.UpdateContract(ctx, krc721, nil); err != nil {
+			lgr.Error("cannot update contract", zap.Error(err))
+			continue
+		}
+	}
+
+	return api.OK.Build(c)
+}
+
+func (s *Server) RefreshKRC20Info(c echo.Context) error {
+	lgr := s.Logger
+	ctx := context.Background()
+	if c.Request().Header.Get("Authorization") != s.infoServer.HttpRequestSecret {
+		return api.Unauthorized.Build(c)
+	}
+
+	krc20Tokens, err := s.dbClient.ContractByType(ctx, cfg.SMCTypeKRC20)
+	if err != nil {
+		return api.Invalid.Build(c)
+	}
+
+	for _, krc20 := range krc20Tokens {
+		krc20.Status = types.ContractStatusUnverified
+		if krc20.IsVerified {
+			krc20.Status = types.ContractStatusVerified
+		}
+
+		token, err := kClient.NewToken(s.node, krc20.Address)
+		if err != nil {
+			lgr.Error("cannot create token object", zap.Error(err))
+			continue
+		}
+		krc20Info, err := token.KRC20Info(ctx)
+		if err != nil {
+			lgr.Error("cannot get KRC20 info of token", zap.Error(err))
+			continue
+		}
+		if krc20Info.Name != "" {
+			krc20.Name = krc20Info.Name
+		}
+
+		krc20.Symbol = krc20Info.Symbol
+		krc20.Decimals = krc20Info.Decimals
+
+		if krc20Info.TotalSupply != nil {
+			krc20.TotalSupply = krc20Info.TotalSupply.String()
+		}
+		// Change base64 image to default token
+		if strings.HasPrefix(krc20.Logo, "data:image") {
+			krc20.Logo = cfg.DefaultKRCTokenLogo
+		}
+
+		if err := s.dbClient.UpdateContract(ctx, krc20, nil); err != nil {
+			lgr.Error("cannot update contract", zap.Error(err))
+			continue
+		}
+	}
+
+	return api.OK.Build(c)
+}
+
+func (s *Server) SyncContractInfo(c echo.Context) error {
+	lgr := s.Logger
+	ctx := context.Background()
+	if c.Request().Header.Get("Authorization") != s.infoServer.HttpRequestSecret {
+		return api.Unauthorized.Build(c)
+	}
+
+	//  Select all txs which contractAddress != ''
+	contractCreationTxs, err := s.dbClient.FindContractCreationTxs(ctx)
+	if err != nil {
+		return api.Invalid.Build(c)
+	}
+
+	// Find contract info in `Address` collection and upsert with addition information into `Contracts` collection
+	for _, tx := range contractCreationTxs {
+		contract := &types.Contract{
+			Address:      tx.ContractAddress,
+			OwnerAddress: tx.From,
+			TxHash:       tx.Hash,
+			Type:         cfg.SMCTypeNormal,
+			CreatedAt:    tx.Time.Unix(),
+			UpdatedAt:    tx.Time.Unix(),
+		}
+
+		addressInfo, err := s.dbClient.AddressByHash(ctx, tx.ContractAddress)
+		if err == nil {
+			contract.Name = addressInfo.Name
+			if addressInfo.KrcTypes != "" {
+				contract.Type = addressInfo.KrcTypes
+			}
+			contract.Info = addressInfo.Info
+
+			if contract.Type == cfg.SMCTypeKRC20 { // Sync KRC20 information
+				contract.Name = addressInfo.TokenName
+				contract.Symbol = addressInfo.TokenSymbol
+				contract.Decimals = uint8(addressInfo.Decimals)
+				contract.TotalSupply = addressInfo.TotalSupply
+			}
+
+		}
+		if err := s.dbClient.UpdateContract(ctx, contract, nil); err != nil {
+			lgr.Error("cannot update contract", zap.Error(err))
+		}
+	}
+
+	return api.OK.Build(c)
 }

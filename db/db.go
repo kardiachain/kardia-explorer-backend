@@ -42,6 +42,7 @@ type Client interface {
 	IEvents
 	IHolders
 	IInternalTransaction
+	ITxs
 	ping() error
 	dropCollection(collectionName string)
 	dropDatabase(ctx context.Context) error
@@ -62,21 +63,6 @@ type Client interface {
 	DeleteBlockByHeight(ctx context.Context, blockHeight uint64) error
 	BlocksByProposer(ctx context.Context, proposer string, pagination *types.Pagination) ([]*types.Block, uint64, error)
 	CountBlocksOfProposer(ctx context.Context, proposerAddress string) (int64, error)
-
-	// Txs
-	TxsByBlockHash(ctx context.Context, blockHash string, pagination *types.Pagination) ([]*types.Transaction, uint64, error)
-	TxsByBlockHeight(ctx context.Context, blockNumber uint64, pagination *types.Pagination) ([]*types.Transaction, uint64, error)
-	TxsByAddress(ctx context.Context, address string, pagination *types.Pagination) ([]*types.Transaction, uint64, error)
-	LatestTxs(ctx context.Context, pagination *types.Pagination) ([]*types.Transaction, error)
-	TxsCount(ctx context.Context) (uint64, error)
-
-	// Tx detail
-	TxByHash(ctx context.Context, txHash string) (*types.Transaction, error)
-	FilterTxs(ctx context.Context, filter *types.TxsFilter) ([]*types.Transaction, uint64, error)
-
-	// Interact with tx
-	InsertTxs(ctx context.Context, txs []*types.Transaction) error
-	InsertListTxByAddress(ctx context.Context, list []*types.TransactionByAddress) error
 
 	// Address
 	AddressByHash(ctx context.Context, addressHash string) (*types.Address, error)

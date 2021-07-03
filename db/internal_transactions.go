@@ -2,6 +2,7 @@ package db
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/kardiachain/go-kardia/lib/common"
 
@@ -18,6 +19,7 @@ var cInternalTxs = "InternalTransactions"
 
 type IInternalTransaction interface {
 	createInternalTxsCollectionIndexes() []mongo.IndexModel
+	InsertInternalTxs(ctx context.Context, internalTxs *types.TokenTransfer) error
 	RemoveInternalTxs(ctx context.Context, filter *types.InternalTxsFilter) error
 	UpdateInternalTxs(ctx context.Context, internalTxs []*types.TokenTransfer) error
 	GetListInternalTxs(ctx context.Context, filter *types.InternalTxsFilter) ([]*types.TokenTransfer, uint64, error)
@@ -25,12 +27,23 @@ type IInternalTransaction interface {
 
 func (m *mongoDB) createInternalTxsCollectionIndexes() []mongo.IndexModel {
 	return []mongo.IndexModel{
+		{Keys: bson.M{"transferID": 1}, Options: options.Index().SetUnique(true).SetSparse(true)},
 		{Keys: bson.M{"contractAddress": 1}, Options: options.Index().SetSparse(true)},
 		{Keys: bson.M{"from": 1}, Options: options.Index().SetSparse(true)},
 		{Keys: bson.M{"to": 1}, Options: options.Index().SetSparse(true)},
 		{Keys: bson.M{"txHash": 1}, Options: options.Index().SetSparse(true)},
 		{Keys: bson.M{"time": -1}, Options: options.Index().SetSparse(true)},
 	}
+}
+
+func (m *mongoDB) InsertInternalTxs(ctx context.Context, internalTx *types.TokenTransfer) error {
+	// Create uniqueID by combine txHash-Contract-LogIndex
+	// TransferID is unique by index
+	internalTx.TransferID = fmt.Sprintf("%s-%s-%d", internalTx.TransactionHash, internalTx.Contract, internalTx.LogIndex)
+	if _, err := m.wrapper.C(cInternalTxs).Insert(internalTx); err != nil {
+		return err
+	}
+	return nil
 }
 
 func (m *mongoDB) UpdateInternalTxs(ctx context.Context, internalTxs []*types.TokenTransfer) error {

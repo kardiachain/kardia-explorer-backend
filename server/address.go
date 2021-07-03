@@ -53,7 +53,8 @@ func (s *infoServer) filterContracts(ctx context.Context, txs []*types.Transacti
 				OwnerAddress: tx.From,
 				TxHash:       tx.Hash,
 				CreatedAt:    tx.Time.Unix(),
-				Type:         cfg.SMCTypeNormal, // Set normal by default
+				Type:         cfg.SMCTypeNormal,              // Set normal by default
+				Status:       types.ContractStatusUnverified, // Unverified by default
 				IsVerified:   false,
 			}
 			lgr.Info("Detect new contract", zap.String("ContractAddress", c.Address), zap.String("TxHash", c.TxHash))
