@@ -8,7 +8,6 @@ import (
 type IContract interface {
 	Contracts(c echo.Context) error
 	Contract(c echo.Context) error
-	InsertContract(c echo.Context) error
 	UpdateContract(c echo.Context) error
 	UpdateSMCABIByType(c echo.Context) error
 	ContractEvents(c echo.Context) error
@@ -16,12 +15,7 @@ type IContract interface {
 
 func bindContractAPIs(gr *echo.Group, srv EchoServer) {
 	apis := []restDefinition{
-		{
-			method:      echo.POST,
-			path:        "/contracts",
-			fn:          srv.InsertContract,
-			middlewares: nil,
-		},
+
 		{
 			method:      echo.PUT,
 			path:        "/contracts",
