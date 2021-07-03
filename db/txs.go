@@ -44,7 +44,7 @@ func (m *mongoDB) TxsCount(ctx context.Context) (uint64, error) {
 func (m *mongoDB) FindContractCreationTxs(ctx context.Context) ([]*types.Transaction, error) {
 	var txs []*types.Transaction
 	var opts []*options.FindOptions
-	cursor, err := m.wrapper.C(cTxs).Find(bson.M{"$and": bson.M{"contractAddress": bson.M{"$ne": ""}}}, opts...)
+	cursor, err := m.wrapper.C(cTxs).Find(bson.M{"contractAddress": bson.M{"$ne": ""}}, opts...)
 	if err != nil {
 		return nil, err
 	}
