@@ -21,6 +21,7 @@ type IPrivate interface {
 	RefreshKRC20Info(c echo.Context) error
 	RefreshKRC721Info(c echo.Context) error
 	RefreshContractsInfo(c echo.Context) error
+	RemoveNilContracts(c echo.Context) error
 }
 
 func bindPrivateAPIs(gr *echo.Group, srv EchoServer) {
@@ -47,6 +48,12 @@ func bindPrivateAPIs(gr *echo.Group, srv EchoServer) {
 			method:      echo.PUT,
 			path:        "/contracts/refresh",
 			fn:          srv.RefreshContractsInfo,
+			middlewares: nil,
+		},
+		{
+			method:      echo.DELETE,
+			path:        "/contracts/nil",
+			fn:          srv.RemoveNilContracts,
 			middlewares: nil,
 		},
 	}

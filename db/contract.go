@@ -34,6 +34,7 @@ type IContract interface {
 
 	// Remove
 	RemoveContract(ctx context.Context, contractAddress string) error
+	RemoveContracts(ctx context.Context) error
 }
 
 func (m *mongoDB) InsertContract(ctx context.Context, contract *types.Contract, addrInfo *types.Address) error {
@@ -54,6 +55,13 @@ func (m *mongoDB) InsertContract(ctx context.Context, contract *types.Contract, 
 
 func (m *mongoDB) RemoveContract(ctx context.Context, contractAddress string) error {
 	if _, err := m.wrapper.C(cContract).Remove(bson.M{"address": contractAddress}); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (m *mongoDB) RemoveContracts(ctx context.Context) error {
+	if _, err := m.wrapper.C(cContract).Remove(bson.M{"address": ""}); err != nil {
 		return err
 	}
 	return nil
