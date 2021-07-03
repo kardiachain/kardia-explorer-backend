@@ -95,6 +95,7 @@ func (s *infoServer) LoadBootContracts(ctx context.Context) error {
 			OwnerAddress: cfg.StakingContractAddr,
 			CreatedAt:    time.Now().Unix(),
 			Type:         cfg.SMCTypeValidator,
+			Status:       types.ContractStatusVerified,
 			IsVerified:   true,
 		})
 	}

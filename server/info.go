@@ -27,7 +27,6 @@ import (
 	"github.com/kardiachain/kardia-explorer-backend/kardia"
 	"github.com/kardiachain/kardia-explorer-backend/metrics"
 	"github.com/kardiachain/kardia-explorer-backend/types"
-	"github.com/kardiachain/kardia-explorer-backend/utils"
 )
 
 type InfoServer interface {
@@ -330,48 +329,11 @@ func (s *infoServer) ImportBlock(ctx context.Context, block *types.Block, writeT
 	endTime := time.Since(startTime)
 	s.metrics.RecordInsertBlockTime(endTime)
 	s.logger.Info("Total time for import block", zap.Duration("TimeConsumed", endTime), zap.String("Avg", s.metrics.GetInsertBlockTime()))
-
-	//startTime = time.Now()
-	//if err := s.dbClient.InsertTxs(ctx, block.Txs); err != nil {
-	//	return err
-	//}
-	//endTime = time.Since(startTime)
-	//s.metrics.RecordInsertTxsTime(endTime)
-	//s.logger.Info("Total time for import tx", zap.Duration("TimeConsumed", endTime), zap.String("Avg", s.metrics.GetInsertTxsTime()))
-
-	//// update active addresses
-	//startTime = time.Now()
-	//addrsMap := filterAddrSet(block.Txs)
-	//getBalanceTime := time.Now()
-	//addrsList := s.getAddressBalances(ctx, addrsMap)
-	//lgr.Debug("GetAddressBalance time", zap.Duration("TotalTime", time.Since(getBalanceTime)))
-	//
-	//updateAddressTime := time.Now()
-	//if err := s.dbClient.UpdateAddresses(ctx, addrsList); err != nil {
-	//	return err
-	//}
-	//lgr.Debug("UpdateAddressTime", zap.Duration("TotalTime", time.Since(updateAddressTime)))
-	//endTime = time.Since(startTime)
-	//s.metrics.RecordInsertActiveAddressTime(endTime)
-	//s.logger.Info("Total time for update addresses", zap.Duration("TimeConsumed", endTime), zap.String("Avg", s.metrics.GetInsertActiveAddressTime()))
-	//startTime = time.Now()
-	//totalAddr, totalContractAddr, err := s.dbClient.GetTotalAddresses(ctx)
-	//if err != nil {
-	//	return err
-	//}
-	//err = s.cacheClient.UpdateTotalHolders(ctx, totalAddr, totalContractAddr)
-	//if err != nil {
-	//	return err
-	//}
-	//s.logger.Info("Total time for getting active addresses", zap.Duration("TimeConsumed", time.Since(startTime)))
-	//
-	//if _, err := s.cacheClient.UpdateTotalTxs(ctx, block.NumTxs); err != nil {
-	//	return err
-	//}
 	return nil
 }
 
 func (s *infoServer) ProcessTxs(ctx context.Context, block *types.Block, writeToCache bool) error {
+	lgr := s.logger
 	startTime := time.Now()
 	// merge receipts into corresponding transactions
 	// because getBlockByHash/Height API returns 2 array contains txs and receipts separately
@@ -394,37 +356,18 @@ func (s *infoServer) ProcessTxs(ctx context.Context, block *types.Block, writeTo
 			return err
 		}
 	}
-
-	return nil
-}
-
-func (s *infoServer) ProcessActiveAddress(ctx context.Context, txs []*types.Transaction) error {
-	lgr := s.logger.With(zap.String("method", "ProcessActiveAddress"))
-	// update active addresses
-	startTime := time.Now()
-	addrsMap := filterAddrSet(txs)
-	getBalanceTime := time.Now()
-	addrsList := s.getAddressBalances(ctx, addrsMap)
-	lgr.Debug("GetAddressBalance time", zap.Duration("TotalTime", time.Since(getBalanceTime)))
-
-	updateAddressTime := time.Now()
-	if err := s.dbClient.UpdateAddresses(ctx, addrsList); err != nil {
-		return err
+	var receiptHashes []string
+	for _, r := range block.Receipts {
+		receiptHashes = append(receiptHashes, r.TransactionHash)
 	}
-	lgr.Debug("UpdateAddressTime", zap.Duration("TotalTime", time.Since(updateAddressTime)))
-	endTime := time.Since(startTime)
-	s.metrics.RecordInsertActiveAddressTime(endTime)
-	s.logger.Info("Total time for update addresses", zap.Duration("TimeConsumed", endTime), zap.String("Avg", s.metrics.GetInsertActiveAddressTime()))
-	startTime = time.Now()
-	totalAddr, totalContractAddr, err := s.dbClient.GetTotalAddresses(ctx)
-	if err != nil {
-		return err
+	if len(receiptHashes) > 0 {
+		lgr.Debug("Push receipts", zap.Any("Receipts", receiptHashes))
+		if err := s.cacheClient.PushReceipts(ctx, receiptHashes); err != nil {
+			lgr.Error("cannot push receipts", zap.Error(err))
+			return err
+		}
 	}
-	err = s.cacheClient.UpdateTotalHolders(ctx, totalAddr, totalContractAddr)
-	if err != nil {
-		return err
-	}
-	s.logger.Info("Total time for getting active addresses", zap.Duration("TimeConsumed", time.Since(startTime)))
+
 	return nil
 }
 
@@ -523,106 +466,107 @@ func (s *infoServer) PopUnverifiedBlockHeight(ctx context.Context) (uint64, erro
 	return height, nil
 }
 
-func (s *infoServer) ImportReceipts(ctx context.Context, block *types.Block) error {
-	var listTxByFromAddress []*types.TransactionByAddress
-	var listTxByToAddress []*types.TransactionByAddress
-	jobs := make(chan types.Transaction, block.NumTxs)
-	type response struct {
-		err         error
-		txByFromAdd *types.TransactionByAddress
-		txByToAdd   *types.TransactionByAddress
-	}
-	results := make(chan response, block.NumTxs)
-	var addresses []*types.Address
-
-	for w := 0; w <= 10; w++ {
-		go func(jobs <-chan types.Transaction, results chan<- response) {
-			for tx := range jobs {
-				receipt, err := s.kaiClient.GetTransactionReceipt(ctx, tx.Hash)
-				if err != nil {
-					s.logger.Warn("get receipt err", zap.String("tx hash", tx.Hash), zap.Error(err))
-					results <- response{
-						err: err,
-					}
-					continue
-				}
-				toAddress := tx.To
-				if tx.To == "" {
-					if !utils.IsNilAddress(receipt.ContractAddress) {
-						tx.ContractAddress = receipt.ContractAddress
-					}
-					tx.Status = receipt.Status
-					toAddress = tx.ContractAddress
-				}
-
-				address, err := s.dbClient.AddressByHash(ctx, toAddress)
-				if err != nil {
-					s.logger.Warn("cannot get address by hash")
-					results <- response{
-						err: err,
-					}
-					continue
-				}
-
-				if address == nil || address.IsContract {
-					if err := s.dbClient.UpdateAddresses(ctx, addresses); err != nil {
-						results <- response{
-							err: err,
-						}
-						continue
-					}
-				}
-				var res response
-				res.txByFromAdd = &types.TransactionByAddress{
-					Address: tx.From,
-					TxHash:  tx.Hash,
-					Time:    tx.Time,
-				}
-
-				if tx.From != toAddress {
-					res.txByToAdd = &types.TransactionByAddress{
-						Address: toAddress,
-						TxHash:  tx.Hash,
-						Time:    tx.Time,
-					}
-				}
-				results <- res
-			}
-		}(jobs, results)
-	}
-
-	for _, tx := range block.Txs {
-		jobs <- *tx
-	}
-	close(jobs)
-	size := int(block.NumTxs)
-	for i := 0; i < size; i++ {
-		r := <-results
-		if r.err != nil {
-			continue
-		}
-		if r.txByFromAdd != nil {
-			listTxByFromAddress = append(listTxByFromAddress, r.txByFromAdd)
-		}
-		if r.txByToAdd != nil {
-			listTxByToAddress = append(listTxByToAddress, r.txByToAdd)
-		}
-	}
-
-	if len(listTxByToAddress) > 0 {
-		if err := s.dbClient.InsertListTxByAddress(ctx, listTxByFromAddress); err != nil {
-			return err
-		}
-	}
-
-	if len(listTxByToAddress) > 0 {
-		if err := s.dbClient.InsertListTxByAddress(ctx, listTxByToAddress); err != nil {
-			return err
-		}
-	}
-
-	return nil
-}
+//
+//func (s *infoServer) ImportReceipts(ctx context.Context, block *types.Block) error {
+//	var listTxByFromAddress []*types.TransactionByAddress
+//	var listTxByToAddress []*types.TransactionByAddress
+//	jobs := make(chan types.Transaction, block.NumTxs)
+//	type response struct {
+//		err         error
+//		txByFromAdd *types.TransactionByAddress
+//		txByToAdd   *types.TransactionByAddress
+//	}
+//	results := make(chan response, block.NumTxs)
+//	var addresses []*types.Address
+//
+//	for w := 0; w <= 10; w++ {
+//		go func(jobs <-chan types.Transaction, results chan<- response) {
+//			for tx := range jobs {
+//				receipt, err := s.kaiClient.GetTransactionReceipt(ctx, tx.Hash)
+//				if err != nil {
+//					s.logger.Warn("get receipt err", zap.String("tx hash", tx.Hash), zap.Error(err))
+//					results <- response{
+//						err: err,
+//					}
+//					continue
+//				}
+//				toAddress := tx.To
+//				if tx.To == "" {
+//					if !utils.IsNilAddress(receipt.ContractAddress) {
+//						tx.ContractAddress = receipt.ContractAddress
+//					}
+//					tx.Status = receipt.Status
+//					toAddress = tx.ContractAddress
+//				}
+//
+//				address, err := s.dbClient.AddressByHash(ctx, toAddress)
+//				if err != nil {
+//					s.logger.Warn("cannot get address by hash")
+//					results <- response{
+//						err: err,
+//					}
+//					continue
+//				}
+//
+//				if address == nil || address.IsContract {
+//					if err := s.dbClient.UpdateAddresses(ctx, addresses); err != nil {
+//						results <- response{
+//							err: err,
+//						}
+//						continue
+//					}
+//				}
+//				var res response
+//				res.txByFromAdd = &types.TransactionByAddress{
+//					Address: tx.From,
+//					TxHash:  tx.Hash,
+//					Time:    tx.Time,
+//				}
+//
+//				if tx.From != toAddress {
+//					res.txByToAdd = &types.TransactionByAddress{
+//						Address: toAddress,
+//						TxHash:  tx.Hash,
+//						Time:    tx.Time,
+//					}
+//				}
+//				results <- res
+//			}
+//		}(jobs, results)
+//	}
+//
+//	for _, tx := range block.Txs {
+//		jobs <- *tx
+//	}
+//	close(jobs)
+//	size := int(block.NumTxs)
+//	for i := 0; i < size; i++ {
+//		r := <-results
+//		if r.err != nil {
+//			continue
+//		}
+//		if r.txByFromAdd != nil {
+//			listTxByFromAddress = append(listTxByFromAddress, r.txByFromAdd)
+//		}
+//		if r.txByToAdd != nil {
+//			listTxByToAddress = append(listTxByToAddress, r.txByToAdd)
+//		}
+//	}
+//
+//	if len(listTxByToAddress) > 0 {
+//		if err := s.dbClient.InsertListTxByAddress(ctx, listTxByFromAddress); err != nil {
+//			return err
+//		}
+//	}
+//
+//	if len(listTxByToAddress) > 0 {
+//		if err := s.dbClient.InsertListTxByAddress(ctx, listTxByToAddress); err != nil {
+//			return err
+//		}
+//	}
+//
+//	return nil
+//}
 
 func (s *infoServer) blockVerifier(db, network *types.Block) bool {
 	if s.verifyBlockParam.VerifyTxCount {
@@ -681,27 +625,6 @@ func (s *infoServer) VerifyBlock(ctx context.Context, blockHeight uint64, networ
 		return true, nil
 	}
 	return false, nil
-}
-
-func filterAddrSet(txs []*types.Transaction) map[string]*types.Address {
-	addrs := make(map[string]*types.Address)
-	for _, tx := range txs {
-		addrs[tx.From] = &types.Address{
-			Address:    tx.From,
-			IsContract: false,
-		}
-		addrs[tx.To] = &types.Address{
-			Address:    tx.To,
-			IsContract: false,
-		}
-		addrs[tx.ContractAddress] = &types.Address{
-			Address:    tx.ContractAddress,
-			IsContract: true,
-		}
-	}
-	delete(addrs, "")
-	delete(addrs, "0x")
-	return addrs
 }
 
 func (s *infoServer) getAddressBalances(ctx context.Context, addrs map[string]*types.Address) []*types.Address {
@@ -830,6 +753,7 @@ func (s *infoServer) storeEvents(ctx context.Context, logs []types.Log, blockTim
 		getABITime := time.Now()
 		smcABI, err = s.getSMCAbi(ctx, &logs[i])
 		if err != nil {
+			lgr.Info("Cannot get SMC ABI", zap.Error(err))
 			// automatically detect if this contract is KRC or not
 			var tokenInfo *types.KRCTokenInfo
 			tokenInfo, err = s.getKRCTokenInfoFromRPC(ctx, logs[i].Address, cfg.SMCTypeKRC20)
@@ -841,6 +765,7 @@ func (s *infoServer) storeEvents(ctx context.Context, logs []types.Log, blockTim
 					continue
 				}
 			}
+			/* Temp remove auto add new KRC20 token into db
 			// insert new KRC SMC to db
 			contract, addrInfo := convertTokenInfoToSMCInfo(tokenInfo)
 			if err = s.dbClient.UpdateContract(ctx, contract, addrInfo); err != nil {
@@ -857,15 +782,18 @@ func (s *infoServer) storeEvents(ctx context.Context, logs []types.Log, blockTim
 				s.logger.Warn("Cannot decode smc abi by type from base64", zap.Error(err))
 				continue
 			}
+			*/
 		}
 		lgr.Debug("Get ABI time", zap.Duration("TotalTime", time.Since(getABITime)))
 		decodedLog, err := s.kaiClient.UnpackLog(&logs[i], smcABI)
 		if err != nil {
+			lgr.Info("Cannot unpack logs", zap.Any("logs", logs[i]))
 			decodedLog = &logs[i]
 		}
 		decodedLog.Time = blockTime
 		logs[i] = *decodedLog
 		if logs[i].Topics[0] == cfg.KRCTransferTopic {
+			lgr.Info("New transfer event", zap.Any("LogsDetail", logs[i]))
 			iTx := s.getInternalTxs(ctx, decodedLog)
 			if iTx != nil {
 				internalTxsList = append(internalTxsList, iTx)

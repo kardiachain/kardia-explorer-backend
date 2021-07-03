@@ -19,6 +19,7 @@
 package server
 
 import (
+	kClient "github.com/kardiachain/go-kaiclient/kardia"
 	"go.uber.org/zap"
 
 	"github.com/kardiachain/kardia-explorer-backend/cache"
@@ -67,16 +68,14 @@ type Config struct {
 // Server instance kind of a router, which receive request from client (explorer)
 // and control how we react those request
 type Server struct {
-	Logger *zap.Logger
+	node        kClient.Node
+	fileStorage s3.FileStorage
+	metrics     *metrics.Provider
 
-	metrics *metrics.Provider
-
+	Logger           *zap.Logger
 	VerifyBlockParam *types.VerifyBlockParam
 
-	fileStorage s3.FileStorage
-
 	infoServer
-
 	s3.ConfigUploader
 }
 
@@ -137,11 +136,17 @@ func New(cfg Config) (*Server, error) {
 		return nil, err
 	}
 
+	node, err := kClient.NewNode(cfg.KardiaTrustedNodes[0], cfg.Logger)
+	if err != nil {
+		return nil, err
+	}
+
 	return &Server{
 		Logger:      cfg.Logger,
 		metrics:     avgMetrics,
 		infoServer:  infoServer,
 		fileStorage: s3Aws,
+		node:        node,
 		ConfigUploader: s3.ConfigUploader{
 			Bucket:     cfg.UploaderBucket,
 			ACL:        cfg.UploaderAcl,

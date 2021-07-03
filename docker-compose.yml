@@ -53,6 +53,15 @@ services:
     depends_on:
       - grabber
       - mongodb
+  receipts:
+    image: kardiachain/backend-explorer
+    container_name: "explorer-receipts"
+    volumes:
+      - .env.sample:/go/bin/.env
+    command: "receipts"
+    depends_on:
+      - grabber
+      - mongodb
   watcher:
     image: kardiachain/backend-explorer
     container_name: "explorer-watcher"

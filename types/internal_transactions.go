@@ -4,15 +4,17 @@ import "time"
 
 // TokenTransfer represents a Transfer event emitted from an ERC20 or ERC721.
 type TokenTransfer struct {
-	TransactionHash string `json:"txHash" bson:"txHash"`
-	BlockHeight     uint64 `json:"blockHeight" bson:"blockHeight"`
-	Contract        string `json:"contractAddress" bson:"contractAddress"`
+	TransferID      string `json:"transferID" bson:"transferID,omitempty"`
+	TransactionHash string `json:"txHash" bson:"txHash,omitempty"`
+	BlockHeight     uint64 `json:"blockHeight" bson:"blockHeight,omitempty"`
+	Contract        string `json:"contractAddress" bson:"contractAddress,omitempty"`
 
-	From     string      `json:"from" bson:"from"`
-	To       string      `json:"to" bson:"to"`
-	Value    string      `json:"value" bson:"value"`
-	Time     time.Time   `json:"time" bson:"time"`
-	LogIndex interface{} `json:"logIndex" bson:"logIndex"`
+	From     string      `json:"from" bson:"from,omitempty"`
+	To       string      `json:"to" bson:"to,omitempty"`
+	Value    string      `json:"value" bson:"value,omitempty"`
+	TokenID  string      `json:"tokenID" bson:"tokenID,omitempty"`
+	Time     time.Time   `json:"time" bson:"time,omitempty"`
+	LogIndex interface{} `json:"logIndex" bson:"logIndex,omitempty"`
 }
 
 type KRCTokenInfo struct {

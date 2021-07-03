@@ -9,6 +9,8 @@ WORKDIR /go/src/github/kardiachain/explorer-backend/cmd/backfill
 RUN go install
 WORKDIR /go/src/github/kardiachain/explorer-backend/cmd/verifier
 RUN go install
+WORKDIR /go/src/github/kardiachain/explorer-backend/cmd/receipts
+RUN go install
 WORKDIR /go/src/github/kardiachain/explorer-backend/cmd/watcher
 RUN go install
 WORKDIR /go/bin

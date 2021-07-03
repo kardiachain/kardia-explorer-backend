@@ -19,9 +19,10 @@ const (
 )
 
 type Config struct {
-	Adapter Adapter
-	URL     string
-	DB      int
+	Adapter  Adapter
+	URL      string
+	DB       int
+	Password string
 
 	IsFlush bool
 
@@ -33,6 +34,7 @@ type Config struct {
 
 type Client interface {
 	IStaking
+	IReceipts
 
 	InsertBlock(ctx context.Context, block *types.Block) error
 	InsertTxsOfBlock(ctx context.Context, block *types.Block) error
