@@ -1,5 +1,5 @@
-// Package server
-package server
+// Package api
+package api
 
 import (
 	"context"
@@ -7,14 +7,63 @@ import (
 	"sort"
 
 	"github.com/kardiachain/go-kardia/lib/common"
-	"github.com/labstack/echo"
-	"go.uber.org/zap"
-
-	"github.com/kardiachain/kardia-explorer-backend/api"
 	"github.com/kardiachain/kardia-explorer-backend/cfg"
 	"github.com/kardiachain/kardia-explorer-backend/db"
 	"github.com/kardiachain/kardia-explorer-backend/types"
+	"github.com/labstack/echo"
+	"go.uber.org/zap"
 )
+
+func bindStakingAPIs(gr *echo.Group, srv RestServer) {
+	apis := []restDefinition{
+		//Validator
+		{
+			method:      echo.GET,
+			path:        "/staking/stats",
+			fn:          srv.StakingStats,
+			middlewares: nil,
+		},
+		{
+			method:      echo.GET,
+			path:        "/validators/:address",
+			fn:          srv.Validator,
+			middlewares: nil,
+		},
+		{
+			method:      echo.GET,
+			path:        "/delegators/:address/validators",
+			fn:          srv.ValidatorsByDelegator,
+			middlewares: nil,
+		},
+		{
+			method:      echo.GET,
+			path:        "/validators/candidates",
+			fn:          srv.MobileCandidates,
+			middlewares: nil,
+		},
+		{
+			method:      echo.GET,
+			path:        "/validators",
+			fn:          srv.MobileValidators,
+			middlewares: nil,
+		},
+		{
+			method:      echo.GET,
+			path:        "/staking/candidates",
+			fn:          srv.Candidates,
+			middlewares: nil,
+		},
+		{
+			method:      echo.GET,
+			path:        "/staking/validators",
+			fn:          srv.Validators,
+			middlewares: nil,
+		},
+	}
+	for _, api := range apis {
+		gr.Add(api.method, api.path, api.fn, api.middlewares...)
+	}
+}
 
 func (s *Server) StakingStats(c echo.Context) error {
 	lgr := s.logger.With(zap.String("method", "StakingStats"))
@@ -22,9 +71,9 @@ func (s *Server) StakingStats(c echo.Context) error {
 	stats, err := s.cacheClient.StakingStats(ctx)
 	if err != nil {
 		lgr.Debug("cannot get staking stats from cache", zap.Error(err))
-		return api.Invalid.Build(c)
+		return Invalid.Build(c)
 	}
-	return api.OK.SetData(stats).Build(c)
+	return OK.SetData(stats).Build(c)
 }
 
 func (s *Server) Validators(c echo.Context) error {
@@ -32,7 +81,7 @@ func (s *Server) Validators(c echo.Context) error {
 
 	validators, err := s.dbClient.Validators(ctx, db.ValidatorsFilter{})
 	if err != nil {
-		return api.Invalid.Build(c)
+		return Invalid.Build(c)
 	}
 
 	var resp []*types.Validator
@@ -47,7 +96,7 @@ func (s *Server) Validators(c echo.Context) error {
 		}
 	}
 
-	return api.OK.SetData(resp).Build(c)
+	return OK.SetData(resp).Build(c)
 }
 
 func (s *Server) ValidatorsByDelegator(c echo.Context) error {
@@ -55,19 +104,19 @@ func (s *Server) ValidatorsByDelegator(c echo.Context) error {
 	delAddr := c.Param("address")
 	valsList, err := s.kaiClient.GetValidatorsByDelegator(ctx, common.HexToAddress(delAddr))
 	if err != nil {
-		return api.Invalid.Build(c)
+		return Invalid.Build(c)
 	}
-	return api.OK.SetData(valsList).Build(c)
+	return OK.SetData(valsList).Build(c)
 }
 
 func (s *Server) Candidates(c echo.Context) error {
 	ctx := context.Background()
 	candidates, err := s.dbClient.Validators(ctx, db.ValidatorsFilter{Role: cfg.RoleCandidate})
 	if err != nil {
-		return api.Invalid.Build(c)
+		return Invalid.Build(c)
 	}
 
-	return api.OK.SetData(candidates).Build(c)
+	return OK.SetData(candidates).Build(c)
 }
 
 func SortAscByStakeAmount(address string, delegators []*types.Delegator) []*types.Delegator {
@@ -114,7 +163,7 @@ func (s *Server) Validator(c echo.Context) error {
 	validator, err := s.dbClient.Validator(ctx, validatorSMCAddress)
 	if err != nil {
 		lgr.Error("cannot load validator from db", zap.Error(err))
-		return api.Invalid.Build(c)
+		return Invalid.Build(c)
 	}
 
 	// get delegation details
@@ -126,17 +175,17 @@ func (s *Server) Validator(c echo.Context) error {
 	delegators, err := s.dbClient.Delegators(ctx, filter)
 	if err != nil {
 		lgr.Error("cannot load validator from db", zap.Error(err))
-		return api.Invalid.Build(c)
+		return Invalid.Build(c)
 	}
 
 	validator.Delegators = SortAscByStakeAmount(validatorSMCAddress, delegators)
 	total, err := s.dbClient.CountDelegators(ctx, filter)
 	if err != nil {
 		lgr.Error("cannot count delegator", zap.Error(err))
-		return api.Invalid.Build(c)
+		return Invalid.Build(c)
 	}
 
-	return api.OK.SetData(PagingResponse{
+	return OK.SetData(PagingResponse{
 		Page:  page,
 		Limit: limit,
 		Total: uint64(total),
@@ -149,7 +198,7 @@ func (s *Server) MobileValidators(c echo.Context) error {
 
 	validators, err := s.dbClient.Validators(ctx, db.ValidatorsFilter{})
 	if err != nil {
-		return api.Invalid.Build(c)
+		return Invalid.Build(c)
 	}
 
 	var resp []*types.Validator
@@ -173,14 +222,14 @@ func (s *Server) MobileValidators(c echo.Context) error {
 	}
 
 	mobileResp := mobileResponse{stats, resp}
-	return api.OK.SetData(mobileResp).Build(c)
+	return OK.SetData(mobileResp).Build(c)
 }
 
 func (s *Server) MobileCandidates(c echo.Context) error {
 	ctx := context.Background()
 	candidates, err := s.dbClient.Validators(ctx, db.ValidatorsFilter{Role: cfg.RoleCandidate})
 	if err != nil {
-		return api.Invalid.Build(c)
+		return Invalid.Build(c)
 	}
 
 	stats, err := s.cacheClient.StakingStats(ctx)
@@ -193,5 +242,5 @@ func (s *Server) MobileCandidates(c echo.Context) error {
 	}
 
 	mobileResp := mobileResponse{stats, candidates}
-	return api.OK.SetData(mobileResp).Build(c)
+	return OK.SetData(mobileResp).Build(c)
 }

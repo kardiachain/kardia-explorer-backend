@@ -5,8 +5,8 @@ import (
 	"github.com/labstack/echo"
 )
 
-// EchoServer define all API expose
-type EchoServer interface {
+// RestServer define all API expose
+type RestServer interface {
 	IPrivate
 	IContract
 	ITx

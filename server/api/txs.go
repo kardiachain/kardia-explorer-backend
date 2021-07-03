@@ -1,5 +1,5 @@
-// Package server
-package server
+// Package api
+package api
 
 import (
 	"context"
@@ -9,19 +9,83 @@ import (
 
 	kClient "github.com/kardiachain/go-kaiclient/kardia"
 	"github.com/kardiachain/go-kardia/lib/abi"
-	"github.com/kardiachain/kardia-explorer-backend/api"
 	"github.com/kardiachain/kardia-explorer-backend/cfg"
 	"github.com/kardiachain/kardia-explorer-backend/types"
 	"github.com/labstack/echo"
 	"go.uber.org/zap"
 )
 
+type ITx interface {
+	Txs(c echo.Context) error
+	TxByHash(c echo.Context) error
+	SearchAddressByName(c echo.Context) error
+	GetHoldersListByToken(c echo.Context) error
+	GetInternalTxs(c echo.Context) error
+	UpdateInternalTxs(c echo.Context) error
+}
+
+func (s *Server) Txs(c echo.Context) error {
+	ctx := context.Background()
+	pagination, page, limit := getPagingOption(c)
+	var (
+		err error
+		txs []*types.Transaction
+	)
+
+	txs, err = s.cacheClient.LatestTransactions(ctx, pagination)
+	if err != nil || txs == nil || len(txs) < limit {
+		txs, err = s.dbClient.LatestTxs(ctx, pagination)
+		if err != nil {
+			return Invalid.Build(c)
+		}
+	}
+
+	smcAddress := s.getValidatorsAddressAndRole(ctx)
+	var result Transactions
+	for _, tx := range txs {
+		t := SimpleTransaction{
+			Hash:             tx.Hash,
+			BlockNumber:      tx.BlockNumber,
+			Time:             tx.Time,
+			From:             tx.From,
+			To:               tx.To,
+			ContractAddress:  tx.ContractAddress,
+			Value:            tx.Value,
+			TxFee:            tx.TxFee,
+			Status:           tx.Status,
+			DecodedInputData: tx.DecodedInputData,
+			InputData:        tx.InputData,
+		}
+
+		if smcAddress[tx.To] != nil {
+			t.Role = smcAddress[tx.To].Role
+			t.IsInValidatorsList = true
+		}
+		addrInfo, _ := s.getAddressInfo(ctx, tx.From)
+		if addrInfo != nil {
+			t.FromName = addrInfo.Name
+		}
+		addrInfo, _ = s.getAddressInfo(ctx, tx.To)
+		if addrInfo != nil {
+			t.ToName = addrInfo.Name
+		}
+		result = append(result, t)
+	}
+
+	return OK.SetData(PagingResponse{
+		Page:  page,
+		Limit: limit,
+		Total: s.cacheClient.TotalTxs(ctx),
+		Data:  result,
+	}).Build(c)
+}
+
 func (s *Server) TxByHash(c echo.Context) error {
-	lgr := s.Logger
+	lgr := s.logger
 	ctx := context.Background()
 	txHash := c.Param("txHash")
 	if txHash == "" {
-		return api.Invalid.Build(c)
+		return Invalid.Build(c)
 	}
 
 	// Direct decode logs
@@ -32,13 +96,13 @@ func (s *Server) TxByHash(c echo.Context) error {
 		lgr.Info("Try to get transaction from network", zap.String("hash", txHash))
 		tx, err = s.kaiClient.GetTransaction(ctx, txHash)
 		if err != nil {
-			s.Logger.Error("cannot get transaction from network", zap.Error(err))
-			return api.Invalid.Build(c)
+			lgr.Error("cannot get transaction from network", zap.Error(err))
+			return Invalid.Build(c)
 		}
 		receipt, err := s.kaiClient.GetTransactionReceipt(ctx, txHash)
 		if err != nil {
-			s.Logger.Error("cannot get receipt by hash from network", zap.Error(err))
-			return api.Invalid.Build(c)
+			lgr.Error("cannot get receipt by hash from network", zap.Error(err))
+			return Invalid.Build(c)
 		}
 		tx.Logs = receipt.Logs
 		tx.Root = receipt.Root
@@ -156,17 +220,17 @@ func (s *Server) TxByHash(c echo.Context) error {
 	//if smcAddress[result.To] != nil {
 	//	result.Role = smcAddress[result.To].Role
 	//	result.IsInValidatorsList = true
-	//	return api.OK.SetData(result).Build(c)
+	//	return OK.SetData(result).Build(c)
 	//}
 	if result.Status == 0 {
 		txTraceResult, err := s.kaiClient.TraceTransaction(ctx, result.Hash)
 		if err != nil {
 			s.logger.Warn("Cannot trace tx hash", zap.Error(err), zap.String("txHash", result.Hash))
-			return api.OK.SetData(result).Build(c)
+			return OK.SetData(result).Build(c)
 		}
 		result.RevertReason = txTraceResult.RevertReason
 	}
-	return api.OK.SetData(result).Build(c)
+	return OK.SetData(result).Build(c)
 }
 
 func (s *Server) buildFunctionCall(ctx context.Context, tx *types.Transaction) *types.FunctionCall {
@@ -182,7 +246,7 @@ func (s *Server) buildFunctionCall(ctx context.Context, tx *types.Transaction) *
 
 	var contractABI *abi.ABI
 	if contractInfo.ABI != "" {
-		contractABI, err = s.infoServer.decodeSMCABIFromBase64(ctx, contractInfo.ABI, contractInfo.Address)
+		contractABI, err = s.decodeSMCABIFromBase64(ctx, contractInfo.ABI, contractInfo.Address)
 		if err != nil {
 			return nil
 		}
@@ -218,7 +282,7 @@ func (s *Server) buildFunctionCall(ctx context.Context, tx *types.Transaction) *
 }
 
 func (s *Server) buildInternalTransaction(ctx context.Context, l *types.Log) *InternalTransaction {
-	lgr := s.Logger
+	lgr := s.logger
 	contractInfo, _, err := s.dbClient.Contract(ctx, l.Address)
 	if err != nil {
 		lgr.Error("cannot get contract from db, skip process log", zap.Error(err))
@@ -227,7 +291,7 @@ func (s *Server) buildInternalTransaction(ctx context.Context, l *types.Log) *In
 
 	var contractABI *abi.ABI
 	if contractInfo.ABI != "" {
-		contractABI, err = s.infoServer.decodeSMCABIFromBase64(ctx, contractInfo.ABI, contractInfo.Address)
+		contractABI, err = s.decodeSMCABIFromBase64(ctx, contractInfo.ABI, contractInfo.Address)
 		if err != nil {
 			return nil
 		}
@@ -282,7 +346,7 @@ func (s *Server) buildInternalTransaction(ctx context.Context, l *types.Log) *In
 }
 
 func (s *Server) getAddressDetail(ctx context.Context, address string) (*types.Address, error) {
-	lgr := s.Logger
+	lgr := s.logger
 	addressDetail := &types.Address{Address: address}
 	addrInfo, err := s.cacheClient.AddressInfo(ctx, address)
 	if err == nil {

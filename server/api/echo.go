@@ -34,7 +34,7 @@ type restDefinition struct {
 	middlewares []echo.MiddlewareFunc
 }
 
-func bind(gr *echo.Group, srv EchoServer) {
+func bind(gr *echo.Group, srv RestServer) {
 	apis := []restDefinition{
 		{
 			method:      echo.GET,
@@ -233,7 +233,7 @@ func bind(gr *echo.Group, srv EchoServer) {
 	}
 }
 
-func bindEventAPIs(gr *echo.Group, srv EchoServer) {
+func bindEventAPIs(gr *echo.Group, srv RestServer) {
 	apis := []restDefinition{
 		{
 			method:      echo.DELETE,
@@ -247,7 +247,7 @@ func bindEventAPIs(gr *echo.Group, srv EchoServer) {
 	}
 }
 
-func Start(srv EchoServer, cfg cfg.ExplorerConfig) {
+func Start(srv RestServer, cfg cfg.ExplorerConfig) {
 	e := echo.New()
 
 	e.Use(middleware.CORS())
