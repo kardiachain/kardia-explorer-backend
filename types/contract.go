@@ -1,6 +1,12 @@
 // Package types
 package types
 
+const (
+	ContractStatusUnverified     = 1
+	ContractStatusSourceUploaded = 2
+	ContractStatusVerified       = 3
+)
+
 // Contract define simple information about a SMC in kardia system
 type Contract struct {
 	Name         string `json:"name" bson:"name,omitempty"`
@@ -13,11 +19,11 @@ type Contract struct {
 	// TokenInfo
 	Symbol      string `json:"symbol" bson:"symbol,omitempty"`
 	TotalSupply string `json:"totalSupply" bson:"totalSupply,omitempty"`
-	Decimals    uint8  `json:"decimals" bson:"decimals,omitempty"`
+	Decimals    uint8  `json:"decimals" bson:"decimals"` // Do not omitempty since decimals may take 0 value, which go default
 	Logo        string `json:"logo" bson:"logo"`
 
 	// Addition information
-	IsVerified bool `json:"isVerified" bson:"isVerified"`
+	IsVerified bool `json:"isVerified" bson:"isVerified,omitempty"`
 	Status     int  `json:"status" bson:"status,omitempty"`
 
 	// Source information
