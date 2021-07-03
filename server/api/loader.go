@@ -111,6 +111,7 @@ func (s *Server) LoadBootContracts(ctx context.Context) error {
 
 func readAndEncodeABIFile(filePath string) (string, error) {
 	wd, _ := os.Getwd()
+	fmt.Println("WorkingFolder", wd)
 	abiFileContent, err := ioutil.ReadFile(path.Join(wd, filePath))
 	if err != nil {
 		return "", fmt.Errorf("cannot read ABI file %s", filePath)

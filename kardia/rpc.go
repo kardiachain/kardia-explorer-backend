@@ -21,6 +21,7 @@ package kardia
 import (
 	"context"
 	"errors"
+	"fmt"
 	"math/big"
 	"os"
 	"path"
@@ -109,6 +110,7 @@ func NewKaiClient(config *Config) (ClientInterface, error) {
 	defaultClient = trustedClientList[0]
 
 	wd, _ := os.Getwd()
+	fmt.Println("WorkingFolder", wd)
 	stakingABI, err := os.Open(path.Join(wd, "/abi/staking.json"))
 	if err != nil {
 		panic("cannot read staking ABI file")
