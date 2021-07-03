@@ -3,7 +3,9 @@ package server
 
 import (
 	"context"
+	"fmt"
 	"math/big"
+	"time"
 
 	kClient "github.com/kardiachain/go-kaiclient/kardia"
 	"github.com/kardiachain/go-kardia/lib/abi"
@@ -65,14 +67,17 @@ func (s *Server) TxByHash(c echo.Context) error {
 	//	TransactionHash: txHash,
 	//}
 	var internalTxs []*InternalTransaction
-	for _, l := range tx.Logs {
+	for id, l := range tx.Logs {
 		if l.Topics[0] == cfg.KRCTransferTopic {
 			// Get contract details
-			iTx := s.buildInternalTransaction(ctx, &l)
+			start := time.Now()
+			iTx := s.buildInternalTransaction(ctx, &tx.Logs[id])
 			if iTx != nil {
+				fmt.Printf("InternalTxLog:-------%+v\n", iTx.Log)
+				fmt.Printf("InternalTxToken:-------%+v\n", iTx.KRCTokenInfo)
 				internalTxs = append(internalTxs, iTx)
 			}
-
+			fmt.Println("TotalTime", time.Since(start))
 		}
 	}
 	//iTxs, _, err := s.dbClient.GetListInternalTxs(ctx, filter)
@@ -138,11 +143,11 @@ func (s *Server) TxByHash(c echo.Context) error {
 		LogsBloom:        tx.LogsBloom,
 		Root:             tx.Root,
 	}
-	addrInfo, _ := s.getAddressInfo(ctx, tx.From)
+	addrInfo, _ := s.getAddressDetail(ctx, tx.From)
 	if addrInfo != nil {
 		result.FromName = addrInfo.Name
 	}
-	addrInfo, _ = s.getAddressInfo(ctx, tx.To)
+	addrInfo, _ = s.getAddressDetail(ctx, tx.To)
 	if addrInfo != nil {
 		result.ToName = addrInfo.Name
 	}
@@ -241,21 +246,23 @@ func (s *Server) buildInternalTransaction(ctx context.Context, l *types.Log) *In
 			}
 		}
 	}
-
-	unpackedLog, err := s.kaiClient.UnpackLog(l, contractABI)
+	var unpackedLog *types.Log
+	unpackedLog, err = s.kaiClient.UnpackLog(l, contractABI)
 	if err != nil {
 		return nil
 	}
+
+	fmt.Printf("UnpackedLog: %+v \n", unpackedLog)
 
 	var from, to string
 	internalTx := &InternalTransaction{
 		Log: unpackedLog,
 	}
-	fromInfo, _ := s.getAddressInfo(ctx, from)
+	fromInfo, _ := s.getAddressDetail(ctx, from)
 	if fromInfo != nil {
 		internalTx.FromName = fromInfo.Name
 	}
-	toInfo, _ := s.getAddressInfo(ctx, to)
+	toInfo, _ := s.getAddressDetail(ctx, to)
 	if toInfo != nil {
 		internalTx.ToName = toInfo.Name
 	}
@@ -272,4 +279,23 @@ func (s *Server) buildInternalTransaction(ctx context.Context, l *types.Log) *In
 	internalTx.KRCTokenInfo = krcInfo
 
 	return internalTx
+}
+
+func (s *Server) getAddressDetail(ctx context.Context, address string) (*types.Address, error) {
+	lgr := s.Logger
+	addressDetail := &types.Address{Address: address}
+	addrInfo, err := s.cacheClient.AddressInfo(ctx, address)
+	if err == nil {
+		return addrInfo, nil
+	}
+	addrInfo, err = s.dbClient.AddressByHash(ctx, address)
+	if err != nil {
+		lgr.Error("Missing address", zap.Error(err), zap.String("address", address))
+		return addressDetail, nil
+	}
+	err = s.cacheClient.UpdateAddressInfo(ctx, addrInfo)
+	if err != nil {
+		s.logger.Error("Cannot store address info to cache", zap.Error(err))
+	}
+	return addrInfo, nil
 }
