@@ -108,6 +108,13 @@ func (s *Server) LoadBootData(ctx context.Context) error {
 		}
 	}
 
+	totalTxs, err := s.dbClient.TxsCount(ctx)
+	if err == nil {
+		if err = s.cacheClient.SetTotalTxs(ctx, totalTxs); err != nil {
+			s.logger.Warn("Cannot set total txs to cache when boot", zap.Uint64("totalTxs", totalTxs), zap.Error(err))
+		}
+	}
+
 	// Reload stats info
 	totalAddresses, err := s.dbClient.CountAddresses(ctx)
 	if err == nil {
