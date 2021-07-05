@@ -33,7 +33,7 @@ func (s *Server) GetInternalTxs(c echo.Context) error {
 	}
 	address := c.QueryParam("address")
 	if address != "" {
-		result, totalRecord, err := s.internalTxsOfContract(contractAddress, pagination)
+		result, totalRecord, err := s.internalTxsOfAddress(address, pagination)
 		if err != nil {
 			return Invalid.Build(c)
 		}
@@ -47,7 +47,7 @@ func (s *Server) GetInternalTxs(c echo.Context) error {
 
 	transactionHash := c.QueryParam("txHash")
 	if transactionHash != "" {
-		result, totalRecord, err := s.internalTxsOfContract(contractAddress, pagination)
+		result, totalRecord, err := s.internalTxsOfTransaction(transactionHash, pagination)
 		if err != nil {
 			return Invalid.Build(c)
 		}
@@ -96,7 +96,7 @@ func (s *Server) internalTxsOfAddress(address string, pagination *types.Paginati
 		if toInfo != nil {
 			result[i].ToName = toInfo.Name
 		}
-		krcTokenInfo, _ := s.getKRCTokenInfo(ctx, iTxs[i].Contract)
+		krcTokenInfo, _ := s.getTokenInfo(ctx, iTxs[i].Contract)
 		if krcTokenInfo != nil {
 			result[i].KRCTokenInfo = krcTokenInfo
 		}
@@ -129,15 +129,15 @@ func (s *Server) internalTxsOfTransaction(txHash string, pagination *types.Pagin
 			To:    iTxs[i].To,
 			Value: iTxs[i].Value,
 		}
-		fromInfo, _ = s.getAddressInfo(ctx, iTxs[i].From)
+		fromInfo, _ = s.getAddressDetail(ctx, iTxs[i].From)
 		if fromInfo != nil {
 			result[i].FromName = fromInfo.Name
 		}
-		toInfo, _ = s.getAddressInfo(ctx, iTxs[i].To)
+		toInfo, _ = s.getAddressDetail(ctx, iTxs[i].To)
 		if toInfo != nil {
 			result[i].ToName = toInfo.Name
 		}
-		krcTokenInfo, _ := s.getKRCTokenInfo(ctx, iTxs[i].Contract)
+		krcTokenInfo, _ := s.getTokenInfo(ctx, iTxs[i].Contract)
 		if krcTokenInfo != nil {
 			result[i].KRCTokenInfo = krcTokenInfo
 		}

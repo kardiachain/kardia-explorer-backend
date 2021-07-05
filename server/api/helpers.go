@@ -107,6 +107,23 @@ func (s *Server) decodeSMCABIFromBase64(ctx context.Context, abiStr, smcAddr str
 	return &jsonABI, nil
 }
 
+func (s *Server) getTokenInfo(ctx context.Context, address string) (*types.KRCTokenInfo, error) {
+	contractInfo, _, err := s.dbClient.Contract(ctx, address)
+	if err != nil {
+		return nil, err
+	}
+	result := &types.KRCTokenInfo{
+		Address:     contractInfo.Address,
+		TokenName:   contractInfo.Name,
+		TokenType:   contractInfo.Type,
+		TokenSymbol: contractInfo.Symbol,
+		TotalSupply: contractInfo.TotalSupply,
+		Decimals:    int64(contractInfo.Decimals),
+		Logo:        contractInfo.Logo,
+	}
+	return result, nil
+}
+
 func (s *Server) getKRCTokenInfo(ctx context.Context, krcTokenAddr string) (*types.KRCTokenInfo, error) {
 	krcTokenInfo, err := s.cacheClient.KRCTokenInfo(ctx, krcTokenAddr)
 	if err == nil {
