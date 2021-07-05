@@ -59,18 +59,6 @@ func (s *Server) UpdateServerStatus(c echo.Context) error {
 
 }
 
-func (s *Server) TotalHolders(c echo.Context) error {
-	ctx := context.Background()
-	totalHolders, totalContracts := s.cacheClient.TotalHolders(ctx)
-	return OK.SetData(struct {
-		TotalHolders   uint64 `json:"totalHolders"`
-		TotalContracts uint64 `json:"totalContracts"`
-	}{
-		TotalHolders:   totalHolders,
-		TotalContracts: totalContracts,
-	}).Build(c)
-}
-
 func (s *Server) Nodes(c echo.Context) error {
 	ctx := context.Background()
 	nodes, err := s.kaiClient.NodesInfo(ctx)

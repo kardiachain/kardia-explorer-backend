@@ -94,7 +94,7 @@ func main() {
 		SetNode(node)
 
 	if serviceCfg.IsReloadBootData {
-		if err := srv.LoadBootContracts(ctx); err != nil {
+		if err := srv.LoadBootData(ctx); err != nil {
 			lgr.Panic("cannot load boot contracts", zap.Error(err))
 		}
 	}

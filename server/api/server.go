@@ -7,7 +7,6 @@ import (
 	"github.com/kardiachain/kardia-explorer-backend/db"
 	s3 "github.com/kardiachain/kardia-explorer-backend/driver/aws"
 	"github.com/kardiachain/kardia-explorer-backend/kardia"
-	"github.com/labstack/echo"
 	"go.uber.org/zap"
 )
 
@@ -32,10 +31,6 @@ func (s *Server) SetS3() {
 func (s *Server) SetSecret(secret string) *Server {
 	s.authorizationSecret = secret
 	return s
-}
-
-func (s *Server) Stats(c echo.Context) error {
-	panic("implement me")
 }
 
 func (s *Server) SetLogger(logger *zap.Logger) *Server {

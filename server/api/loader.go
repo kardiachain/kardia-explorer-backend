@@ -16,7 +16,9 @@ import (
 	"go.uber.org/zap"
 )
 
-func (s *Server) LoadBootContracts(ctx context.Context) error {
+func (s *Server) LoadBootData(ctx context.Context) error {
+	lgr := s.logger
+	lgr.Info("Reload boot data")
 	// read and encode ABI base64
 	krc20ABI, err := readAndEncodeABIFile("/abi/krc20.json")
 	if err != nil {
@@ -106,12 +108,28 @@ func (s *Server) LoadBootContracts(ctx context.Context) error {
 		}
 	}
 
+	// Reload stats info
+	totalAddresses, err := s.dbClient.CountAddresses(ctx)
+	if err == nil {
+		lgr.Info("Total address", zap.Int64("Address", totalAddresses))
+		if err := s.cacheClient.UpdateTotalAddresses(ctx, totalAddresses); err != nil {
+			lgr.Error("cannot update total addresses", zap.Error(err))
+			return err
+		}
+	}
+	totalContracts, err := s.dbClient.CountContracts(ctx)
+	if err == nil {
+		lgr.Info("Total contracts", zap.Int64("Contracts", totalContracts))
+		if err := s.cacheClient.UpdateTotalContracts(ctx, totalContracts); err != nil {
+			lgr.Error("cannot update total contracts", zap.Error(err))
+			return err
+		}
+	}
 	return nil
 }
 
 func readAndEncodeABIFile(filePath string) (string, error) {
 	wd, _ := os.Getwd()
-	fmt.Println("WorkingFolder", wd)
 	abiFileContent, err := ioutil.ReadFile(path.Join(wd, filePath))
 	if err != nil {
 		return "", fmt.Errorf("cannot read ABI file %s", filePath)
