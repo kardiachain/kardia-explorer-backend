@@ -81,6 +81,7 @@ func (s *Server) insertKRC20Transfer(ctx context.Context, log *kClient.Log) erro
 		To:              to,
 		Value:           value,
 		LogIndex:        log.Index,
+		Time:            log.Time,
 	}
 	lgr.Debug("InternalTx", zap.Any("TX", internalTx))
 	return s.db.InsertInternalTxs(ctx, internalTx)
@@ -116,6 +117,7 @@ func (s *Server) insertKRC721Transfer(ctx context.Context, log *kClient.Log) err
 		To:              to,
 		TokenID:         tokenId,
 		LogIndex:        log.Index,
+		Time:            log.Time,
 	}
 	lgr.Debug("InternalTx", zap.Any("TX", internalTx))
 	return s.db.InsertInternalTxs(ctx, internalTx)
