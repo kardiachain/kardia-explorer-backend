@@ -2,11 +2,14 @@
 package receipts
 
 import (
+	"bytes"
 	"context"
+	"encoding/base64"
 	"errors"
 	"fmt"
 
 	kClient "github.com/kardiachain/go-kaiclient/kardia"
+	"github.com/kardiachain/go-kardia/lib/abi"
 	"github.com/kardiachain/go-kardia/types/time"
 	"github.com/kardiachain/kardia-explorer-backend/types"
 	"github.com/kardiachain/kardia-explorer-backend/utils"
@@ -220,4 +223,18 @@ func (s *Server) upsertKRC721Holder(ctx context.Context, log *kClient.Log) error
 		return err
 	}
 	return nil
+}
+
+func (s *Server) decodeSMCABIFromBase64(ctx context.Context, abiStr, smcAddr string) (*abi.ABI, error) {
+	abiData, err := base64.StdEncoding.DecodeString(abiStr)
+	if err != nil {
+		s.logger.Warn("Cannot decode smc abi", zap.Error(err))
+		return nil, err
+	}
+	jsonABI, err := abi.JSON(bytes.NewReader(abiData))
+	if err != nil {
+		s.logger.Warn("Cannot convert decoded smc abi to JSON abi", zap.Error(err))
+		return nil, err
+	}
+	return &jsonABI, nil
 }
