@@ -133,7 +133,7 @@ func (s *Server) RefreshKRC721Info(c echo.Context) error {
 		}
 		krc721Info, err := token.KRC721Info(ctx)
 		if err != nil {
-			lgr.Error("cannot get KRC20 info of token", zap.Error(err))
+			lgr.Error("cannot get KRC721 info of token", zap.Error(err))
 			continue
 		}
 		if krc721Info.Name != "" {
