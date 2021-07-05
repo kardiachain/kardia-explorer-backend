@@ -7,6 +7,7 @@ import (
 	"encoding/base64"
 	"errors"
 	"fmt"
+	"math/big"
 
 	kClient "github.com/kardiachain/go-kaiclient/kardia"
 	"github.com/kardiachain/go-kardia/lib/abi"
@@ -14,6 +15,10 @@ import (
 	"github.com/kardiachain/kardia-explorer-backend/types"
 	"github.com/kardiachain/kardia-explorer-backend/utils"
 	"go.uber.org/zap"
+)
+
+var (
+	ZERO_BI = new(big.Int).SetInt64(0)
 )
 
 func tryKRC20(l *kClient.Log) (*kClient.Log, error) {
@@ -168,9 +173,27 @@ func (s *Server) upsertKRC20Holder(ctx context.Context, log *kClient.Log) error 
 		BalanceFloat:    utils.BalanceToFloatWithDecimals(toBalance, int64(krc20Info.Decimals)),
 		UpdatedAt:       time.Now().Unix(),
 	}
-	if err := s.db.UpsertHolders(ctx, holders); err != nil {
-		return err
+
+	if fromBalance.Cmp(ZERO_BI) == 0 {
+		if err := s.db.RemoveHolder(ctx, holders[0]); err != nil {
+			return err
+		}
+	} else {
+		if err := s.db.UpsertHolders(ctx, []*types.TokenHolder{holders[0]}); err != nil {
+			return err
+		}
 	}
+
+	if toBalance.Cmp(ZERO_BI) == 0 {
+		if err := s.db.RemoveHolder(ctx, holders[1]); err != nil {
+			return err
+		}
+	} else {
+		if err := s.db.UpsertHolders(ctx, []*types.TokenHolder{holders[1]}); err != nil {
+			return err
+		}
+	}
+
 	return nil
 }
 

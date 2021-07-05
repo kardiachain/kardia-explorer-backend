@@ -27,10 +27,8 @@ func (s *infoServer) ProcessActiveAddress(ctx context.Context, txs []*types.Tran
 	}
 	lgr.Debug("UpdateAddressTime", zap.Duration("TotalTime", time.Since(updateAddressTime)))
 	endTime := time.Since(startTime)
-	s.metrics.RecordInsertActiveAddressTime(endTime)
 	s.logger.Info("Total time for update addresses", zap.Duration("TimeConsumed", endTime), zap.String("Avg", s.metrics.GetInsertActiveAddressTime()))
 	startTime = time.Now()
-	// todo: Recalculate new address later
 	totalAddresses, err := s.dbClient.CountAddresses(ctx)
 	if err == nil {
 		if err := s.cacheClient.UpdateTotalAddresses(ctx, totalAddresses); err != nil {

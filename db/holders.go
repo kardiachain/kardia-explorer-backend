@@ -18,6 +18,7 @@ type IHolders interface {
 	UpsertHolders(ctx context.Context, holdersInfo []*types.TokenHolder) error
 	UpdateHolders(ctx context.Context, holdersInfo []*types.TokenHolder) error
 	GetListHolders(ctx context.Context, filter *types.HolderFilter) ([]*types.TokenHolder, uint64, error)
+	RemoveHolder(ctx context.Context, holder *types.TokenHolder) error
 }
 
 func (m *mongoDB) createHoldersCollectionIndexes() []mongo.IndexModel {
@@ -38,6 +39,13 @@ func (m *mongoDB) UpsertHolders(ctx context.Context, holdersInfo []*types.TokenH
 		if _, err := m.wrapper.C(cHolders).BulkWrite(holdersBulkWriter); err != nil {
 			return err
 		}
+	}
+	return nil
+}
+
+func (m *mongoDB) RemoveHolder(ctx context.Context, holder *types.TokenHolder) error {
+	if _, err := m.wrapper.C(cHolders).Remove(bson.M{"holderAddress": holder.HolderAddress, "contractAddress": holder.ContractAddress}); err != nil {
+		return err
 	}
 	return nil
 }
