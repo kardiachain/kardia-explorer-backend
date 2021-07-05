@@ -24,7 +24,7 @@ func (s *Server) GetHoldersListByToken(c echo.Context) error {
 	if err != nil {
 		s.logger.Warn("Cannot get events from db", zap.Error(err))
 	}
-	krcTokenInfo, _ := s.getKRCTokenInfo(ctx, c.Param("contractAddress"))
+	krcTokenInfo, _ := s.getTokenInfo(ctx, c.Param("contractAddress"))
 	if krcTokenInfo != nil {
 		for i := range holders {
 			holders[i].Logo = krcTokenInfo.Logo
@@ -34,7 +34,7 @@ func (s *Server) GetHoldersListByToken(c echo.Context) error {
 			holders[i].Logo = ""
 			holders[i].ContractAddress = ""
 			// add address names
-			holderInfo, _ := s.getAddressInfo(ctx, holders[i].HolderAddress)
+			holderInfo, _ := s.getAddressDetail(ctx, holders[i].HolderAddress)
 			if holderInfo != nil {
 				holders[i].HolderName = holderInfo.Name
 			}
