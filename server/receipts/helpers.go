@@ -199,52 +199,31 @@ func (s *Server) upsertKRC20Holder(ctx context.Context, log *kClient.Log) error 
 
 // todo: Update inventory for KRC721, now just ignore
 func (s *Server) upsertKRC721Holder(ctx context.Context, log *kClient.Log) error {
-	return nil
 	var (
-		from, to string
-		ok       bool
+		to, tokenId string
+		ok          bool
 	)
-	from, ok = log.Arguments["from"].(string)
-	if !ok {
-		return errors.New("invalid from address")
-	}
+	//from, ok = log.Arguments["from"].(string)
+	//if !ok {
+	//	return errors.New("invalid from address")
+	//}
 	to, ok = log.Arguments["to"].(string)
 	if !ok {
 		return errors.New("invalid to address")
 	}
-	holders := make([]*types.TokenHolder, 2)
-	token, err := kClient.NewToken(s.node, log.Address)
-	if err != nil {
-		return err
+	tokenId, ok = log.Arguments["tokenId"].(string)
+	if !ok {
+		return errors.New("invalid tokenId")
 	}
-	krc20Info, err := token.KRC20Info(ctx)
-	if err != nil {
-		return err
-	}
-	fromBalance, err := token.HolderBalance(ctx, from)
-	if err != nil {
-		return err
-	}
-	toBalance, err := token.HolderBalance(ctx, to)
-	if err != nil {
-		return err
+	holder := &types.KRC721Holder{
+		Address:         to,
+		ContractAddress: log.Address,
+		TokenID:         tokenId,
+		CreatedAt:       log.Time.Unix(),
+		UpdatedAt:       log.Time.Unix(),
 	}
 
-	holders[0] = &types.TokenHolder{
-		ContractAddress: log.Address,
-		HolderAddress:   from,
-		BalanceString:   fromBalance.String(),
-		BalanceFloat:    utils.BalanceToFloatWithDecimals(fromBalance, int64(krc20Info.Decimals)),
-		UpdatedAt:       time.Now().Unix(),
-	}
-	holders[1] = &types.TokenHolder{
-		ContractAddress: log.Address,
-		HolderAddress:   to,
-		BalanceString:   toBalance.String(),
-		BalanceFloat:    utils.BalanceToFloatWithDecimals(toBalance, int64(krc20Info.Decimals)),
-		UpdatedAt:       time.Now().Unix(),
-	}
-	if err := s.db.UpsertHolders(ctx, holders); err != nil {
+	if err := s.db.UpsertKRC721Holders(ctx, []*types.KRC721Holder{holder}); err != nil {
 		return err
 	}
 	return nil
