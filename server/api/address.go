@@ -4,10 +4,9 @@ package api
 import (
 	"context"
 	"strconv"
-	"strings"
 
+	kClient "github.com/kardiachain/go-kaiclient/kardia"
 	"github.com/kardiachain/go-kardia/lib/common"
-	"github.com/kardiachain/kardia-explorer-backend/cfg"
 	"github.com/kardiachain/kardia-explorer-backend/types"
 	"github.com/labstack/echo"
 	"go.uber.org/zap"
@@ -163,56 +162,38 @@ func (s *Server) AddressTxs(c echo.Context) error {
 }
 
 func (s *Server) AddressHolders(c echo.Context) error {
+	lgr := s.logger
 	ctx := context.Background()
 	var (
 		page, limit int
 		err         error
 	)
+	address := c.Param("address")
 	pagination, page, limit := getPagingOption(c)
 	filterCrit := &types.HolderFilter{
-		Pagination:      pagination,
-		ContractAddress: c.QueryParam("contractAddress"),
-		HolderAddress:   c.Param("address"),
+		Pagination:    pagination,
+		HolderAddress: address,
 	}
 	holders, total, err := s.dbClient.GetListHolders(ctx, filterCrit)
 	if err != nil {
-		s.logger.Warn("Cannot get events from db", zap.Error(err))
+		lgr.Error("cannot get holders from db", zap.Error(err))
+	}
+	krc20ABI, err := kClient.KRC20ABI()
+	if err != nil {
+		return Invalid.Build(c)
 	}
 	for i := range holders {
-		holderInfo, _ := s.getAddressInfo(ctx, holders[i].HolderAddress)
-		if holderInfo != nil {
-			holders[i].HolderName = holderInfo.Name
-		}
-		krcTokenInfo, _ := s.getKRCTokenInfo(ctx, holders[i].ContractAddress)
-		if krcTokenInfo != nil {
-			holders[i].Logo = krcTokenInfo.Logo
-			// get holder balance from RPC for rechecking
-			smcABIStr, err := s.cacheClient.SMCAbi(ctx, cfg.SMCTypePrefix+krcTokenInfo.TokenType)
+		tokenInfo, _ := s.getKRCTokenInfo(ctx, holders[i].ContractAddress)
+		if tokenInfo != nil {
+			holders[i].Logo = tokenInfo.Logo
+			balance, err := s.kaiClient.GetKRC20BalanceByAddress(ctx, krc20ABI, common.HexToAddress(holders[i].ContractAddress), common.HexToAddress(holders[i].HolderAddress))
 			if err != nil {
-				s.logger.Warn("Cannot get KRC20 token ABI", zap.Error(err), zap.String("smcAddress", holders[i].ContractAddress))
+				s.logger.Error("cannot holder balance of token", zap.Error(err), zap.String("holderAddress", holders[i].HolderAddress),
+					zap.String("tokenAddress", holders[i].ContractAddress))
 				continue
 			}
-			smcABI, err := s.decodeSMCABIFromBase64(ctx, smcABIStr, holders[i].ContractAddress)
-			if err != nil {
-				s.logger.Warn("Cannot decode KRC20 token ABI", zap.Error(err), zap.String("smcAddress", holders[i].ContractAddress))
-				continue
-			}
-			balance, err := s.kaiClient.GetKRC20BalanceByAddress(ctx, smcABI, common.HexToAddress(holders[i].ContractAddress), common.HexToAddress(holders[i].HolderAddress))
-			if err != nil {
-				s.logger.Warn("Cannot get KRC20 balance of address", zap.Error(err), zap.String("holderAddress", holders[i].HolderAddress),
-					zap.String("smcAddress", holders[i].ContractAddress))
-				continue
-			}
-			s.logger.Info("RPC balance vs db balance", zap.String("RPC", balance.String()), zap.String("DB", holders[i].BalanceString))
-			if !strings.EqualFold(balance.String(), holders[i].BalanceString) {
-				// update correct balance to database and return to client
-				holders[i].BalanceString = balance.String()
-				holders[i].BalanceFloat = s.calculateKRC20BalanceFloat(balance, krcTokenInfo.Decimals)
-				err = s.dbClient.UpdateHolders(ctx, []*types.TokenHolder{holders[i]})
-				if err != nil {
-					s.logger.Warn("Cannot update KRC20 holder with new balance", zap.Error(err), zap.Any("holder", holders[i]))
-				}
-			}
+			holders[i].BalanceString = balance.String()
+			holders[i].BalanceFloat = s.calculateKRC20BalanceFloat(balance, tokenInfo.Decimals)
 		}
 	}
 	return OK.SetData(PagingResponse{
