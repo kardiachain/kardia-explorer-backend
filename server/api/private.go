@@ -125,7 +125,7 @@ func (s *Server) RefreshKRC721Info(c echo.Context) error {
 		if krc721.IsVerified {
 			krc721.Status = types.ContractStatusVerified
 		}
-
+		fmt.Println("Address", krc721.Address)
 		token, err := kClient.NewToken(s.node, krc721.Address)
 		if err != nil {
 			lgr.Error("cannot create token object", zap.Error(err))
