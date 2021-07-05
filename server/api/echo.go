@@ -85,38 +85,8 @@ func bind(gr *echo.Group, srv RestServer) {
 			fn:     srv.RemoveNetworkNodes,
 		},
 		// Blocks
-		{
-			method: echo.GET,
-			// Query params: ?page=0&limit=10
-			path: "/blocks",
-			fn:   srv.Blocks,
-		},
-		{
-			method: echo.GET,
-			path:   "/blocks/:block",
-			fn:     srv.Block,
-		},
-		{
-			method: echo.GET,
-			path:   "/blocks/error",
-			fn:     srv.PersistentErrorBlocks,
-		},
-		{
-			method: echo.GET,
-			// Params: proposer address
-			// Query params: ?page=0&limit=10
-			path:        "/blocks/proposer/:address",
-			fn:          srv.BlocksByProposer,
-			middlewares: nil,
-		},
-		{
-			method: echo.GET,
-			// Params: block's hash
-			// Query params: ?page=0&limit=10
-			path:        "/block/:block/txs",
-			fn:          srv.BlockTxs,
-			middlewares: []echo.MiddlewareFunc{checkPagination()},
-		},
+
+		// blocks
 		{
 			method: echo.GET,
 			path:   "/txs/:txHash",
@@ -224,6 +194,7 @@ func bind(gr *echo.Group, srv RestServer) {
 			middlewares: nil,
 		},
 	}
+	bindBlocksAPIs(gr, srv)
 	bindContractAPIs(gr, srv)
 	bindEventAPIs(gr, srv)
 	bindStakingAPIs(gr, srv)

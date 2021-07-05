@@ -12,6 +12,13 @@ import (
 	"go.uber.org/zap"
 )
 
+type IAddress interface {
+	Addresses(c echo.Context) error
+	AddressInfo(c echo.Context) error
+	AddressTxs(c echo.Context) error
+	AddressHolders(c echo.Context) error
+}
+
 func (s *Server) Addresses(c echo.Context) error {
 	ctx := context.Background()
 	pagination, page, limit := getPagingOption(c)

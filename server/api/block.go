@@ -12,6 +12,48 @@ import (
 	"go.uber.org/zap"
 )
 
+type IBlock interface {
+	Blocks(c echo.Context) error
+	Block(c echo.Context) error
+	BlockTxs(c echo.Context) error
+	BlocksByProposer(c echo.Context) error
+}
+
+func bindBlocksAPIs(gr *echo.Group, srv RestServer) {
+	apis := []restDefinition{
+		{
+			method: echo.GET,
+			// Query params: ?page=0&limit=10
+			path: "/blocks",
+			fn:   srv.Blocks,
+		},
+		{
+			method: echo.GET,
+			path:   "/blocks/:block",
+			fn:     srv.Block,
+		},
+		{
+			method: echo.GET,
+			// Params: proposer address
+			// Query params: ?page=0&limit=10
+			path:        "/blocks/proposer/:address",
+			fn:          srv.BlocksByProposer,
+			middlewares: nil,
+		},
+		{
+			method: echo.GET,
+			// Params: block's hash
+			// Query params: ?page=0&limit=10
+			path:        "/block/:block/txs",
+			fn:          srv.BlockTxs,
+			middlewares: []echo.MiddlewareFunc{checkPagination()},
+		},
+	}
+	for _, api := range apis {
+		gr.Add(api.method, api.path, api.fn, api.middlewares...)
+	}
+}
+
 func (s *Server) Blocks(c echo.Context) error {
 	ctx := context.Background()
 	var (
@@ -140,15 +182,6 @@ func (s *Server) Block(c echo.Context) error {
 	return OK.SetData(result).Build(c)
 }
 
-func (s *Server) PersistentErrorBlocks(c echo.Context) error {
-	ctx := context.Background()
-	heights, err := s.cacheClient.PersistentErrorBlockHeights(ctx)
-	if err != nil {
-		return Invalid.Build(c)
-	}
-	return OK.SetData(heights).Build(c)
-}
-
 func (s *Server) BlockTxs(c echo.Context) error {
 	ctx := context.Background()
 	block := c.Param("block")
@@ -269,10 +302,6 @@ func (s *Server) BlocksByProposer(c echo.Context) error {
 		smcAddress = make(map[string]*valInfoResponse)
 		validators = []*types.Validator{}
 	}
-	//vals, err := s.cacheClient.Validators(ctx)
-	//if err != nil {
-	//
-	//}
 
 	for _, v := range validators {
 		smcAddress[v.Address] = &valInfoResponse{
