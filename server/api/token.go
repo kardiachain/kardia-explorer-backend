@@ -24,10 +24,11 @@ func (s *Server) GetHoldersListByToken(c echo.Context) error {
 	if err != nil {
 		s.logger.Warn("Cannot get events from db", zap.Error(err))
 	}
-	krcTokenInfo, _ := s.getTokenInfo(ctx, c.Param("contractAddress"))
-	if krcTokenInfo != nil {
+	tokenInfo, _ := s.getTokenInfo(ctx, c.Param("contractAddress"))
+	if tokenInfo != nil {
 		for i := range holders {
-			holders[i].Logo = krcTokenInfo.Logo
+			holders[i].Logo = tokenInfo.Logo
+			holders[i].TokenDecimals = tokenInfo.Decimals
 			// remove redundant field
 			holders[i].TokenName = ""
 			holders[i].TokenSymbol = ""
