@@ -86,6 +86,7 @@ func main() {
 		panic(err)
 	}
 	srv := new(api.Server).
+		SetSecret(serviceCfg.HttpRequestSecret).
 		SetLogger(lgr).
 		SetStorage(dbClient).
 		SetCache(cacheClient).

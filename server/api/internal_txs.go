@@ -205,7 +205,7 @@ func (s *Server) UpdateInternalTxs(c echo.Context) error {
 		lgr             = s.logger.With(zap.String("api", "UpdateInternalTxs"))
 		bodyBytes, _    = ioutil.ReadAll(c.Request().Body)
 	)
-	if c.Request().Header.Get("Authorization") != s.HttpRequestSecret {
+	if c.Request().Header.Get("Authorization") != s.authorizationSecret {
 		lgr.Warn("Cannot authorization request")
 		return Unauthorized.Build(c)
 	}

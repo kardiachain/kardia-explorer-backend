@@ -182,10 +182,14 @@ func (s *Server) AddressHolders(c echo.Context) error {
 	if err != nil {
 		return Invalid.Build(c)
 	}
+
 	for i := range holders {
-		tokenInfo, _ := s.getKRCTokenInfo(ctx, holders[i].ContractAddress)
+		tokenInfo, _ := s.getTokenInfo(ctx, holders[i].ContractAddress)
 		if tokenInfo != nil {
 			holders[i].Logo = tokenInfo.Logo
+			holders[i].TokenName = tokenInfo.TokenName
+			holders[i].TokenSymbol = tokenInfo.TokenSymbol
+			holders[i].TokenDecimals = tokenInfo.Decimals
 			balance, err := s.kaiClient.GetKRC20BalanceByAddress(ctx, krc20ABI, common.HexToAddress(holders[i].ContractAddress), common.HexToAddress(holders[i].HolderAddress))
 			if err != nil {
 				s.logger.Error("cannot holder balance of token", zap.Error(err), zap.String("holderAddress", holders[i].HolderAddress),

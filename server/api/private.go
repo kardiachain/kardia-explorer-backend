@@ -73,7 +73,7 @@ func bindPrivateAPIs(gr *echo.Group, srv RestServer) {
 func (s *Server) RefreshContractsInfo(c echo.Context) error {
 	lgr := s.logger
 	ctx := context.Background()
-	if c.Request().Header.Get("Authorization") != s.HttpRequestSecret {
+	if c.Request().Header.Get("Authorization") != s.authorizationSecret {
 		return Unauthorized.Build(c)
 	}
 
@@ -111,7 +111,7 @@ func (s *Server) RefreshKRC721Info(c echo.Context) error {
 
 	lgr := s.logger
 	ctx := context.Background()
-	if c.Request().Header.Get("Authorization") != s.HttpRequestSecret {
+	if c.Request().Header.Get("Authorization") != s.authorizationSecret {
 		return Unauthorized.Build(c)
 	}
 
@@ -144,7 +144,7 @@ func (s *Server) RefreshKRC20Info(c echo.Context) error {
 
 	lgr := s.logger
 	ctx := context.Background()
-	if c.Request().Header.Get("Authorization") != s.HttpRequestSecret {
+	if c.Request().Header.Get("Authorization") != s.authorizationSecret {
 		return Unauthorized.Build(c)
 	}
 
@@ -198,7 +198,7 @@ func (s *Server) SyncContractInfo(c echo.Context) error {
 
 	lgr := s.logger
 	ctx := context.Background()
-	if c.Request().Header.Get("Authorization") != s.HttpRequestSecret {
+	if c.Request().Header.Get("Authorization") != s.authorizationSecret {
 		return Unauthorized.Build(c)
 	}
 
@@ -257,7 +257,7 @@ func (s *Server) SyncContractInfo(c echo.Context) error {
 func (s *Server) RemoveNilContracts(c echo.Context) error {
 
 	ctx := context.Background()
-	if c.Request().Header.Get("Authorization") != s.HttpRequestSecret {
+	if c.Request().Header.Get("Authorization") != s.authorizationSecret {
 		return Unauthorized.Build(c)
 	}
 	if err := s.dbClient.RemoveContracts(ctx); err != nil {
@@ -269,7 +269,7 @@ func (s *Server) RemoveNilContracts(c echo.Context) error {
 
 func (s *Server) UpsertNetworkNodes(c echo.Context) error {
 	//ctx := context.Background()
-	if c.Request().Header.Get("Authorization") != s.HttpRequestSecret {
+	if c.Request().Header.Get("Authorization") != s.authorizationSecret {
 		return Unauthorized.Build(c)
 	}
 	var nodeInfo *types.NodeInfo
@@ -289,7 +289,7 @@ func (s *Server) UpsertNetworkNodes(c echo.Context) error {
 
 func (s *Server) RemoveNetworkNodes(c echo.Context) error {
 	//ctx := context.Background()
-	if c.Request().Header.Get("Authorization") != s.HttpRequestSecret {
+	if c.Request().Header.Get("Authorization") != s.authorizationSecret {
 		return Unauthorized.Build(c)
 	}
 	nodesID := c.Param("nodeID")
@@ -307,7 +307,7 @@ func (s *Server) RemoveNetworkNodes(c echo.Context) error {
 
 func (s *Server) ReloadAddressesBalance(c echo.Context) error {
 	ctx := context.Background()
-	if c.Request().Header.Get("Authorization") != s.HttpRequestSecret {
+	if c.Request().Header.Get("Authorization") != s.authorizationSecret {
 		return Unauthorized.Build(c)
 	}
 
@@ -333,7 +333,7 @@ func (s *Server) ReloadAddressesBalance(c echo.Context) error {
 
 func (s *Server) UpdateAddressName(c echo.Context) error {
 	ctx := context.Background()
-	if c.Request().Header.Get("Authorization") != s.HttpRequestSecret {
+	if c.Request().Header.Get("Authorization") != s.authorizationSecret {
 		return Unauthorized.Build(c)
 	}
 	var addressName types.UpdateAddress
@@ -357,7 +357,7 @@ func (s *Server) UpdateAddressName(c echo.Context) error {
 }
 
 func (s *Server) ReloadValidators(c echo.Context) error {
-	if c.Request().Header.Get("Authorization") != s.HttpRequestSecret {
+	if c.Request().Header.Get("Authorization") != s.authorizationSecret {
 		return Unauthorized.Build(c)
 	}
 

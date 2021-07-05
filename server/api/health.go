@@ -40,7 +40,7 @@ func (s *Server) ServerStatus(c echo.Context) error {
 
 func (s *Server) UpdateServerStatus(c echo.Context) error {
 	lgr := s.logger.With(zap.String("method", "UpdateServerStatus"))
-	if c.Request().Header.Get("Authorization") != s.HttpRequestSecret {
+	if c.Request().Header.Get("Authorization") != s.authorizationSecret {
 		lgr.Warn("Cannot authorization request")
 		return Unauthorized.Build(c)
 	}
@@ -138,7 +138,7 @@ func (s *Server) TokenInfo(c echo.Context) error {
 
 func (s *Server) UpdateSupplyAmounts(c echo.Context) error {
 	ctx := context.Background()
-	if c.Request().Header.Get("Authorization") != s.HttpRequestSecret {
+	if c.Request().Header.Get("Authorization") != s.authorizationSecret {
 		return Unauthorized.Build(c)
 	}
 	var supplyInfo *types.SupplyInfo

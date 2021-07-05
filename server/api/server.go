@@ -12,7 +12,7 @@ import (
 )
 
 type Server struct {
-	HttpRequestSecret string
+	authorizationSecret string
 
 	node        kClient.Node
 	dbClient    db.Client
@@ -23,6 +23,15 @@ type Server struct {
 	fileStorage s3.FileStorage
 
 	logger *zap.Logger
+}
+
+func (s *Server) SetS3() {
+
+}
+
+func (s *Server) SetSecret(secret string) *Server {
+	s.authorizationSecret = secret
+	return s
 }
 
 func (s *Server) Stats(c echo.Context) error {

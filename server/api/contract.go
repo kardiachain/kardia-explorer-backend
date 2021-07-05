@@ -229,7 +229,7 @@ func (s *Server) VerifyContract(ctx context.Context) error {
 
 func (s *Server) UpdateContract(c echo.Context) error {
 	lgr := s.logger.With(zap.String("method", "UpdateContract"))
-	if c.Request().Header.Get("Authorization") != s.HttpRequestSecret {
+	if c.Request().Header.Get("Authorization") != s.authorizationSecret {
 		return Unauthorized.Build(c)
 	}
 
@@ -297,7 +297,7 @@ func (s *Server) UpdateContract(c echo.Context) error {
 }
 
 func (s *Server) UpdateSMCABIByType(c echo.Context) error {
-	if c.Request().Header.Get("Authorization") != s.HttpRequestSecret {
+	if c.Request().Header.Get("Authorization") != s.authorizationSecret {
 		return Unauthorized.Build(c)
 	}
 	ctx := context.Background()
