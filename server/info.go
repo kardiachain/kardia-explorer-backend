@@ -182,9 +182,9 @@ func (s *infoServer) GetCurrentStats(ctx context.Context) uint64 {
 	if err = s.cacheClient.SetTotalTxs(ctx, totalTxs); err != nil {
 		s.logger.Warn("Cannot set total txs to cache when boot", zap.Uint64("totalTxs", totalTxs), zap.Error(err))
 	}
-	if err = s.cacheClient.UpdateTotalHolders(ctx, stats.TotalAddresses, stats.TotalContracts); err != nil {
-		s.logger.Warn("Cannot set total holders to cache when boot", zap.Uint64("totalAddresses", stats.TotalAddresses), zap.Uint64("totalContracts", stats.TotalContracts), zap.Error(err))
-	}
+	//if err = s.cacheClient.UpdateTotalHolders(ctx, stats.TotalAddresses, stats.TotalContracts); err != nil {
+	//	s.logger.Warn("Cannot set total holders to cache when boot", zap.Uint64("totalAddresses", stats.TotalAddresses), zap.Uint64("totalContracts", stats.TotalContracts), zap.Error(err))
+	//}
 	if err = s.dbClient.InsertAddress(ctx, &types.Address{
 		Address:       "0x",
 		BalanceString: "0",
