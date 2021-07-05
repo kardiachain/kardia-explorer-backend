@@ -126,6 +126,28 @@ func (s *Server) RefreshKRC721Info(c echo.Context) error {
 			krc721.Status = types.ContractStatusVerified
 		}
 
+		token, err := kClient.NewToken(s.node, krc721.Address)
+		if err != nil {
+			lgr.Error("cannot create token object", zap.Error(err))
+			continue
+		}
+		krc721Info, err := token.KRC721Info(ctx)
+		if err != nil {
+			lgr.Error("cannot get KRC20 info of token", zap.Error(err))
+			continue
+		}
+		if krc721Info.Name != "" {
+			krc721.Name = krc721Info.Name
+		}
+
+		if krc721Info.Symbol != "" {
+			krc721.Symbol = krc721Info.Symbol
+		}
+
+		if krc721Info.TotalSupply != nil {
+			krc721.TotalSupply = krc721Info.TotalSupply.String()
+		}
+
 		// Change base64 image to default token
 		if strings.HasPrefix(krc721.Logo, "data:image") {
 			krc721.Logo = cfg.DefaultKRCTokenLogo

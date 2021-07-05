@@ -160,4 +160,5 @@ type InternalTransaction struct {
 	To       string `json:"to,omitempty"`
 	ToName   string `json:"toName,omitempty"`
 	Value    string `json:"value,omitempty"`
+	TokenID  string `json:"tokenID,omitempty"`
 }

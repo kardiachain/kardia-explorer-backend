@@ -180,9 +180,10 @@ func (s *Server) internalTxsOfContract(contractAddress string, pagination *types
 				Time:    iTxs[i].Time,
 				TxHash:  iTxs[i].TransactionHash,
 			},
-			From:  iTxs[i].From,
-			To:    iTxs[i].To,
-			Value: iTxs[i].Value,
+			From:    iTxs[i].From,
+			To:      iTxs[i].To,
+			Value:   iTxs[i].Value,
+			TokenID: iTxs[i].TokenID,
 		}
 		fromInfo, _ = s.getAddressDetail(ctx, iTxs[i].From)
 		if fromInfo != nil {

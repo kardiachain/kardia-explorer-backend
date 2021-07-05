@@ -3,6 +3,7 @@ package db
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/kardiachain/kardia-explorer-backend/types"
 	"go.mongodb.org/mongo-driver/bson"
@@ -13,14 +14,11 @@ import (
 
 var cKRC721Holders = "KRC721Holders"
 
-type KRC721HolderFilter struct {
-}
-
 type IKRC721Holders interface {
 	createKRC721HoldersCollectionIndexes() []mongo.IndexModel
 	UpsertKRC721Holders(ctx context.Context, holdersInfo []*types.KRC721Holder) error
 	UpdateKRC721Holders(ctx context.Context, holdersInfo []*types.KRC721Holder) error
-	KRC721Holders(ctx context.Context, filter *types.HolderFilter) ([]*types.KRC721Holder, uint64, error)
+	KRC721Holders(ctx context.Context, filter types.KRC721HolderFilter) ([]*types.KRC721Holder, uint64, error)
 	RemoveKRC721Holder(ctx context.Context, holder *types.KRC721Holder) error
 }
 
@@ -46,7 +44,7 @@ func (m *mongoDB) UpdateKRC721Holders(ctx context.Context, holdersInfo []*types.
 	return nil
 }
 
-func (m *mongoDB) KRC721Holders(ctx context.Context, filter *types.HolderFilter) ([]*types.KRC721Holder, uint64, error) {
+func (m *mongoDB) KRC721Holders(ctx context.Context, filter types.KRC721HolderFilter) ([]*types.KRC721Holder, uint64, error) {
 	var (
 		holders []*types.KRC721Holder
 		crit    = bson.M{}
@@ -93,10 +91,12 @@ func (m *mongoDB) RemoveKRC721Holder(ctx context.Context, holder *types.KRC721Ho
 	return nil
 }
 
-func (m *mongoDB) UpsertKRC721Holders(ctx context.Context, holdersInfo []*types.KRC721Holder) error {
-	holdersBulkWriter := make([]mongo.WriteModel, len(holdersInfo))
-	for i := range holdersInfo {
-		txModel := mongo.NewUpdateOneModel().SetUpsert(true).SetFilter(bson.M{"holderAddress": holdersInfo[i].Address, "contractAddress": holdersInfo[i].ContractAddress}).SetUpdate(bson.M{"$set": holdersInfo[i]})
+func (m *mongoDB) UpsertKRC721Holders(ctx context.Context, holders []*types.KRC721Holder) error {
+	holdersBulkWriter := make([]mongo.WriteModel, len(holders))
+	for i := range holders {
+		holders[i].HolderID = fmt.Sprintf("%s-%s", holders[i].ContractAddress, holders[i].TokenID)
+		txModel := mongo.NewUpdateOneModel().SetUpsert(true).SetFilter(bson.M{"holderID": holders[i].HolderID}).SetUpdate(bson.M{"$set": holders[i]})
+		fmt.Printf("MOdel: %+v \n", txModel)
 		holdersBulkWriter[i] = txModel
 	}
 	if len(holdersBulkWriter) > 0 {
