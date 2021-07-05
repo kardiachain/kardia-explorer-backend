@@ -738,143 +738,144 @@ func (s *infoServer) BlockCacheSize(ctx context.Context) (int64, error) {
 }
 
 func (s *infoServer) storeEvents(ctx context.Context, logs []types.Log, blockTime time.Time) error {
-	lgr := s.logger.With(zap.String("method", "storeEvents"))
-	lgr.Info("Start store events")
-	var (
-		holdersList     []*types.TokenHolder
-		internalTxsList []*types.TokenTransfer
-		smcABI          *abi.ABI
-		err             error
-	)
-	for i := range logs {
-		if logs[i].Address == "" || logs[i].Address == "0x" {
-			continue
-		}
-		getABITime := time.Now()
-		smcABI, err = s.getSMCAbi(ctx, &logs[i])
-		if err != nil {
-			lgr.Info("Cannot get SMC ABI", zap.Error(err))
-			// automatically detect if this contract is KRC or not
-			var tokenInfo *types.KRCTokenInfo
-			tokenInfo, err = s.getKRCTokenInfoFromRPC(ctx, logs[i].Address, cfg.SMCTypeKRC20)
-			if err != nil && tokenInfo == nil {
-				s.logger.Warn("New contract is not a KRC20", zap.Error(err), zap.Any("tokenInfo", tokenInfo))
-				tokenInfo, err = s.getKRCTokenInfoFromRPC(ctx, logs[i].Address, cfg.SMCTypeKRC721)
-				if err != nil && tokenInfo == nil {
-					s.logger.Warn("New contract is not a KRC721", zap.Error(err), zap.Any("tokenInfo", tokenInfo))
-					continue
-				}
-			}
-			/* Temp remove auto add new KRC20 token into db
-			// insert new KRC SMC to db
-			contract, addrInfo := convertTokenInfoToSMCInfo(tokenInfo)
-			if err = s.dbClient.UpdateContract(ctx, contract, addrInfo); err != nil {
-				s.logger.Warn("Cannot insert new KRC token to db", zap.Error(err), zap.Any("contract", contract), zap.Any("addrInfo", addrInfo))
-				continue
-			}
-			smcABIStr, err := s.dbClient.SMCABIByType(ctx, tokenInfo.TokenType)
-			if err != nil {
-				s.logger.Warn("Cannot get smc abi by type from db", zap.Error(err))
-				continue
-			}
-			smcABI, err = s.decodeSMCABIFromBase64(ctx, smcABIStr, logs[i].Address)
-			if err != nil {
-				s.logger.Warn("Cannot decode smc abi by type from base64", zap.Error(err))
-				continue
-			}
-			*/
-		}
-		lgr.Debug("Get ABI time", zap.Duration("TotalTime", time.Since(getABITime)))
-		decodedLog, err := s.kaiClient.UnpackLog(&logs[i], smcABI)
-		if err != nil {
-			lgr.Info("Cannot unpack logs", zap.Any("logs", logs[i]))
-			decodedLog = &logs[i]
-		}
-		decodedLog.Time = blockTime
-		logs[i] = *decodedLog
-		if logs[i].Topics[0] == cfg.KRCTransferTopic {
-			lgr.Info("New transfer event", zap.Any("LogsDetail", logs[i]))
-			iTx := s.getInternalTxs(ctx, decodedLog)
-			if iTx != nil {
-				internalTxsList = append(internalTxsList, iTx)
-			}
-			holders, err := s.getKRCHolder(ctx, decodedLog)
-			if err != nil {
-				s.logger.Warn("Cannot get KRC holder", zap.Error(err), zap.Any("log", logs[i]))
-				continue
-			}
-			holdersList = append(holdersList, holders...)
-		}
-
-	}
-	// insert holders and internal txs to db
-	err = s.dbClient.UpdateHolders(ctx, holdersList)
-	if err != nil {
-		s.logger.Warn("Cannot update holder info to db", zap.Error(err), zap.Any("holdersList", holdersList))
-	}
-	err = s.dbClient.UpdateInternalTxs(ctx, internalTxsList)
-	if err != nil {
-		s.logger.Warn("Cannot update internal txs to db", zap.Error(err), zap.Any("holdersList", holdersList))
-	}
-	// count token holders as a account on KardiaChain network
-	numOfNewAddress := uint64(0)
-	for _, holder := range holdersList {
-		_, err = s.dbClient.AddressByHash(ctx, holder.HolderAddress)
-		if err != nil {
-			code, err := s.kaiClient.GetCode(ctx, holder.HolderAddress)
-			if err != nil {
-				s.logger.Warn("Cannot getCode from RPC", zap.String("address", holder.HolderAddress), zap.Error(err))
-				code = common.Bytes{}
-			}
-			if err = s.dbClient.InsertAddress(ctx, &types.Address{
-				Address:       holder.HolderAddress,
-				BalanceString: new(big.Int).SetInt64(0).String(),
-				IsContract:    len(code) > 0,
-			}); err != nil {
-				s.logger.Warn("Cannot insert token holder to db", zap.String("address", holder.HolderAddress), zap.Error(err))
-			}
-			numOfNewAddress++
-		}
-		// update total supply of mint/burn transactions
-		if common.HexToAddress(holder.HolderAddress).Equal(common.Address{}) {
-			s.logger.Info("Minting/Burning", zap.Any("holder", holder))
-			tokenInfo, err := s.kaiClient.GetKRC20TokenInfo(ctx, smcABI, common.HexToAddress(holder.ContractAddress))
-			if err != nil {
-				s.logger.Warn("Cannot get KRC20 token info", zap.Any("holder", holder), zap.Error(err))
-				continue
-			}
-			s.logger.Info("Minting/Burning", zap.Any("RPC token info", tokenInfo))
-			err = s.dbClient.UpdateKRCTotalSupply(ctx, holder.ContractAddress, tokenInfo.TotalSupply)
-			if err != nil {
-				s.logger.Warn("Cannot update total supply of KRC token", zap.Any("smcAddr", holder.ContractAddress), zap.Any("totalSupply", tokenInfo.TotalSupply), zap.Error(err))
-				continue
-			}
-			krcTokenInfoCache, err := s.cacheClient.KRCTokenInfo(ctx, holder.ContractAddress)
-			if err != nil {
-				s.logger.Warn("Cannot update get KRC token info from cache", zap.Any("smcAddr", holder.ContractAddress), zap.Error(err))
-				continue
-			}
-			krcTokenInfoCache.TotalSupply = tokenInfo.TotalSupply
-			krcTokenInfoCache.Address = holder.ContractAddress
-			err = s.cacheClient.UpdateKRCTokenInfo(ctx, krcTokenInfoCache)
-			if err != nil {
-				s.logger.Warn("Cannot store KRC token info to cache", zap.Error(err), zap.Any("tokenInfo", krcTokenInfoCache))
-				continue
-			}
-		}
-	}
-	if numOfNewAddress > 0 {
-		// update new number of holders
-		totalAddr, totalContractAddr, err := s.dbClient.GetTotalAddresses(ctx)
-		if err != nil {
-			s.logger.Warn("Cannot get total accounts from db", zap.Error(err))
-		}
-		err = s.cacheClient.UpdateTotalHolders(ctx, totalAddr, totalContractAddr)
-		if err != nil {
-			s.logger.Warn("Cannot set total accounts to cache", zap.Error(err))
-		}
-	}
-	return s.dbClient.InsertEvents(logs)
+	return nil
+	//lgr := s.logger.With(zap.String("method", "storeEvents"))
+	//lgr.Info("Start store events")
+	//var (
+	//	holdersList     []*types.TokenHolder
+	//	internalTxsList []*types.TokenTransfer
+	//	smcABI          *abi.ABI
+	//	err             error
+	//)
+	//for i := range logs {
+	//	if logs[i].Address == "" || logs[i].Address == "0x" {
+	//		continue
+	//	}
+	//	getABITime := time.Now()
+	//	smcABI, err = s.getSMCAbi(ctx, &logs[i])
+	//	if err != nil {
+	//		lgr.Info("Cannot get SMC ABI", zap.Error(err))
+	//		// automatically detect if this contract is KRC or not
+	//		var tokenInfo *types.KRCTokenInfo
+	//		tokenInfo, err = s.getKRCTokenInfoFromRPC(ctx, logs[i].Address, cfg.SMCTypeKRC20)
+	//		if err != nil && tokenInfo == nil {
+	//			s.logger.Warn("New contract is not a KRC20", zap.Error(err), zap.Any("tokenInfo", tokenInfo))
+	//			tokenInfo, err = s.getKRCTokenInfoFromRPC(ctx, logs[i].Address, cfg.SMCTypeKRC721)
+	//			if err != nil && tokenInfo == nil {
+	//				s.logger.Warn("New contract is not a KRC721", zap.Error(err), zap.Any("tokenInfo", tokenInfo))
+	//				continue
+	//			}
+	//		}
+	//		/* Temp remove auto add new KRC20 token into db
+	//		// insert new KRC SMC to db
+	//		contract, addrInfo := convertTokenInfoToSMCInfo(tokenInfo)
+	//		if err = s.dbClient.UpdateContract(ctx, contract, addrInfo); err != nil {
+	//			s.logger.Warn("Cannot insert new KRC token to db", zap.Error(err), zap.Any("contract", contract), zap.Any("addrInfo", addrInfo))
+	//			continue
+	//		}
+	//		smcABIStr, err := s.dbClient.SMCABIByType(ctx, tokenInfo.TokenType)
+	//		if err != nil {
+	//			s.logger.Warn("Cannot get smc abi by type from db", zap.Error(err))
+	//			continue
+	//		}
+	//		smcABI, err = s.decodeSMCABIFromBase64(ctx, smcABIStr, logs[i].Address)
+	//		if err != nil {
+	//			s.logger.Warn("Cannot decode smc abi by type from base64", zap.Error(err))
+	//			continue
+	//		}
+	//		*/
+	//	}
+	//	lgr.Debug("Get ABI time", zap.Duration("TotalTime", time.Since(getABITime)))
+	//	decodedLog, err := s.kaiClient.UnpackLog(&logs[i], smcABI)
+	//	if err != nil {
+	//		lgr.Info("Cannot unpack logs", zap.Any("logs", logs[i]))
+	//		decodedLog = &logs[i]
+	//	}
+	//	decodedLog.Time = blockTime
+	//	logs[i] = *decodedLog
+	//	if logs[i].Topics[0] == cfg.KRCTransferTopic {
+	//		lgr.Info("New transfer event", zap.Any("LogsDetail", logs[i]))
+	//		iTx := s.getInternalTxs(ctx, decodedLog)
+	//		if iTx != nil {
+	//			internalTxsList = append(internalTxsList, iTx)
+	//		}
+	//		holders, err := s.getKRCHolder(ctx, decodedLog)
+	//		if err != nil {
+	//			s.logger.Warn("Cannot get KRC holder", zap.Error(err), zap.Any("log", logs[i]))
+	//			continue
+	//		}
+	//		holdersList = append(holdersList, holders...)
+	//	}
+	//
+	//}
+	//// insert holders and internal txs to db
+	//err = s.dbClient.UpdateHolders(ctx, holdersList)
+	//if err != nil {
+	//	s.logger.Warn("Cannot update holder info to db", zap.Error(err), zap.Any("holdersList", holdersList))
+	//}
+	//err = s.dbClient.UpdateInternalTxs(ctx, internalTxsList)
+	//if err != nil {
+	//	s.logger.Warn("Cannot update internal txs to db", zap.Error(err), zap.Any("holdersList", holdersList))
+	//}
+	//// count token holders as a account on KardiaChain network
+	//numOfNewAddress := uint64(0)
+	//for _, holder := range holdersList {
+	//	_, err = s.dbClient.AddressByHash(ctx, holder.HolderAddress)
+	//	if err != nil {
+	//		code, err := s.kaiClient.GetCode(ctx, holder.HolderAddress)
+	//		if err != nil {
+	//			s.logger.Warn("Cannot getCode from RPC", zap.String("address", holder.HolderAddress), zap.Error(err))
+	//			code = common.Bytes{}
+	//		}
+	//		if err = s.dbClient.InsertAddress(ctx, &types.Address{
+	//			Address:       holder.HolderAddress,
+	//			BalanceString: new(big.Int).SetInt64(0).String(),
+	//			IsContract:    len(code) > 0,
+	//		}); err != nil {
+	//			s.logger.Warn("Cannot insert token holder to db", zap.String("address", holder.HolderAddress), zap.Error(err))
+	//		}
+	//		numOfNewAddress++
+	//	}
+	//	// update total supply of mint/burn transactions
+	//	if common.HexToAddress(holder.HolderAddress).Equal(common.Address{}) {
+	//		s.logger.Info("Minting/Burning", zap.Any("holder", holder))
+	//		tokenInfo, err := s.kaiClient.GetKRC20TokenInfo(ctx, smcABI, common.HexToAddress(holder.ContractAddress))
+	//		if err != nil {
+	//			s.logger.Warn("Cannot get KRC20 token info", zap.Any("holder", holder), zap.Error(err))
+	//			continue
+	//		}
+	//		s.logger.Info("Minting/Burning", zap.Any("RPC token info", tokenInfo))
+	//		err = s.dbClient.UpdateKRCTotalSupply(ctx, holder.ContractAddress, tokenInfo.TotalSupply)
+	//		if err != nil {
+	//			s.logger.Warn("Cannot update total supply of KRC token", zap.Any("smcAddr", holder.ContractAddress), zap.Any("totalSupply", tokenInfo.TotalSupply), zap.Error(err))
+	//			continue
+	//		}
+	//		krcTokenInfoCache, err := s.cacheClient.KRCTokenInfo(ctx, holder.ContractAddress)
+	//		if err != nil {
+	//			s.logger.Warn("Cannot update get KRC token info from cache", zap.Any("smcAddr", holder.ContractAddress), zap.Error(err))
+	//			continue
+	//		}
+	//		krcTokenInfoCache.TotalSupply = tokenInfo.TotalSupply
+	//		krcTokenInfoCache.Address = holder.ContractAddress
+	//		err = s.cacheClient.UpdateKRCTokenInfo(ctx, krcTokenInfoCache)
+	//		if err != nil {
+	//			s.logger.Warn("Cannot store KRC token info to cache", zap.Error(err), zap.Any("tokenInfo", krcTokenInfoCache))
+	//			continue
+	//		}
+	//	}
+	//}
+	//if numOfNewAddress > 0 {
+	//	// update new number of holders
+	//	totalAddr, totalContractAddr, err := s.dbClient.GetTotalAddresses(ctx)
+	//	if err != nil {
+	//		s.logger.Warn("Cannot get total accounts from db", zap.Error(err))
+	//	}
+	//	err = s.cacheClient.UpdateTotalHolders(ctx, totalAddr, totalContractAddr)
+	//	if err != nil {
+	//		s.logger.Warn("Cannot set total accounts to cache", zap.Error(err))
+	//	}
+	//}
+	//return s.dbClient.InsertEvents(logs)
 }
 
 func (s *infoServer) getSMCAbi(ctx context.Context, log *types.Log) (*abi.ABI, error) {
