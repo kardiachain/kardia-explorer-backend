@@ -44,6 +44,8 @@ type Client interface {
 	IInternalTransaction
 	ITxs
 	IAddress
+	IKRC721Holders
+
 	ping() error
 	dropCollection(collectionName string)
 	dropDatabase(ctx context.Context) error
