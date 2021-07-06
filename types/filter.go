@@ -90,6 +90,13 @@ type HolderFilter struct {
 	HolderAddress   string `bson:"holderAddress,omitempty"`
 }
 
+type KRC721HolderFilter struct {
+	Pagination *Pagination `bson:"-"`
+
+	ContractAddress string `bson:"contractAddress,omitempty"`
+	HolderAddress   string `bson:"holderAddress,omitempty"`
+}
+
 type EventsFilter struct {
 	Pagination *Pagination `bson:"-"`
 

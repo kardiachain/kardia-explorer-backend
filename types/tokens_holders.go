@@ -13,3 +13,13 @@ type TokenHolder struct {
 
 	UpdatedAt int64 `json:"updatedAt" bson:"updatedAt,omitempty"`
 }
+
+type KRC721Holder struct {
+	HolderID        string `json:"holderID" bson:"holderID"`
+	Address         string `json:"address" bson:"address"`
+	ContractAddress string `json:"contractAddress" bson:"contractAddress"`
+	TokenID         string `json:"tokenID" bson:"tokenID"`
+
+	CreatedAt int64 `json:"createdAt" bson:"createdAt,omitempty"`
+	UpdatedAt int64 `json:"updatedAt" bson:"updatedAt,omitempty"`
+}

@@ -27,17 +27,21 @@ func (s *infoServer) ProcessActiveAddress(ctx context.Context, txs []*types.Tran
 	}
 	lgr.Debug("UpdateAddressTime", zap.Duration("TotalTime", time.Since(updateAddressTime)))
 	endTime := time.Since(startTime)
-	s.metrics.RecordInsertActiveAddressTime(endTime)
 	s.logger.Info("Total time for update addresses", zap.Duration("TimeConsumed", endTime), zap.String("Avg", s.metrics.GetInsertActiveAddressTime()))
 	startTime = time.Now()
-	totalAddr, totalContractAddr, err := s.dbClient.GetTotalAddresses(ctx)
-	if err != nil {
-		return err
+	totalAddresses, err := s.dbClient.CountAddresses(ctx)
+	if err == nil {
+		if err := s.cacheClient.UpdateTotalAddresses(ctx, totalAddresses); err != nil {
+			lgr.Error("cannot update total addresses", zap.Error(err))
+		}
 	}
-	err = s.cacheClient.UpdateTotalHolders(ctx, totalAddr, totalContractAddr)
-	if err != nil {
-		return err
+	totalContracts, err := s.dbClient.CountContracts(ctx)
+	if err == nil {
+		if err := s.cacheClient.UpdateTotalContracts(ctx, totalContracts); err != nil {
+			lgr.Error("cannot update total contracts", zap.Error(err))
+		}
 	}
+
 	s.logger.Info("Total time for getting active addresses", zap.Duration("TimeConsumed", time.Since(startTime)))
 	return nil
 }

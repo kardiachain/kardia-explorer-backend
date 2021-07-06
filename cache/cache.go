@@ -35,6 +35,7 @@ type Config struct {
 type Client interface {
 	IStaking
 	IReceipts
+	IDashboard
 
 	InsertBlock(ctx context.Context, block *types.Block) error
 	InsertTxsOfBlock(ctx context.Context, block *types.Block) error
@@ -59,10 +60,6 @@ type Client interface {
 	SetTotalTxs(ctx context.Context, numTxs uint64) error
 	TotalTxs(ctx context.Context) uint64
 	LatestBlockHeight(ctx context.Context) uint64
-
-	// GetListHolders summary
-	UpdateTotalHolders(ctx context.Context, holders uint64, contracts uint64) error
-	TotalHolders(ctx context.Context) (uint64, uint64)
 
 	IsRequestToCoinMarket(ctx context.Context) bool
 	TokenInfo(ctx context.Context) (*types.TokenInfo, error)

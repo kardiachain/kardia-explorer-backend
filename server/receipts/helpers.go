@@ -2,15 +2,23 @@
 package receipts
 
 import (
+	"bytes"
 	"context"
+	"encoding/base64"
 	"errors"
 	"fmt"
+	"math/big"
 
 	kClient "github.com/kardiachain/go-kaiclient/kardia"
+	"github.com/kardiachain/go-kardia/lib/abi"
 	"github.com/kardiachain/go-kardia/types/time"
 	"github.com/kardiachain/kardia-explorer-backend/types"
 	"github.com/kardiachain/kardia-explorer-backend/utils"
 	"go.uber.org/zap"
+)
+
+var (
+	ZERO_BI = new(big.Int).SetInt64(0)
 )
 
 func tryKRC20(l *kClient.Log) (*kClient.Log, error) {
@@ -78,8 +86,9 @@ func (s *Server) insertKRC20Transfer(ctx context.Context, log *kClient.Log) erro
 		To:              to,
 		Value:           value,
 		LogIndex:        log.Index,
+		Time:            log.Time,
 	}
-	lgr.Debug("InternalTx", zap.Any("TX", internalTx))
+	lgr.Info("New KRC20 transfer", zap.Any("TX", internalTx))
 	return s.db.InsertInternalTxs(ctx, internalTx)
 }
 
@@ -113,8 +122,9 @@ func (s *Server) insertKRC721Transfer(ctx context.Context, log *kClient.Log) err
 		To:              to,
 		TokenID:         tokenId,
 		LogIndex:        log.Index,
+		Time:            log.Time,
 	}
-	lgr.Debug("InternalTx", zap.Any("TX", internalTx))
+	lgr.Info("New KRC721 transfer", zap.Any("TX", internalTx))
 	return s.db.InsertInternalTxs(ctx, internalTx)
 }
 
@@ -163,61 +173,72 @@ func (s *Server) upsertKRC20Holder(ctx context.Context, log *kClient.Log) error 
 		BalanceFloat:    utils.BalanceToFloatWithDecimals(toBalance, int64(krc20Info.Decimals)),
 		UpdatedAt:       time.Now().Unix(),
 	}
-	if err := s.db.UpsertHolders(ctx, holders); err != nil {
-		return err
+
+	if fromBalance.Cmp(ZERO_BI) == 0 {
+		if err := s.db.RemoveHolder(ctx, holders[0]); err != nil {
+			return err
+		}
+	} else {
+		if err := s.db.UpsertHolders(ctx, []*types.TokenHolder{holders[0]}); err != nil {
+			return err
+		}
 	}
+
+	if toBalance.Cmp(ZERO_BI) == 0 {
+		if err := s.db.RemoveHolder(ctx, holders[1]); err != nil {
+			return err
+		}
+	} else {
+		if err := s.db.UpsertHolders(ctx, []*types.TokenHolder{holders[1]}); err != nil {
+			return err
+		}
+	}
+
 	return nil
 }
 
 // todo: Update inventory for KRC721, now just ignore
 func (s *Server) upsertKRC721Holder(ctx context.Context, log *kClient.Log) error {
-	return nil
 	var (
-		from, to string
-		ok       bool
+		to, tokenId string
+		ok          bool
 	)
-	from, ok = log.Arguments["from"].(string)
-	if !ok {
-		return errors.New("invalid from address")
-	}
+	//from, ok = log.Arguments["from"].(string)
+	//if !ok {
+	//	return errors.New("invalid from address")
+	//}
 	to, ok = log.Arguments["to"].(string)
 	if !ok {
 		return errors.New("invalid to address")
 	}
-	holders := make([]*types.TokenHolder, 2)
-	token, err := kClient.NewToken(s.node, log.Address)
-	if err != nil {
-		return err
+	tokenId, ok = log.Arguments["tokenId"].(string)
+	if !ok {
+		return errors.New("invalid tokenId")
 	}
-	krc20Info, err := token.KRC20Info(ctx)
-	if err != nil {
-		return err
-	}
-	fromBalance, err := token.HolderBalance(ctx, from)
-	if err != nil {
-		return err
-	}
-	toBalance, err := token.HolderBalance(ctx, to)
-	if err != nil {
-		return err
+	holder := &types.KRC721Holder{
+		Address:         to,
+		ContractAddress: log.Address,
+		TokenID:         tokenId,
+		CreatedAt:       log.Time.Unix(),
+		UpdatedAt:       log.Time.Unix(),
 	}
 
-	holders[0] = &types.TokenHolder{
-		ContractAddress: log.Address,
-		HolderAddress:   from,
-		BalanceString:   fromBalance.String(),
-		BalanceFloat:    utils.BalanceToFloatWithDecimals(fromBalance, int64(krc20Info.Decimals)),
-		UpdatedAt:       time.Now().Unix(),
-	}
-	holders[1] = &types.TokenHolder{
-		ContractAddress: log.Address,
-		HolderAddress:   to,
-		BalanceString:   toBalance.String(),
-		BalanceFloat:    utils.BalanceToFloatWithDecimals(toBalance, int64(krc20Info.Decimals)),
-		UpdatedAt:       time.Now().Unix(),
-	}
-	if err := s.db.UpsertHolders(ctx, holders); err != nil {
+	if err := s.db.UpsertKRC721Holders(ctx, []*types.KRC721Holder{holder}); err != nil {
 		return err
 	}
 	return nil
+}
+
+func (s *Server) decodeSMCABIFromBase64(ctx context.Context, abiStr, smcAddr string) (*abi.ABI, error) {
+	abiData, err := base64.StdEncoding.DecodeString(abiStr)
+	if err != nil {
+		s.logger.Warn("Cannot decode smc abi", zap.Error(err))
+		return nil, err
+	}
+	jsonABI, err := abi.JSON(bytes.NewReader(abiData))
+	if err != nil {
+		s.logger.Warn("Cannot convert decoded smc abi to JSON abi", zap.Error(err))
+		return nil, err
+	}
+	return &jsonABI, nil
 }

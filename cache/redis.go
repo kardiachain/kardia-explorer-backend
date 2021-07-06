@@ -34,9 +34,7 @@ const (
 	KeyTokenInfo     = "#token#info"
 	KeySupplyAmounts = "#token#supplies"
 
-	KeyTotalTxs       = "#txs#total"
-	KeyTotalHolders   = "#holders#total"
-	KeyTotalContracts = "#contracts#total"
+	KeyTotalTxs = "#txs#total"
 
 	KeyValidatorsList = "#validators"
 	KeyNodesInfoList  = "#nodesInfo" // List
@@ -457,37 +455,6 @@ func (c *Redis) PopUnverifiedBlockHeight(ctx context.Context) (uint64, error) {
 		return 0, err
 	}
 	return height, nil
-}
-
-// GetListHolders summary
-func (c *Redis) UpdateTotalHolders(ctx context.Context, holders uint64, contracts uint64) error {
-	if err := c.client.Set(ctx, KeyTotalHolders, holders, 0).Err(); err != nil {
-		// Handle error here
-		c.logger.Warn("cannot set total holders values")
-	}
-	if err := c.client.Set(ctx, KeyTotalContracts, contracts, 0).Err(); err != nil {
-		// Handle error here
-		c.logger.Warn("cannot set total contracts values")
-	}
-	return nil
-}
-
-func (c *Redis) TotalHolders(ctx context.Context) (uint64, uint64) {
-	result, err := c.client.Get(ctx, KeyTotalHolders).Result()
-	if err != nil {
-		// Handle error here
-	}
-	// Convert to int
-	totalHolders := utils.StrToUint64(result)
-
-	result, err = c.client.Get(ctx, KeyTotalContracts).Result()
-	if err != nil {
-		// Handle error here
-	}
-	// Convert to int
-	totalContracts := utils.StrToUint64(result)
-
-	return totalHolders, totalContracts
 }
 
 func (c *Redis) Validators(ctx context.Context) (*types.Validators, error) {

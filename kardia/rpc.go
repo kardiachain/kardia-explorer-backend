@@ -24,7 +24,6 @@ import (
 	"math/big"
 	"os"
 	"path"
-	"runtime"
 
 	"github.com/kardiachain/go-kardia/lib/abi/bind"
 	"go.uber.org/zap"
@@ -109,8 +108,8 @@ func NewKaiClient(config *Config) (ClientInterface, error) {
 	// set default RPC client as one of our trusted ones
 	defaultClient = trustedClientList[0]
 
-	_, filename, _, _ := runtime.Caller(1)
-	stakingABI, err := os.Open(path.Join(path.Dir(filename), "../kardia/abi/staking.json"))
+	wd, _ := os.Getwd()
+	stakingABI, err := os.Open(path.Join(wd, "/abi/staking.json"))
 	if err != nil {
 		panic("cannot read staking ABI file")
 	}
@@ -124,7 +123,7 @@ func NewKaiClient(config *Config) (ClientInterface, error) {
 		ContractAddress: common.HexToAddress(cfg.StakingContractAddr),
 		Bytecode:        cfg.StakingContractByteCode,
 	}
-	validatorABI, err := os.Open(path.Join(path.Dir(filename), "../kardia/abi/validator.json"))
+	validatorABI, err := os.Open(path.Join(wd, "/abi/validator.json"))
 	if err != nil {
 		panic("cannot read validator ABI file")
 	}
@@ -137,7 +136,7 @@ func NewKaiClient(config *Config) (ClientInterface, error) {
 		Abi:      &validatorSmcAbi,
 		Bytecode: cfg.ValidatorContractByteCode,
 	}
-	paramsABI, err := os.Open(path.Join(path.Dir(filename), "../kardia/abi/params.json"))
+	paramsABI, err := os.Open(path.Join(wd, "/abi/params.json"))
 	if err != nil {
 		panic("cannot read params ABI file")
 	}
