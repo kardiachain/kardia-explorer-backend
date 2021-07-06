@@ -194,6 +194,7 @@ func bind(gr *echo.Group, srv RestServer) {
 			middlewares: nil,
 		},
 	}
+	bindKRC721APIs(gr, srv)
 	bindBlocksAPIs(gr, srv)
 	bindContractAPIs(gr, srv)
 	bindEventAPIs(gr, srv)
