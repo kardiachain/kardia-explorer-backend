@@ -2,17 +2,13 @@
 package api
 
 import (
-	"bytes"
 	"context"
-	"io/ioutil"
-	"strings"
 
 	kClient "github.com/kardiachain/go-kaiclient/kardia"
 	"github.com/kardiachain/go-kardia/lib/common"
 
 	"github.com/kardiachain/kardia-explorer-backend/cfg"
 	"github.com/kardiachain/kardia-explorer-backend/types"
-	"github.com/kardiachain/kardia-explorer-backend/utils"
 	"github.com/labstack/echo"
 	"go.uber.org/zap"
 )
@@ -27,12 +23,7 @@ type IContract interface {
 
 func bindContractAPIs(gr *echo.Group, srv RestServer) {
 	apis := []restDefinition{
-		{
-			method:      echo.PUT,
-			path:        "/contracts",
-			fn:          srv.UpdateContract,
-			middlewares: nil,
-		},
+
 		{
 			method: echo.GET,
 			// Query params
@@ -45,12 +36,6 @@ func bindContractAPIs(gr *echo.Group, srv RestServer) {
 			method:      echo.GET,
 			path:        "/contracts/:contractAddress",
 			fn:          srv.Contract,
-			middlewares: nil,
-		},
-		{
-			method:      echo.PUT,
-			path:        "/contracts/abi",
-			fn:          srv.UpdateSMCABIByType,
 			middlewares: nil,
 		},
 		{
@@ -224,89 +209,4 @@ func (s *Server) VerifyContract(ctx context.Context) error {
 	}
 
 	return nil
-}
-
-func (s *Server) UpdateContract(c echo.Context) error {
-	lgr := s.logger.With(zap.String("method", "UpdateContract"))
-	if c.Request().Header.Get("Authorization") != s.authorizationSecret {
-		return Unauthorized.Build(c)
-	}
-
-	var (
-		contract     types.Contract
-		addrInfo     types.Address
-		bodyBytes, _ = ioutil.ReadAll(c.Request().Body)
-	)
-	c.Request().Body = ioutil.NopCloser(bytes.NewBuffer(bodyBytes))
-	if err := c.Bind(&contract); err != nil {
-		lgr.Error("cannot bind contract data", zap.Error(err))
-		return Invalid.Build(c)
-	}
-	contract.IsVerified = true
-	c.Request().Body = ioutil.NopCloser(bytes.NewBuffer(bodyBytes))
-	if err := c.Bind(&addrInfo); err != nil {
-		lgr.Error("cannot bind address data", zap.Error(err))
-		return Invalid.Build(c)
-	}
-	ctx := context.Background()
-	krcTokenInfoFromRPC, err := s.getKRCTokenInfoFromRPC(ctx, addrInfo.Address, addrInfo.KrcTypes)
-	if err != nil && strings.HasPrefix(addrInfo.KrcTypes, "KRC") {
-		s.logger.Warn("Updating contract is not KRC type", zap.Any("smcInfo", addrInfo), zap.Error(err))
-		return Invalid.Build(c)
-	}
-	if krcTokenInfoFromRPC != nil {
-		// cache new token info
-		krcTokenInfoFromRPC.Logo = addrInfo.Logo
-
-		if (strings.Contains(addrInfo.Logo, "https") ||
-			strings.Contains(addrInfo.Logo, "http")) &&
-			strings.Contains(addrInfo.Logo, "png") &&
-			!strings.HasPrefix(addrInfo.Logo, s.ConfigUploader.PathAvatar) {
-			addrInfo.Logo = utils.ConvertUrlPngToBase64(addrInfo.Logo)
-		}
-
-		if utils.CheckBase64Logo(addrInfo.Logo) {
-			addressHash := contract.Address
-			if strings.HasPrefix(addressHash, "0x") {
-				addressHash = string(addressHash[2:])
-			}
-			fileName, err := s.fileStorage.UploadLogo(addrInfo.Logo, addressHash, s.ConfigUploader)
-			if err != nil {
-				lgr.Error("cannot upload image", zap.Error(err))
-			} else {
-				addrInfo.Logo = fileName
-				contract.Logo = fileName
-			}
-		}
-
-		_ = s.cacheClient.UpdateKRCTokenInfo(ctx, krcTokenInfoFromRPC)
-		_ = s.cacheClient.UpdateSMCAbi(ctx, contract.Address, contract.ABI)
-
-		addrInfo.TokenName = krcTokenInfoFromRPC.TokenName
-		addrInfo.TokenSymbol = krcTokenInfoFromRPC.TokenSymbol
-		addrInfo.TotalSupply = krcTokenInfoFromRPC.TotalSupply
-		addrInfo.Decimals = krcTokenInfoFromRPC.Decimals
-	}
-	if err := s.dbClient.UpdateContract(ctx, &contract, &addrInfo); err != nil {
-		lgr.Error("cannot bind insert", zap.Error(err))
-		return InternalServer.Build(c)
-	}
-
-	return OK.SetData(addrInfo).Build(c)
-}
-
-func (s *Server) UpdateSMCABIByType(c echo.Context) error {
-	if c.Request().Header.Get("Authorization") != s.authorizationSecret {
-		return Unauthorized.Build(c)
-	}
-	ctx := context.Background()
-	var smcABI *types.ContractABI
-	if err := c.Bind(&smcABI); err != nil {
-		return Invalid.Build(c)
-	}
-	err := s.dbClient.UpsertSMCABIByType(ctx, smcABI.Type, smcABI.ABI)
-	if err != nil {
-		return Invalid.Build(c)
-	}
-	return OK.Build(c)
 }
