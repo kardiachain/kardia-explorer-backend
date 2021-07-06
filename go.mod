@@ -7,6 +7,7 @@ require (
 	github.com/chai2010/webp v1.1.0
 	github.com/ethereum/go-ethereum v1.9.18 // indirect
 	github.com/go-redis/redis/v8 v8.2.3
+	github.com/google/go-cmp v0.5.6 // indirect
 	github.com/joho/godotenv v1.3.0
 	github.com/kardiachain/go-kaiclient v1.0.2-0.20210701063257-34f06fc5160a
 	github.com/kardiachain/go-kardia v1.2.3-0.20210525082104-2913103edf92
