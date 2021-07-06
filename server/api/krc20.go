@@ -9,7 +9,27 @@ import (
 	"go.uber.org/zap"
 )
 
-func (s *Server) GetHoldersListByToken(c echo.Context) error {
+type IKrc20 interface {
+	KRC20Holders(c echo.Context) error
+}
+
+func bindKRC20APIs(gr *echo.Group, srv RestServer) {
+	apis := []restDefinition{
+		{
+			method: echo.GET,
+			// Query params
+			// [?status=(Verified, Unverified)]
+			path:        "/krc20/:contractAddress/holders",
+			fn:          srv.KRC20Holders,
+			middlewares: nil,
+		},
+	}
+	for _, api := range apis {
+		gr.Add(api.method, api.path, api.fn, api.middlewares...)
+	}
+}
+
+func (s *Server) KRC20Holders(c echo.Context) error {
 	ctx := context.Background()
 	var (
 		page, limit int

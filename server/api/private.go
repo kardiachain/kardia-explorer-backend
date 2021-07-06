@@ -25,11 +25,12 @@ type IPrivate interface {
 	ReloadValidators(c echo.Context) error
 
 	//
+	RemoveNilContracts(c echo.Context) error
 	SyncContractInfo(c echo.Context) error
 	RefreshKRC20Info(c echo.Context) error
 	RefreshKRC721Info(c echo.Context) error
 	RefreshContractsInfo(c echo.Context) error
-	RemoveNilContracts(c echo.Context) error
+	RefreshHolders(c echo.Context) error
 }
 
 func bindPrivateAPIs(gr *echo.Group, srv RestServer) {
@@ -62,6 +63,12 @@ func bindPrivateAPIs(gr *echo.Group, srv RestServer) {
 			method:      echo.DELETE,
 			path:        "/contracts/nil",
 			fn:          srv.RemoveNilContracts,
+			middlewares: nil,
+		},
+		{
+			method:      echo.DELETE,
+			path:        "/holders/refresh",
+			fn:          srv.RefreshHolders,
 			middlewares: nil,
 		},
 	}
@@ -403,4 +410,13 @@ func (s *Server) RemoveDuplicateEvents(c echo.Context) error {
 		return InternalServer.Build(c)
 	}
 	return OK.SetData(data).Build(c)
+}
+
+func (s *Server) RefreshHolders(c echo.Context) error {
+	ctx := context.Background()
+	if err := s.dbClient.RemoveHolders(ctx); err != nil {
+		return Invalid.Build(c)
+	}
+
+	return OK.SetData(nil).Build(c)
 }

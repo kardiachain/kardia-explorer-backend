@@ -13,6 +13,7 @@ type RestServer interface {
 	ITx
 	IAddress
 	IKrc721
+	IKrc20
 
 	// General
 	Ping(c echo.Context) error

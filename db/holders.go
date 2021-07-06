@@ -19,6 +19,16 @@ type IHolders interface {
 	UpdateHolders(ctx context.Context, holdersInfo []*types.TokenHolder) error
 	GetListHolders(ctx context.Context, filter *types.HolderFilter) ([]*types.TokenHolder, uint64, error)
 	RemoveHolder(ctx context.Context, holder *types.TokenHolder) error
+
+	RemoveHolders(ctx context.Context) error
+}
+
+func (m *mongoDB) RemoveHolders(ctx context.Context) error {
+	if _, err := m.wrapper.C(cHolders).RemoveAll(bson.M{"balance": "0"}); err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func (m *mongoDB) createHoldersCollectionIndexes() []mongo.IndexModel {

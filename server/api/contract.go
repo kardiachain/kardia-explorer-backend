@@ -27,7 +27,6 @@ type IContract interface {
 
 func bindContractAPIs(gr *echo.Group, srv RestServer) {
 	apis := []restDefinition{
-
 		{
 			method:      echo.PUT,
 			path:        "/contracts",

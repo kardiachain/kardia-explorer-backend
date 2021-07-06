@@ -175,12 +175,6 @@ func bind(gr *echo.Group, srv RestServer) {
 			middlewares: nil,
 		},
 		{
-			method:      echo.GET,
-			path:        "/token/holders/:contractAddress",
-			fn:          srv.GetHoldersListByToken,
-			middlewares: nil,
-		},
-		{
 			method: echo.GET,
 			// Query params: ?page=0&limit=10&address=0x&contractAddress=0x&txHash=0x
 			path:        "/token/txs",
@@ -195,6 +189,7 @@ func bind(gr *echo.Group, srv RestServer) {
 		},
 	}
 	bindKRC721APIs(gr, srv)
+	bindKRC20APIs(gr, srv)
 	bindBlocksAPIs(gr, srv)
 	bindContractAPIs(gr, srv)
 	bindEventAPIs(gr, srv)
