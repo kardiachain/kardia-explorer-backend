@@ -13,6 +13,12 @@ import (
 
 func (s *Server) processTransferLog(ctx context.Context, l *kClient.Log) error {
 	lgr := s.logger
+	tx, err := s.node.GetTransaction(ctx, l.TxHash)
+	if err != nil {
+		lgr.Error("cannot get tx", zap.Error(err))
+		return nil
+	}
+	l.Time = tx.Time
 	contract, _, err := s.db.Contract(ctx, l.Address)
 	if err != nil {
 		lgr.Error("cannot get contract from db", zap.Error(err))
@@ -20,11 +26,7 @@ func (s *Server) processTransferLog(ctx context.Context, l *kClient.Log) error {
 		// todo: Maybe insert new contract here since it may create in SMC
 		// Try to get basic information about its
 		// Fetch tx info for fill into contract
-		tx, err := s.node.GetTransaction(ctx, l.TxHash)
-		if err != nil {
-			lgr.Error("cannot get tx", zap.Error(err))
-			return nil
-		}
+
 		newToken := &types.Contract{
 			Address:      l.Address,
 			OwnerAddress: tx.From,
@@ -169,7 +171,10 @@ func (s *Server) onKRC20Transfer(ctx context.Context, c *types.Contract, l *kCli
 		return err
 	}
 	if c.ABI != "" {
-		// Decode and use contract ABI instead
+		smcABI, err := s.decodeSMCABIFromBase64(ctx, c.ABI, c.Address)
+		if err == nil {
+			krcABI = smcABI
+		}
 
 	}
 
@@ -202,6 +207,10 @@ func (s *Server) onKRC721Transfer(ctx context.Context, c *types.Contract, l *kCl
 	}
 	if c.ABI != "" {
 		// Decode and use contract ABI instead
+		smcABI, err := s.decodeSMCABIFromBase64(ctx, c.ABI, c.Address)
+		if err == nil {
+			krcABI = smcABI
+		}
 	}
 
 	unpackedLog, err := kClient.UnpackLog(l, krcABI)

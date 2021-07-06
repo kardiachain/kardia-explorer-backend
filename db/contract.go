@@ -27,10 +27,24 @@ type IContract interface {
 	UpdateKRCTotalSupply(ctx context.Context, krcTokenAddress, totalSupply string) error
 	Contracts(ctx context.Context, filter *types.ContractsFilter) ([]*types.Contract, uint64, error)
 
+	CountContracts(ctx context.Context) (int64, error)
 	AllContracts(ctx context.Context) ([]*types.Contract, error)
 	ContractByType(ctx context.Context, contractType string) ([]*types.Contract, error)
 	UpsertSMCABIByType(ctx context.Context, smcType, abi string) error
 	SMCABIByType(ctx context.Context, smcType string) (string, error)
+
+	// Remove
+	RemoveContract(ctx context.Context, contractAddress string) error
+	RemoveContracts(ctx context.Context) error
+}
+
+func (m *mongoDB) CountContracts(ctx context.Context) (int64, error) {
+	total, err := m.wrapper.C(cContract).Count(bson.M{})
+	if err != nil {
+		return 0, err
+	}
+
+	return total, nil
 }
 
 func (m *mongoDB) InsertContract(ctx context.Context, contract *types.Contract, addrInfo *types.Address) error {
@@ -45,6 +59,20 @@ func (m *mongoDB) InsertContract(ctx context.Context, contract *types.Contract, 
 		if _, err := m.wrapper.C(cAddresses).Insert(addrInfo); err != nil {
 			return err
 		}
+	}
+	return nil
+}
+
+func (m *mongoDB) RemoveContract(ctx context.Context, contractAddress string) error {
+	if _, err := m.wrapper.C(cContract).Remove(bson.M{"address": contractAddress}); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (m *mongoDB) RemoveContracts(ctx context.Context) error {
+	if _, err := m.wrapper.C(cContract).Remove(bson.M{"address": ""}); err != nil {
+		return err
 	}
 	return nil
 }

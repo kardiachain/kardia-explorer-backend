@@ -34,6 +34,7 @@ services:
     container_name: "explorer-grabber"
     volumes:
       - .env.sample:/go/bin/.env
+      - abi:/go/bin/abi
     command: "grabber"
   backfill:
     image: kardiachain/backend-explorer

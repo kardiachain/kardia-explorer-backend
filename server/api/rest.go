@@ -5,11 +5,15 @@ import (
 	"github.com/labstack/echo"
 )
 
-// EchoServer define all API expose
-type EchoServer interface {
+// RestServer define all API expose
+type RestServer interface {
 	IPrivate
 	IContract
+	IBlock
 	ITx
+	IAddress
+	IKrc721
+	IKrc20
 
 	// General
 	Ping(c echo.Context) error
@@ -33,17 +37,4 @@ type EchoServer interface {
 	GetProposalsList(c echo.Context) error
 	GetProposalDetails(c echo.Context) error
 	GetParams(c echo.Context) error
-
-	// Blocks
-	Blocks(c echo.Context) error
-	Block(c echo.Context) error
-	BlockTxs(c echo.Context) error
-	BlocksByProposer(c echo.Context) error
-	PersistentErrorBlocks(c echo.Context) error
-
-	// Addresses
-	Addresses(c echo.Context) error
-	AddressInfo(c echo.Context) error
-	AddressTxs(c echo.Context) error
-	AddressHolders(c echo.Context) error
 }

@@ -34,7 +34,7 @@ type restDefinition struct {
 	middlewares []echo.MiddlewareFunc
 }
 
-func bind(gr *echo.Group, srv EchoServer) {
+func bind(gr *echo.Group, srv RestServer) {
 	apis := []restDefinition{
 		{
 			method:      echo.GET,
@@ -85,38 +85,8 @@ func bind(gr *echo.Group, srv EchoServer) {
 			fn:     srv.RemoveNetworkNodes,
 		},
 		// Blocks
-		{
-			method: echo.GET,
-			// Query params: ?page=0&limit=10
-			path: "/blocks",
-			fn:   srv.Blocks,
-		},
-		{
-			method: echo.GET,
-			path:   "/blocks/:block",
-			fn:     srv.Block,
-		},
-		{
-			method: echo.GET,
-			path:   "/blocks/error",
-			fn:     srv.PersistentErrorBlocks,
-		},
-		{
-			method: echo.GET,
-			// Params: proposer address
-			// Query params: ?page=0&limit=10
-			path:        "/blocks/proposer/:address",
-			fn:          srv.BlocksByProposer,
-			middlewares: nil,
-		},
-		{
-			method: echo.GET,
-			// Params: block's hash
-			// Query params: ?page=0&limit=10
-			path:        "/block/:block/txs",
-			fn:          srv.BlockTxs,
-			middlewares: []echo.MiddlewareFunc{checkPagination()},
-		},
+
+		// blocks
 		{
 			method: echo.GET,
 			path:   "/txs/:txHash",
@@ -205,12 +175,6 @@ func bind(gr *echo.Group, srv EchoServer) {
 			middlewares: nil,
 		},
 		{
-			method:      echo.GET,
-			path:        "/token/holders/:contractAddress",
-			fn:          srv.GetHoldersListByToken,
-			middlewares: nil,
-		},
-		{
 			method: echo.GET,
 			// Query params: ?page=0&limit=10&address=0x&contractAddress=0x&txHash=0x
 			path:        "/token/txs",
@@ -224,6 +188,9 @@ func bind(gr *echo.Group, srv EchoServer) {
 			middlewares: nil,
 		},
 	}
+	bindKRC721APIs(gr, srv)
+	bindKRC20APIs(gr, srv)
+	bindBlocksAPIs(gr, srv)
 	bindContractAPIs(gr, srv)
 	bindEventAPIs(gr, srv)
 	bindStakingAPIs(gr, srv)
@@ -233,7 +200,7 @@ func bind(gr *echo.Group, srv EchoServer) {
 	}
 }
 
-func bindEventAPIs(gr *echo.Group, srv EchoServer) {
+func bindEventAPIs(gr *echo.Group, srv RestServer) {
 	apis := []restDefinition{
 		{
 			method:      echo.DELETE,
@@ -247,7 +214,7 @@ func bindEventAPIs(gr *echo.Group, srv EchoServer) {
 	}
 }
 
-func Start(srv EchoServer, cfg cfg.ExplorerConfig) {
+func Start(srv RestServer, cfg cfg.ExplorerConfig) {
 	e := echo.New()
 
 	e.Use(middleware.CORS())

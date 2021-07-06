@@ -43,6 +43,9 @@ type Client interface {
 	IHolders
 	IInternalTransaction
 	ITxs
+	IAddress
+	IKRC721Holders
+
 	ping() error
 	dropCollection(collectionName string)
 	dropDatabase(ctx context.Context) error
@@ -63,17 +66,6 @@ type Client interface {
 	DeleteBlockByHeight(ctx context.Context, blockHeight uint64) error
 	BlocksByProposer(ctx context.Context, proposer string, pagination *types.Pagination) ([]*types.Block, uint64, error)
 	CountBlocksOfProposer(ctx context.Context, proposerAddress string) (int64, error)
-
-	// Address
-	AddressByHash(ctx context.Context, addressHash string) (*types.Address, error)
-	InsertAddress(ctx context.Context, address *types.Address) error
-	UpdateAddresses(ctx context.Context, addresses []*types.Address) error
-	GetTotalAddresses(ctx context.Context) (uint64, uint64, error)
-	GetListAddresses(ctx context.Context, sortDirection int, pagination *types.Pagination) ([]*types.Address, error)
-	Addresses(ctx context.Context) ([]*types.Address, error)
-
-	AddressByName(ctx context.Context, name string) ([]*types.Address, error)
-	ContractByName(ctx context.Context, name string) ([]*types.Contract, error)
 
 	// Proposal
 	AddVoteToProposal(ctx context.Context, proposalInfo *types.ProposalDetail, voteOption uint64) error
