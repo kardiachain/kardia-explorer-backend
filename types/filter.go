@@ -83,7 +83,7 @@ func (f *TxsFilter) Sanitize() {
 	f.TimeFilter.Sanitize()
 }
 
-type HolderFilter struct {
+type KRC20HolderFilter struct {
 	Pagination *Pagination `bson:"-"`
 
 	ContractAddress string `bson:"contractAddress,omitempty"`

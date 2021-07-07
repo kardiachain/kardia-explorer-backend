@@ -40,11 +40,11 @@ type Client interface {
 	IDelegators
 	Nodes
 	IEvents
-	IHolders
+	IKRC20Holder
 	IInternalTransaction
 	ITxs
 	IAddress
-	IKRC721Holders
+	IKRC721Holder
 
 	ping() error
 	dropCollection(collectionName string)

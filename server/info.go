@@ -742,7 +742,7 @@ func (s *infoServer) storeEvents(ctx context.Context, logs []types.Log, blockTim
 	//lgr := s.logger.With(zap.String("method", "storeEvents"))
 	//lgr.Info("Start store events")
 	//var (
-	//	holdersList     []*types.TokenHolder
+	//	holdersList     []*types.KRC20Holder
 	//	internalTxsList []*types.TokenTransfer
 	//	smcABI          *abi.ABI
 	//	err             error
@@ -809,7 +809,7 @@ func (s *infoServer) storeEvents(ctx context.Context, logs []types.Log, blockTim
 	//
 	//}
 	//// insert holders and internal txs to db
-	//err = s.dbClient.UpdateHolders(ctx, holdersList)
+	//err = s.dbClient.UpdateKRC20Holders(ctx, holdersList)
 	//if err != nil {
 	//	s.logger.Warn("Cannot update holder info to db", zap.Error(err), zap.Any("holdersList", holdersList))
 	//}
@@ -966,7 +966,7 @@ func (s *infoServer) getKRCTokenInfo(ctx context.Context, krcTokenAddr string) (
 	return result, nil
 }
 
-func (s *infoServer) getKRCHolder(ctx context.Context, log *types.Log) ([]*types.TokenHolder, error) {
+func (s *infoServer) getKRCHolder(ctx context.Context, log *types.Log) ([]*types.KRC20Holder, error) {
 	var (
 		from, to string
 		ok       bool
@@ -979,7 +979,7 @@ func (s *infoServer) getKRCHolder(ctx context.Context, log *types.Log) ([]*types
 	if !ok {
 		return nil, fmt.Errorf("invalid to address")
 	}
-	holdersList := make([]*types.TokenHolder, 2)
+	holdersList := make([]*types.KRC20Holder, 2)
 	krcTokenInfo, err := s.getKRCTokenInfo(ctx, log.Address)
 	if err != nil {
 		return nil, err
@@ -999,7 +999,7 @@ func (s *infoServer) getKRCHolder(ctx context.Context, log *types.Log) ([]*types
 	if err != nil {
 		return nil, err
 	}
-	holdersList[0] = &types.TokenHolder{
+	holdersList[0] = &types.KRC20Holder{
 		TokenName:       krcTokenInfo.TokenName,
 		TokenSymbol:     krcTokenInfo.TokenSymbol,
 		TokenDecimals:   krcTokenInfo.Decimals,
@@ -1009,7 +1009,7 @@ func (s *infoServer) getKRCHolder(ctx context.Context, log *types.Log) ([]*types
 		BalanceFloat:    s.calculateKRC20BalanceFloat(fromBalance, krcTokenInfo.Decimals),
 		UpdatedAt:       time.Now().Unix(),
 	}
-	holdersList[1] = &types.TokenHolder{
+	holdersList[1] = &types.KRC20Holder{
 		TokenName:       krcTokenInfo.TokenName,
 		TokenSymbol:     krcTokenInfo.TokenSymbol,
 		TokenDecimals:   krcTokenInfo.Decimals,

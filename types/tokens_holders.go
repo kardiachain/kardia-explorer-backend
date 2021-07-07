@@ -1,6 +1,6 @@
 package types
 
-type TokenHolder struct {
+type KRC20Holder struct {
 	TokenName       string  `json:"tokenName,omitempty" bson:"tokenName,omitempty"`
 	TokenSymbol     string  `json:"tokenSymbol,omitempty" bson:"tokenSymbol,omitempty"`
 	TokenDecimals   int64   `json:"tokenDecimals" bson:"tokenDecimals,omitempty"`

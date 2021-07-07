@@ -141,7 +141,7 @@ func (s *Server) upsertKRC20Holder(ctx context.Context, log *kClient.Log) error 
 	if !ok {
 		return errors.New("invalid to address")
 	}
-	holders := make([]*types.TokenHolder, 2)
+	holders := make([]*types.KRC20Holder, 2)
 	token, err := kClient.NewToken(s.node, log.Address)
 	if err != nil {
 		return err
@@ -159,14 +159,14 @@ func (s *Server) upsertKRC20Holder(ctx context.Context, log *kClient.Log) error 
 		return err
 	}
 
-	holders[0] = &types.TokenHolder{
+	holders[0] = &types.KRC20Holder{
 		ContractAddress: log.Address,
 		HolderAddress:   from,
 		BalanceString:   fromBalance.String(),
 		BalanceFloat:    utils.BalanceToFloatWithDecimals(fromBalance, int64(krc20Info.Decimals)),
 		UpdatedAt:       time.Now().Unix(),
 	}
-	holders[1] = &types.TokenHolder{
+	holders[1] = &types.KRC20Holder{
 		ContractAddress: log.Address,
 		HolderAddress:   to,
 		BalanceString:   toBalance.String(),
@@ -175,21 +175,21 @@ func (s *Server) upsertKRC20Holder(ctx context.Context, log *kClient.Log) error 
 	}
 
 	if fromBalance.Cmp(ZERO_BI) == 0 {
-		if err := s.db.RemoveHolder(ctx, holders[0]); err != nil {
+		if err := s.db.RemoveKRC20Holder(ctx, holders[0]); err != nil {
 			return err
 		}
 	} else {
-		if err := s.db.UpsertHolders(ctx, []*types.TokenHolder{holders[0]}); err != nil {
+		if err := s.db.UpsertKRC20Holders(ctx, []*types.KRC20Holder{holders[0]}); err != nil {
 			return err
 		}
 	}
 
 	if toBalance.Cmp(ZERO_BI) == 0 {
-		if err := s.db.RemoveHolder(ctx, holders[1]); err != nil {
+		if err := s.db.RemoveKRC20Holder(ctx, holders[1]); err != nil {
 			return err
 		}
 	} else {
-		if err := s.db.UpsertHolders(ctx, []*types.TokenHolder{holders[1]}); err != nil {
+		if err := s.db.UpsertKRC20Holders(ctx, []*types.KRC20Holder{holders[1]}); err != nil {
 			return err
 		}
 	}

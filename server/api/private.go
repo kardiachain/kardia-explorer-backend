@@ -430,7 +430,7 @@ func (s *Server) RemoveDuplicateEvents(c echo.Context) error {
 
 func (s *Server) RefreshHolders(c echo.Context) error {
 	ctx := context.Background()
-	if err := s.dbClient.RemoveHolders(ctx); err != nil {
+	if err := s.dbClient.RemoveKRC20Holders(ctx); err != nil {
 		return Invalid.Build(c)
 	}
 

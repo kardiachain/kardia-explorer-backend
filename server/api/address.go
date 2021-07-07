@@ -177,11 +177,11 @@ func (s *Server) AddressHolders(c echo.Context) error {
 	)
 	address := c.Param("address")
 	pagination, page, limit := getPagingOption(c)
-	filterCrit := &types.HolderFilter{
+	filterCrit := &types.KRC20HolderFilter{
 		Pagination:    pagination,
 		HolderAddress: address,
 	}
-	holders, total, err := s.dbClient.GetListHolders(ctx, filterCrit)
+	holders, total, err := s.dbClient.KRC20Holders(ctx, filterCrit)
 	if err != nil {
 		lgr.Error("cannot get holders from db", zap.Error(err))
 	}
