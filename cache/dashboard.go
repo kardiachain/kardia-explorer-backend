@@ -16,7 +16,7 @@ const (
 )
 
 type IDashboard interface {
-	// GetListHolders summary
+	// KRC20Holders summary
 	UpdateTotalHolders(ctx context.Context, holders uint64, contracts uint64) error
 	TotalHolders(ctx context.Context) (uint64, uint64)
 
@@ -26,7 +26,7 @@ type IDashboard interface {
 	TotalAddresses(ctx context.Context) (int64, error)
 }
 
-// GetListHolders summary
+// KRC20Holders summary
 func (c *Redis) UpdateTotalHolders(ctx context.Context, holders uint64, contracts uint64) error {
 	if err := c.client.Set(ctx, KeyTotalHolders, holders, 0).Err(); err != nil {
 		// Handle error here

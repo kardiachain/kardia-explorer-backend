@@ -5,6 +5,7 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/kardiachain/go-kardia/lib/common"
 	"github.com/kardiachain/kardia-explorer-backend/types"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
@@ -14,15 +15,15 @@ import (
 
 var cKRC721Holders = "KRC721Holders"
 
-type IKRC721Holders interface {
-	createKRC721HoldersCollectionIndexes() []mongo.IndexModel
+type IKRC721Holder interface {
+	createKRC721HolderCollectionIndexes() []mongo.IndexModel
 	UpsertKRC721Holders(ctx context.Context, holdersInfo []*types.KRC721Holder) error
 	UpdateKRC721Holders(ctx context.Context, holdersInfo []*types.KRC721Holder) error
 	KRC721Holders(ctx context.Context, filter types.KRC721HolderFilter) ([]*types.KRC721Holder, uint64, error)
 	RemoveKRC721Holder(ctx context.Context, holder *types.KRC721Holder) error
 }
 
-func (m *mongoDB) createKRC721HoldersCollectionIndexes() []mongo.IndexModel {
+func (m *mongoDB) createKRC721HolderCollectionIndexes() []mongo.IndexModel {
 	return []mongo.IndexModel{
 		{Keys: bson.M{"holderID": 1}, Options: options.Index().SetUnique(true).SetSparse(true)},
 		{Keys: bson.M{"contractAddress": 1}, Options: options.Index().SetSparse(true)},
@@ -33,6 +34,7 @@ func (m *mongoDB) createKRC721HoldersCollectionIndexes() []mongo.IndexModel {
 func (m *mongoDB) UpdateKRC721Holders(ctx context.Context, holdersInfo []*types.KRC721Holder) error {
 	holdersBulkWriter := make([]mongo.WriteModel, len(holdersInfo))
 	for i := range holdersInfo {
+		holdersInfo[i].Address = common.HexToAddress(holdersInfo[i].Address).String()
 		txModel := mongo.NewUpdateOneModel().SetUpsert(true).SetFilter(bson.M{"holderAddress": holdersInfo[i].Address, "contractAddress": holdersInfo[i].ContractAddress}).SetUpdate(bson.M{"$set": holdersInfo[i]})
 		holdersBulkWriter[i] = txModel
 	}

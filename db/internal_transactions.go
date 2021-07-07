@@ -39,7 +39,10 @@ func (m *mongoDB) createInternalTxsCollectionIndexes() []mongo.IndexModel {
 func (m *mongoDB) InsertInternalTxs(ctx context.Context, internalTx *types.TokenTransfer) error {
 	// Create uniqueID by combine txHash-Contract-LogIndex
 	// TransferID is unique by index
+	internalTx.From = common.HexToAddress(internalTx.From).String()
+	internalTx.To = common.HexToAddress(internalTx.To).String()
 	internalTx.TransferID = fmt.Sprintf("%s-%s-%d", internalTx.TransactionHash, internalTx.Contract, internalTx.LogIndex)
+
 	if _, err := m.wrapper.C(cInternalTxs).Insert(internalTx); err != nil {
 		return err
 	}
@@ -49,6 +52,8 @@ func (m *mongoDB) InsertInternalTxs(ctx context.Context, internalTx *types.Token
 func (m *mongoDB) UpdateInternalTxs(ctx context.Context, internalTxs []*types.TokenTransfer) error {
 	iTxsBulkWriter := make([]mongo.WriteModel, len(internalTxs))
 	for i := range internalTxs {
+		internalTxs[i].From = common.HexToAddress(internalTxs[i].From).String()
+		internalTxs[i].To = common.HexToAddress(internalTxs[i].To).String()
 		internalTxs[i].Contract = common.HexToAddress(internalTxs[i].Contract).Hex()
 		iTxs := mongo.NewInsertOneModel().SetDocument(internalTxs[i])
 		iTxsBulkWriter[i] = iTxs

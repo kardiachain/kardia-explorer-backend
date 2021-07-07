@@ -36,11 +36,11 @@ func (s *Server) KRC20Holders(c echo.Context) error {
 		err         error
 	)
 	pagination, page, limit := getPagingOption(c)
-	filterCrit := &types.HolderFilter{
+	filterCrit := &types.KRC20HolderFilter{
 		Pagination:      pagination,
 		ContractAddress: c.Param("contractAddress"),
 	}
-	holders, total, err := s.dbClient.GetListHolders(ctx, filterCrit)
+	holders, total, err := s.dbClient.KRC20Holders(ctx, filterCrit)
 	if err != nil {
 		s.logger.Warn("Cannot get events from db", zap.Error(err))
 	}

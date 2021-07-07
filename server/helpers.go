@@ -33,7 +33,7 @@ func (s *Server) newAddressInfo(ctx context.Context, address string) (*types.Add
 		addrInfo.IsContract = true
 	}
 	// write this address to db if its balance is larger than 0 or it's a SMC or it holds KRC token
-	tokens, _, _ := s.dbClient.GetListHolders(ctx, &types.HolderFilter{
+	tokens, _, _ := s.dbClient.KRC20Holders(ctx, &types.KRC20HolderFilter{
 		HolderAddress: address,
 	})
 	if balance != "0" || addrInfo.IsContract || len(tokens) > 0 {
