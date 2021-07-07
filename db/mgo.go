@@ -122,7 +122,8 @@ func createIndexes(dbClient *mongoDB) error {
 		// indexing contract events collection
 		{c: cEvents, model: dbClient.createEventsCollectionIndexes()},
 		// indexing token holders collection
-		{c: cHolders, model: dbClient.createHoldersCollectionIndexes()},
+		{c: cKRC20Holders, model: dbClient.createKRC20HoldersCollectionIndexes()},
+		{c: cKRC721Holders, model: dbClient.createKRC721HolderCollectionIndexes()},
 		// indexing internal txs collection
 		{c: cInternalTxs, model: dbClient.createInternalTxsCollectionIndexes()},
 		{c: cDelegator, model: createDelegatorCollectionIndexes()},

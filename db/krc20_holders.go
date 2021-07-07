@@ -12,7 +12,7 @@ import (
 	"github.com/kardiachain/kardia-explorer-backend/types"
 )
 
-var cHolders = "KRC721Holders"
+var cKRC20Holders = "KRC20Holders"
 
 type IKRC20Holder interface {
 	createKRC20HoldersCollectionIndexes() []mongo.IndexModel
@@ -33,7 +33,7 @@ func (m *mongoDB) createKRC20HoldersCollectionIndexes() []mongo.IndexModel {
 }
 
 func (m *mongoDB) RemoveKRC20Holders(ctx context.Context) error {
-	if _, err := m.wrapper.C(cHolders).RemoveAll(bson.M{"balance": "0"}); err != nil {
+	if _, err := m.wrapper.C(cKRC20Holders).RemoveAll(bson.M{"balance": "0"}); err != nil {
 		return err
 	}
 
@@ -49,7 +49,7 @@ func (m *mongoDB) UpsertKRC20Holders(ctx context.Context, holdersInfo []*types.K
 		holdersBulkWriter[i] = txModel
 	}
 	if len(holdersBulkWriter) > 0 {
-		if _, err := m.wrapper.C(cHolders).BulkWrite(holdersBulkWriter); err != nil {
+		if _, err := m.wrapper.C(cKRC20Holders).BulkWrite(holdersBulkWriter); err != nil {
 			return err
 		}
 	}
@@ -57,7 +57,7 @@ func (m *mongoDB) UpsertKRC20Holders(ctx context.Context, holdersInfo []*types.K
 }
 
 func (m *mongoDB) RemoveKRC20Holder(ctx context.Context, holder *types.KRC20Holder) error {
-	if _, err := m.wrapper.C(cHolders).Remove(bson.M{"holderAddress": holder.HolderAddress, "contractAddress": holder.ContractAddress}); err != nil {
+	if _, err := m.wrapper.C(cKRC20Holders).Remove(bson.M{"holderAddress": holder.HolderAddress, "contractAddress": holder.ContractAddress}); err != nil {
 		return err
 	}
 	return nil
@@ -70,7 +70,7 @@ func (m *mongoDB) UpdateKRC20Holders(ctx context.Context, holdersInfo []*types.K
 		holdersBulkWriter[i] = txModel
 	}
 	if len(holdersBulkWriter) > 0 {
-		if _, err := m.wrapper.C(cHolders).BulkWrite(holdersBulkWriter); err != nil {
+		if _, err := m.wrapper.C(cKRC20Holders).BulkWrite(holdersBulkWriter); err != nil {
 			return err
 		}
 	}
@@ -100,7 +100,7 @@ func (m *mongoDB) KRC20Holders(ctx context.Context, filter *types.KRC20HolderFil
 		filter.Pagination.Sanitize()
 		opts = append(opts, options.Find().SetSkip(int64(filter.Pagination.Skip)), options.Find().SetLimit(int64(filter.Pagination.Limit)))
 	}
-	cursor, err := m.wrapper.C(cHolders).Find(crit, opts...)
+	cursor, err := m.wrapper.C(cKRC20Holders).Find(crit, opts...)
 	if err != nil {
 		return nil, 0, err
 	}
@@ -109,7 +109,7 @@ func (m *mongoDB) KRC20Holders(ctx context.Context, filter *types.KRC20HolderFil
 		return nil, 0, err
 	}
 
-	total, err := m.wrapper.C(cHolders).Count(crit)
+	total, err := m.wrapper.C(cKRC20Holders).Count(crit)
 	if err != nil {
 		return nil, 0, err
 	}
