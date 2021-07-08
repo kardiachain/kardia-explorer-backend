@@ -28,6 +28,7 @@ type IAddress interface {
 	ContractByName(ctx context.Context, name string) ([]*types.Contract, error)
 
 	CountAddresses(ctx context.Context) (int64, error)
+	RemoveNilAddresses(ctx context.Context) error
 }
 
 func (m *mongoDB) CountAddresses(ctx context.Context) (int64, error) {
@@ -36,6 +37,13 @@ func (m *mongoDB) CountAddresses(ctx context.Context) (int64, error) {
 		return 0, err
 	}
 	return totalAddr, nil
+}
+
+func (m *mongoDB) RemoveNilAddresses(ctx context.Context) error {
+	if _, err := m.wrapper.C(cAddresses).RemoveAll(bson.M{"address": ""}); err != nil {
+		return err
+	}
+	return nil
 }
 
 func (m *mongoDB) AddressByHash(ctx context.Context, address string) (*types.Address, error) {
