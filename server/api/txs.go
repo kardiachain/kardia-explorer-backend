@@ -143,46 +143,6 @@ func (s *Server) TxByHash(c echo.Context) error {
 			fmt.Println("TotalTime", time.Since(start))
 		}
 	}
-	//iTxs, _, err := s.dbClient.GetListInternalTxs(ctx, filter)
-	//if err != nil {
-	//	s.logger.Warn("Cannot get internal transactions from db", zap.Error(err))
-	//}
-	//internalTxs := make([]*InternalTransaction, len(iTxs))
-	//for i := range iTxs {
-	//	logIndex, _ := iTxs[i].LogIndex.(uint)
-	//	internalTxs[i] = &InternalTransaction{
-	//		Log: &types.Log{
-	//			Address:    iTxs[i].Contract,
-	//			MethodName: cfg.KRCTransferMethodName,
-	//			Arguments: map[string]interface{}{
-	//				"from":  iTxs[i].From,
-	//				"to":    iTxs[i].To,
-	//				"value": iTxs[i].Value,
-	//			},
-	//			BlockHeight: iTxs[i].BlockHeight,
-	//			Time:        iTxs[i].Time,
-	//			TxHash:      iTxs[i].TransactionHash,
-	//			Index:       logIndex,
-	//		},
-	//		From:  iTxs[i].From,
-	//		To:    iTxs[i].To,
-	//		Value: iTxs[i].Value,
-	//	}
-	//	fromInfo, _ := s.getAddressInfo(ctx, iTxs[i].From)
-	//	if fromInfo != nil {
-	//		internalTxs[i].FromName = fromInfo.Name
-	//	}
-	//	toInfo, _ := s.getAddressInfo(ctx, iTxs[i].To)
-	//	if toInfo != nil {
-	//		internalTxs[i].ToName = toInfo.Name
-	//	}
-	//	krcTokenInfo, err = s.getKRCTokenInfo(ctx, iTxs[i].Contract)
-	//	if err != nil {
-	//		s.logger.Info("Cannot get KRC Token Info", zap.String("smcAddress", iTxs[i].Contract), zap.Error(err))
-	//		continue
-	//	}
-	//	internalTxs[i].KRCTokenInfo = krcTokenInfo
-	//}
 
 	result := &Transaction{
 		BlockHash:        tx.BlockHash,
