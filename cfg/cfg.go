@@ -40,7 +40,8 @@ type ExplorerConfig struct {
 
 	LogLevel string
 
-	IsReloadBootData bool
+	IsReloadBootData        bool
+	IsReloadStakingBootData bool
 
 	DefaultAPITimeout     time.Duration
 	DefaultBlockFetchTime time.Duration
@@ -90,6 +91,12 @@ func New() (ExplorerConfig, error) {
 	isReloadBootData, err := strconv.ParseBool(isReloadBootDataStr)
 	if err != nil {
 		isReloadBootData = true
+	}
+
+	isReloadStakingBootDataStr := os.Getenv("IS_RELOAD_STAKING_BOOT_DATA")
+	isReloadStakingBootData, err := strconv.ParseBool(isReloadStakingBootDataStr)
+	if err != nil {
+		isReloadStakingBootData = true
 	}
 
 	apiDefaultTimeoutStr := os.Getenv("DEFAULT_API_TIMEOUT")
@@ -208,21 +215,22 @@ func New() (ExplorerConfig, error) {
 	UploaderPathAvatar := os.Getenv("AWS_UPLOADER_PATH_AVATAR")
 
 	cfg := ExplorerConfig{
-		ServerMode:            os.Getenv("SERVER_MODE"),
-		Port:                  os.Getenv("PORT"),
-		HttpRequestSecret:     os.Getenv("HTTP_REQUEST_SECRET"),
-		LogLevel:              os.Getenv("LOG_LEVEL"),
-		IsReloadBootData:      isReloadBootData,
-		DefaultAPITimeout:     time.Duration(apiDefaultTimeout) * time.Second,
-		DefaultBlockFetchTime: time.Duration(apiDefaultBlockFetchTime) * time.Millisecond,
-		BufferedBlocks:        int64(bufferBlocks),
-		CoinMarketAPIKey:      os.Getenv("COIN_MARKET_API_KEY"),
-		CacheEngine:           os.Getenv("CACHE_ENGINE"),
-		CacheURL:              os.Getenv("CACHE_URI"),
-		CachePassword:         os.Getenv("CACHE_PASSWORD"),
-		CacheFile:             os.Getenv("CACHE_FILE"),
-		CacheDB:               cacheDB,
-		CacheExpiredTime:      time.Duration(cacheExpiredTime) * time.Hour,
+		ServerMode:              os.Getenv("SERVER_MODE"),
+		Port:                    os.Getenv("PORT"),
+		HttpRequestSecret:       os.Getenv("HTTP_REQUEST_SECRET"),
+		LogLevel:                os.Getenv("LOG_LEVEL"),
+		IsReloadBootData:        isReloadBootData,
+		IsReloadStakingBootData: isReloadStakingBootData,
+		DefaultAPITimeout:       time.Duration(apiDefaultTimeout) * time.Second,
+		DefaultBlockFetchTime:   time.Duration(apiDefaultBlockFetchTime) * time.Millisecond,
+		BufferedBlocks:          int64(bufferBlocks),
+		CoinMarketAPIKey:        os.Getenv("COIN_MARKET_API_KEY"),
+		CacheEngine:             os.Getenv("CACHE_ENGINE"),
+		CacheURL:                os.Getenv("CACHE_URI"),
+		CachePassword:           os.Getenv("CACHE_PASSWORD"),
+		CacheFile:               os.Getenv("CACHE_FILE"),
+		CacheDB:                 cacheDB,
+		CacheExpiredTime:        time.Duration(cacheExpiredTime) * time.Hour,
 
 		CacheIsFlush: cacheIsFlush,
 

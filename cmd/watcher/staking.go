@@ -37,8 +37,10 @@ func runStakingSubscriber(ctx context.Context, serviceCfg cfg.ExplorerConfig) er
 		return err
 	}
 
-	if err := loadStakingBootData(ctx, serviceCfg); err != nil {
-		return err
+	if serviceCfg.IsReloadStakingBootData {
+		if err := loadStakingBootData(ctx, serviceCfg); err != nil {
+			return err
+		}
 	}
 
 	go h.SubscribeStakingEvent(ctx)
