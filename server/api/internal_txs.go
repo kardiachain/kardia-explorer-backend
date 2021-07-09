@@ -19,6 +19,22 @@ import (
 func (s *Server) GetInternalTxs(c echo.Context) error {
 	pagination, page, limit := getPagingOption(c)
 	contractAddress := c.QueryParam("contractAddress")
+	address := c.QueryParam("address")
+
+	//
+	if contractAddress != "" && address != "" {
+		result, totalRecord, err := s.internalTxsOfAddressByToken(contractAddress, address, pagination)
+		if err != nil {
+			return Invalid.Build(c)
+		}
+		return OK.SetData(PagingResponse{
+			Page:  page,
+			Limit: limit,
+			Total: totalRecord,
+			Data:  result,
+		}).Build(c)
+	}
+
 	if contractAddress != "" {
 		result, totalRecord, err := s.internalTxsOfContract(contractAddress, pagination)
 		if err != nil {
@@ -31,7 +47,7 @@ func (s *Server) GetInternalTxs(c echo.Context) error {
 			Data:  result,
 		}).Build(c)
 	}
-	address := c.QueryParam("address")
+
 	if address != "" {
 		result, totalRecord, err := s.internalTxsOfAddress(address, pagination)
 		if err != nil {
@@ -150,6 +166,60 @@ func (s *Server) internalTxsOfContract(contractAddress string, pagination *types
 	filterCrit := &types.InternalTxsFilter{
 		Pagination: pagination,
 		Contract:   contractAddress,
+	}
+	iTxs, total, err := s.dbClient.GetListInternalTxs(ctx, filterCrit)
+	if err != nil {
+		s.logger.Warn("Cannot get internal txs from db", zap.Error(err))
+	}
+	var (
+		result           = make([]*InternalTransaction, len(iTxs))
+		fromInfo, toInfo *types.Address
+	)
+	// Get contract info
+	contractInfo, _, err := s.dbClient.Contract(ctx, contractAddress)
+	if err != nil {
+		return nil, 0, err
+	}
+	tokenInfo := &types.KRCTokenInfo{
+		Address:     contractInfo.Address,
+		Logo:        contractInfo.Logo,
+		TokenName:   contractInfo.Name,
+		TokenType:   contractInfo.Type,
+		TokenSymbol: contractInfo.Symbol,
+		Decimals:    int64(contractInfo.Decimals),
+		TotalSupply: contractInfo.TotalSupply,
+	}
+	for i := range iTxs {
+		result[i] = &InternalTransaction{
+			Log: &types.Log{
+				Address: iTxs[i].Contract,
+				Time:    iTxs[i].Time,
+				TxHash:  iTxs[i].TransactionHash,
+			},
+			From:    iTxs[i].From,
+			To:      iTxs[i].To,
+			Value:   iTxs[i].Value,
+			TokenID: iTxs[i].TokenID,
+		}
+		fromInfo, _ = s.getAddressDetail(ctx, iTxs[i].From)
+		if fromInfo != nil {
+			result[i].FromName = fromInfo.Name
+		}
+		toInfo, _ = s.getAddressDetail(ctx, iTxs[i].To)
+		if toInfo != nil {
+			result[i].ToName = toInfo.Name
+		}
+		result[i].KRCTokenInfo = tokenInfo
+	}
+	return result, total, nil
+}
+
+func (s *Server) internalTxsOfAddressByToken(contractAddress, address string, pagination *types.Pagination) ([]*InternalTransaction, uint64, error) {
+	ctx := context.Background()
+	filterCrit := &types.InternalTxsFilter{
+		Pagination: pagination,
+		Contract:   contractAddress,
+		Address:    address,
 	}
 	iTxs, total, err := s.dbClient.GetListInternalTxs(ctx, filterCrit)
 	if err != nil {
