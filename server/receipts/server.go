@@ -46,11 +46,11 @@ func (s *Server) SetNode(node kClient.Node) *Server {
 var ErrRedisNil = errors.New("redis: nil")
 
 func (s *Server) HandleReceipts(ctx context.Context, interval time.Duration) {
-	badReceipts := make(map[string]int)
+	//	badReceipts := make(map[string]int)
 	// Read receipt from cache and start processing flow
 	lgr := s.logger.With(zap.String("task", "handle_receipts"))
 	lgr.Info("Run process receipts flow...")
-	poolSize := 64
+	poolSize := 128
 	p, err := ants.NewPoolWithFunc(poolSize, func(i interface{}) {
 		r := i.(*kClient.Receipt)
 		if err := s.processReceipt(ctx, r); err != nil {
@@ -81,26 +81,17 @@ func (s *Server) HandleReceipts(ctx context.Context, interval time.Duration) {
 		r, err := s.node.GetTransactionReceipt(ctx, receiptHash)
 		if err != nil {
 			lgr.Error("cannot get receipt from network", zap.Error(err))
-			// Push back receipt hash into list
-
-			if badReceipts[receiptHash] < 3 {
-				badReceipts[receiptHash]++
-				lgr.Info("Push back to process list")
-				if err := s.cache.PushReceipts(ctx, []string{receiptHash}); err != nil {
-					lgr.Error("cannot push back receipt hash into list", zap.Error(err))
-					// todo: Implement notify
-					continue
-				}
-			}
-
-			if badReceipts[receiptHash] >= 3 {
-				lgr.Info("Skip, insert into bad list")
+			if errors.Is(err, errors.New("not found")) {
 				if err := s.cache.PushBadReceipts(ctx, []string{receiptHash}); err != nil {
-					lgr.Error("cannot push back receipt hash into list", zap.Error(err))
-					// todo: Implement notify
-					continue
+					lgr.Error("cannot push to bad receipts", zap.Error(err))
 				}
-				delete(badReceipts, receiptHash)
+				continue
+			}
+			lgr.Info("Push back to process list")
+			if err := s.cache.PushReceipts(ctx, []string{receiptHash}); err != nil {
+				lgr.Error("cannot push back receipt hash into list", zap.Error(err))
+				// todo: Implement notify
+				continue
 			}
 			continue
 		}
@@ -112,25 +103,6 @@ func (s *Server) HandleReceipts(ctx context.Context, interval time.Duration) {
 
 		if err := p.Invoke(r); err != nil {
 			lgr.Error("invoke process error", zap.Error(err))
-			if badReceipts[receiptHash] < 3 {
-				badReceipts[receiptHash]++
-				lgr.Info("Push back to process list")
-				if err := s.cache.PushReceipts(ctx, []string{receiptHash}); err != nil {
-					lgr.Error("cannot push back receipt hash into list", zap.Error(err))
-					// todo: Implement notify
-					continue
-				}
-			}
-
-			if badReceipts[receiptHash] >= 3 {
-				lgr.Info("Skip, insert into bad list")
-				if err := s.cache.PushBadReceipts(ctx, []string{receiptHash}); err != nil {
-					lgr.Error("cannot push back receipt hash into list", zap.Error(err))
-					// todo: Implement notify
-					continue
-				}
-				delete(badReceipts, receiptHash)
-			}
 		}
 
 		//// Start processing
