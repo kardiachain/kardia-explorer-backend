@@ -112,6 +112,25 @@ func (s *Server) HandleReceipts(ctx context.Context, interval time.Duration) {
 
 		if err := p.Invoke(r); err != nil {
 			lgr.Error("invoke process error", zap.Error(err))
+			if badReceipts[receiptHash] < 3 {
+				badReceipts[receiptHash]++
+				lgr.Info("Push back to process list")
+				if err := s.cache.PushReceipts(ctx, []string{receiptHash}); err != nil {
+					lgr.Error("cannot push back receipt hash into list", zap.Error(err))
+					// todo: Implement notify
+					continue
+				}
+			}
+
+			if badReceipts[receiptHash] >= 3 {
+				lgr.Info("Skip, insert into bad list")
+				if err := s.cache.PushReceipts(ctx, []string{receiptHash}); err != nil {
+					lgr.Error("cannot push back receipt hash into list", zap.Error(err))
+					// todo: Implement notify
+					continue
+				}
+				delete(badReceipts, receiptHash)
+			}
 		}
 
 		//// Start processing
