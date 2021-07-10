@@ -44,6 +44,7 @@ func (s *Server) SetNode(node kClient.Node) *Server {
 }
 
 var ErrRedisNil = errors.New("redis: nil")
+var ErrNotFoundReceipt = errors.New("not found")
 
 func (s *Server) HandleReceipts(ctx context.Context, interval time.Duration) {
 	//	badReceipts := make(map[string]int)
@@ -81,7 +82,7 @@ func (s *Server) HandleReceipts(ctx context.Context, interval time.Duration) {
 		r, err := s.node.GetTransactionReceipt(ctx, receiptHash)
 		if err != nil {
 			lgr.Error("cannot get receipt from network", zap.Error(err))
-			if errors.Is(err, errors.New("not found")) {
+			if errors.As(err, &ErrNotFoundReceipt) {
 				if err := s.cache.PushBadReceipts(ctx, []string{receiptHash}); err != nil {
 					lgr.Error("cannot push to bad receipts", zap.Error(err))
 				}
