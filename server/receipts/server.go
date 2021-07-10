@@ -50,7 +50,7 @@ func (s *Server) HandleReceipts(ctx context.Context, interval time.Duration) {
 	// Read receipt from cache and start processing flow
 	lgr := s.logger.With(zap.String("task", "handle_receipts"))
 	lgr.Info("Run process receipts flow...")
-	poolSize := 128
+	poolSize := 250
 	p, err := ants.NewPoolWithFunc(poolSize, func(i interface{}) {
 		r := i.(*kClient.Receipt)
 		if err := s.processReceipt(ctx, r); err != nil {
