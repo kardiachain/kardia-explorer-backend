@@ -95,7 +95,7 @@ func (s *Server) HandleReceipts(ctx context.Context, interval time.Duration) {
 
 			if badReceipts[receiptHash] >= 3 {
 				lgr.Info("Skip, insert into bad list")
-				if err := s.cache.PushReceipts(ctx, []string{receiptHash}); err != nil {
+				if err := s.cache.PushBadReceipts(ctx, []string{receiptHash}); err != nil {
 					lgr.Error("cannot push back receipt hash into list", zap.Error(err))
 					// todo: Implement notify
 					continue
@@ -124,7 +124,7 @@ func (s *Server) HandleReceipts(ctx context.Context, interval time.Duration) {
 
 			if badReceipts[receiptHash] >= 3 {
 				lgr.Info("Skip, insert into bad list")
-				if err := s.cache.PushReceipts(ctx, []string{receiptHash}); err != nil {
+				if err := s.cache.PushBadReceipts(ctx, []string{receiptHash}); err != nil {
 					lgr.Error("cannot push back receipt hash into list", zap.Error(err))
 					// todo: Implement notify
 					continue
