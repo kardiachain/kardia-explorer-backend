@@ -42,7 +42,6 @@ func (s *Server) processTransferLog(ctx context.Context, l *kClient.Log) error {
 		}
 		contract = newToken
 	}
-	lgr.Info("process transfer logs")
 	switch contract.Type {
 	case cfg.SMCTypeKRC20:
 		return s.onKRC20Transfer(ctx, contract, l)
@@ -182,18 +181,20 @@ func (s *Server) onKRC20Transfer(ctx context.Context, c *types.Contract, l *kCli
 	if err != nil {
 		return err
 	}
-	lgr.Info("UnpackLog", zap.Any("UnpackedLog", unpackedLog))
+	//lgr.Info("UnpackLog", zap.Any("UnpackedLog", unpackedLog))
 
 	// Insert new transfer and holder
 	if err := s.insertKRC20Transfer(ctx, unpackedLog); err != nil {
 		lgr.Error("cannot insert token transfer", zap.Error(err))
 		return err
 	}
-
+	//startUpsertHolder := time.Now()
 	if err := s.upsertKRC20Holder(ctx, unpackedLog); err != nil {
 		lgr.Error("cannot upsert token holder", zap.Error(err))
 		return err
 	}
+
+	//lgr.Info("Total upsert holder time", zap.Duration("TimeConsumed", time.Since(startUpsertHolder)))
 
 	return nil
 }
@@ -217,7 +218,7 @@ func (s *Server) onKRC721Transfer(ctx context.Context, c *types.Contract, l *kCl
 	if err != nil {
 		return err
 	}
-	lgr.Info("UnpackLog", zap.Any("UnpackedLog", unpackedLog))
+	//lgr.Info("UnpackLog", zap.Any("UnpackedLog", unpackedLog))
 	// Insert new transfer and holder
 	if err := s.insertKRC721Transfer(ctx, unpackedLog); err != nil {
 		lgr.Error("cannot insert token transfer", zap.Error(err))

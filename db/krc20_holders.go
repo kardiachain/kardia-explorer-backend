@@ -41,7 +41,6 @@ func (m *mongoDB) RemoveKRC20Holders(ctx context.Context) error {
 }
 
 func (m *mongoDB) UpsertKRC20Holders(ctx context.Context, holdersInfo []*types.KRC20Holder) error {
-
 	holdersBulkWriter := make([]mongo.WriteModel, len(holdersInfo))
 	for i := range holdersInfo {
 		holdersInfo[i].HolderAddress = common.HexToAddress(holdersInfo[i].HolderAddress).String()

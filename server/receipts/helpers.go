@@ -6,7 +6,6 @@ import (
 	"context"
 	"encoding/base64"
 	"errors"
-	"fmt"
 	"math/big"
 
 	kClient "github.com/kardiachain/go-kaiclient/kardia"
@@ -31,7 +30,6 @@ func tryKRC20(l *kClient.Log) (*kClient.Log, error) {
 	if err != nil {
 		return nil, err
 	}
-	fmt.Printf("UnpackLogs: %+v \n ", unpackLog)
 	if l.ArgumentsName != "index_topic_1 address from, index_topic_2 address to, uint256 value" {
 		return nil, errors.New("not valid krc20 transfer")
 	}
@@ -88,7 +86,7 @@ func (s *Server) insertKRC20Transfer(ctx context.Context, log *kClient.Log) erro
 		LogIndex:        log.Index,
 		Time:            log.Time,
 	}
-	lgr.Info("New KRC20 transfer", zap.Any("TX", internalTx))
+	//lgr.Info("New KRC20 transfer", zap.Any("TX", internalTx))
 	return s.db.InsertInternalTxs(ctx, internalTx)
 }
 
@@ -124,7 +122,7 @@ func (s *Server) insertKRC721Transfer(ctx context.Context, log *kClient.Log) err
 		LogIndex:        log.Index,
 		Time:            log.Time,
 	}
-	lgr.Info("New KRC721 transfer", zap.Any("TX", internalTx))
+	//lgr.Info("New KRC721 transfer", zap.Any("TX", internalTx))
 	return s.db.InsertInternalTxs(ctx, internalTx)
 }
 

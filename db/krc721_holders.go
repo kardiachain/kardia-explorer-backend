@@ -100,7 +100,6 @@ func (m *mongoDB) UpsertKRC721Holders(ctx context.Context, holders []*types.KRC7
 	for i := range holders {
 		holders[i].HolderID = fmt.Sprintf("%s-%s", holders[i].ContractAddress, holders[i].TokenID)
 		txModel := mongo.NewUpdateOneModel().SetUpsert(true).SetFilter(bson.M{"holderID": holders[i].HolderID}).SetUpdate(bson.M{"$set": holders[i]})
-		fmt.Printf("MOdel: %+v \n", txModel)
 		holdersBulkWriter[i] = txModel
 	}
 	if len(holdersBulkWriter) > 0 {

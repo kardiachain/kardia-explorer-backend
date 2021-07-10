@@ -5,6 +5,7 @@ import (
 	"os"
 	"os/signal"
 	"runtime"
+	"runtime/debug"
 	"syscall"
 
 	"github.com/joho/godotenv"
@@ -22,7 +23,9 @@ func main() {
 		panic(err.Error())
 	}
 
-	runtime.GOMAXPROCS(runtime.NumCPU())
+	// Limit
+	runtime.GOMAXPROCS(4)
+	debug.SetGCPercent(5000) // Delay GC, which cause consume more RAM but reduce CPU usage
 	serviceCfg, err := cfg.New()
 	if err != nil {
 		panic(err.Error())
