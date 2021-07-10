@@ -20,7 +20,7 @@ type Contract struct {
 	Symbol      string `json:"symbol" bson:"symbol,omitempty"`
 	TotalSupply string `json:"totalSupply" bson:"totalSupply,omitempty"`
 	Decimals    uint8  `json:"decimals" bson:"decimals"` // Do not omitempty since decimals may take 0 value, which go default
-	Logo        string `json:"logo" bson:"logo"`
+	Logo        string `json:"logo" bson:"logo,omitempty"`
 
 	// Addition information
 	IsVerified bool `json:"isVerified" bson:"isVerified,omitempty"`

@@ -93,7 +93,7 @@ func (s *Server) onUndetectedContractTransfer(ctx context.Context, c *types.Cont
 			}
 		}
 		// Take default logo
-		c.Logo = cfg.DefaultKRCTokenLogo
+		//c.Logo = cfg.DefaultKRCTokenLogo
 		c.Type = cfg.SMCTypeKRC721
 		// Update into db
 		if err := s.db.UpdateContract(ctx, c, nil); err != nil {
@@ -139,7 +139,7 @@ func (s *Server) onUndetectedContractTransfer(ctx context.Context, c *types.Cont
 				c.TotalSupply = krc20Info.TotalSupply.String()
 			}
 		}
-		c.Logo = cfg.DefaultKRCTokenLogo
+		//c.Logo = cfg.DefaultKRCTokenLogo
 		c.Type = cfg.SMCTypeKRC20
 		// Update into db
 		if err := s.db.UpdateContract(ctx, c, nil); err != nil {
