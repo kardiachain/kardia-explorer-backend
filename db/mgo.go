@@ -24,6 +24,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/kardiachain/go-kardia/lib/common"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
@@ -312,6 +313,7 @@ func (m *mongoDB) IsBlockExist(ctx context.Context, blockHeight uint64) (bool, e
 func (m *mongoDB) InsertBlock(ctx context.Context, block *types.Block) error {
 	logger := m.logger
 	// Upsert block into Blocks
+	block.ProposerAddress = common.HexToAddress(block.ProposerAddress).String()
 	_, err := m.wrapper.C(cBlocks).Insert(block)
 	if err != nil {
 		logger.Warn("cannot insert new block", zap.Error(err))
