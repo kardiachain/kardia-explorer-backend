@@ -121,24 +121,32 @@ func (s *Server) Contracts(c echo.Context) error {
 		Status:     c.QueryParam("status"),
 	}
 
-	result, total, err := s.dbClient.Contracts(ctx, filterCrit)
+	results, total, err := s.dbClient.Contracts(ctx, filterCrit)
 	if err != nil {
 		return Invalid.Build(c)
 	}
 
-	finalResult := make([]*SimpleKRCTokenInfo, len(result))
-	for i := range result {
+	finalResult := make([]*SimpleKRCTokenInfo, len(results))
+	for i := range results {
+		if results[i].Type == cfg.SMCTypeKRC20 {
+			abi, err := kClient.KRC20ABI()
+			if err == nil {
+				krcInfo, err := s.kaiClient.GetKRC20TokenInfo(ctx, abi, common.HexToAddress(results[i].Address))
+				if err == nil && krcInfo != nil {
+					results[i].TotalSupply = krcInfo.TotalSupply
+				}
+			}
+		}
 		finalResult[i] = &SimpleKRCTokenInfo{
-			Name:        result[i].Name,
-			Address:     result[i].Address,
-			Info:        result[i].Info,
-			Type:        result[i].Type,
-			Logo:        result[i].Logo,
-			IsVerified:  result[i].IsVerified,
-			Status:      int64(result[i].Status),
-			TotalSupply: result[i].TotalSupply,
-			TokenSymbol: result[i].Symbol,
-			Decimal:     int64(result[i].Decimals),
+			Name:        results[i].Name,
+			Address:     results[i].Address,
+			Info:        results[i].Info,
+			Type:        results[i].Type,
+			Logo:        results[i].Logo,
+			IsVerified:  results[i].IsVerified,
+			Status:      int64(results[i].Status),
+			TokenSymbol: results[i].Symbol,
+			Decimal:     int64(results[i].Decimals),
 		}
 	}
 	return OK.SetData(PagingResponse{
@@ -165,8 +173,8 @@ func (s *Server) Contract(c echo.Context) error {
 		TxHash:        smc.TxHash,
 		Type:          smc.Type,
 		BalanceString: addrInfo.BalanceString,
-		Info:          addrInfo.Info,
-		Logo:          addrInfo.Logo,
+		Info:          smc.Info,
+		Logo:          smc.Logo,
 		IsContract:    addrInfo.IsContract,
 		TokenName:     smc.Name,
 		TokenSymbol:   smc.Symbol,
