@@ -137,6 +137,15 @@ func (s *Server) Contracts(c echo.Context) error {
 				}
 			}
 		}
+		if results[i].Type == cfg.SMCTypeKRC721 {
+			abi, err := kClient.KRC721ABI()
+			if err == nil {
+				krcInfo, err := s.kaiClient.GetKRC721TokenInfo(ctx, abi, common.HexToAddress(results[i].Address))
+				if err == nil && krcInfo != nil {
+					results[i].TotalSupply = krcInfo.TotalSupply
+				}
+			}
+		}
 		finalResult[i] = &SimpleKRCTokenInfo{
 			Name:        results[i].Name,
 			Address:     results[i].Address,
