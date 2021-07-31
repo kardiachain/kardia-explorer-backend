@@ -240,7 +240,6 @@ func (s *Server) RefreshKRC20Info(c echo.Context) error {
 }
 
 func (s *Server) SyncContractInfo(c echo.Context) error {
-
 	lgr := s.logger
 	ctx := context.Background()
 	if c.Request().Header.Get("Authorization") != s.authorizationSecret {
@@ -300,7 +299,6 @@ func (s *Server) SyncContractInfo(c echo.Context) error {
 }
 
 func (s *Server) RemoveNilContracts(c echo.Context) error {
-
 	ctx := context.Background()
 	if c.Request().Header.Get("Authorization") != s.authorizationSecret {
 		return Unauthorized.Build(c)

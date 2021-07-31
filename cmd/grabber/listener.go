@@ -92,9 +92,9 @@ func listener(ctx context.Context, srv *server.Server, interval time.Duration) {
 				}
 
 				go func() {
-					if err := srv.ProcessLogsOfTxs(ctx, block.Txs, block.Time); err != nil {
-						lgr.Debug("cannot process logs", zap.Error(err))
-					}
+					//if err := srv.ProcessLogsOfTxs(ctx, block.Txs, block.Time); err != nil {
+					//	lgr.Debug("cannot process logs", zap.Error(err))
+					//}
 
 					if err := srv.FilterProposalEvent(ctx, block.Txs); err != nil {
 						lgr.Debug("filter proposal event failed", zap.Error(err))

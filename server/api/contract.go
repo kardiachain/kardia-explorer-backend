@@ -156,6 +156,7 @@ func (s *Server) Contracts(c echo.Context) error {
 			Status:      int64(results[i].Status),
 			TokenSymbol: results[i].Symbol,
 			Decimal:     int64(results[i].Decimals),
+			TotalSupply: results[i].TotalSupply,
 		}
 	}
 	return OK.SetData(PagingResponse{

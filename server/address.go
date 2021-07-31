@@ -50,7 +50,6 @@ func (s *infoServer) filterContracts(ctx context.Context, txs []*types.Transacti
 	lgr := s.logger
 	for _, tx := range txs {
 		if tx.ContractAddress != "" {
-
 			c := &types.Contract{
 				Address:      tx.ContractAddress,
 				Bytecode:     tx.InputData,

@@ -20,6 +20,7 @@ type FindTxsFilter struct {
 
 type ITxs interface {
 	InsertTxs(ctx context.Context, txs []*types.Transaction) error
+	UpsertTxs(ctx context.Context, txs []*types.Transaction) error
 
 	LatestTxs(ctx context.Context, pagination *types.Pagination) ([]*types.Transaction, error)
 	TxsByAddress(ctx context.Context, address string, pagination *types.Pagination) ([]*types.Transaction, uint64, error)

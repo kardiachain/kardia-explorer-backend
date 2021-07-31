@@ -4,8 +4,9 @@ package audit
 import (
 	"context"
 	"math/big"
+	"time"
 
-	"github.com/kardiachain/go-kardia/types/time"
+	"github.com/kardiachain/go-kardia/lib/common"
 	"github.com/kardiachain/kardia-explorer-backend/cfg"
 	"github.com/kardiachain/kardia-explorer-backend/types"
 	"go.uber.org/zap"

@@ -103,6 +103,7 @@ func createIndexes(dbClient *mongoDB) error {
 		{c: cBlocks, model: []mongo.IndexModel{{Keys: bson.M{"height": -1}, Options: options.Index().SetUnique(true).SetSparse(true)}}},
 		{c: cBlocks, model: []mongo.IndexModel{{Keys: bson.M{"hash": 1}, Options: options.Index().SetUnique(true).SetSparse(true)}}},
 		{c: cBlocks, model: []mongo.IndexModel{{Keys: bson.D{{Key: "proposerAddress", Value: 1}, {Key: "time", Value: -1}}, Options: options.Index().SetSparse(true)}}},
+
 		// indexing addresses collection
 		{c: cAddresses, model: []mongo.IndexModel{{Keys: bson.M{"address": 1}, Options: options.Index().SetUnique(true).SetSparse(true)}}},
 		{c: cAddresses, model: []mongo.IndexModel{{Keys: bson.M{"name": 1}, Options: options.Index().SetSparse(true)}}},
@@ -110,6 +111,7 @@ func createIndexes(dbClient *mongoDB) error {
 		{c: cAddresses, model: []mongo.IndexModel{{Keys: bson.M{"balanceFloat": -1}, Options: options.Index().SetSparse(true)}}},
 		{c: cAddresses, model: []mongo.IndexModel{{Keys: bson.M{"tokenName": 1}, Options: options.Index().SetSparse(true)}}},
 		{c: cAddresses, model: []mongo.IndexModel{{Keys: bson.M{"tokenSymbol": 1}, Options: options.Index().SetSparse(true)}}},
+
 		// indexing proposal collection
 		{c: cProposal, model: []mongo.IndexModel{{Keys: bson.M{"id": -1}, Options: options.Index().SetUnique(true).SetSparse(true)}}},
 		// indexing validator collection
