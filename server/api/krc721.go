@@ -50,3 +50,26 @@ func (s *Server) KRC721Holders(c echo.Context) error {
 		Data:  holders,
 	}).Build(c)
 }
+
+func (s *Server) KRC721Inventory(c echo.Context) error {
+	ctx := context.Background()
+	var (
+		page, limit int
+		err         error
+	)
+	contractAddress := c.Param("contractAddress")
+	pagination, page, limit := getPagingOption(c)
+	holders, total, err := s.dbClient.KRC721Holders(ctx, types.KRC721HolderFilter{
+		Pagination:      pagination,
+		ContractAddress: contractAddress,
+	})
+	if err != nil {
+		return Invalid.Build(c)
+	}
+	return OK.SetData(PagingResponse{
+		Page:  page,
+		Limit: limit,
+		Total: total,
+		Data:  holders,
+	}).Build(c)
+}
