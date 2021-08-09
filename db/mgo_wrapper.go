@@ -136,6 +136,7 @@ func (w *KaiMgo) Distinct(field string, filter interface{}, opts ...*options.Dis
 
 func (w *KaiMgo) Count(filter interface{},
 	opts ...*options.CountOptions) (int64, error) {
+
 	return w.col.CountDocuments(context.Background(), filter, opts...)
 }
 

@@ -32,6 +32,7 @@ type IAddress interface {
 }
 
 func (m *mongoDB) CountAddresses(ctx context.Context) (int64, error) {
+	// This call require `COLLSCAN` so its will me
 	totalAddr, err := m.wrapper.C(cAddresses).Count(bson.M{})
 	if err != nil {
 		return 0, err
