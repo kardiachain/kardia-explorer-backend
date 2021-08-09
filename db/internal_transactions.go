@@ -122,10 +122,11 @@ func (m *mongoDB) GetListInternalTxs(ctx context.Context, filter *types.Internal
 		return nil, 0, err
 	}
 
-	total, err := m.wrapper.C(cInternalTxs).Count(crit)
-	if err != nil {
-		return nil, 0, err
-	}
+	//total, err := m.wrapper.C(cInternalTxs).Count(crit)
+	//if err != nil {
+	//	return nil, 0, err
+	//}
+	total := 1000
 
 	return iTxs, uint64(total), nil
 }
