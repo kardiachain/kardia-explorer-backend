@@ -64,57 +64,60 @@ func (s *Server) HandleReceipts(ctx context.Context, interval time.Duration) {
 	defer p.Release()
 
 	for {
-		receiptHash, err := s.cache.PopReceipt(ctx)
-		if err != nil {
-			if errors.Is(err, ErrRedisNil) {
-				lgr.Info("No receipt left! Sleep ")
-				time.Sleep(interval)
+		select {
+		case <-time.After(interval):
+			receiptHash, err := s.cache.PopReceipt(ctx)
+			if err != nil {
+				if errors.Is(err, ErrRedisNil) {
+					lgr.Info("No receipt left! Sleep ")
+					continue
+				}
+			}
+
+			if receiptHash == "" {
 				continue
 			}
-		}
 
-		if receiptHash == "" {
-			continue
-		}
-
-		// Get receipt from network
-		lgr.Info("Processing receipt", zap.String("ReceiptHash", receiptHash))
-		r, err := s.node.GetTransactionReceipt(ctx, receiptHash)
-		if err != nil {
-			lgr.Error("cannot get receipt from network", zap.Error(err))
-			if errors.As(err, &ErrNotFoundReceipt) {
-				if err := s.cache.PushBadReceipts(ctx, []string{receiptHash}); err != nil {
-					lgr.Error("cannot push to bad receipts", zap.Error(err))
+			// Get receipt from network
+			lgr.Info("Processing receipt", zap.String("ReceiptHash", receiptHash))
+			r, err := s.node.GetTransactionReceipt(ctx, receiptHash)
+			if err != nil {
+				lgr.Error("cannot get receipt from network", zap.Error(err))
+				if errors.As(err, &ErrNotFoundReceipt) {
+					if err := s.cache.PushBadReceipts(ctx, []string{receiptHash}); err != nil {
+						lgr.Error("cannot push to bad receipts", zap.Error(err))
+					}
+					continue
+				}
+				lgr.Info("Push back to process list")
+				if err := s.cache.PushReceipts(ctx, []string{receiptHash}); err != nil {
+					lgr.Error("cannot push back receipt hash into list", zap.Error(err))
+					// todo: Implement notify
+					continue
 				}
 				continue
 			}
-			lgr.Info("Push back to process list")
-			if err := s.cache.PushReceipts(ctx, []string{receiptHash}); err != nil {
-				lgr.Error("cannot push back receipt hash into list", zap.Error(err))
-				// todo: Implement notify
+
+			// If failed
+			if r.Status == 0 {
 				continue
 			}
-			continue
+
+			if err := p.Invoke(r); err != nil {
+				lgr.Error("invoke process error", zap.Error(err))
+			}
+
+			//// Start processing
+			//if err := s.processReceipt(ctx, r); err != nil {
+			//	lgr.Error("cannot process receipt", zap.Error(err))
+			//	if err := s.cache.PushReceipts(ctx, []string{receiptHash}); err != nil {
+			//		lgr.Error("cannot push back receipt into list", zap.Error(err))
+			//		// todo: Implement notify
+			//		continue
+			//	}
+			//}
 		}
 
-		// If failed
-		if r.Status == 0 {
-			continue
-		}
-
-		if err := p.Invoke(r); err != nil {
-			lgr.Error("invoke process error", zap.Error(err))
-		}
-
-		//// Start processing
-		//if err := s.processReceipt(ctx, r); err != nil {
-		//	lgr.Error("cannot process receipt", zap.Error(err))
-		//	if err := s.cache.PushReceipts(ctx, []string{receiptHash}); err != nil {
-		//		lgr.Error("cannot push back receipt into list", zap.Error(err))
-		//		// todo: Implement notify
-		//		continue
-		//	}
-		//}
 	}
 }
 
