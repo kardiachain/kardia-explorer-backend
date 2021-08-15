@@ -60,6 +60,10 @@ func (m *mongoDB) InsertAddress(ctx context.Context, address *types.Address) err
 		address.Address = common.HexToAddress(address.Address).String()
 	}
 	address.BalanceFloat = utils.BalanceToFloat(address.BalanceString)
+	// Skip if address == ""
+	if address.Address == "" {
+		return nil
+	}
 	_, err := m.wrapper.C(cAddresses).Insert(address)
 	if err != nil {
 		return err

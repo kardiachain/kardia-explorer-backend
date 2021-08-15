@@ -54,12 +54,12 @@ func (m *mongoDB) InsertContract(ctx context.Context, contract *types.Contract, 
 			return err
 		}
 	}
-	if addrInfo != nil {
-		addrInfo.UpdatedAt = time.Now().Unix()
-		if _, err := m.wrapper.C(cAddresses).Insert(addrInfo); err != nil {
-			return err
-		}
-	}
+	//if addrInfo != nil {
+	//	addrInfo.UpdatedAt = time.Now().Unix()
+	//	if _, err := m.wrapper.C(cAddresses).Insert(addrInfo); err != nil {
+	//		return err
+	//	}
+	//}
 	return nil
 }
 
