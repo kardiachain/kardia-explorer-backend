@@ -65,7 +65,7 @@ func (s *Server) HandleReceipts(ctx context.Context, interval time.Duration) {
 
 	for {
 		select {
-		case <-time.After(interval):
+		case <-time.After(100 * time.Millisecond):
 			receiptHash, err := s.cache.PopReceipt(ctx)
 			if err != nil {
 				if errors.Is(err, ErrRedisNil) {
