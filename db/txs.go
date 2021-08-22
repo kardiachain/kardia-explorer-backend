@@ -54,6 +54,12 @@ func (m *mongoDB) FindContractCreationTxs(ctx context.Context) ([]*types.Transac
 	if err != nil {
 		return nil, err
 	}
+	defer func() {
+		err = cursor.Close(ctx)
+		if err != nil {
+			m.logger.Warn("Error when close cursor", zap.Error(err))
+		}
+	}()
 
 	if err = cursor.All(ctx, &txs); err != nil {
 		return nil, err
@@ -213,6 +219,13 @@ func (m *mongoDB) FilterTxs(ctx context.Context, filter *types.TxsFilter) ([]*ty
 	if err != nil {
 		return nil, 0, err
 	}
+
+	defer func() {
+		err = cursor.Close(ctx)
+		if err != nil {
+			m.logger.Warn("Error when close cursor", zap.Error(err))
+		}
+	}()
 
 	if err = cursor.All(ctx, &txs); err != nil {
 		return nil, 0, err

@@ -103,7 +103,6 @@ func (m *mongoDB) GetTotalAddresses(ctx context.Context) (uint64, uint64, error)
 
 func (m *mongoDB) GetListAddresses(ctx context.Context, sortDirection int, pagination *types.Pagination) ([]*types.Address, error) {
 	opts := []*options.FindOptions{
-		options.Find().SetHint(bson.M{"balanceFloat": -1}),
 		options.Find().SetSort(bson.M{"balanceFloat": sortDirection}),
 		options.Find().SetSkip(int64(pagination.Skip)),
 		options.Find().SetLimit(int64(pagination.Limit)),

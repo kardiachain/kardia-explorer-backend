@@ -85,7 +85,12 @@ func (m *mongoDB) Delegators(ctx context.Context, filter DelegatorFilter) ([]*ty
 	if err != nil {
 		return nil, err
 	}
-	defer cursor.Close(ctx)
+	defer func() {
+		err = cursor.Close(ctx)
+		if err != nil {
+			m.logger.Warn("Error when close cursor", zap.Error(err))
+		}
+	}()
 
 	if err := cursor.All(ctx, &delegators); err != nil {
 		return nil, err
@@ -152,7 +157,12 @@ func (m *mongoDB) GetStakedOfAddresses(ctx context.Context, addresses []string) 
 	if err != nil {
 		return "", err
 	}
-	defer cursor.Close(ctx)
+	defer func() {
+		err = cursor.Close(ctx)
+		if err != nil {
+			m.logger.Warn("Error when close cursor", zap.Error(err))
+		}
+	}()
 
 	var delegators []*types.Delegator
 	if err := cursor.All(ctx, &delegators); err != nil {

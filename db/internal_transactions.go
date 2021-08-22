@@ -117,6 +117,12 @@ func (m *mongoDB) GetListInternalTxs(ctx context.Context, filter *types.Internal
 	if err != nil {
 		return nil, 0, err
 	}
+	defer func() {
+		err = cursor.Close(ctx)
+		if err != nil {
+			m.logger.Warn("Error when close cursor", zap.Error(err))
+		}
+	}()
 
 	if err := cursor.All(ctx, &iTxs); err != nil {
 		return nil, 0, err

@@ -84,6 +84,12 @@ func (m *mongoDB) AllContracts(ctx context.Context) ([]*types.Contract, error) {
 	if err != nil {
 		return nil, err
 	}
+	defer func() {
+		err = cursor.Close(ctx)
+		if err != nil {
+			m.logger.Warn("Error when close cursor", zap.Error(err))
+		}
+	}()
 
 	if err := cursor.All(ctx, &contracts); err != nil {
 		return nil, err
@@ -99,6 +105,12 @@ func (m *mongoDB) ContractByType(ctx context.Context, contractType string) ([]*t
 	if err != nil {
 		return nil, err
 	}
+	defer func() {
+		err = cursor.Close(ctx)
+		if err != nil {
+			m.logger.Warn("Error when close cursor", zap.Error(err))
+		}
+	}()
 
 	if err := cursor.All(ctx, &contracts); err != nil {
 		return nil, err
@@ -140,6 +152,12 @@ func (m *mongoDB) Contracts(ctx context.Context, filter *types.ContractsFilter) 
 	if err != nil {
 		return nil, 0, err
 	}
+	defer func() {
+		err = cursor.Close(ctx)
+		if err != nil {
+			m.logger.Warn("Error when close cursor", zap.Error(err))
+		}
+	}()
 
 	if err := cursor.All(ctx, &contracts); err != nil {
 		return nil, 0, err

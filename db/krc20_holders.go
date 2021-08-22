@@ -98,6 +98,12 @@ func (m *mongoDB) KRC20Holders(ctx context.Context, filter *types.KRC20HolderFil
 	if err != nil {
 		return nil, 0, err
 	}
+	defer func() {
+		err = cursor.Close(ctx)
+		if err != nil {
+			m.logger.Warn("Error when close cursor", zap.Error(err))
+		}
+	}()
 
 	if err := cursor.All(ctx, &holders); err != nil {
 		return nil, 0, err

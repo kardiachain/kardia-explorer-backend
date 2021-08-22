@@ -101,7 +101,12 @@ func (m *mongoDB) Validators(ctx context.Context, filter ValidatorsFilter) ([]*t
 	if err != nil {
 		return nil, err
 	}
-	defer cursor.Close(ctx)
+	defer func() {
+		err = cursor.Close(ctx)
+		if err != nil {
+			m.logger.Warn("Error when close cursor", zap.Error(err))
+		}
+	}()
 
 	if err := cursor.All(ctx, &validators); err != nil {
 		return nil, err

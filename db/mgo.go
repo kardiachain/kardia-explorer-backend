@@ -481,7 +481,6 @@ func (m *mongoDB) GetListProposals(ctx context.Context, pagination *types.Pagina
 	)
 	if pagination != nil {
 		opts = []*options.FindOptions{
-			options.Find().SetHint(bson.M{"id": -1}),
 			options.Find().SetSort(bson.M{"id": 1}),
 			options.Find().SetSkip(int64(pagination.Skip)),
 			options.Find().SetLimit(int64(pagination.Limit)),
