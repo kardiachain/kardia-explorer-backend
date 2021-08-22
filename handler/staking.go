@@ -102,12 +102,12 @@ func (h *handler) processHeader(ctx context.Context, header *ctypes.Header) {
 		isExist, _ := validatorMap[tx.To]
 		if isExist {
 			h.onInteractWithValidators(ctx, tx)
+			// 2. Calculate new stats
+			if err := h.calculateStakingStats(ctx); err != nil {
+				return
+			}
 		}
 
-		// 2. Calculate new stats
-		if err := h.calculateStakingStats(ctx); err != nil {
-			return
-		}
 	}
 }
 
