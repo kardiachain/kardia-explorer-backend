@@ -3,7 +3,6 @@ package db
 
 import (
 	"context"
-	"fmt"
 	"math/big"
 
 	"github.com/kardiachain/go-kardia/types/time"
@@ -137,18 +136,11 @@ func (m *mongoDB) ClearDelegators(ctx context.Context, validatorSMCAddr string) 
 }
 
 func (m *mongoDB) UniqueDelegators(ctx context.Context) (int, error) {
-	total, err := m.wrapper.C(cDelegator).Count(bson.M{})
-	if err != nil {
-		return 0, err
-	}
-
-	fmt.Println("total row", total)
 	data, err := m.wrapper.C(cDelegator).Distinct("address", bson.M{})
 	if err != nil {
 		return 0, err
 	}
 
-	fmt.Println("Data", len(data))
 	return len(data), nil
 }
 

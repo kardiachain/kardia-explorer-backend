@@ -3,9 +3,7 @@ package api
 
 import (
 	"context"
-	"fmt"
 	"math/big"
-	"time"
 
 	kClient "github.com/kardiachain/go-kaiclient/kardia"
 	"github.com/kardiachain/go-kardia/lib/abi"
@@ -133,14 +131,10 @@ func (s *Server) TxByHash(c echo.Context) error {
 	for id, l := range tx.Logs {
 		if l.Topics[0] == cfg.KRCTransferTopic {
 			// Get contract details
-			start := time.Now()
 			iTx := s.buildInternalTransaction(ctx, &tx.Logs[id])
 			if iTx != nil {
-				fmt.Printf("InternalTxLog:-------%+v\n", iTx.Log)
-				fmt.Printf("InternalTxToken:-------%+v\n", iTx.KRCTokenInfo)
 				internalTxs = append(internalTxs, iTx)
 			}
-			fmt.Println("TotalTime", time.Since(start))
 		}
 	}
 
@@ -274,8 +268,6 @@ func (s *Server) buildInternalTransaction(ctx context.Context, l *types.Log) *In
 	if err != nil {
 		return nil
 	}
-
-	fmt.Printf("UnpackedLog: %+v \n", unpackedLog)
 
 	var from, to string
 	internalTx := &InternalTransaction{
