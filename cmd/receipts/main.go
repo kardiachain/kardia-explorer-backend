@@ -25,7 +25,7 @@ func main() {
 
 	// Limit
 	runtime.GOMAXPROCS(2)
-	debug.SetGCPercent(5000) // Delay GC, which cause consume more RAM but reduce CPU usage
+	debug.SetGCPercent(2500) // Delay GC, which cause consume more RAM but reduce CPU usage
 	serviceCfg, err := cfg.New()
 	if err != nil {
 		panic(err.Error())
