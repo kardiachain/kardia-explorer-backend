@@ -36,6 +36,7 @@ type Client interface {
 	IStaking
 	IReceipts
 	IDashboard
+	IToken
 
 	InsertBlock(ctx context.Context, block *types.Block) error
 	InsertTxsOfBlock(ctx context.Context, block *types.Block) error

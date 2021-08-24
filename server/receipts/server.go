@@ -72,6 +72,7 @@ func (s *Server) HandleReceipts(ctx context.Context, interval time.Duration) {
 					lgr.Info("No receipt left! Sleep ")
 					continue
 				}
+				continue
 			}
 
 			if receiptHash == "" {
