@@ -1,0 +1,8 @@
+FROM kardiachain/explorer-builder
+WORKDIR /go/src/github/kardiachain/explorer-backend
+ADD . .
+WORKDIR /go/src/github/kardiachain/explorer-backend/cmd/balance
+RUN go install
+WORKDIR /go/bin
+RUN mkdir -p abi
+ADD abi /go/bin/abi

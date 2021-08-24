@@ -1,0 +1,15 @@
+version: '3.4'
+
+services:
+  balance:
+    build:
+      context: .
+      dockerfile: Dockerfile.balance
+    image: kardiachain/backend-explorer-balance
+    container_name: "explorer-balance"
+    command: "balance"
+    volumes:
+      - .env.sample:/go/bin/.env
+    extra_hosts:
+      - mongodb:127.0.0.1
+      - redis:127.0.0.1
