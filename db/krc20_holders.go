@@ -89,7 +89,9 @@ func (m *mongoDB) KRC20Holders(ctx context.Context, filter *types.KRC20HolderFil
 	if err != nil {
 		m.logger.Warn("Cannot unmarshal holder filter criteria", zap.Error(err))
 	}
-	var opts []*options.FindOptions
+	opts := []*options.FindOptions{
+		options.Find().SetSort(bson.M{"balanceFloat": -1}),
+	}
 	if filter.Pagination != nil {
 		filter.Pagination.Sanitize()
 		opts = append(opts, options.Find().SetSkip(int64(filter.Pagination.Skip)), options.Find().SetLimit(int64(filter.Pagination.Limit)))
