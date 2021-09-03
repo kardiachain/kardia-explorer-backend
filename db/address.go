@@ -78,6 +78,9 @@ func (m *mongoDB) UpdateAddresses(ctx context.Context, addresses []*types.Addres
 	}
 	var updateAddressOperations []mongo.WriteModel
 	for _, info := range addresses {
+		if info.Address == "" {
+			continue
+		}
 		info.Address = common.HexToAddress(info.Address).String()
 		info.BalanceFloat = utils.BalanceToFloat(info.BalanceString)
 		updateAddressOperations = append(updateAddressOperations,
