@@ -94,7 +94,8 @@ func (m *mongoDB) KRC721Holders(ctx context.Context, filter types.KRC721HolderFi
 }
 
 func (m *mongoDB) RemoveKRC721Holder(ctx context.Context, holder *types.KRC721Holder) error {
-	if _, err := m.wrapper.C(cKRC721Holders).Remove(bson.M{"holderAddress": holder.Address, "contractAddress": holder.ContractAddress}); err != nil {
+	holderToRemove := common.HexToAddress(holder.Address).String()
+	if _, err := m.wrapper.C(cKRC721Holders).Remove(bson.M{"holderAddress": holderToRemove, "contractAddress": holder.ContractAddress}); err != nil {
 		return err
 	}
 	return nil
@@ -103,6 +104,7 @@ func (m *mongoDB) RemoveKRC721Holder(ctx context.Context, holder *types.KRC721Ho
 func (m *mongoDB) UpsertKRC721Holders(ctx context.Context, holders []*types.KRC721Holder) error {
 	holdersBulkWriter := make([]mongo.WriteModel, len(holders))
 	for i := range holders {
+		holders[i].Address = common.HexToAddress(holders[i].Address).String()
 		holders[i].HolderID = fmt.Sprintf("%s-%s", holders[i].ContractAddress, holders[i].TokenID)
 		txModel := mongo.NewUpdateOneModel().SetUpsert(true).SetFilter(bson.M{"holderID": holders[i].HolderID}).SetUpdate(bson.M{"$set": holders[i]})
 		holdersBulkWriter[i] = txModel
