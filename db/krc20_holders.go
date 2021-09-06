@@ -56,7 +56,8 @@ func (m *mongoDB) UpsertKRC20Holders(ctx context.Context, holdersInfo []*types.K
 }
 
 func (m *mongoDB) RemoveKRC20Holder(ctx context.Context, holder *types.KRC20Holder) error {
-	if _, err := m.wrapper.C(cKRC20Holders).Remove(bson.M{"holderAddress": holder.HolderAddress, "contractAddress": holder.ContractAddress}); err != nil {
+	holderToRemove := common.HexToAddress(holder.HolderAddress).String()
+	if _, err := m.wrapper.C(cKRC20Holders).Remove(bson.M{"holderAddress": holderToRemove, "contractAddress": holder.ContractAddress}); err != nil {
 		return err
 	}
 	return nil
