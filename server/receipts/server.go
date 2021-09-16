@@ -122,11 +122,14 @@ func (s *Server) HandleReceipts(ctx context.Context, interval time.Duration) {
 }
 
 func (s *Server) processReceipt(ctx context.Context, r *kClient.Receipt) error {
+	lgr := s.logger.With(zap.String("method", "processReceipt"))
 	//lgr := s.logger
 	for _, l := range r.Logs {
 		// Process if transfer event
 		if l.Topics[0] == cfg.KRCTransferTopic {
-			s.processTransferLog(ctx, l)
+			if err := s.processTransferLog(ctx, l); err != nil {
+				lgr.Error("cannot process transfer logs", zap.Error(err))
+			}
 		}
 
 		// Process if mint/burn event
