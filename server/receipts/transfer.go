@@ -204,6 +204,7 @@ func (s *Server) onKRC721Transfer(ctx context.Context, c *types.Contract, l *kCl
 	var krcABI *abi.ABI
 	krcABI, err := kClient.KRC721ABI()
 	if err != nil {
+		lgr.Error("cannot get KRC721ABI", zap.Error(err))
 		return err
 	}
 	if c.ABI != "" {
@@ -216,6 +217,7 @@ func (s *Server) onKRC721Transfer(ctx context.Context, c *types.Contract, l *kCl
 
 	unpackedLog, err := kClient.UnpackLog(l, krcABI)
 	if err != nil {
+		lgr.Error("cannot unpack logs", zap.Error(err))
 		return err
 	}
 	//lgr.Info("UnpackLog", zap.Any("UnpackedLog", unpackedLog))
