@@ -158,8 +158,8 @@ func (s *Server) upsertKRC20Holder(ctx context.Context, log *kClient.Log) error 
 		return err
 	}
 
-	lgr.Info("FromBalance", zap.String("Balance", fromBalance.String()))
-	lgr.Info("ToBalance", zap.String("Balance", toBalance.String()))
+	//lgr.Info("FromBalance", zap.String("Balance", fromBalance.String()))
+	//lgr.Info("ToBalance", zap.String("Balance", toBalance.String()))
 
 	holders[0] = &types.KRC20Holder{
 		ContractAddress: log.Address,
@@ -178,12 +178,12 @@ func (s *Server) upsertKRC20Holder(ctx context.Context, log *kClient.Log) error 
 	}
 
 	if fromBalance.Cmp(ZERO_BI) == 0 {
-		lgr.Info("Remove holder since from balance = 0")
+		//lgr.Info("Remove holder since from balance = 0")
 		if err := s.db.RemoveKRC20Holder(ctx, holders[0]); err != nil {
 			return err
 		}
 	} else {
-		lgr.Info("Update holder since from balance != 0")
+		//lgr.Info("Update holder since from balance != 0")
 		if err := s.db.UpsertKRC20Holders(ctx, []*types.KRC20Holder{holders[0]}); err != nil {
 			lgr.Error("cannot update from holder", zap.Error(err))
 			return err
@@ -191,12 +191,12 @@ func (s *Server) upsertKRC20Holder(ctx context.Context, log *kClient.Log) error 
 	}
 
 	if toBalance.Cmp(ZERO_BI) == 0 {
-		lgr.Info("Remove holder since to balance = 0")
+		//lgr.Info("Remove holder since to balance = 0")
 		if err := s.db.RemoveKRC20Holder(ctx, holders[1]); err != nil {
 			return err
 		}
 	} else {
-		lgr.Info("Update holder since to balance != 0")
+		//lgr.Info("Update holder since to balance != 0")
 		if err := s.db.UpsertKRC20Holders(ctx, []*types.KRC20Holder{holders[1]}); err != nil {
 			lgr.Error("cannot update to holder", zap.Error(err))
 			return err
