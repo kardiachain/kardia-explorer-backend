@@ -217,6 +217,10 @@ func (m *mongoDB) UpdateKRCTotalSupply(ctx context.Context, krcTokenAddress, tot
 	if err != nil {
 		return err
 	}
+
+	if addrInfo.Address == "" {
+		return nil
+	}
 	addrInfo.TotalSupply = totalSupply
 	addrInfo.UpdatedAt = time.Now().Unix()
 	if _, err := m.wrapper.C(cAddresses).Upsert(bson.M{"address": addrInfo.Address}, addrInfo); err != nil {
