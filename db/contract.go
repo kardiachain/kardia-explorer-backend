@@ -201,6 +201,9 @@ func (m *mongoDB) UpdateContract(ctx context.Context, contract *types.Contract, 
 		return err
 	}
 	if addrInfo != nil {
+		if addrInfo.Address == "" {
+			return nil
+		}
 		addrInfo.UpdatedAt = time.Now().Unix()
 		if _, err := m.wrapper.C(cAddresses).Upsert(bson.M{"address": addrInfo.Address}, addrInfo); err != nil {
 			return err
