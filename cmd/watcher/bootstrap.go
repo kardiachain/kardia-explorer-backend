@@ -83,14 +83,14 @@ func loadStakingBootData(ctx context.Context, cfg cfg.ExplorerConfig) error {
 			return err
 		}
 		validators[id].VotingPowerPercentage = votingPower
-		lgr.Debug("ValidatorInfo", zap.String("Name", v.Name))
+		lgr.Info("ValidatorInfo", zap.String("Name", v.Name))
 		delegators, err := w.DelegatorsWithWorker(ctx, v.SmcAddress)
 		if err != nil {
 			lgr.Error("cannot load delegator", zap.String("validator", v.SmcAddress), zap.Error(err))
 			return err
 		}
 
-		lgr.Debug("Delegator", zap.Int("Size", len(delegators)))
+		lgr.Info("Delegator", zap.Int("Size", len(delegators)))
 
 		if err := dbClient.UpsertDelegators(ctx, delegators); err != nil {
 			lgr.Error("cannot upsert delegators", zap.Error(err))
@@ -154,7 +154,7 @@ func loadStakingBootData(ctx context.Context, cfg cfg.ExplorerConfig) error {
 		lgr.Error("cannot upsert validators", zap.Error(err))
 		return err
 	}
-	lgr.Debug("Finished loading boot data ", zap.Any("Total", time.Now().Sub(loadBootDataTime)))
+	lgr.Info("Finished loading boot data ", zap.Any("Total", time.Now().Sub(loadBootDataTime)))
 
 	return nil
 }

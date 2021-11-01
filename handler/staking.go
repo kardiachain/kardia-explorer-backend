@@ -162,7 +162,7 @@ func (h *handler) reloadProposer(ctx context.Context, proposerAddress string) er
 			lgr.Error("cannot get proposer info", zap.Error(err))
 			return err
 		}
-		lgr.Debug("Reload delegators of proposer",
+		lgr.Info("Reload delegators of proposer",
 			zap.String("Address", proposerAddress),
 			zap.String("Name", proposerInfo.Name),
 			zap.Int64("TotalBlock", totalBlockOfProposer))
