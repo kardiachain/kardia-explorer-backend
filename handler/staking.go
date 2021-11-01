@@ -159,7 +159,7 @@ func (h *handler) reloadProposer(ctx context.Context, proposerAddress string) er
 	if totalBlockOfProposer%20 == 0 {
 		proposerInfo, err := h.db.Validator(ctx, proposerAddress)
 		if err != nil {
-			lgr.Error("cannot get proposer info", zap.Error(err))
+			lgr.Error("cannot get proposer info", zap.Error(err), zap.String("proposer", proposerAddress))
 			return err
 		}
 		lgr.Info("Reload delegators of proposer",
