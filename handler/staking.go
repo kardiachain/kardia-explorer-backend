@@ -186,7 +186,7 @@ func (h *handler) reloadValidator(ctx context.Context, validatorSMCAddress strin
 		lgr.Warn("cannot get validator info", zap.String("SMCAddress", validatorSMCAddress), zap.Error(err))
 		return
 	}
-	lgr.Debug("ValidatorInfo", zap.Any("validator", v))
+	lgr.Info("ValidatorInfo", zap.Any("validator", v))
 
 	// If stakedAmount == 0, then remove
 	if v.StakedAmount == "0" {
