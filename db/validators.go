@@ -5,6 +5,7 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/kardiachain/go-kardia/lib/common"
 	"go.uber.org/zap"
 
 	"github.com/kardiachain/kardia-explorer-backend/cfg"
@@ -116,6 +117,9 @@ func (m *mongoDB) Validators(ctx context.Context, filter ValidatorsFilter) ([]*t
 }
 
 func (m *mongoDB) Validator(ctx context.Context, validatorAddress string) (*types.Validator, error) {
+	// Force checksum validator address before make query
+	// todo: better to force all address into lowercase before insert into db
+	validatorAddress = common.HexToAddress(validatorAddress).String()
 	var validator *types.Validator
 	if err := m.wrapper.C(cValidators).FindOne(bson.M{"address": validatorAddress}).Decode(&validator); err != nil {
 		return nil, err
