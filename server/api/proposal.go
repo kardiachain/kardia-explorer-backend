@@ -66,6 +66,7 @@ func (s *Server) GetProposalDetails(c echo.Context) error {
 		fmt.Println("GetProposalDetails err: ", err)
 		return Invalid.Build(c)
 	}
+	s.logger.Info("Proposal details", zap.Any("Details", result))
 	return OK.SetData(result).Build(c)
 }
 
