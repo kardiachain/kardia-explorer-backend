@@ -57,11 +57,12 @@ func (s *Server) GetProposalDetails(c echo.Context) error {
 	if !ok {
 		return Invalid.Build(c)
 	}
-	result, err := s.dbClient.ProposalInfo(ctx, proposalID.Uint64())
-	if err == nil {
-		return OK.SetData(result).Build(c)
-	}
-	result, err = s.kaiClient.GetProposalDetails(ctx, proposalID)
+	// Force get details from chain
+	//result, err := s.dbClient.ProposalInfo(ctx, proposalID.Uint64())
+	//if err == nil {
+	//	return OK.SetData(result).Build(c)
+	//}
+	result, err := s.kaiClient.GetProposalDetails(ctx, proposalID)
 	if err != nil {
 		fmt.Println("GetProposalDetails err: ", err)
 		return Invalid.Build(c)
