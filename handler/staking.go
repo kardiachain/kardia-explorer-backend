@@ -153,6 +153,7 @@ func (h *handler) reloadProposer(ctx context.Context, proposerAddress string) er
 			lgr.Error("cannot get total block of proposer from db", zap.Error(err))
 			return err
 		}
+		_ = h.cache.UpdateNumOfBlocksByProposer(ctx, proposerAddress, totalBlockOfProposer)
 	}
 
 	// Reset validator delegators data every 20 block
