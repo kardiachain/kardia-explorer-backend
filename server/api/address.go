@@ -87,6 +87,7 @@ func (s *Server) AddressInfo(c echo.Context) error {
 			addrInfo.IsContract = len(code) > 0
 			_ = s.dbClient.UpdateAddresses(ctx, []*types.Address{addrInfo})
 		}
+		s.logger.Info("Address details", zap.Any("Address", addrInfo))
 		result := SimpleAddress{
 			Address:       addrInfo.Address,
 			BalanceString: addrInfo.BalanceString,
@@ -105,6 +106,7 @@ func (s *Server) AddressInfo(c echo.Context) error {
 	if err != nil {
 		return Invalid.Build(c)
 	}
+	s.logger.Info("Address details", zap.Any("AddrDetails", newAddr))
 	result := &SimpleAddress{
 		Address:       newAddr.Address,
 		BalanceString: newAddr.BalanceString,
