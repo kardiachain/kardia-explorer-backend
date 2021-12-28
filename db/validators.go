@@ -44,6 +44,7 @@ func (m *mongoDB) UpsertValidators(ctx context.Context, validators []*types.Vali
 		contractModels []mongo.WriteModel
 	)
 	for _, v := range validators {
+		lgr.Info("Update model", zap.Any("ValInfo", v))
 		models = append(models, mongo.NewUpdateOneModel().SetUpsert(true).SetFilter(bson.M{"smcAddress": v.SmcAddress}).SetUpdate(bson.M{"$set": v}))
 		contractInfo, addressInfo, err := m.Contract(ctx, v.SmcAddress)
 		if err != nil {
