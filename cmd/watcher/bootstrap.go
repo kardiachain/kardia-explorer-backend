@@ -84,6 +84,7 @@ func loadStakingBootData(ctx context.Context, cfg cfg.ExplorerConfig) error {
 		}
 		validators[id].VotingPowerPercentage = votingPower
 		lgr.Info("ValidatorInfo", zap.String("Name", v.Name))
+		lgr.Info("ValidatorDetail", zap.Any("Detail", v))
 		delegators, err := w.DelegatorsWithWorker(ctx, v.SmcAddress)
 		if err != nil {
 			lgr.Error("cannot load delegator", zap.String("validator", v.SmcAddress), zap.Error(err))
