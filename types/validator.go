@@ -41,8 +41,8 @@ type Validators struct {
 type Validator struct {
 	Address               string       `json:"address" bson:"address,omitempty"`
 	SmcAddress            string       `json:"smcAddress" bson:"smcAddress,omitempty"`
-	Status                uint8        `json:"status" bson:"status,omitempty"`
-	Role                  int          `json:"role" bson:"role,omitempty"`
+	Status                uint8        `json:"status" bson:"status"`
+	Role                  int          `json:"role" bson:"role"`
 	Jailed                bool         `json:"jailed" bson:"jailed,omitempty"`
 	Name                  string       `json:"name,omitempty" bson:"name,omitempty"`
 	VotingPowerPercentage string       `json:"votingPowerPercentage" bson:"votingPowerPercentage,omitempty"`
