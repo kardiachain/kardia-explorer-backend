@@ -43,7 +43,9 @@ func (h *handler) reloadAllValidator(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-
+	for _, v := range validators {
+		lgr.Info("Validator from network", zap.Any("V", v))
+	}
 	if err := h.db.UpsertValidators(ctx, validators); err != nil {
 		lgr.Error("cannot upsert validators", zap.Error(err))
 		return err
