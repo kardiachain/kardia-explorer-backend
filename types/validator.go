@@ -45,7 +45,7 @@ type Validator struct {
 	Role                  int          `json:"role" bson:"role"`
 	Jailed                bool         `json:"jailed" bson:"jailed"`
 	Name                  string       `json:"name,omitempty" bson:"name,omitempty"`
-	VotingPowerPercentage string       `json:"votingPowerPercentage" bson:"votingPowerPercentage"`
+	VotingPowerPercentage string       `json:"votingPowerPercentage" bson:"votingPowerPercentage,omitempty"`
 	StakedAmount          string       `json:"stakedAmount" bson:"stakedAmount,omitempty"`
 	AccumulatedCommission string       `json:"accumulatedCommission" bson:"accumulatedCommission,omitempty"`
 	UpdateTime            uint64       `json:"updateTime" bson:"updateTime,omitempty"`
