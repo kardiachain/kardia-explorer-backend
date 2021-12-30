@@ -5,6 +5,7 @@ import (
 	"context"
 	"fmt"
 	"math/big"
+	"time"
 
 	"github.com/kardiachain/go-kaiclient/kardia"
 	ctypes "github.com/kardiachain/go-kardia/types"
@@ -19,6 +20,37 @@ import (
 type IStakingHandler interface {
 	SubscribeStakingEvent(ctx context.Context) error
 	SubscribeValidatorEvent(ctx context.Context) error
+	ReloadValidators(ctx context.Context) error
+}
+
+func (h *handler) ReloadValidators(ctx context.Context) error {
+	lgr := h.logger.With(zap.String("method", "reloadValidators"))
+	ticker := time.NewTicker(300 * time.Second)
+	for {
+		select {
+		case <-ticker.C:
+			lgr.Info("Start reload validator list ", zap.Time("At", time.Now()))
+			_ = h.reloadAllValidator(ctx)
+		}
+	}
+
+}
+
+func (h *handler) reloadAllValidator(ctx context.Context) error {
+	reloadTime := time.Now()
+	lgr := h.logger.With(zap.String("method", "reloadAllValidatorInfo"))
+	validators, err := h.w.ValidatorsWithWorker(ctx)
+	if err != nil {
+		return err
+	}
+
+	if err := h.db.UpsertValidators(ctx, validators); err != nil {
+		lgr.Error("cannot upsert validators", zap.Error(err))
+		return err
+	}
+	lgr.Info("Finished reload validators data ", zap.Any("Total", time.Now().Sub(reloadTime)))
+
+	return nil
 }
 
 func (h *handler) SubscribeStakingEvent(ctx context.Context) error {

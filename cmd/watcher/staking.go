@@ -43,6 +43,8 @@ func runStakingSubscriber(ctx context.Context, serviceCfg cfg.ExplorerConfig) er
 		}
 	}
 
+	go h.ReloadValidators(ctx)
+
 	go h.SubscribeStakingEvent(ctx)
 	go h.SubscribeValidatorEvent(ctx)
 	return nil
