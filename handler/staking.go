@@ -320,6 +320,7 @@ func (h *handler) calculateStakingStats(ctx context.Context) error {
 		TotalCandidates:            len(totalCandidate),
 		TotalDelegators:            totalUniqueDelegator,
 		TotalStakedAmount:          totalStaked.String(),
+		MaxValidator:               30,
 		TotalValidatorStakedAmount: totalValidatorStakedAmount,
 		TotalDelegatorStakedAmount: TotalDelegatorsStakedAmount.String(),
 	}
