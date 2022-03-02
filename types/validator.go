@@ -15,6 +15,7 @@ type StakingStats struct {
 	TotalStakedAmount          string `json:"totalStakedAmount"`
 	TotalValidatorStakedAmount string `json:"totalValidatorStakedAmount"`
 	TotalDelegatorStakedAmount string `json:"totalDelegatorStakedAmount"`
+	MaxValidator               int    `json:"maxValidator"`
 }
 
 type ValidatorStats struct {

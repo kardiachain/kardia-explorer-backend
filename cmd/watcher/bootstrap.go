@@ -137,6 +137,7 @@ func loadStakingBootData(ctx context.Context, cfg cfg.ExplorerConfig) error {
 		TotalProposers:             len(totalProposer),
 		TotalCandidates:            len(totalCandidate),
 		TotalDelegators:            totalUniqueDelegator,
+		MaxValidator:               30,
 		TotalStakedAmount:          totalStaked.String(),
 		TotalValidatorStakedAmount: totalValidatorStakedAmount,
 		TotalDelegatorStakedAmount: TotalDelegatorsStakedAmount.String(),
