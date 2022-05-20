@@ -34,12 +34,12 @@ func runStakingSubscriber(ctx context.Context, serviceCfg cfg.ExplorerConfig) er
 	}
 	h, err := handler.New(handlerCfg)
 	if err != nil {
-		return err
+		panic(err.Error())
 	}
 
 	if serviceCfg.IsReloadStakingBootData {
 		if err := loadStakingBootData(ctx, serviceCfg); err != nil {
-			return err
+			panic(err.Error())
 		}
 	}
 
