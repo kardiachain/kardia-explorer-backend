@@ -217,13 +217,13 @@ func (s *Server) onKRC721Transfer(ctx context.Context, c *types.Contract, l *kCl
 
 	unpackedLog, err := kClient.UnpackLog(l, krcABI)
 	if err != nil {
-		lgr.Error("cannot unpack logs", zap.Error(err))
+		lgr.Error("cannot unpack logs", zap.Error(err), zap.Any("Log", l))
 		return err
 	}
 	//lgr.Info("UnpackLog", zap.Any("UnpackedLog", unpackedLog))
 	// Insert new transfer and holder
 	if err := s.insertKRC721Transfer(ctx, unpackedLog); err != nil {
-		lgr.Error("cannot insert token transfer", zap.Error(err))
+		lgr.Error("cannot insert token transfer", zap.Error(err), zap.Any("UnpackedLog", unpackedLog))
 		return err
 	}
 
