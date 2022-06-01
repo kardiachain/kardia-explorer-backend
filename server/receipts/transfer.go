@@ -206,6 +206,7 @@ func (s *Server) onKRC721Transfer(ctx context.Context, c *types.Contract, l *kCl
 		lgr.Error("cannot get KRC721ABI", zap.Error(err))
 		return err
 	}
+	lgr.Info("Contract info", zap.Any("C", c))
 	if c.ABI != "" {
 		// Decode and use contract ABI instead
 		smcABI, err := s.decodeSMCABIFromBase64(ctx, c.ABI, c.Address)
