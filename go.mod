@@ -9,7 +9,7 @@ require (
 	github.com/go-redis/redis/v8 v8.2.3
 	github.com/google/go-cmp v0.5.6 // indirect
 	github.com/joho/godotenv v1.3.0
-	github.com/kardiachain/go-kaiclient v1.0.3-0.20220601102720-e4f1ce809c48 // indirect
+	github.com/kardiachain/go-kaiclient v1.0.3-0.20220601103725-0cd58a3e4908 // indirect
 	github.com/kardiachain/go-kardia v1.2.3-0.20210525082104-2913103edf92
 	github.com/kr/text v0.2.0 // indirect
 	github.com/labstack/echo v3.3.10+incompatible
