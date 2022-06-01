@@ -127,6 +127,7 @@ func (s *Server) processReceipt(ctx context.Context, r *kClient.Receipt) error {
 	for _, l := range r.Logs {
 		// Process if transfer event
 		if l.Topics[0] == cfg.KRCTransferTopic {
+			lgr.Info("Logs", zap.Any("l", l))
 			if err := s.processTransferLog(ctx, l); err != nil {
 				lgr.Error("cannot process transfer logs", zap.Error(err))
 			}
