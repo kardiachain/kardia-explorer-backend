@@ -217,9 +217,10 @@ func (s *Server) onKRC721Transfer(ctx context.Context, c *types.Contract, l *kCl
 	var unpackedLog *kClient.Log
 	unpackedLog, err = kClient.UnpackLog(l, krcABI)
 	if err != nil {
-		lgr.Error("cannot unpack logs", zap.Error(err), zap.Any("Log", l))
+		lgr.Error("Cannot unpack with contract ABIs. Using default", zap.Error(err))
 		unpackedLog, err = kClient.UnpackLog(l, defaultKRCABI)
 		if err != nil {
+			lgr.Error("cannot unpack with default ABIs.", zap.Error(err))
 			return err
 		}
 	}
