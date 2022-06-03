@@ -201,7 +201,7 @@ func (s *Server) onKRC20Transfer(ctx context.Context, c *types.Contract, l *kCli
 func (s *Server) onKRC721Transfer(ctx context.Context, c *types.Contract, l *kClient.Log) error {
 	lgr := s.logger
 	var krcABI *abi.ABI
-	krcABI, err := kClient.KRC721ABI()
+	defaultKRCABI, err := kClient.KRC721ABI()
 	if err != nil {
 		lgr.Error("cannot get KRC721ABI", zap.Error(err))
 		return err
@@ -214,11 +214,14 @@ func (s *Server) onKRC721Transfer(ctx context.Context, c *types.Contract, l *kCl
 			krcABI = smcABI
 		}
 	}
-
-	unpackedLog, err := kClient.UnpackLog(l, krcABI)
+	var unpackedLog *kClient.Log
+	unpackedLog, err = kClient.UnpackLog(l, krcABI)
 	if err != nil {
 		lgr.Error("cannot unpack logs", zap.Error(err), zap.Any("Log", l))
-		return err
+		unpackedLog, err = kClient.UnpackLog(l, defaultKRCABI)
+		if err != nil {
+			return err
+		}
 	}
 	lgr.Info("UnpackLog", zap.Any("UnpackedLog", unpackedLog))
 	// Insert new transfer and holder
