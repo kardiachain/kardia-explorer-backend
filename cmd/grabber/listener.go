@@ -67,6 +67,7 @@ func listener(ctx context.Context, srv *server.Server, interval time.Duration) {
 					lgr.Error("Failed to get block from RPC", zap.Error(err))
 					continue
 				}
+				lgr.Info("Block info from network", zap.Any("Block", block))
 				endTime = time.Since(startTime)
 				srv.Metrics().RecordScrapingTime(endTime)
 				lgr.Info("scraping block time", zap.Duration("TimeConsumed", endTime), zap.String("Avg", srv.Metrics().GetScrapingTime()))
