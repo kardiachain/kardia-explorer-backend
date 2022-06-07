@@ -504,6 +504,7 @@ func (c *Redis) getBlockInCache(ctx context.Context, height uint64, hash string)
 	if err != nil {
 		return nil, err
 	}
+	c.logger.Info("Try to fetch block from cache with length", zap.Int64("Size", length))
 	var block *types.Block
 	for _, blockStr := range blockStrList {
 		err = json.Unmarshal([]byte(blockStr), &block)
