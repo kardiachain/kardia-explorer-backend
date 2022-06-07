@@ -512,10 +512,21 @@ func (c *Redis) getBlockInCache(ctx context.Context, height uint64, hash string)
 			return nil, err
 		}
 
-		if (block.Height == height) || (block.Hash == hash) {
-			c.logger.Info("Block info from cache", zap.Any("Block", block))
-			return block, nil
+		// Check by height
+		if height != 0 {
+			if block.Height == height {
+				return block, nil
+			}
+		} else {
+			if block.Hash == hash {
+				return block, nil
+			}
 		}
+
+		//if (block.Height == height) || (block.Hash == hash) {
+		//	c.logger.Info("Block info from cache", zap.Any("Block", block))
+		//	return block, nil
+		//}
 	}
 	return nil, errors.New("block not found in cache")
 }
