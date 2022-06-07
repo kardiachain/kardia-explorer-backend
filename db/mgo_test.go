@@ -55,6 +55,7 @@ func GetMgo() (*mongoDB, error) {
 	}
 	return mgo, nil
 }
+
 func Test_mongoDB_GetAddressInfo(t *testing.T) {
 	ctx := context.Background()
 	mgo, err := GetMgo()

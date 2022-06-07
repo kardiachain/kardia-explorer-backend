@@ -302,11 +302,13 @@ func (m *mongoDB) IsBlockExist(ctx context.Context, blockHeight uint64) (bool, e
 	var dbBlock types.Block
 	err := m.wrapper.C(cBlocks).FindOne(bson.M{"height": blockHeight}, options.FindOne().SetProjection(bson.M{"txs": 0, "receipts": 0})).Decode(&dbBlock)
 	if err != nil {
+		m.logger.Error("find error")
 		if err == mongo.ErrNoDocuments {
 			return false, nil
 		}
 		return false, err
 	}
+	m.logger.Debug("Block info", zap.Any("B", dbBlock))
 	return true, nil
 }
 
