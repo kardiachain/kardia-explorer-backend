@@ -300,6 +300,7 @@ func (m *mongoDB) BlockByHash(ctx context.Context, blockHash string) (*types.Blo
 
 func (m *mongoDB) IsBlockExist(ctx context.Context, blockHeight uint64) (bool, error) {
 	var dbBlock types.Block
+	m.logger.Info("Find block with height", zap.Uint64("Height", blockHeight))
 	err := m.wrapper.C(cBlocks).FindOne(bson.M{"height": blockHeight}, options.FindOne().SetProjection(bson.M{"txs": 0, "receipts": 0})).Decode(&dbBlock)
 	if err != nil {
 		m.logger.Error("find error")
