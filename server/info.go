@@ -274,11 +274,13 @@ func (s *infoServer) BlockByHeight(ctx context.Context, blockHeight uint64) (*ty
 	lgr := s.logger.With(zap.Uint64("Height", blockHeight))
 	cacheBlock, err := s.cacheClient.BlockByHeight(ctx, blockHeight)
 	if err == nil {
+		lgr.Info("Get block from cache")
 		return cacheBlock, nil
 	}
 
 	dbBlock, err := s.dbClient.BlockByHeight(ctx, blockHeight)
 	if err == nil {
+		lgr.Info("Get block from db")
 		return dbBlock, nil
 	}
 	// Something wrong or we stay behind the network
