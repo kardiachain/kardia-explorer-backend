@@ -510,7 +510,9 @@ func (c *Redis) getBlockInCache(ctx context.Context, height uint64, hash string)
 		if err != nil {
 			return nil, err
 		}
+
 		if (block.Height == height) || (block.Hash == hash) {
+			c.logger.Debug("Block info from cache", zap.Any("Block", block))
 			return block, nil
 		}
 	}
