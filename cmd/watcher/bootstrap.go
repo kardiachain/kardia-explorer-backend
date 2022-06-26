@@ -143,6 +143,8 @@ func loadStakingBootData(ctx context.Context, cfg cfg.ExplorerConfig) error {
 		TotalDelegatorStakedAmount: TotalDelegatorsStakedAmount.String(),
 	}
 
+	lgr.Info("Staking stats", zap.Any("Stats", stats))
+
 	if err := cacheClient.UpdateStakingStats(ctx, stats); err != nil {
 		lgr.Error("cannot update staking stats", zap.Error(err))
 		return err
