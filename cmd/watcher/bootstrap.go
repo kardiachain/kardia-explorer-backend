@@ -91,11 +91,12 @@ func loadStakingBootData(ctx context.Context, cfg cfg.ExplorerConfig) error {
 			return err
 		}
 
-		lgr.Info("Delegator", zap.Int("Size", len(delegators)))
-
-		if err := dbClient.UpsertDelegators(ctx, delegators); err != nil {
-			lgr.Error("cannot upsert delegators", zap.Error(err))
-			return err
+		if len(delegators) > 0 {
+			lgr.Info("Delegator", zap.Int("Size", len(delegators)))
+			if err := dbClient.UpsertDelegators(ctx, delegators); err != nil {
+				lgr.Error("cannot upsert delegators", zap.Error(err))
+				return err
+			}
 		}
 	}
 	totalValidator, err := dbClient.Validators(ctx, db.ValidatorsFilter{})
